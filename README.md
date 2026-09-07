@@ -404,6 +404,38 @@ Additional eligibility tests will be added as the domain rules are expanded.
 
 ---
 
+## Docker
+
+Build the image:
+
+```powershell
+docker build -t flagtastic-league .
+```
+
+Run the app:
+
+```powershell
+docker run --rm -p 8000:8000 -e DATABASE_URL="postgresql://flagtastic:flagtastic@host.docker.internal:5432/flagtastic" flagtastic-league
+```
+
+Health check:
+
+```powershell
+curl http://localhost:8000/live
+```
+---
+
+## CI
+
+GitHub Actions runs the test suite on every push and pull request.
+
+The workflow uses a PostgreSQL service container and requires these repository secrets:
+
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_DB`
+---
+
 # 🗺️ Development Roadmap
 
 ```mermaid
