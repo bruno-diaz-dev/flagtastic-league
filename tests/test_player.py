@@ -2,7 +2,7 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
-
+from database import get_connection
 from repositories import players
 
 os.environ["DATABASE_URL"] = (
@@ -254,3 +254,133 @@ def test_player_duplicated_in_branch_and_category():
     assert second_response.json() == {
         "detail": "Player already registered in this branch and category"
     }
+
+def test_same_jersey_number_in_different_teams():
+    tigres_id = create_test_team(
+        name="Tigres",
+        branch="varonil",
+        category="libre"
+    )
+
+    hawks_id = create_test_team(
+        name="Hawks",
+        branch="mixto",
+        category="libre"
+    )
+
+    first_player = {
+        "name": "Bruno Diaz",
+        "curp": "DIBB961215HASXXX00",
+        "age": 29,
+        "jersey_number": 83
+    }
+
+    second_player = {
+        "name": "Jose Lopez",
+        "curp": "LOPJ950101HASXX001",
+        "age": 31,
+        "jersey_number": 83
+    }
+
+    first_response = client.post(
+        f"/api/teams/{tigres_id}/players",
+        json=first_player
+    )
+
+    second_response = client.post(
+        f"/api/teams/{hawks_id}/players",
+        json=second_player
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+def test_player_duplicity_in_same_team():
+    tigres_id = create_test_team(
+        name="Tigres",
+        branch="varonil",
+        category="libre"
+    )
+
+    player = {
+        "name": "Bruno Diaz",
+        "curp": "DIBB961215HASXXX00",
+        "age": 29,
+        "jersey_number": 83
+    }
+
+    first_response = client.post(
+        f"/api/teams/{tigres_id}/players",
+        json=player
+    )
+
+    second_response = client.post(
+        f"/api/teams/{tigres_id}/players",
+        json=player
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
+
+
+def test_reused_curp_creates_one_player_with_multiple_memberships():
+    tigres_id = create_test_team(
+        name="Tigres",
+        branch="varonil",
+        category="libre"
+    )
+
+    ravens_id = create_test_team(
+        name="Ravens",
+        branch="mixto",
+        category="libre"
+    )
+
+    player = {
+        "name": "Bruno Diaz",
+        "curp": "DIBB961215HASXXX00",
+        "age": 29,
+        "jersey_number": 83
+    }
+
+    first_response = client.post(
+        f"/api/teams/{tigres_id}/players",
+        json=player
+    )
+
+    second_response = client.post(
+        f"/api/teams/{ravens_id}/players",
+        json=player
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+    connection = get_connection()
+
+    player_count = connection.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM players
+        WHERE curp = %s
+        """,
+        (player["curp"],)
+    ).fetchone()["count"]
+
+    membership_count = connection.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM team_players
+        WHERE player_id = (
+            SELECT id
+            FROM players
+            WHERE curp = %s
+        )
+        """,
+        (player["curp"],)
+    ).fetchone()["count"]
+
+    connection.close()
+
+    assert player_count == 1
+    assert membership_count == 2
