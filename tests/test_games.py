@@ -3,8 +3,9 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ["DATABASE_URL"] = (
-    "postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
 )
 
 from database import get_connection

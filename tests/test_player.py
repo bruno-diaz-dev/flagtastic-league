@@ -5,8 +5,9 @@ from fastapi.testclient import TestClient
 from database import get_connection
 from repositories import players
 
-os.environ["DATABASE_URL"] = (
-    "postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
 )
 
 from database import get_connection
