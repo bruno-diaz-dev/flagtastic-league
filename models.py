@@ -10,3 +10,7 @@ class PlayerCreate(BaseModel):
     curp: str = Field(min_length=18, max_length=18)
     age: int = Field(gt=0)
     jersey_number: int = Field(ge=0, le=99)
+
+class GameCreate(BaseModel):
+    home_team_id: int = Field(gt=0)
+    away_team_id: int = Field(gt=0)
