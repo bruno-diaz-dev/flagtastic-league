@@ -3,6 +3,8 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
+from repositories import players
+
 os.environ["DATABASE_URL"] = (
     "postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
 )
@@ -28,13 +30,17 @@ def clean_database():
     connection.close()
 
 
-def create_test_team():
+def create_test_team(
+    name="Tigres",
+    branch="varonil",
+    category="libre"
+):
     response = client.post(
         "/api/teams",
         json={
-            "name": "Raptors",
-            "branch": "varonil",
-            "category": "libre"
+            "name": name,
+            "branch": branch,
+            "category": category
         }
     )
 
@@ -144,3 +150,107 @@ def test_duplicated_jersey_number():
         second_response.json()["detail"]
         == "Jersey number already registered in this team"
     )
+
+def test_player_can_join_different_branches():
+    tigres_id = create_test_team(
+        name="Tigres",
+        branch="varonil",
+        category="libre"
+    )
+
+    ravens_id = create_test_team(
+        name="Ravens",
+        branch="mixto",
+        category="libre"
+    )
+
+    player = {
+        "name": "Carlos Lopez",
+        "curp": "LOPC950101HASXX002",
+        "age": 31,
+        "jersey_number": 83
+    }
+
+    first_response = client.post(
+        f"/api/teams/{tigres_id}/players",
+        json=player
+    )
+
+    second_response = client.post(
+        f"/api/teams/{ravens_id}/players",
+        json=player
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+def test_player_can_join_different_categories():
+    u18_team_id = create_test_team(
+        name="Nomadas U18",
+        branch="varonil",
+        category="u18"
+    )
+
+    u16_team_id = create_test_team(
+        name="Nomadas U16",
+        branch="varonil",
+        category="u16"
+    )
+
+    player = {
+        "name": "Carlos Lopez",
+        "curp":"LOPC110101HASXX002",
+        "age": 15,
+        "jersey_number": 52
+    }
+
+    first_response = client.post(
+        f"/api/teams/{u18_team_id}/players",
+        json=player
+    )
+
+    second_response = client.post(
+
+        f"/api/teams/{u16_team_id}/players",
+        json=player
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+def test_player_duplicated_in_branch_and_category():
+    tigres_id = create_test_team(
+        name="Tigres",
+        branch="varonil",
+        category="libre"
+    )
+
+    hawks_id = create_test_team(
+        name="hawks",
+        branch="varonil",
+        category="libre"
+    )
+
+    player = {
+        "name": "Carlos Lopez",
+        "curp": "LOPC950101HASXX002",
+        "age": 31,
+        "jersey_number": 83
+    }
+
+    first_response = client.post(
+        f"/api/teams/{tigres_id}/players",
+        json=player
+    )
+
+    second_response = client.post(
+        f"/api/teams/{hawks_id}/players",
+        json=player
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
+
+    assert second_response.json() == {
+        "detail": "Player already registered in this branch and category"
+    }
