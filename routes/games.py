@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from models import GameCreate
+from models import GameCreate, GameScoreUpdate
 from repositories.games import (
     create_game as create_game_repository,
-    get_games
+    get_games,
+    update_game_score
     )
 from repositories.teams import get_team_by_id
 
@@ -35,3 +36,18 @@ def create_game(game: GameCreate):
 @router.get("")
 def list_games():
     return get_games()
+
+@router.patch("/{game_id}/score")
+def update_score(
+    game_id: int,
+    score: GameScoreUpdate
+):
+    game = update_game_score(game_id, score)
+
+    if game is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Game not found"
+        )
+
+    return game

@@ -169,3 +169,54 @@ def test_list_games():
         "id": ravens_id,
         "name": "Ravens"
     }
+
+def test_update_game_score():
+    tigres_id = create_test_team(
+        name="Tigres"
+    )
+
+    ravens_id = create_test_team(
+        name="Ravens"
+    )
+
+    create_response = client.post(
+        "/api/games",
+        json={
+            "home_team_id": tigres_id,
+            "away_team_id": ravens_id
+        }
+    )
+
+    game_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/api/games/{game_id}/score",
+        json={
+            "home_score": 32,
+            "away_score": 24
+        }
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "id": game_id,
+        "home_team_id": tigres_id,
+        "away_team_id": ravens_id,
+        "home_score": 32,
+        "away_score": 24
+    }
+
+def test_update_game_score_not_found():
+    response = client.patch(
+        "/api/games/9999/score",
+        json={
+            "home_score": 32,
+            "away_score": 24
+        }
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Game not found"
+    }

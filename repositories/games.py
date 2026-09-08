@@ -70,3 +70,45 @@ def get_games():
         }
         for row in rows
     ]
+
+
+def update_game_score(game_id, score):
+    connection = get_connection()
+
+    try:
+        updated_game = connection.execute(
+            """
+            UPDATE games
+            SET
+                home_score = %s,
+                away_score = %s
+            WHERE id = %s
+            RETURNING
+                id,
+                home_team_id,
+                away_team_id,
+                home_score,
+                away_score
+            """,
+            (
+                score.home_score,
+                score.away_score,
+                game_id
+            )
+        ).fetchone()
+
+        connection.commit()
+
+        return (
+            dict(updated_game)
+            if updated_game is not None
+            else None
+        )
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    
+    finally:
+        connection.close()

@@ -14,3 +14,7 @@ class PlayerCreate(BaseModel):
 class GameCreate(BaseModel):
     home_team_id: int = Field(gt=0)
     away_team_id: int = Field(gt=0)
+
+class GameScoreUpdate(BaseModel):
+    home_score: int = Field(ge=0)
+    away_score: int = Field(ge=0)
