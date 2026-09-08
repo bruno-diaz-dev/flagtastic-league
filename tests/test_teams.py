@@ -75,3 +75,59 @@ def test_list_teams():
     assert teams[0]["branch"] == "varonil"
     assert teams[0]["category"] == "libre"
     assert teams[0]["status"] == "pending"
+
+def test_get_team_detail_with_roster():
+    response = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonil",
+            "category": "libre"
+        }
+    )
+
+    team_id = response.json()["id"]
+
+    client.post(
+        f"/api/teams/{team_id}/players",
+        json={
+            "name": "Bruno Diaz",
+            "curp": "DIBB961215HASXXX00",
+            "age": 29,
+            "jersey_number": 83
+        }
+    )
+
+    response = client.get(
+        f"/api/teams/{team_id}"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == team_id
+    assert data["name"] == "Tigres"
+    assert data["branch"] == "varonil"
+    assert data["category"] == "libre"
+    assert data["status"] == "pending"
+
+    assert len(data["players"]) == 1
+
+    player = data["players"][0]
+
+    assert player["name"] == "Bruno Diaz"
+    assert player["age"] == 29
+    assert player["jersey_number"] == 83
+    assert "id" in player
+    assert "team_id" not in player
+
+def test_get_team_detail_not_found():
+    response = client.get(
+        "/api/teams/9999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Team not found"
+    }
