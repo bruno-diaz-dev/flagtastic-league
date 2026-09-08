@@ -131,3 +131,41 @@ def test_list_games():
     assert len(games) == 1
     assert games[0]["home_team_id"] == tigres_id
     assert games[0]["away_team_id"] == ravens_id
+
+
+def test_list_games():
+    tigres_id = create_test_team(
+        name="Tigres"
+    )
+
+    ravens_id = create_test_team(
+        name="Ravens"
+    )
+
+    client.post(
+        "/api/games",
+        json={
+            "home_team_id": tigres_id,
+            "away_team_id": ravens_id
+        }
+    )
+
+    response = client.get(
+        "/api/games"
+    )
+
+    assert response.status_code == 200
+
+    games = response.json()
+
+    assert len(games) == 1
+
+    assert games[0]["home_team"] == {
+        "id": tigres_id,
+        "name": "Tigres"
+    }
+
+    assert games[0]["away_team"] == {
+        "id": ravens_id,
+        "name": "Ravens"
+    }

@@ -39,14 +39,34 @@ def get_games():
     rows = connection.execute(
         """
         SELECT
-            id,
-            home_team_id,
-            away_team_id
+            games.id,
+            home_team.id AS "home_team_id",
+            home_team.name AS "home_team_name",
+            away_team.id AS "away_team_id",
+            away_team.name AS "away_team_name"
         FROM games
-        ORDER BY id
+        JOIN teams AS home_team
+            ON games.home_team_id = home_team.id
+        JOIN teams AS away_team
+            ON games.away_team_id = away_team.id
+        ORDER BY games.id
         """
     ).fetchall()
 
     connection.close()
 
-    return [dict(row) for row in rows]
+    return [
+        {
+            "id": row["id"],
+            "home_team": {
+                "id": row["home_team_id"],
+                "name": row["home_team_name"]
+            },
+
+            "away_team": {
+                "id": row["away_team_id"],
+                "name": row["away_team_name"]     
+            }
+        }
+        for row in rows
+    ]
