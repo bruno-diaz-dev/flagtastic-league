@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from database import create_database
 from routes.teams import router as teams_router
@@ -9,11 +11,21 @@ app = FastAPI(
     title="Flagtastic Football League"
 )
 
+app.mount(
+    "/static",
+    StaticFiles(directory="static"),
+    name="static"
+)
+
 create_database()
 
 app.include_router(teams_router)
 app.include_router(players_router)
 app.include_router(games_router)
+
+@app.get("/")
+def index():
+    return FileResponse("templates/index.html")
 
 @app.get("/live")
 def liveness():
