@@ -1,3 +1,10 @@
+const gameForm = document.querySelector("#game-form");
+const gameFormMessage = document.querySelector("#game-form-message");
+const homeTeamSelect = document.querySelector("[name='home_team_id']");
+const awayTeamSelect = document.querySelector("[name='away_team_id']");
+
+let teamsState = [];
+
 const navLinks = document.querySelectorAll("[data-view]");
 const views = document.querySelectorAll(".view");
 
@@ -52,6 +59,22 @@ function renderTeams(teams) {
             </button>
         `)
         .join("");
+}
+
+function renderGameTeamOptions(teams) {
+    if (homeTeamSelect === null || awayTeamSelect === null) {
+        return;
+    }
+
+
+    const options = teams
+        .map((team) => {
+            return `<option value="${team.id}">${team.name} - ${team.branch} / ${team.category}</option>`;
+        })
+        .join("");
+
+        homeTeamSelect.innerHTML = options;
+        awayTeamSelect.innerHTML = options;
 }
 
 function renderRoster(team) {
@@ -135,6 +158,8 @@ async function loadTeams() {
         }
 
         const teams = await response.json();
+        teamsState = teams;
+        renderGameTeamOptions(teamsState);
         renderTeams(teams);
     } catch (error) {
         teamsContainer.innerHTML = `
@@ -257,5 +282,55 @@ teamsContainer.addEventListener("click", (event) => {
 });
 
 teamForm.addEventListener("submit", registerTeam);
+
+async function registerGame(event) {
+    event.preventDefault();
+
+    const formData = new FormData(gameForm);
+
+    const payload = {
+        home_team_id: Number(formData.get("home_team_id")),
+        away_team_id: Number(formData.get("away_team_id"))
+    };
+
+    gameFormMessage.textContent = "Registrando partido...";
+
+    try {
+        const response = await fetch("/api/games", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 409) {
+            gameFormMessage.textContent ="Un equipo no puede jugar contra si mismo.";
+            return;
+        }
+
+        if (response.status === 404) {
+            gameFormMessage.textContent = "No se encontro a alguno de los equipos.";
+            return;
+        }
+
+        if (!response.ok) {
+            gameFormMessage.textContent = "No se pudo registrar el partido.";
+            return;
+        }
+
+        gameForm.reset();
+        gameFormMessage.textContent = "Partido registrado correctamente.";
+
+        await loadGames();
+    } catch (error) {
+        gameFormMessage.textContent = "No se pudo conectar con el servidor.";
+    }
+}
+
+if (gameForm !== null) {
+    gameForm.addEventListener("submit", registerGame);
+}
 
 loadTeams();

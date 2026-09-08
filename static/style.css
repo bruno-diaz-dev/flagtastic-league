@@ -96,21 +96,24 @@ h1 {
     margin-bottom: 24px;
 }
 
-.team-form {
+.team-form,
+.game-form {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     align-items: end;
 }
 
-.team-form label {
+.team-form label,
+.game-form label {
     display: grid;
     gap: 6px;
     color: #334155;
     font-size: 14px;
 }
 
-.team-form input {
+.team-form input,
+.game-form select {
     width: 100%;
     border: 1px solid #c7d0da;
     border-radius: 6px;
@@ -118,7 +121,8 @@ h1 {
     font: inherit;
 }
 
-.team-form button {
+.team-form button,
+.game-form button {
     border: 0;
     border-radius: 6px;
     padding: 11px 14px;
@@ -128,7 +132,8 @@ h1 {
     cursor: pointer;
 }
 
-.team-form button:hover {
+.team-form button:hover,
+.game-form button:hover {
     background: #1e293b;
 }
 
@@ -266,7 +271,8 @@ h1 {
         text-align: center;
     }
 
-    .team-form {
+    .team-form,
+    .game-form {
         grid-template-columns: 1fr;
     }
 
@@ -274,5 +280,12 @@ h1 {
     .team-card {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .game-form {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        align-items: end;
     }
 }
