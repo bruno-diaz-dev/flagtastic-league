@@ -1,12 +1,32 @@
+const navLinks = document.querySelectorAll("[data-view]");
+const views = document.querySelectorAll(".view");
+
 const teamForm = document.querySelector("#team-form");
 const formMessage = document.querySelector("#form-message");
 const teamsContainer = document.querySelector("#teams");
+
 const rosterPanel = document.querySelector("#roster-panel");
 const rosterTitle = document.querySelector("#roster-title");
 const rosterSubtitle = document.querySelector("#roster-subtitle");
 const rosterContainer = document.querySelector("#roster");
 
-function renderEmptyState() {
+const gamesContainer = document.querySelector("#games");
+
+function showView(viewName) {
+    views.forEach((view) => {
+        view.classList.toggle("active-view", view.id === `${viewName}-view`);
+    });
+
+    navLinks.forEach((link) => {
+        link.classList.toggle("active", link.dataset.view === viewName);
+    });
+
+    if (viewName === "games") {
+        loadGames();
+    }
+}
+
+function renderEmptyTeamsState() {
     teamsContainer.innerHTML = `
         <div class="empty-state">
             <h3>Sin equipos registrados</h3>
@@ -17,7 +37,7 @@ function renderEmptyState() {
 
 function renderTeams(teams) {
     if (teams.length === 0) {
-        renderEmptyState();
+        renderEmptyTeamsState();
         return;
     }
 
@@ -59,6 +79,37 @@ function renderRoster(team) {
                 </div>
             </article>
         `)
+        .join("");
+}
+
+function renderGames(games) {
+    if (games.length === 0) {
+        gamesContainer.innerHTML = `
+            <div class="empty-state">
+                <h3>Sin partidos registrados</h3>
+                <p>Los partidos registrados aparecerán aquí.</p>
+            </div>
+        `;
+        return;
+    }
+
+    gamesContainer.innerHTML = games
+        .map((game) => {
+            const hasScore = game.home_score !== null && game.away_score !== null;
+            const score = hasScore
+                ? `${game.home_score} - ${game.away_score}`
+                : "Pendiente";
+
+            return `
+                <article class="game-card">
+                    <div>
+                        <h3>${game.home_team.name} vs ${game.away_team.name}</h3>
+                        <p>${game.home_team.name} local / ${game.away_team.name} visitante</p>
+                    </div>
+                    <strong>${score}</strong>
+                </article>
+            `;
+        })
         .join("");
 }
 
@@ -118,6 +169,39 @@ async function loadTeamDetail(teamId) {
     }
 }
 
+async function loadGames() {
+    gamesContainer.innerHTML = `
+        <div class="empty-state">
+            <h3>Cargando partidos</h3>
+            <p>Espera un momento.</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch("/api/games");
+
+        if (!response.ok) {
+            gamesContainer.innerHTML = `
+                <div class="empty-state">
+                    <h3>No se pudieron cargar los partidos</h3>
+                    <p>Intenta recargar la página.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const games = await response.json();
+        renderGames(games);
+    } catch (error) {
+        gamesContainer.innerHTML = `
+            <div class="empty-state">
+                <h3>No se pudieron cargar los partidos</h3>
+                <p>Revisa que el servidor esté encendido.</p>
+            </div>
+        `;
+    }
+}
+
 async function registerTeam(event) {
     event.preventDefault();
 
@@ -155,6 +239,12 @@ async function registerTeam(event) {
         formMessage.textContent = "No se pudo conectar con el servidor.";
     }
 }
+
+navLinks.forEach((link) => {
+    link.addEventListener("click", () => {
+        showView(link.dataset.view);
+    });
+});
 
 teamsContainer.addEventListener("click", (event) => {
     const teamCard = event.target.closest("[data-team-id]");
