@@ -142,11 +142,21 @@ def test_list_games():
         name="Ravens"
     )
 
-    client.post(
+    create_response = client.post(
         "/api/games",
         json={
             "home_team_id": tigres_id,
             "away_team_id": ravens_id
+        }
+    )
+
+    game_id = create_response.json()["id"]
+
+    client.patch(
+        f"/api/games/{game_id}/score",
+        json={
+            "home_score": 32,
+            "away_score": 24
         }
     )
 
@@ -169,6 +179,9 @@ def test_list_games():
         "id": ravens_id,
         "name": "Ravens"
     }
+
+    assert games[0]["home_score"] == 32
+    assert games[0]["away_score"] == 24
 
 def test_update_game_score():
     tigres_id = create_test_team(

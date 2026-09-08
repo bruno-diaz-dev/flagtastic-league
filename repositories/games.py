@@ -40,6 +40,8 @@ def get_games():
         """
         SELECT
             games.id,
+            games.home_score,
+            games.away_score,
             home_team.id AS "home_team_id",
             home_team.name AS "home_team_name",
             away_team.id AS "away_team_id",
@@ -65,8 +67,10 @@ def get_games():
 
             "away_team": {
                 "id": row["away_team_id"],
-                "name": row["away_team_name"]     
-            }
+                "name": row["away_team_name"]
+            },
+            "home_score": row["home_score"],
+            "away_score": row["away_score"]
         }
         for row in rows
     ]
@@ -109,6 +113,6 @@ def update_game_score(game_id, score):
         connection.rollback()
         raise
 
-    
+
     finally:
         connection.close()
