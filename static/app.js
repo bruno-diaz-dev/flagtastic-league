@@ -132,7 +132,7 @@ function renderGames(games) {
                    
                     ${
                         hasScore
-                        ? `<strong>${score}</score>`
+                        ? `<strong>${score}</strong>`
                         : `
                             <form class="score-form" data-game-id="${game.id}">
                                 <label>
