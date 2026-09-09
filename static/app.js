@@ -129,7 +129,36 @@ function renderGames(games) {
                         <h3>${game.home_team.name} vs ${game.away_team.name}</h3>
                         <p>${game.home_team.name} local / ${game.away_team.name} visitante</p>
                     </div>
-                    <strong>${score}</strong>
+                   
+                    ${
+                        hasScore
+                        ? `<strong>${score}</score>`
+                        : `
+                            <form class="score-form" data-game-id="${game.id}">
+                                <label>
+                                    ${game.home_team.name}
+                                    <input
+                                        type="number"
+                                        name="home_score"
+                                        min="0"
+                                        required
+                                    >
+                                </label>
+
+                                <label>
+                                    ${game.away_team.name}
+                                    <input
+                                        type="number"
+                                        name="away_score"
+                                        min="0"
+                                        required
+                                    >
+                                </label>
+
+                                <button type="submit">Guardar marcador</button>
+                            </form>
+                        `
+                    }
                 </article>
             `;
         })
@@ -328,6 +357,46 @@ async function registerGame(event) {
         gameFormMessage.textContent = "No se pudo conectar con el servidor.";
     }
 }
+
+async function updateGamesScore(event) {
+    event.preventDefault();
+
+    const scoreForm = event.target;
+    const gameId = scoreForm.dataset.gameId;
+    const formData = new FormData(scoreForm);
+
+    const payload = {
+        home_score: Number(formData.get("home_score")),
+        away_score: Number(formData.get("away_score"))
+    };
+
+    try {
+        const response = await fetch(`/api/games/${gameId}/score`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            return;
+        }
+
+        await loadGames();
+    } catch (error) {
+        return;
+    }
+}
+
+gamesContainer.addEventListener("submit", (event) => {
+    if (!event.target.classList.contains("score-form")) {
+        return;
+    }
+
+    updateGamesScore(event);
+});
+
 
 if (gameForm !== null) {
     gameForm.addEventListener("submit", registerGame);
