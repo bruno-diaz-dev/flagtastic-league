@@ -149,3 +149,27 @@ def test_team_branch_and_category_normalized():
     assert team["branch"] == "varonil"
     assert team["category"] == "libre"
 
+def test_create_team_with_invalid_branch():
+    response = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonill",
+            "category": "libre"
+        }
+    )
+
+    assert response.status_code == 422
+
+def test_create_team_with_invalid_category():
+    response = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonil",
+            "category": "u20"
+        }
+    )
+
+    assert response.status_code == 422
+

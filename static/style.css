@@ -113,7 +113,10 @@ h1 {
 }
 
 .team-form input,
-.game-form select {
+.team-form select,
+.game-form select,
+.standings-form input,
+.standings-form select {
     width: 100%;
     border: 1px solid #c7d0da;
     border-radius: 6px;
