@@ -178,7 +178,7 @@ async function loadTeams() {
     `;
 
     try {
-        const response = await fetch("/api/teams");
+        const response = await getTeams();
 
         if (!response.ok) {
             teamsContainer.innerHTML = `
@@ -211,7 +211,7 @@ async function loadTeamDetail(teamId) {
     rosterContainer.innerHTML = "";
 
     try {
-        const response = await fetch(`/api/teams/${teamId}`);
+        const response = await getTeamDetail();
 
         if (!response.ok) {
             rosterTitle.textContent = "No se pudo cargar el roster";
@@ -236,7 +236,7 @@ async function loadGames() {
     `;
 
     try {
-        const response = await fetch("/api/games");
+        const response = await getGames();
 
         if (!response.ok) {
             gamesContainer.innerHTML = `
@@ -274,14 +274,7 @@ async function registerTeam(event) {
     formMessage.textContent = "Registrando equipo...";
 
     try {
-        const response = await fetch("/api/teams", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
-
+        const response = await createTeam(payload)
         if (!response.ok) {
             formMessage.textContent = "No se pudo registrar el equipo.";
             return;
@@ -329,14 +322,7 @@ async function registerGame(event) {
     gameFormMessage.textContent = "Registrando partido...";
 
     try {
-        const response = await fetch("/api/games", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify(payload)
-        });
+        const response = await createGame();
 
         if (response.status === 409) {
             gameFormMessage.textContent ="Un equipo no puede jugar contra si mismo.";
@@ -375,13 +361,7 @@ async function updateGamesScore(event) {
     };
 
     try {
-        const response = await fetch(`/api/games/${gameId}/score`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
+        const response = await updateGamesScore(gameId, payload);
 
         if (!response.ok) {
             return;
@@ -403,9 +383,7 @@ async function loadStandings(event) {
     standingsFormMessage.textContent = "Consultando tabla...";
 
     try {
-        const response = await fetch(
-            `/api/standings?branch=${encodeURIComponent(branch)}&category=${encodeURIComponent(category)}` 
-        );
+        const response = await getStandings(branch, category);
 
         if (!response.ok) {
             standingsFormMessage.textContent = "No se pudo consultar la tabla.";
