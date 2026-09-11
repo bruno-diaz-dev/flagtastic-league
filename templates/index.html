@@ -21,6 +21,9 @@
                 <button class="nav-link" type="button" data-view="games">
                     Partidos
                 </button>
+                <button class="nav-link" type="button" data-view="standings">
+                    Tabla
+                </button>
             </nav>
         </aside>
 
@@ -116,6 +119,47 @@
                 </section>
 
                 <section id="games" class="games-list" aria-live="polite"></section>
+            </section>
+            
+            <section id="standings-view" class="view">
+                <header class="section-header">
+                    <div>
+                        <h2>Tabla</h2>
+                        <p>Consulta la tabla de posiciones por rama y categoria</p>
+                    </div>
+                </header>
+
+                <section class="form-panel">
+                    <h3>Consultar tabla</h3>
+
+                    <form id="standings-form" class="standings-form">
+                        <label>
+                            Rama
+                            <input
+                                type="text"
+                                name="branch"
+                                autocomplete="off"
+                                required
+                            >
+                        </label>
+
+                        <label>
+                            Categoria
+                            <input
+                                type="text"
+                                name="category"
+                                autocomplete="off"
+                                required
+                            >
+                        </label>
+                        
+                        <button type="submit">Consultar tabla</button>
+                    </form>
+
+                    <p id="standings-form-message" class="form-message" role="status"></p>
+                </section>
+
+                <section id="standings" class="standings-table" aria-live="polite"></section>
             </section>
         </main>
     </div>

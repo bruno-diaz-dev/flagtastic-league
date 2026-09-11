@@ -92,17 +92,17 @@ def test_get_standings_for_branch_and_category():
             "team_name": "Tigres",
             "wins": 1,
             "losses": 0,
-            "ties": 0,
             "points_for": 32,
-            "points_against": 24
+            "points_against": 24,
+            "point_difference": 8
         },
         {
             "team_id": ravens_id,
             "team_name": "Ravens",
             "wins": 0,
             "losses": 1,
-            "ties": 0,
             "points_for": 24,
-            "points_against": 32
+            "points_against": 32,
+            "point_difference": -8
         }
     ]

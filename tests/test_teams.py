@@ -131,3 +131,21 @@ def test_get_team_detail_not_found():
     assert response.json() == {
         "detail": "Team not found"
     }
+
+def test_team_branch_and_category_normalized():
+    response = client.post(
+        "/api/teams",
+        json={
+            "name": "Nomadas",
+            "branch": "Varonil",
+            "category": "Libre"
+        }
+    )
+
+    assert response.status_code == 201
+
+    team = response.json()
+
+    assert team["branch"] == "varonil"
+    assert team["category"] == "libre"
+

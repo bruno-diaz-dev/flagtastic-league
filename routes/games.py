@@ -42,6 +42,13 @@ def update_score(
     game_id: int,
     score: GameScoreUpdate
 ):
+
+    if score.home_score == score.away_score:
+        raise HTTPException(
+            status_code=409,
+            detail="A game cannot end in a tie"
+        )
+    
     game = update_game_score(game_id, score)
 
     if game is None:

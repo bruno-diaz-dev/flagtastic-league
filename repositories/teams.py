@@ -3,6 +3,10 @@ from database import get_connection
 def create_team(team):
     connection = get_connection()
 
+    name = team.name.strip()
+    branch = team.branch.strip().lower()
+    category = team.category.strip().lower()
+
     try:
         cursor = connection.execute(
             """
@@ -16,9 +20,9 @@ def create_team(team):
             RETURNING id
             """,
             (
-                team.name,
-                team.branch,
-                team.category,
+                name,
+                branch,
+                category,
                 "pending"
             )
         )
@@ -29,9 +33,9 @@ def create_team(team):
 
         return {
             "id": team_id,
-            "name": team.name,
-            "branch": team.branch,
-            "category": team.category,
+            "name": name,
+            "branch": branch,
+            "category": category,
             "status": "pending"
         }
 

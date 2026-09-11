@@ -233,3 +233,35 @@ def test_update_game_score_not_found():
     assert response.json() == {
         "detail": "Game not found"
     }
+
+def test_game_score_cannot_be_tied():
+    tigres_id = create_test_team(
+        name="Tigres"
+    )
+
+    ravens_id = create_test_team(
+        name="Ravens"
+    )
+
+    create_response = client.post(
+        "/api/games",
+        json={
+            "home_team_id": tigres_id,
+            "away_team_id": ravens_id
+        }
+    )
+
+    game_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/api/games/{game_id}/score",
+        json= {
+            "home_score": 24,
+            "away_score": 24
+        }
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "A game cannot end in a tie"
+    }

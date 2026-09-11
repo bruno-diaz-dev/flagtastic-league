@@ -33,13 +33,6 @@ def get_standings(branch, category):
             ), 0) AS losses,
             COALESCE(SUM(
                 CASE
-                    WHEN games.home_score = games.away_score
-                    THEN 1
-                    ELSE 0
-                END
-            ), 0) AS ties,
-            COALESCE(SUM(
-                CASE
                     WHEN games.home_team_id = teams.id
                     THEN games.home_score
                     WHEN games.away_team_id = teams.id
@@ -84,4 +77,23 @@ def get_standings(branch, category):
 
     connection.close()
 
-    return [dict(row) for row in rows]
+    standings = [dict(row) for row in rows]
+
+    for team in standings:
+        team["point_difference"] = (
+            team["points_for"]
+            - team["points_against"]
+        )
+
+    standings.sort(
+        key=lambda team:(
+            -team["wins"],
+            -team["point_difference"],
+            -team["points_for"],
+            team["losses"],
+            team["team_name"]
+        )
+    )
+
+    return standings
+
