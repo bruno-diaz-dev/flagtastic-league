@@ -2,7 +2,6 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
-from database import get_connection
 from repositories import players
 
 os.environ.setdefault(
