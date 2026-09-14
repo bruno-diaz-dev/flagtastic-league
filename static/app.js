@@ -13,6 +13,8 @@ function showView(viewName) {
         link.classList.toggle("active", link.dataset.view === viewName);
     });
 
+    window.location.hash = viewName;
+
     if (viewName === "games") {
         loadGames();
     }
@@ -25,3 +27,6 @@ navLinks.forEach((link) => {
 });
 
 loadTeams();
+
+const initialView = window.location.hash.replace("#", "") || "teams";
+showView(initialView);
