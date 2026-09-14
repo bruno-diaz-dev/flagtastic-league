@@ -25,7 +25,9 @@ def create_database():
                 name TEXT NOT NULL,
                 branch TEXT NOT NULL,
                 category TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending'
+                status TEXT NOT NULL DEFAULT 'pending',
+
+                UNIQUE (name, branch, category)
             )
             """
         ) 

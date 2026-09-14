@@ -3,6 +3,8 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.test_games import create_test_team
+
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
@@ -173,3 +175,50 @@ def test_create_team_with_invalid_category():
 
     assert response.status_code == 422
 
+def test_cannot_create_duplicated_team_in_same_branch_and_category():
+    first_response = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonil",
+            "category": "libre"
+        }
+    )
+
+    assert first_response.status_code == 201
+
+    second_response = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonil",
+            "category": "libre"
+        }
+    )
+
+    assert second_response.status_code == 409
+    assert second_response.json() == {
+        "detail": "Team already registered in this branch and category"
+    }
+
+def test_same_team_name_can_exist_in_different_category():
+    first_response = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonil",
+            "category": "libre"
+        }
+    )
+
+    second_reponse = client.post(
+        "/api/teams",
+        json={
+            "name": "Tigres",
+            "branch": "varonil",
+            "category": "u18"
+        }
+    )
+
+    assert first_response.status_code == 201
+    assert second_reponse.status_code == 201

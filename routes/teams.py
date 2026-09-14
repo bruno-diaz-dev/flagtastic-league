@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-
+from psycopg.errors import UniqueViolation
 
 from repositories.players import get_players_by_team
 from models import TeamCreate
@@ -16,7 +16,14 @@ router = APIRouter(
 
 @router.post("", status_code=201)
 def register_team(team: TeamCreate):
-    return create_team(team)
+    try:
+        return create_team(team)
+
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="Team already registered in this branch and category"
+        )
 
 @router.get("")
 def list_teams():

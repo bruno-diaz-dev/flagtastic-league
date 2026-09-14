@@ -7,7 +7,7 @@ const rosterTitle = document.querySelector("#roster-title");
 const rosterSubtitle = document.querySelector("#roster-subtitle");
 const rosterContainer = document.querySelector("#roster");
 
-let teamState = [];
+let teamsState = [];
 
 function renderEmptyTeamsState() {
     teamsContainer.innerHTML = `
