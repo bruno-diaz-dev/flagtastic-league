@@ -90,6 +90,57 @@
                         </div>
                     </div>
 
+                    <section class="form-panel">
+                        <h3>Registrar jugador</h3>
+
+                        <form id="player-form" class="player-form">
+                            <label>
+                                Nombre
+                                <input
+                                    type="text"
+                                    name="name"
+                                    autocomplete="off"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                CURP
+                                <input
+                                    type="text"
+                                    name="curp"
+                                    autocomplete="off"
+                                    maxlength="18"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Edad
+                                <input
+                                    type="number"
+                                    name="age"
+                                    min="1"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Numero
+                                <input
+                                    type="number"
+                                    name="jersey_number"
+                                    min="0"
+                                    required
+                                >
+                            </label>
+
+                            <button type="submit">Registrar jugado</button>
+                        </form>
+
+                        <p id="player-form-message" class="form-message" role="status"></p>
+                    </section>
+
                     <div id="roster" class="roster-list"></div>
                 </section>
             </section>

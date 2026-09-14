@@ -7,6 +7,11 @@ const rosterTitle = document.querySelector("#roster-title");
 const rosterSubtitle = document.querySelector("#roster-subtitle");
 const rosterContainer = document.querySelector("#roster");
 
+const playerForm = document.querySelector("#player-form");
+const playerFormMessage = document.querySelector("#player-form-message");
+
+let selectedTeamId = null;
+
 let teamsState = [];
 
 function renderEmptyTeamsState() {
@@ -182,7 +187,54 @@ teamsContainer.addEventListener("click", (event) => {
         return;
     }
 
-    loadTeamDetail(teamCard.dataset.teamId);
+    selectedTeamId = teamCard.dataset.teamId
+    loadTeamDetail(selectedTeamId);
 });
+
+async function registerPlayer(event) {
+    event.preventDefault();
+
+    if (selectedTeamId === null) {
+        playerFormMessage.textContent = "Selecciona un equipo primero";
+        return;
+    }
+
+    const formData = new FormData(playerForm);
+
+    const payload ={
+        name: formData.get("name"),
+        curp: formData.get("curp"),
+        age: Number(formData.get("age")),
+        jersey_number: Number(formData.get("jersey_number"))
+    };
+
+    playerFormMessage.textContent = "Registrando jugador...";
+
+    try {
+        const response = await createPlayer(selectedTeamId, payload);
+
+        if (response.status === 409) {
+            const error = await response.json();
+            playerFormMessage.textContent = error.detail;
+            return;
+        }
+
+        if (!response.ok) {
+            playerFormMessage.textContent = "No se pudo registrar al jugador.";
+            return;
+        }
+
+        playerForm.reset();
+        playerFormMessage.textContent = "Jugador registrado correctamente.";
+
+        await loadTeamDetail(selectedTeamId);
+    } catch (error) {
+        playerFormMessage.textContent = "No se pudo conectar con el servidor."
+    }
+}
+
+if (playerForm !== null) {
+    playerForm.addEventListener("submit", registerPlayer);
+}
 
 teamForm.addEventListener("submit", registerTeam);
