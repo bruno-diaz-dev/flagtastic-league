@@ -35,7 +35,7 @@ def register_player(
 
         raise HTTPException(
             status_code=409,
-            detail="Player already registered in this branch and category"
+            detail="Este jugador ya esta registrado en esta rama y categoria"
         )
 
     except UniqueViolation as error:
@@ -47,7 +47,7 @@ def register_player(
         ):
             raise HTTPException(
                 status_code=409,
-                detail="Jersey number already registered in this team"
+                detail="Ese numero ya esta registrado en este equipo"
             )
             
         if (
@@ -56,7 +56,7 @@ def register_player(
         ):
             raise HTTPException(
                 status_code=409,
-                detail="Player already registered in this team"
+                detail="Este jugador ya esta registrado en este equipo"
             )
         raise
 

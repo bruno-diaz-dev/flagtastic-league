@@ -148,7 +148,7 @@ def test_duplicated_jersey_number():
 
     assert (
         second_response.json()["detail"]
-        == "Jersey number already registered in this team"
+        == "Ese numero ya esta registrado en este equipo"
     )
 
 def test_player_can_join_different_branches():
@@ -252,7 +252,7 @@ def test_player_duplicated_in_branch_and_category():
     assert second_response.status_code == 409
 
     assert second_response.json() == {
-        "detail": "Player already registered in this branch and category"
+        "detail": "Este jugador ya esta registrado en esta rama y categoria"
     }
 
 def test_same_jersey_number_in_different_teams():
