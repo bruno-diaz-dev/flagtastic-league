@@ -10,6 +10,11 @@
     <div class="layout">
         <aside class="sidebar">
             <div class="brand">
+                <img
+                    class="brand-logo"
+                    src="/static/assets/flagtastic.jpeg"
+                    alt="Flagtastic Football League"
+                >
                 <p class="eyebrow">Flagtastic Football League</p>
                 <h1>Operaciones</h1>
             </div>
@@ -78,6 +83,32 @@
                     </form>
 
                     <p id="form-message" class="form-message" role="status"></p>
+                </section>
+
+                <section class="filters-panel">
+                    <label>
+                        Rama
+                        <select id="team-filter-branch">
+                            <option value="">Todas las ramas</option>
+                            <option value="varonil">Varonil</option>
+                            <option value="femenil">Femenil</option>
+                            <option value="mixto">Mixto</option>
+                        </select>
+                    </label>
+                
+                    <label>
+                        Categoría
+                        <select id="team-filter-category">
+                            <option value="">Todas las categorías</option>
+                            <option value="u6">U6</option>
+                            <option value="u8">U8</option>
+                            <option value="u12">U12</option>
+                            <option value="u14">U14</option>
+                            <option value="u16">U16</option>
+                            <option value="u18">U18</option>
+                            <option value="libre">Libre</option>
+                        </select>
+                    </label>
                 </section>
 
                 <section id="teams" class="teams-grid" aria-live="polite"></section>

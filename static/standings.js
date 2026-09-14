@@ -40,7 +40,7 @@ function renderStandings(standings) {
     }
 
     standingsContainer.innerHTML = `
-        <table>
+        <table class="standings-data-table">
             <thead>
                 <tr>
                     <th>Equipo</th>
@@ -48,7 +48,7 @@ function renderStandings(standings) {
                     <th>P</th>
                     <th>PF</th>
                     <th>PC</th>
-                    <th>Dif</th>
+                    <th>DIF</th>
                 </tr>
             </thead>
             <tbody>

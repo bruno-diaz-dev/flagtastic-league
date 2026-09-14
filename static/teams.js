@@ -10,6 +10,9 @@ const rosterContainer = document.querySelector("#roster");
 const playerForm = document.querySelector("#player-form");
 const playerFormMessage = document.querySelector("#player-form-message");
 
+const teamFilterBranch = document.querySelector("#team-filter-branch");
+const teamFilterCategory = document.querySelector("#team-filter-category");
+
 let selectedTeamId = null;
 
 let teamsState = [];
@@ -40,6 +43,26 @@ function renderTeams(teams) {
             </button>
         `)
         .join("");
+}
+
+function getFilteredTeams() {
+    const selectedBranch= teamFilterBranch.value;
+    const selectedCategory = teamFilterCategory.value;
+
+    return teamsState.filter((team) => {
+        const matchesBranch =
+            selectedBranch === "" || team.branch === selectedBranch;
+
+        const matchesCategory =
+            selectedCategory === "" || team.category === selectedCategory;
+
+        return matchesBranch && matchesCategory;
+    });
+}
+
+function renderFilteredTeams() {
+    const filteredTeams = getFilteredTeams();
+    renderTeams(filteredTeams);
 }
 
 function renderGameTeamOptions(teams) {
@@ -110,7 +133,7 @@ async function loadTeams() {
         const teams = await response.json();
         teamsState = teams;
         renderGameTeamOptions(teamsState);
-        renderTeams(teams);
+        renderFilteredTeams();
     } catch (error) {
         teamsContainer.innerHTML = `
             <div class="empty-state">
@@ -237,4 +260,6 @@ if (playerForm !== null) {
     playerForm.addEventListener("submit", registerPlayer);
 }
 
+teamFilterBranch.addEventListener("change", renderFilteredTeams);
+teamFilterCategory.addEventListener("change", renderFilteredTeams);
 teamForm.addEventListener("submit", registerTeam);
