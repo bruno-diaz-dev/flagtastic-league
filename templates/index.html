@@ -9,6 +9,18 @@
 <body>
     <div class="layout">
         <aside class="sidebar">
+            <button
+                id="sidebar-toggle"
+                class="sidebar-toggle"
+                type="button"
+                aria-label="Contraer menu"
+                aria-expanded="true"
+            >
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
             <div class="brand">
                 <img
                     class="brand-logo"
@@ -21,13 +33,16 @@
 
             <nav class="navigation" aria-label="Navegación principal">
                 <button class="nav-link active" type="button" data-view="teams">
-                    Equipos
+                    <span class="nav-text">Equipos</span>
+                    <span class="nav-short">EQ</span>
                 </button>
                 <button class="nav-link" type="button" data-view="games">
-                    Partidos
+                    <span class="nav-text">Partidos</span>
+                    <span class="nav-short">PA</span>
                 </button>
                 <button class="nav-link" type="button" data-view="standings">
-                    Tabla
+                    <span class="nav-text">Tabla</span>
+                    <span class="nav-short">TB</span>
                 </button>
             </nav>
         </aside>
