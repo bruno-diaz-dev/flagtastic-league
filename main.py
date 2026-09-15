@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from database import create_database
 from routes.teams import router as teams_router
@@ -18,6 +19,8 @@ app.mount(
     name="static"
 )
 
+templates = Jinja2Templates(directory="templates")
+
 create_database()
 
 app.include_router(teams_router)
@@ -34,3 +37,10 @@ def liveness():
     return {
         "status": "alive"
     }
+
+@app.get("/teams")
+def teams_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "teams.html"
+    )

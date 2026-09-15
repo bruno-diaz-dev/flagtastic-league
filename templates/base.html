@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flagtastic League</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <button
+                id="sidebar-toggle"
+                class="sidebar-toggle"
+                type="button"
+                aria-label="Contraer menu"
+                aria-expanded="true"
+            >
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="brand">
+                <img
+                    class="brand-logo"
+                    src="/static/assets/flagtastic.jpeg"
+                    alt="Flagtastic Football League"
+                >
+                <p class="eyebrow">Flagtastic Football League</p>
+                <h1>Operaciones</h1>
+            </div>
+
+            <nav class="navigation" aria-label="Navegación principal">
+                <a class="nav-link" href="/teams">
+                    <span class="nav-text">Equipos</span>
+                    <span class="nav-short">EQ</span>
+                </a>
+
+                <a class="nav-link" href="/games">
+                    <span class="nav-text">Partidos</span>
+                    <span class="nav-short">PA</span>
+                </a>
+
+                <a class="nav-link" href="/standings">
+                    <span class="nav-text">Tabla</span>
+                    <span class="nav-short">TB</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="/static/layout.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

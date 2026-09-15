@@ -65,22 +65,6 @@ function renderFilteredTeams() {
     renderTeams(filteredTeams);
 }
 
-function renderGameTeamOptions(teams) {
-    if (homeTeamSelect === null || awayTeamSelect === null) {
-        return;
-    }
-
-
-    const options = teams
-        .map((team) => {
-            return `<option value="${team.id}">${team.name} - ${team.branch} / ${team.category}</option>`;
-        })
-        .join("");
-
-        homeTeamSelect.innerHTML = options;
-        awayTeamSelect.innerHTML = options;
-}
-
 function renderRoster(team) {
     rosterPanel.classList.remove("hidden");
     rosterTitle.textContent = `Roster de ${team.name}`;
@@ -132,7 +116,6 @@ async function loadTeams() {
 
         const teams = await response.json();
         teamsState = teams;
-        renderGameTeamOptions(teamsState);
         renderFilteredTeams();
     } catch (error) {
         teamsContainer.innerHTML = `
@@ -263,3 +246,5 @@ if (playerForm !== null) {
 teamFilterBranch.addEventListener("change", renderFilteredTeams);
 teamFilterCategory.addEventListener("change", renderFilteredTeams);
 teamForm.addEventListener("submit", registerTeam);
+
+loadTeams();

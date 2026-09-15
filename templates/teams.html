@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <header class="section-header">
+        <div>
+            <h2>Equipos</h2>
+            <p>Registra y consulta los equipos activos de la liga</p>
+        </div>
+    </header>
+
+    <section class="form-panel">
+        <h3>Registrar equipo</h3>
+
+        <form id="team-form" class="team-form">
+            <label>
+                Nombre del equipo
+                <input
+                    type="text"
+                    name="name"
+                    autocomplete="off"
+                    required
+                >    
+            </label>
+
+            <label>
+                Rama
+                <select name="branch" required>
+                    <option value="">Selecciona una rama</option>
+                    <option value="varonil">Varonil</option>
+                    <option value="femenil">Femenil</option>
+                    <option value="mixto">Mixto</option>
+                </select>
+            </label>
+
+            <label>
+                Categoria
+                <select name="category" required>
+                    <option value="u6">U6</option>
+                    <option value="u8">U8</option>
+                    <option value="u10">U10</option>
+                    <option value="u12">U12</option>
+                    <option value="u14">U14</option>
+                    <option value="u16">U16</option>
+                    <option value="u18">U18</option>
+                    <option value="libre">Libre</option>
+                </select>
+            </label>
+
+            <button type="submit">Registrar Equipo</button>
+        </form>
+
+        <p id="form-message" class="form-message" role="status"></p>
+    </section>
+
+    <section class="filters-panel">
+        <label>
+            Rama
+            <select id="team-filter-branch">
+                <option value="">Todas las ramas</option>
+                <option value="varonil">Varonil</option>
+                <option value="femenil">Femenil</option>
+                <option value="mixto">Mixto</option>
+            </select>
+        </label>
+
+        <label>
+            Categoria
+            <select id="team-filter-category">
+                <option value="">Todas las categorías</option>
+                <option value="u6">U6</option>
+                <option value="u8">U8</option>
+                <option value="u10">U10</option>
+                <option value="u12">U12</option>
+                <option value="u14">U14</option>
+                <option value="u16">U16</option>
+                <option value="u18">U18</option>
+                <option value="libre">Libre</option>
+            </select>
+        </label>
+    </section>
+
+    <section id="teams" class="teams-grid" aria-live="polite"></section>
+
+    <section id="roster-panel" class="roster-panel hidden" aria-live="polite">
+        <div class="section-header">
+            <div>
+                <h2 id="roster-title">Roster</h2>
+                <p id="roster-subtitle">Jugadores registrados en el equipo.</p>
+            </div>
+        </div> 
+
+        <section class="form-panel">
+            <h3>Registrar Jugador</h3>
+
+            <form id="player-form" class="player-form">
+                <label>
+                    Nombre
+                    <input
+                        type="text"
+                        name="name"
+                        autocomplete="off"
+                        required
+                    >
+                </label>
+
+                <label>
+                    CURP
+                    <input
+                        type="text"
+                        name="curp"
+                        autocomplete="off"
+                        maxlength="18"
+                        required
+                    >
+                </label>
+
+                <label>
+                    Edad
+                    <input
+                        type="number"
+                        name="age"
+                        min="1"
+                        required
+                    >
+                </label>
+
+                <label>
+                    Numero
+                    <input
+                        type="number"
+                        name="jersey_number"
+                        min="0"
+                        required
+                    >
+                </label>
+
+                <button type="submit">Registrar Jugador</button>
+            </form>
+
+            <p id="player-form-message" class="form-message" role="status"></p>
+        </section>
+
+        <div id="roster" class="roster-list"></div>
+    </section>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js"></script>
+<script src="/static/teams.js"></script>
+{% endblock %}
