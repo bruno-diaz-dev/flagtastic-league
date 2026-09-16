@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -30,7 +30,7 @@ app.include_router(standings_router)
 
 @app.get("/")
 def index():
-    return FileResponse("templates/index.html")
+    return RedirectResponse("/teams")
 
 @app.get("/live")
 def liveness():
@@ -50,4 +50,11 @@ def games_page(request: Request):
     return templates.TemplateResponse(
         request,
         "games.html"
+    )
+
+@app.get("/standings")
+def standings_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "standings.html"
     )

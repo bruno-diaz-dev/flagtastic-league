@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <header class="section-header">
+        <div>
+            <h2>Tabla</h2>
+            <p>Consulta la tabla de posiciones por rama y categoria.</p>
+        </div>
+    </header>
+
+    <section class="form-panel">
+        <h3>Consultar tabla</h3>
+
+        <form id="standings-form" class="standings-form">
+            <label>
+                Rama
+                <select name="branch" required>
+                    <option value="">Selecciona una rama</option>
+                    <option value="varonil">Varonil</option>
+                    <option value="femenil">Femenil</option>
+                    <option value="mixto">Mixto</option>
+                </select>
+            </label>
+
+            <label>
+                Categoria
+                <select name="category" required>
+                    <option value="">Selecciona una categoria</option>
+                    <option value="u6">U6</option>
+                    <option value="u8">U8</option>
+                    <option value="u10">U10</option>
+                    <option value="u12">U12</option>
+                    <option value="u14">U14</option>
+                    <option value="u16">U16</option>
+                    <option value="u18">U18</option>
+                    <option value="libre">Libre</option>
+                </select>
+            </label>
+
+            <button type="submit">Consultar tabla</button>
+        </form>
+
+        <p id="standings-form-message" class="form-message" role="status"></p>
+    </section>
+
+    <section id="standings" class="standings-table" aria-live="polite"></section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js"></script>
+<script src="/static/standings.js"></script>
+{% endblock %}
