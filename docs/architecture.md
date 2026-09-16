@@ -243,16 +243,34 @@ Rules that need league context, such as preventing a player from registering twi
 | `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
 | `POST` | `/api/games` | Creates a game |
 | `GET` | `/api/games` | Lists games |
+| `PATCH` | `/api/games/{game_id}/score` | Updates a game's score |
+| `GET` | `/api/standings` | Lists standings by branch and category |
+
+## Current Web Pages
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Redirects to `/teams` |
+| `GET` | `/teams` | Teams and roster page |
+| `GET` | `/games` | Games and scores page |
+| `GET` | `/standings` | Standings page |
 
 ## Frontend
 
 The frontend foundation lives in:
 
-- `templates/index.html`
+- `templates/base.html`
+- `templates/teams.html`
+- `templates/games.html`
+- `templates/standings.html`
 - `static/style.css`
-- `static/app.js`
+- `static/layout.js`
+- `static/api.js`
+- `static/teams.js`
+- `static/games.js`
+- `static/standings.js`
 
-It is currently a lightweight HTML, CSS, and JavaScript layer. The backend remains API-first, so the frontend can evolve without coupling directly to persistence.
+It is currently a lightweight server-rendered HTML, CSS, and JavaScript layer. Shared layout concerns live in `base.html` and `layout.js`. Page-specific behavior lives in the JavaScript file for that page. The backend remains API-first, so the frontend can evolve without coupling directly to persistence.
 
 ## Testing
 

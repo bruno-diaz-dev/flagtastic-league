@@ -227,13 +227,13 @@ The current priority is keeping the architecture understandable while the league
 
 ### Frontend
 
-The project structure currently includes a lightweight frontend foundation using:
+The project includes a lightweight server-rendered frontend using:
 
-- HTML
+- Jinja templates
 - CSS
 - Vanilla JavaScript
 
-More frontend functionality will be added as the backend domain stabilizes.
+The frontend is split into page templates. Shared layout lives in `templates/base.html`, while each page loads only the JavaScript it needs.
 
 ---
 
@@ -249,22 +249,35 @@ flagtastic-league/
 │
 ├── routes/
 │   ├── __init__.py
+│   ├── games.py
+│   ├── standings.py
 │   ├── teams.py
 │   └── players.py
 │
 ├── repositories/
 │   ├── __init__.py
+│   ├── games.py
+│   ├── standings.py
 │   ├── teams.py
 │   └── players.py
 │
 ├── templates/
-│   └── index.html
+│   ├── base.html
+│   ├── games.html
+│   ├── standings.html
+│   └── teams.html
 │
 ├── static/
-│   ├── app.js
-│   └── styles.css
+│   ├── api.js
+│   ├── games.js
+│   ├── layout.js
+│   ├── standings.js
+│   ├── style.css
+│   └── teams.js
 │
 └── tests/
+    ├── test_games.py
+    ├── test_standings.py
     ├── test_teams.py
     └── test_player.py
 ```

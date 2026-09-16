@@ -162,14 +162,6 @@ body.sidebar-collapsed .nav-short {
     padding: 32px 0;
 }
 
-.view {
-    display: none;
-}
-
-.active-view {
-    display: block;
-}
-
 .section-header {
     margin-bottom: 16px;
 }
