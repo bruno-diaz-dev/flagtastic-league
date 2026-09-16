@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <header class="section-header">
+        <div>
+            <h2>Partidos</h2>
+            <p>Consulta los partidos registrados y sus marcadores</p>
+        </div>
+    </header>
+
+    <section class="form-panel">
+        <h3>Registrar partido</h3>
+
+        <form id="game-form" class="game-form">
+            <label>
+                Equipo local
+                <select name="home_team_id" required></select>
+            </label>
+
+            <label>
+                Equipo visitante
+                <select name="away_team_id" required></select>
+            </label>
+
+            <button type="submit">Registrar partido</button>
+        </form>
+
+        <p id="game-form-message" class="form-message" role="status"></p>
+    </section>
+
+    <section id="games" class="games-list" aria-live="polite"></section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js"></script>
+<script src="/static/games.js"></script>
+{% endblock %}

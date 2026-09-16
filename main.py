@@ -44,3 +44,10 @@ def teams_page(request: Request):
         request,
         "teams.html"
     )
+
+@app.get("/games")
+def games_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "games.html"
+    )

@@ -2,6 +2,22 @@ const gameForm = document.querySelector("#game-form");
 const gameFormMessage = document.querySelector("#game-form-message");
 const gamesContainer = document.querySelector("#games");
 
+const homeTeamSelect = document.querySelector("[name='home_team_id']");
+const awayTeamSelect = document.querySelector("[name='away_team_id']");
+
+
+function renderGameTeamOption(teams){
+    const options = teams
+        .map((team) => {
+            return `<option value="${team.id}">${team.name} - ${team.branch} / ${team.category}</option>`;
+        })
+        .join("");
+
+        homeTeamSelect.innerHTML = options;
+        awayTeamSelect.innerHTML = options;
+    
+}
+
 function renderGames(games) {
     if (games.length === 0) {
         gamesContainer.innerHTML = `
@@ -60,6 +76,22 @@ function renderGames(games) {
             `;
         })
         .join("");
+}
+
+async function loadGamesTeams() {
+    try {
+        const response = await getTeams();
+
+        if (!response.ok) {
+            gameFormMessage.textContent = "No se pudieron cargar los equipos";
+            return;
+        }
+
+        const teams = await response.json();
+        renderGameTeamOption(teams);
+    } catch (error) {
+        gameFormMessage.textContent = "No se pudo conectar al servidor";
+    }
 }
 
 async function loadGames() {
@@ -171,3 +203,7 @@ gamesContainer.addEventListener("submit", (event) => {
 if (gameForm !== null) {
     gameForm.addEventListener("submit", registerGame);
 }
+
+
+loadGamesTeams();
+loadGames();
