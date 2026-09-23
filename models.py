@@ -17,6 +17,12 @@ ALLOWED_CATEGORIES = {
     "libre"
 }
 
+ALLOWED_USER_ROLES = {
+    "league_admin",
+    "team_representative",
+    "player"
+}
+
 class TeamCreate(BaseModel):
     name: str = Field(min_length=1)
     branch: str = Field(min_length=1)
@@ -56,3 +62,29 @@ class GameCreate(BaseModel):
 class GameScoreUpdate(BaseModel):
     home_score: int = Field(ge=0)
     away_score: int = Field(ge=0)
+
+class UserCreate(BaseModel):
+    email: str = Field(min_length=3)
+    name: str = Field(min_length=1)
+    password: str = Field(min_length=8)
+    role: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, email):
+        normalized_email = email.strip().lower()
+
+        if "@" not in normalized_email or "." not in normalized_email:
+            raise ValueError("Invalid email")
+
+        return normalized_email
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, role):
+        normalized_role = role.strip().lower()
+
+        if normalized_role not in ALLOWED_USER_ROLES:
+            raise ValueError("Invalid role")
+
+        return normalized_role

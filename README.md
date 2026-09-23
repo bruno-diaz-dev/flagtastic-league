@@ -334,27 +334,29 @@ docker run -d `
     postgres:17
 ```
 
-The default development connection is:
+The local development connection used in the examples is:
 
 ```text
 postgresql://flagtastic:flagtastic@localhost:5432/flagtastic
 ```
 
-The connection can be overridden using the `DATABASE_URL` environment variable.
+`DATABASE_URL` is required. The application and Alembic fail explicitly when it is not configured. Local development values are documented in `.env.example`; CI and deployed environments provide the value through environment configuration or secrets.
 
 Example:
 
-```env
-DATABASE_URL=postgresql://flagtastic:flagtastic@localhost:5432/flagtastic
+```powershell
+$env:DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
 ```
 
 ---
 
 # ▶️ Running the API
 
-Start the FastAPI development server:
+Apply all pending database migrations before starting the FastAPI development server:
 
 ```powershell
+$env:DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
+python -m alembic upgrade head
 uvicorn main:app --reload
 ```
 
@@ -398,9 +400,11 @@ The test environment uses:
 postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test
 ```
 
-Run the test suite:
+Configure and migrate the test database, then run the test suite:
 
 ```powershell
+$env:DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
+python -m alembic upgrade head
 pytest -v
 ```
 
@@ -440,7 +444,7 @@ curl http://localhost:8000/live
 
 ## CI
 
-GitHub Actions runs the test suite on every push and pull request.
+GitHub Actions applies all Alembic migrations to a clean PostgreSQL service and then runs the test suite on every push and pull request.
 
 The workflow uses a PostgreSQL service container and requires these repository secrets:
 

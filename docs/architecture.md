@@ -36,7 +36,7 @@ flowchart TD
     Tests --> DB
 ```
 
-The application starts in `main.py`. During startup, it creates the FastAPI instance, runs table bootstrap through `create_database()`, and registers the teams, players, and games routers.
+The application starts in `main.py`, creates the FastAPI instance, mounts static assets, and registers the application routers. Database schema changes are managed separately through versioned Alembic migrations.
 
 ## Layers
 
@@ -49,7 +49,6 @@ Responsibilities:
 - Create the FastAPI instance.
 - Register routers.
 - Expose the `GET /live` health check.
-- Run initial table creation.
 
 ### Contracts
 
@@ -65,6 +64,7 @@ Current models:
 - `TeamCreate`: name, branch, and category.
 - `PlayerCreate`: name, CURP, age, and jersey number.
 - `GameCreate`: home team and away team.
+- `UserCreate`: email, name, password, and role.
 
 ### HTTP Routes
 
@@ -100,6 +100,21 @@ Current repositories:
 - `repositories/teams.py`
 - `repositories/players.py`
 - `repositories/games.py`
+- `repositories/users.py`
+
+### Services
+
+Main folder: `services/`
+
+Responsibilities:
+
+- Coordinate business rules that span repositories.
+- Keep authentication decisions separate from password persistence.
+- Return public data without exposing credential hashes.
+
+Current services:
+
+- `services/auth.py`: credential authentication and account-status checks.
 
 ### Database
 
@@ -109,7 +124,7 @@ Responsibilities:
 
 - Resolve `DATABASE_URL`.
 - Create psycopg connections using `dict_row`.
-- Create required tables if they do not already exist.
+- Manage schema evolution through versioned Alembic migrations in `migrations/`.
 
 Current engine:
 
@@ -292,12 +307,12 @@ Tests clean the database between cases to preserve isolation.
 
 ## Configuration and Deployment
 
-The application reads the connection string from `DATABASE_URL`.
+The application reads the connection string from `DATABASE_URL`. The value is required: the application and Alembic fail explicitly when it is not configured. Local values are documented in `.env.example`; CI and deployed environments provide the value through environment configuration or secrets.
 
-Default local value:
+Schema changes are applied before application startup:
 
 ```text
-postgresql://flagtastic:flagtastic@localhost:5432/flagtastic
+python -m alembic upgrade head
 ```
 
 The `Dockerfile` builds an image based on `python:3.14-slim`, installs dependencies from `requirements.txt`, copies the project, and starts Uvicorn on `0.0.0.0:8000`.
@@ -314,6 +329,7 @@ GitHub Actions runs the delivery checks on every push and pull request.
 
 The current pipeline validates:
 
+- Alembic migrations against a clean PostgreSQL service before running tests.
 - The Python test suite.
 - PostgreSQL integration through a service container.
 - Docker image builds.
@@ -347,7 +363,7 @@ flowchart LR
     Auth --> Leaderboards
 ```
 
-As domain rules grow, the natural next step is to introduce a service or domain layer between routes and repositories. That layer could centralize eligibility rules, scheduling, statistics capture, standings calculations, and administrative permissions.
+The service layer currently owns authentication decisions. As domain rules grow, it can also centralize eligibility rules, scheduling, statistics capture, standings calculations, and administrative permissions.
 
 ## Current Conventions
 
@@ -359,8 +375,8 @@ As domain rules grow, the natural next step is to introduce a service or domain 
 
 ## Risks and Considerations
 
-- Table creation currently happens when the app starts; production should use a migration tool before the first real deployment.
+- Production deployments must run `alembic upgrade head` as a controlled release step before starting the new application version.
 - Domain rules are partially split between routes and repositories; if they grow, extracting services would help.
-- Authentication and authorization do not exist yet.
+- Credential authentication exists, but HTTP sessions and role-based authorization enforcement are not implemented yet.
 - CURP privacy must remain explicit as administrative and public endpoints are added.
 - Per-game statistics are not modeled yet.
