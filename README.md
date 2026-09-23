@@ -249,6 +249,7 @@ flagtastic-league/
 │
 ├── routes/
 │   ├── __init__.py
+│   ├── auth.py
 │   ├── games.py
 │   ├── standings.py
 │   ├── teams.py
@@ -567,20 +568,21 @@ Team
 
 ---
 
-# 🔐 Planned Roles
+# 🔐 Authentication and Roles
 
-Future versions of Flagtastic are expected to include authentication and authorization.
+Flagtastic supports credential authentication backed by database sessions. Login creates a random session token, stores only its SHA-256 hash, and sends the raw token in an `HttpOnly`, `SameSite=Lax` cookie. Production cookies are `Secure` by default.
 
-Possible roles include:
+Current account roles are:
 
 ```text
 League Administrator
-Team Administrator
-Statistics Operator
-Public User
+Team Representative
+Player
 ```
 
-Administrative functionality will have access to private player information when required.
+The authentication API supports login, current-user lookup, and idempotent logout. Role-based authorization rules are the next security boundary to implement before administrative endpoints are exposed.
+
+Administrative functionality will have access to private player information only when required by its role.
 
 Public endpoints will expose only information appropriate for league participants and spectators.
 
@@ -662,7 +664,7 @@ Coming next:
 ⬜ Per-game statistics
 ⬜ Season statistics
 ⬜ Leaderboards
-⬜ Authentication
+🚧 Role-based authorization
 ⬜ Deployment
 ```
 

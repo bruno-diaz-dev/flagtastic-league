@@ -1,6 +1,6 @@
 """Pydantic request contracts and league-wide input constraints."""
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 ALLOWED_BRANCHES = {
     "varonil",
@@ -95,3 +95,20 @@ class UserCreate(BaseModel):
             raise ValueError("Invalid role")
 
         return normalized_role
+
+class LoginRequest(BaseModel):
+    """Validate credentials submitted to the login endpoint."""
+
+    email: str = Field(min_length=3)
+    password: SecretStr
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, email):
+        normalized_email = email.strip().lower()
+
+        if "@" not in normalized_email or "." not in normalized_email:
+            raise ValueError("Invalid email")
+
+        return normalized_email
+        

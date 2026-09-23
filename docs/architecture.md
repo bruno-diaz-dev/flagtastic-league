@@ -79,6 +79,7 @@ Responsibilities:
 
 Current routers:
 
+- `routes/auth.py`: login, current-session identity, and logout.
 - `routes/teams.py`: team registration and listing.
 - `routes/players.py`: player registration and roster listing by team.
 - `routes/games.py`: game creation and listing.
@@ -252,6 +253,9 @@ Rules that need league context, such as preventing a player from registering twi
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/live` | Application health check |
+| `POST` | `/api/auth/login` | Authenticates credentials and creates a session cookie |
+| `GET` | `/api/auth/me` | Returns the user associated with an active session |
+| `POST` | `/api/auth/logout` | Revokes the current session and removes its cookie |
 | `POST` | `/api/teams` | Creates a team |
 | `GET` | `/api/teams` | Lists teams |
 | `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
@@ -377,6 +381,7 @@ The service layer currently owns authentication decisions. As domain rules grow,
 
 - Production deployments must run `alembic upgrade head` as a controlled release step before starting the new application version.
 - Domain rules are partially split between routes and repositories; if they grow, extracting services would help.
-- Credential authentication exists, but HTTP sessions and role-based authorization enforcement are not implemented yet.
+- Credential authentication and database-backed HTTP sessions are implemented. Role-based authorization enforcement is still pending.
+- Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` by default; local non-HTTPS environments must explicitly disable the secure flag.
 - CURP privacy must remain explicit as administrative and public endpoints are added.
 - Per-game statistics are not modeled yet.

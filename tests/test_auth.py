@@ -1,3 +1,5 @@
+"""Tests for credential authentication and session-based identity."""
+
 import os
 
 import pytest
@@ -8,7 +10,7 @@ os.environ.setdefault(
 )
 
 from database import get_connection
-from models import UserCreate
+from models import LoginRequest, UserCreate
 from repositories.users import create_user
 from repositories.sessions import create_session
 from services.auth import (
@@ -166,4 +168,14 @@ def test_inactive_user_session_does_not_authenticate():
     )
 
     assert authenticated_user is None
-"""Tests for credential authentication and session-based identity."""
+
+def test_login_request_normalizes_email_and_hides_password():
+    login = LoginRequest(
+        email=" ADMIN@FLAGTASTIC.COM ",
+        password="supersecret"
+    )
+
+    assert login.email == "admin@flagtastic.com"
+    assert login.password.get_secret_value() == "supersecret"
+    assert "supersecret" not in repr(login)
+    
