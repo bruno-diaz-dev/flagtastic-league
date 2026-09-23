@@ -1,7 +1,10 @@
+"""Read model for division standings calculated from completed games."""
+
 from database import get_connection
 
 
 def get_standings(branch, category):
+    """Calculate and rank standings for one normalized division."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -79,12 +82,14 @@ def get_standings(branch, category):
 
     standings = [dict(row) for row in rows]
 
+    # Point difference is derived after aggregation to keep the SQL readable.
     for team in standings:
         team["point_difference"] = (
             team["points_for"]
             - team["points_against"]
         )
 
+    # League ranking: wins, point difference, points scored, losses, then name.
     standings.sort(
         key=lambda team:(
             -team["wins"],

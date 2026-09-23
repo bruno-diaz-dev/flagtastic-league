@@ -1,3 +1,5 @@
+// Shared sidebar behavior applies consistently across every operations page.
+
 const sidebarToggle = document.querySelector("#sidebar-toggle");
 
 if (sidebarToggle !== null) {

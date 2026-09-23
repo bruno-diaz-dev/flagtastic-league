@@ -166,3 +166,4 @@ def test_inactive_user_session_does_not_authenticate():
     )
 
     assert authenticated_user is None
+"""Tests for credential authentication and session-based identity."""

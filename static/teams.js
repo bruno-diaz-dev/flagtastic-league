@@ -1,3 +1,5 @@
+// Teams page controller: registration, filtering, roster loading, and players.
+
 const teamForm = document.querySelector("#team-form");
 const formMessage = document.querySelector("#form-message");
 const teamsContainer = document.querySelector("#teams");
@@ -46,6 +48,7 @@ function renderTeams(teams) {
 }
 
 function getFilteredTeams() {
+    // Filters are combined so large divisions remain usable without re-fetching.
     const selectedBranch= teamFilterBranch.value;
     const selectedCategory = teamFilterCategory.value;
 
@@ -128,6 +131,7 @@ async function loadTeams() {
 }
 
 async function loadTeamDetail(teamId) {
+    // Selecting a team drives both roster rendering and player registration.
     rosterPanel.classList.remove("hidden");
     rosterTitle.textContent = "Cargando roster";
     rosterSubtitle.textContent = "Espera un momento.";

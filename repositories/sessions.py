@@ -1,6 +1,7 @@
+"""Persistent sessions backed by hashed bearer tokens."""
+
 import hashlib
 import secrets
-
 from datetime import datetime, timedelta, timezone
 
 from database import get_connection
@@ -8,11 +9,13 @@ from database import get_connection
 SESSION_DURATION = timedelta(hours=12)
 
 def hash_session_token(token):
+    """Return the SHA-256 digest used to look up a session token."""
     return hashlib.sha256(
         token.encode("utf-8")
     ).hexdigest()
 
 def create_session(user_id):
+    """Create a session and return its raw token exactly once."""
     token = secrets.token_urlsafe(32)
     token_hash = hash_session_token(token)
 
@@ -48,6 +51,7 @@ def create_session(user_id):
 
         connection.commit()
 
+        # Only the caller receives the bearer token; the database stores its hash.
         session = dict(created_session)
         session["token"] = token
 
@@ -61,6 +65,7 @@ def create_session(user_id):
         connection.close()
 
 def get_active_session(token):
+    """Return an unexpired, unrevoked session for a token, or None."""
     token_hash = hash_session_token(token)
     connection = get_connection()
 
@@ -90,7 +95,8 @@ def get_active_session(token):
         connection.close()
 
 def revoke_session(token):
-    token_hash= hash_session_token(token)
+    """Revoke an active session and report whether it was changed."""
+    token_hash = hash_session_token(token)
     connection = get_connection()
 
     try:

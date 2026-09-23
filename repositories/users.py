@@ -1,3 +1,5 @@
+"""User persistence and password hashing helpers."""
+
 import hashlib
 import hmac
 import secrets
@@ -8,6 +10,7 @@ PASSWORD_ALGORITHM = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 390000
 
 def hash_password(password):
+    """Hash a password with a unique salt using PBKDF2-SHA256."""
     salt = secrets.token_hex(16)
     password_hash = hashlib.pbkdf2_hmac(
         "sha256",
@@ -24,6 +27,7 @@ def hash_password(password):
     )
 
 def verify_password(password, stored_password_hash):
+    """Return whether a password matches a stored PBKDF2-SHA256 hash."""
     try:
         algorithm, iterations, salt, expected_hash = stored_password_hash.split("$")
 
@@ -43,6 +47,7 @@ def verify_password(password, stored_password_hash):
     return hmac.compare_digest(password_hash, expected_hash)
 
 def create_user(user):
+    """Create a user and return only fields safe for application use."""
     connection = get_connection()
 
     password_hash = hash_password(user.password)
@@ -84,6 +89,7 @@ def create_user(user):
         connection.close()
 
 def get_user_by_email(email):
+    """Return public user data for a normalized email, or None."""
     connection = get_connection()
 
     row = connection.execute(
@@ -108,6 +114,7 @@ def get_user_by_email(email):
     return dict(row)
 
 def get_user_credentials_by_email(email):
+    """Return credential data used exclusively during authentication."""
     connection = get_connection()
 
     row = connection.execute(
@@ -133,6 +140,7 @@ def get_user_credentials_by_email(email):
     return dict(row)
 
 def get_user_by_id(user_id):
+    """Return public user data for an identifier, or None."""
     connection = get_connection()
 
     row = connection.execute(

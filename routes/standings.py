@@ -1,3 +1,5 @@
+"""HTTP endpoint for division standings."""
+
 from fastapi import APIRouter
 
 from repositories.standings import get_standings
@@ -12,4 +14,5 @@ def list_standings(
     branch: str,
     category: str
 ):
+    """Return calculated standings for a branch and category."""
     return get_standings(branch, category)

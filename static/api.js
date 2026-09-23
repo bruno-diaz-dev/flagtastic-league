@@ -1,3 +1,5 @@
+// Shared HTTP client functions keep endpoint details out of page controllers.
+
 async function getTeams() {
     const response = await fetch("/api/teams");
     return response;

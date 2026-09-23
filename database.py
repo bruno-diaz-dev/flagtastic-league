@@ -1,9 +1,12 @@
+"""PostgreSQL connection helpers shared by repositories and migrations."""
+
 import os
 
 import psycopg
 from psycopg.rows import dict_row
 
 def get_connection():
+    """Return a PostgreSQL connection whose rows behave like dictionaries."""
     database_url = os.getenv(
         "DATABASE_URL"
     )

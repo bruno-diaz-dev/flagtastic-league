@@ -265,3 +265,4 @@ def test_game_score_cannot_be_tied():
     assert response.json() == {
         "detail": "A game cannot end in a tie"
     }
+"""API tests for game scheduling, listing, and score updates."""

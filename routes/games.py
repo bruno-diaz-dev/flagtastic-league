@@ -1,3 +1,5 @@
+"""HTTP endpoints for scheduling games and recording final scores."""
+
 from fastapi import APIRouter, HTTPException
 from models import GameCreate, GameScoreUpdate
 from repositories.games import (
@@ -14,6 +16,7 @@ router = APIRouter(
 
 @router.post("", status_code=201)
 def create_game(game: GameCreate):
+    """Create a game after validating both participants."""
     if game.home_team_id == game.away_team_id:
         raise HTTPException(
             status_code=409,
@@ -35,6 +38,7 @@ def create_game(game: GameCreate):
 
 @router.get("")
 def list_games():
+    """Return all scheduled games and their current scores."""
     return get_games()
 
 @router.patch("/{game_id}/score")
@@ -42,6 +46,7 @@ def update_score(
     game_id: int,
     score: GameScoreUpdate
 ):
+    """Record a non-tied final score for an existing game."""
 
     if score.home_score == score.away_score:
         raise HTTPException(

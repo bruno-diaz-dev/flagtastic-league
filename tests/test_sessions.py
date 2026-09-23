@@ -180,3 +180,4 @@ def test_revoking_session_twice_return_false():
 
     assert first_revocation is True
     assert second_revocation is False
+"""Repository tests for secure, expiring, and revocable sessions."""

@@ -1,6 +1,9 @@
+"""Persistence operations for league teams."""
+
 from database import get_connection
 
 def create_team(team):
+    """Create a normalized pending team and return its public fields."""
     connection = get_connection()
 
     name = team.name.strip()
@@ -47,6 +50,7 @@ def create_team(team):
         connection.close()
 
 def get_all_teams():
+    """Return all teams in stable creation order."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -62,6 +66,7 @@ def get_all_teams():
     return [dict(row) for row in rows]
 
 def get_team_by_id(team_id):
+    """Return a team by identifier, or None when it does not exist."""
     connection = get_connection()
 
     row = connection.execute(

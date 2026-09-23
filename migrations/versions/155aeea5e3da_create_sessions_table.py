@@ -19,6 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Create revocable, expiring sessions without storing bearer tokens."""
     op.create_table("sessions",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("user_id", sa.Integer(), nullable=False),
@@ -59,4 +60,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Remove persistent session storage."""
     op.drop_table("sessions")

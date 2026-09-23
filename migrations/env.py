@@ -1,3 +1,5 @@
+"""Alembic runtime configuration for the project's psycopg connection URL."""
+
 import os
 
 from sqlalchemy.engine import make_url
@@ -9,8 +11,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Alembic owns schema changes and requires an explicit target database.
 config = context.config
 
 database_url = os.getenv("DATABASE_URL")
@@ -29,21 +30,12 @@ config.set_main_option(
     ).replace("%", "%%")
 )
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# Reuse the logging configuration from alembic.ini.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
+# Migrations are authored explicitly because the app uses SQL, not ORM models.
 target_metadata = None
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
 
 def run_migrations_offline() -> None:

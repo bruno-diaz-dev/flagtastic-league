@@ -1,3 +1,5 @@
+// Games page controller: scheduling, score capture, and game list rendering.
+
 const gameForm = document.querySelector("#game-form");
 const gameFormMessage = document.querySelector("#game-form-message");
 const gamesContainer = document.querySelector("#games");
@@ -192,6 +194,7 @@ async function submitGamesScore(event) {
 }
 
 gamesContainer.addEventListener("submit", (event) => {
+    // Score forms are rendered dynamically, so one delegated listener handles all.
     if (!event.target.classList.contains("score-form")) {
         return;
     }

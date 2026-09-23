@@ -222,3 +222,4 @@ def test_same_team_name_can_exist_in_different_category():
 
     assert first_response.status_code == 201
     assert second_reponse.status_code == 201
+"""API tests for team registration, listing, and detail views."""

@@ -1,6 +1,9 @@
+"""Persistence operations for games and final scores."""
+
 from database import get_connection
 
 def create_game(game):
+    """Create an unscored game between two validated teams."""
     connection = get_connection()
 
     try:
@@ -34,6 +37,7 @@ def create_game(game):
         connection.close()
 
 def get_games():
+    """Return games with nested public summaries for both teams."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -77,6 +81,7 @@ def get_games():
 
 
 def update_game_score(game_id, score):
+    """Store a final score and return the game, or None when missing."""
     connection = get_connection()
 
     try:

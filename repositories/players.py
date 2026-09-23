@@ -1,9 +1,12 @@
+"""Persistence and division-eligibility rules for player rosters."""
+
 from database import get_connection
 
 class PlayerAlreadyRegisteredInDivision(Exception):
-    pass
+    """Raised when a person already belongs to the requested division."""
 
 def create_player(team, player):
+    """Create or reuse a person and attach them to an eligible team roster."""
     connection = get_connection()
 
     try:
@@ -19,6 +22,7 @@ def create_player(team, player):
             (player.curp,)
         ).fetchone()
 
+        # CURP identifies a person globally; roster membership is stored separately.
         if existing_player is None:
             existing_player = connection.execute(
                 """
@@ -39,6 +43,7 @@ def create_player(team, player):
 
         player_id = existing_player["id"]
 
+        # A person may join multiple divisions, but only one team per division.
         division_conflict = connection.execute(
             """
             SELECT
@@ -97,6 +102,7 @@ def create_player(team, player):
         connection.close()
 
 def get_players_by_team(team_id):
+    """Return a team's public roster ordered by jersey number."""
     connection = get_connection()
 
     rows = connection.execute(

@@ -184,3 +184,4 @@ def test_get_user_by_id_returns_none_when_user_does_not_exist():
     user = get_user_by_id(9999)
 
     assert user is None
+"""Repository and validation tests for application users."""

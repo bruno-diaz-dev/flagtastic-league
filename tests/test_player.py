@@ -384,3 +384,4 @@ def test_reused_curp_creates_one_player_with_multiple_memberships():
 
     assert player_count == 1
     assert membership_count == 2
+"""API tests for player identity, eligibility, and roster membership."""

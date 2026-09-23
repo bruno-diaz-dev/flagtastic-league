@@ -106,3 +106,4 @@ def test_get_standings_for_branch_and_category():
             "point_difference": -8
         }
     ]
+"""API tests for division standings and ranking rules."""

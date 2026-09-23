@@ -19,6 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Create the schema that existed when Alembic was introduced."""
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -196,10 +197,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Remove the initial schema in reverse dependency order."""
     op.drop_table("team_representatives")
     op.drop_table("games")
     op.drop_table("team_players")
     op.drop_table("players")
     op.drop_table("teams")
     op.drop_table("users")
-

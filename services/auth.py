@@ -1,3 +1,5 @@
+"""Authentication services for credentials and persistent sessions."""
+
 from repositories.users import (
     get_user_credentials_by_email,
     verify_password,
@@ -7,6 +9,7 @@ from repositories.users import (
 from repositories.sessions import get_active_session
 
 def authenticate_user(email, password):
+    """Authenticate active credentials without exposing the password hash."""
     credentials = get_user_credentials_by_email(email)
 
     if credentials is None:
@@ -30,6 +33,7 @@ def authenticate_user(email, password):
     }
 
 def get_authenticated_user(token):
+    """Resolve an active public user from a valid session token."""
     session = get_active_session(token)
 
     if session is None:

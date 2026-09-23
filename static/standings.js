@@ -1,3 +1,5 @@
+// Standings page controller: division selection and table rendering.
+
 const standingsForm = document.querySelector("#standings-form");
 const standingsFormMessage = document.querySelector("#standings-form-message");
 const standingsContainer = document.querySelector("#standings");

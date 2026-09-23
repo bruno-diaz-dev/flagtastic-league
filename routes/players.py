@@ -1,3 +1,5 @@
+"""HTTP endpoints for player registration and team rosters."""
+
 from psycopg.errors import UniqueViolation
 from fastapi import APIRouter, HTTPException
 
@@ -19,6 +21,7 @@ def register_player(
     team_id: int,
     player: PlayerCreate
 ):
+    """Register a player while translating roster conflicts to HTTP errors."""
 
     team = get_team_by_id(team_id)
 
@@ -39,6 +42,7 @@ def register_player(
         )
 
     except UniqueViolation as error:
+        # Constraint names distinguish a duplicate jersey from a duplicate member.
         constraint = error.diag.constraint_name
 
         if (
@@ -62,4 +66,5 @@ def register_player(
 
 @router.get("")
 def list_players(team_id: int):
+    """Return the public roster for a team."""
     return get_players_by_team(team_id)

@@ -1,3 +1,5 @@
+"""FastAPI application assembly and server-rendered page routes."""
+
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,16 +29,19 @@ app.include_router(standings_router)
 
 @app.get("/")
 def index():
+    """Redirect the application root to the default operations page."""
     return RedirectResponse("/teams")
 
 @app.get("/live")
 def liveness():
+    """Expose a dependency-free process liveness check."""
     return {
         "status": "alive"
     }
 
 @app.get("/teams")
 def teams_page(request: Request):
+    """Render the team and roster operations page."""
     return templates.TemplateResponse(
         request,
         "teams.html"
@@ -44,6 +49,7 @@ def teams_page(request: Request):
 
 @app.get("/games")
 def games_page(request: Request):
+    """Render the game and score operations page."""
     return templates.TemplateResponse(
         request,
         "games.html"
@@ -51,6 +57,7 @@ def games_page(request: Request):
 
 @app.get("/standings")
 def standings_page(request: Request):
+    """Render the standings query page."""
     return templates.TemplateResponse(
         request,
         "standings.html"

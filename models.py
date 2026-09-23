@@ -1,3 +1,5 @@
+"""Pydantic request contracts and league-wide input constraints."""
+
 from pydantic import BaseModel, Field, field_validator
 
 ALLOWED_BRANCHES = {
@@ -24,6 +26,7 @@ ALLOWED_USER_ROLES = {
 }
 
 class TeamCreate(BaseModel):
+    """Validate and normalize a team registration request."""
     name: str = Field(min_length=1)
     branch: str = Field(min_length=1)
     category: str = Field(min_length=1)
@@ -50,20 +53,24 @@ class TeamCreate(BaseModel):
 
 
 class PlayerCreate(BaseModel):
+    """Validate a player registration for a team roster."""
     name: str = Field(min_length=1)
     curp: str = Field(min_length=18, max_length=18)
     age: int = Field(gt=0)
     jersey_number: int = Field(ge=0)
 
 class GameCreate(BaseModel):
+    """Validate the two participants of a new game."""
     home_team_id: int = Field(gt=0)
     away_team_id: int = Field(gt=0)
 
 class GameScoreUpdate(BaseModel):
+    """Validate a non-negative final score update."""
     home_score: int = Field(ge=0)
     away_score: int = Field(ge=0)
 
 class UserCreate(BaseModel):
+    """Validate and normalize a new application user."""
     email: str = Field(min_length=3)
     name: str = Field(min_length=1)
     password: str = Field(min_length=8)

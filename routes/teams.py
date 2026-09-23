@@ -1,3 +1,5 @@
+"""HTTP endpoints for team registration and roster-aware team details."""
+
 from fastapi import APIRouter, HTTPException
 from psycopg.errors import UniqueViolation
 
@@ -16,6 +18,7 @@ router = APIRouter(
 
 @router.post("", status_code=201)
 def register_team(team: TeamCreate):
+    """Register a team or report a duplicate division entry."""
     try:
         return create_team(team)
 
@@ -27,10 +30,12 @@ def register_team(team: TeamCreate):
 
 @router.get("")
 def list_teams():
+    """Return every registered team."""
     return get_all_teams()
 
 @router.get("/{team_id}")
 def get_team_details(team_id: int):
+    """Return a team and its public roster, or a 404 response."""
     team = get_team_by_id(team_id)
 
     if team is None:
