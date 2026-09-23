@@ -131,3 +131,27 @@ def get_user_credentials_by_email(email):
         return None
 
     return dict(row)
+
+def get_user_by_id(user_id):
+    connection = get_connection()
+
+    row = connection.execute(
+        """
+        SELECT
+            id,
+            email,
+            name,
+            role,
+            status
+        FROM users
+        WHERE id = %s
+        """,
+        (user_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        return None
+
+    return dict(row)

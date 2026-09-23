@@ -10,7 +10,12 @@ os.environ.setdefault(
 from database import get_connection
 from models import UserCreate
 from repositories.users import create_user
-from services.auth import authenticate_user
+from repositories.sessions import create_session
+from services.auth import (
+    authenticate_user,
+    get_authenticated_user
+)
+
 
 @pytest.fixture(autouse=True)
 def clean_database():
@@ -105,6 +110,59 @@ def test_inactive_user_cannot_authenticate():
     authenticated_user = authenticate_user(
         "admin@flagtastic.com",
         "supersecret"
+    )
+
+    assert authenticated_user is None
+
+def test_get_authenticated_user_from_active_session():
+    created_user = create_user(
+        UserCreate(
+            email="admin@flagtastic.com",
+            name="League admin",
+            password="supersecret",
+            role="league_admin"
+        )
+    )
+
+    session = create_session(
+        created_user["id"]
+    )
+
+    authenticated_user = get_authenticated_user(
+        session["token"]
+    )
+
+    assert authenticated_user == created_user
+    assert "password_hash" not in authenticated_user
+
+def test_inactive_user_session_does_not_authenticate():
+    created_user = create_user(
+        UserCreate(
+            email="admin@flagtastic.com",
+            name="League admin",
+            password="supersecret",
+            role="league_admin"
+        )
+    )
+
+    session = create_session(
+        created_user["id"]
+    )
+
+    connection = get_connection()
+    connection.execute(
+        """
+        UPDATE users
+        SET status = 'inactive'
+        WHERE id = %s
+        """,
+        (created_user["id"],)
+    )
+    connection.commit()
+    connection.close()
+
+    authenticated_user = get_authenticated_user(
+        session["token"]
     )
 
     assert authenticated_user is None

@@ -14,6 +14,7 @@ from models import UserCreate
 from repositories.users import (
     create_user,
     get_user_by_email,
+    get_user_by_id,
     get_user_credentials_by_email,
     verify_password
 )
@@ -154,3 +155,32 @@ def test_user_role_is_normalized():
     )
 
     assert user.role == "league_admin"
+
+def test_get_user_by_id_does_not_expose_password_hash():
+    created_user = create_user(
+        UserCreate(
+            email="admin@flagtastic.com",
+            name="League admin",
+            password="supersecret",
+            role="league_admin"
+        )
+    )
+
+    user = get_user_by_id(
+        created_user["id"]
+    )
+
+    assert user == {
+        "id": created_user["id"],
+        "email": "admin@flagtastic.com",
+        "name": "League admin",
+        "role": "league_admin",
+        "status": "active"
+    }
+
+    assert "password_hash" not in user
+
+def test_get_user_by_id_returns_none_when_user_does_not_exist():
+    user = get_user_by_id(9999)
+
+    assert user is None

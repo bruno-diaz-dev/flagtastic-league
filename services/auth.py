@@ -1,7 +1,10 @@
 from repositories.users import (
     get_user_credentials_by_email,
-    verify_password
+    verify_password,
+    get_user_by_id
 )
+
+from repositories.sessions import get_active_session
 
 def authenticate_user(email, password):
     credentials = get_user_credentials_by_email(email)
@@ -25,3 +28,21 @@ def authenticate_user(email, password):
         "role": credentials["role"],
         "status": credentials["status"]
     }
+
+def get_authenticated_user(token):
+    session = get_active_session(token)
+
+    if session is None:
+        return None
+    
+    user = get_user_by_id(
+        session["user_id"]
+    )
+
+    if user is None:
+        return None
+
+    if user["status"] != "active":
+        return None
+
+    return user
