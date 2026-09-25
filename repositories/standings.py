@@ -12,6 +12,7 @@ def get_standings(branch, category):
         SELECT
             teams.id AS team_id,
             teams.name AS team_name,
+            teams.logo_data IS NOT NULL AS team_has_logo,
             COALESCE(SUM(
                 CASE
                     WHEN games.home_team_id = teams.id
@@ -65,7 +66,8 @@ def get_standings(branch, category):
             AND teams.category = %s
         GROUP BY
             teams.id,
-            teams.name
+            teams.name,
+            teams.logo_data
         ORDER BY
             wins DESC,
             losses ASC,
@@ -84,6 +86,8 @@ def get_standings(branch, category):
 
     # Point difference is derived after aggregation to keep the SQL readable.
     for team in standings:
+        if team.pop("team_has_logo"):
+            team["team_logo_url"] = f"/api/teams/{team['team_id']}/logo"
         team["point_difference"] = (
             team["points_for"]
             - team["points_against"]

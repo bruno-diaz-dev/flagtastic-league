@@ -100,7 +100,13 @@ function renderGames(games) {
             return `
                 <article class="game-card">
                     <div>
-                        <h3>${escapeHtml(game.home_team.name)} vs ${escapeHtml(game.away_team.name)}</h3>
+                        <h3 class="game-matchup">
+                            ${game.home_team.logo_url ? `<img class="team-logo team-logo-small" src="${game.home_team.logo_url}" alt="">` : ""}
+                            <span>${escapeHtml(game.home_team.name)}</span>
+                            <span class="matchup-versus">vs</span>
+                            ${game.away_team.logo_url ? `<img class="team-logo team-logo-small" src="${game.away_team.logo_url}" alt="">` : ""}
+                            <span>${escapeHtml(game.away_team.name)}</span>
+                        </h3>
                         <p>Jornada ${game.week} · ${gameTime(game)} · ${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
                     </div>
                    

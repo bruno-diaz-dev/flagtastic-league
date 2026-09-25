@@ -49,7 +49,8 @@ def create_team(team, representative_user_id=None):
             "name": name,
             "branch": branch,
             "category": category,
-            "status": "pending"
+            "status": "pending",
+            "logo_url": None
         }
 
     except Exception:
@@ -65,7 +66,8 @@ def get_all_teams():
 
     rows = connection.execute(
         """
-        SELECT *
+        SELECT id, name, branch, category, status,
+               logo_data IS NOT NULL AS has_logo
         FROM teams
         ORDER BY id
         """
@@ -73,7 +75,7 @@ def get_all_teams():
 
     connection.close()
 
-    return [dict(row) for row in rows]
+    return [_public_team(row) for row in rows]
 
 def get_team_by_id(team_id):
     """Return a team by identifier, or None when it does not exist."""
@@ -81,7 +83,8 @@ def get_team_by_id(team_id):
 
     row = connection.execute(
         """
-        SELECT *
+        SELECT id, name, branch, category, status,
+               logo_data IS NOT NULL AS has_logo
         FROM teams
         WHERE id = %s
         """,
@@ -93,6 +96,47 @@ def get_team_by_id(team_id):
     if row is None:
         return None
 
+    return _public_team(row)
+
+
+def _public_team(row):
+    """Expose a stable logo URL without returning image bytes in JSON."""
+    team = dict(row)
+    has_logo = team.pop("has_logo", False)
+    team["logo_url"] = f"/api/teams/{team['id']}/logo" if has_logo else None
+    return team
+
+
+def update_team_logo(team_id, content, media_type):
+    """Persist a validated logo directly with its team."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            UPDATE teams SET logo_data = %s, logo_type = %s
+            WHERE id = %s RETURNING id
+            """,
+            (content, media_type, team_id)
+        ).fetchone()
+        connection.commit()
+        return row is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def get_team_logo(team_id):
+    """Return stored logo bytes and media type without exposing other fields."""
+    connection = get_connection()
+    row = connection.execute(
+        "SELECT logo_data, logo_type FROM teams WHERE id = %s",
+        (team_id,)
+    ).fetchone()
+    connection.close()
+    if row is None or row["logo_data"] is None:
+        return None
     return dict(row)
 
 

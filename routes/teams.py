@@ -1,6 +1,6 @@
 """HTTP endpoints for team registration and roster-aware team details."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from psycopg.errors import UniqueViolation
 
 from repositories.players import get_players_by_team
@@ -9,9 +9,16 @@ from repositories.teams import (
     create_team,
     delete_team,
     get_all_teams,
-    get_team_by_id
+    get_team_by_id,
+    get_team_logo,
+    update_team_logo
 )
-from dependencies.auth import require_league_admin, require_team_creator
+from dependencies.auth import (
+    require_league_admin,
+    require_team_creator,
+    require_team_manager
+)
+from services.profile_photos import save_team_logo
 
 router = APIRouter(
     prefix="/api/teams",
@@ -69,6 +76,32 @@ def get_team_details(team_id: int):
             for player in players
         ]
     }
+
+
+@router.put("/{team_id}/logo", status_code=204)
+async def upload_team_logo(
+    team_id: int,
+    file: UploadFile = File(...),
+    _user=Depends(require_team_manager)
+):
+    """Allow a team manager to attach or replace the team's public logo."""
+    if get_team_by_id(team_id) is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    logo = await save_team_logo(file)
+    update_team_logo(team_id, logo["content"], logo["media_type"])
+
+
+@router.get("/{team_id}/logo")
+def read_team_logo(team_id: int):
+    """Serve a persisted team logo with its validated media type."""
+    logo = get_team_logo(team_id)
+    if logo is None:
+        raise HTTPException(status_code=404, detail="Logo not found")
+    return Response(
+        content=logo["logo_data"],
+        media_type=logo["logo_type"],
+        headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 
 @router.delete("/{team_id}", status_code=204)
