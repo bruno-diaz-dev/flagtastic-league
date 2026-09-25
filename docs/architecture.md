@@ -384,10 +384,10 @@ python -m alembic upgrade head
 
 The `Dockerfile` builds an image based on `python:3.14-slim`, installs dependencies from `requirements.txt`, copies the project, and starts Uvicorn on `0.0.0.0:8000`.
 
-While profile media uses local filesystem storage, deployed containers must
-mount persistent storage at `PROFILE_PHOTO_DIR`. The image excludes local
-uploads and development dependency directories from its build context. A
-container replacement must therefore reuse the same media volume.
+Profile media is stored in PostgreSQL rather than the application filesystem.
+This keeps photos available when containers or Vercel Functions are replaced.
+The image excludes local uploads and development dependency directories from
+its build context.
 
 Application command:
 
@@ -489,6 +489,16 @@ roles are granted through `/admin/users`; both listing users and changing roles
 are protected by the backend administrator dependency. Responses never include
 password hashes or CURP, and administrators cannot demote themselves.
 
+Administrators create non-player staff accounts through `POST /api/admin/users`.
+The request accepts cumulative operational roles but deliberately rejects the
+`player` role, because player identity must be claimed through the CURP-backed
+self-registration flow. Staff-only accounts therefore need no CURP, age, photo,
+or player record; a league president can hold `league_admin` and `referee`
+simultaneously.
+These accounts start with `must_change_password = true`. Login creates the
+session but redirects to `/change-password`; protected dependencies reject that
+session until the current password is verified and replaced.
+
 Authorization is cumulative. `user_roles` stores one or more roles per account:
 `league_admin`, `team_representative`, `player`, and `referee`. The legacy
 `users.role` column is maintained during the transition, but authorization
@@ -565,13 +575,13 @@ so the browser cannot reveal a hidden section that was never authorized.
 ## Player Profile Media
 
 `players.aka` stores an optional public nickname and
-`players.profile_photo_path` stores only a generated filename. New player
-accounts must submit a raster JPG, PNG, or WebP file no larger than 5 MB. The
-server validates its binary signature, never trusts the client filename, and
-serves accepted files from `/media/profiles`. Local media lives outside source
-control under the configurable `PROFILE_PHOTO_DIR`; production deployment can
-replace this persistence boundary with object storage without changing player
-or authentication records. Players can maintain AKA from their authenticated
+`players.profile_photo_path` stores a generated public filename, while
+`profile_photo_data` and `profile_photo_type` store the validated image in
+PostgreSQL. New player accounts must submit a raster JPG, PNG, or WebP file no
+larger than 5 MB. The server validates its binary signature, never trusts the
+client filename, and serves accepted files from `/media/profiles`. This database
+persistence works across stateless Vercel Functions; object storage can replace
+the repository boundary later without changing public URLs. Players can maintain AKA from their authenticated
 dashboard, including accounts created before the field existed. The same public identity presentation is reused in
 the personal dashboard, dedicated team rosters, and individual-statistics
 leaderboards. AKA is preferred for display, the legal roster name remains

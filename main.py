@@ -1,10 +1,10 @@
 """FastAPI application assembly and server-rendered page routes."""
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from settings import PROFILE_PHOTO_DIR
+from database import get_connection
 
 from routes.teams import router as teams_router
 from routes.players import router as players_router
@@ -25,13 +25,6 @@ app.mount(
     name="static"
 )
 
-PROFILE_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
-app.mount(
-    "/media/profiles",
-    StaticFiles(directory=PROFILE_PHOTO_DIR),
-    name="profile-photos"
-)
-
 templates = Jinja2Templates(directory="templates")
 
 app.include_router(teams_router)
@@ -42,6 +35,26 @@ app.include_router(auth_router)
 app.include_router(statistics_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
+
+
+@app.get("/media/profiles/{filename}")
+def profile_photo(filename: str):
+    """Serve persistent profile media without exposing database access."""
+    connection = get_connection()
+    row = connection.execute(
+        """
+        SELECT profile_photo_data, profile_photo_type
+        FROM players WHERE profile_photo_path = %s
+        """,
+        (filename,)
+    ).fetchone()
+    connection.close()
+    if row is None or row["profile_photo_data"] is None:
+        return Response(status_code=404)
+    return Response(
+        content=bytes(row["profile_photo_data"]),
+        media_type=row["profile_photo_type"] or "application/octet-stream"
+    )
 
 @app.get("/")
 def index():
@@ -116,6 +129,12 @@ def login_page(request: Request):
 def register_page(request: Request):
     """Render player self-registration."""
     return templates.TemplateResponse(request, "register.html")
+
+
+@app.get("/change-password")
+def change_password_page(request: Request):
+    """Render the password replacement form used on first staff login."""
+    return templates.TemplateResponse(request, "change_password.html")
 
 
 @app.get("/dashboard")

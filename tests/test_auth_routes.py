@@ -12,8 +12,8 @@ os.environ.setdefault(
 
 from database import get_connection
 from main import app
-from models import UserCreate
-from repositories.users import create_user
+from models import StaffAccountCreate, UserCreate
+from repositories.users import create_staff_account, create_user
 
 client = TestClient(
     app,
@@ -199,3 +199,38 @@ def test_logout_without_session_is_idempotent():
 
     assert "flagtastic_session" in set_cookie
     assert "Max-Age=0" in set_cookie
+
+
+def test_staff_must_change_initial_password_before_authorized_access():
+    create_staff_account(StaffAccountCreate(
+        email="president@flagtastic.com",
+        name="League President",
+        password="initialsecret",
+        roles={"league_admin", "referee"}
+    ))
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": "president@flagtastic.com", "password": "initialsecret"}
+    )
+    assert login_response.status_code == 200
+    assert login_response.json()["must_change_password"] is True
+
+    change_response = client.post(
+        "/api/auth/change-password",
+        json={
+            "current_password": "initialsecret",
+            "new_password": "replacementsecret"
+        }
+    )
+    assert change_response.status_code == 204
+
+    client.cookies.clear()
+    assert client.post(
+        "/api/auth/login",
+        json={"email": "president@flagtastic.com", "password": "initialsecret"}
+    ).status_code == 401
+    assert client.post(
+        "/api/auth/login",
+        json={"email": "president@flagtastic.com", "password": "replacementsecret"}
+    ).status_code == 200

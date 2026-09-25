@@ -1,11 +1,13 @@
 """League-wide user administration restricted to league administrators."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from psycopg.errors import UniqueViolation
 
 from dependencies.auth import require_league_admin
-from models import UserRoleUpdate, UserRolesUpdate
+from models import StaffAccountCreate, UserRoleUpdate, UserRolesUpdate
 from repositories.users import (
     PlayerIdentityConflict,
+    create_staff_account,
     get_all_users,
     set_user_roles,
     update_user_role
@@ -19,6 +21,21 @@ router = APIRouter(prefix="/api/admin/users", tags=["administration"])
 def list_users(_admin=Depends(require_league_admin)):
     """List accounts using only fields needed for role administration."""
     return get_all_users()
+
+
+@router.post("", status_code=201)
+def create_staff(
+    registration: StaffAccountCreate,
+    _admin=Depends(require_league_admin)
+):
+    """Create an administrator-managed account without requiring a CURP."""
+    try:
+        return create_staff_account(registration)
+    except UniqueViolation as error:
+        raise HTTPException(
+            status_code=409,
+            detail="El correo ya esta registrado"
+        ) from error
 
 
 @router.patch("/{user_id}/role")

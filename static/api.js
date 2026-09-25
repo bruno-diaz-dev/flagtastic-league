@@ -92,6 +92,14 @@ async function login(payload) {
     });
 }
 
+async function changePassword(payload) {
+    return fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
 async function getLeaderboards(branch, category) {
     return fetch(
         `/api/statistics/leaderboards?branch=${encodeURIComponent(branch)}&category=${encodeURIComponent(category)}`
@@ -138,6 +146,14 @@ async function joinMyTeam(teamId, payload) {
 
 async function getAdminUsers() {
     return fetch("/api/admin/users");
+}
+
+async function createStaffAccount(payload) {
+    return fetch("/api/admin/users", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
 }
 
 async function updateAdminUserRole(userId, role) {

@@ -24,7 +24,7 @@ def authenticate_user(email, password):
     ):
         return None
 
-    return {
+    user = {
         "id": credentials["id"],
         "email": credentials["email"],
         "name": credentials["name"],
@@ -34,6 +34,9 @@ def authenticate_user(email, password):
         "roles": credentials["roles"],
         "status": credentials["status"]
     }
+    if credentials.get("must_change_password"):
+        user["must_change_password"] = True
+    return user
 
 def get_authenticated_user(token):
     """Resolve an active public user from a valid session token."""

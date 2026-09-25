@@ -19,6 +19,8 @@ def _public_user(row):
     user["display_name"] = aka or user["name"]
     if user.get("player_id") is None:
         user.pop("player_id", None)
+    if not user.get("must_change_password"):
+        user.pop("must_change_password", None)
     return user
 
 def hash_password(password):
@@ -106,11 +108,49 @@ def create_user(user):
         connection.close()
 
 
+def create_staff_account(registration):
+    """Create an operational account with cumulative non-player roles."""
+    connection = get_connection()
+    roles = sorted(registration.roles)
+    primary_role = next(
+        role for role in ("league_admin", "team_representative", "referee")
+        if role in roles
+    )
+    try:
+        created_user = connection.execute(
+            """
+            INSERT INTO users (
+                email, name, password_hash, role, must_change_password
+            )
+            VALUES (%s, %s, %s, %s, true)
+            RETURNING id, email, name, role, status, must_change_password
+            """,
+            (
+                registration.email,
+                registration.name.strip(),
+                hash_password(registration.password.get_secret_value()),
+                primary_role
+            )
+        ).fetchone()
+        for role in roles:
+            connection.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES (%s, %s)",
+                (created_user["id"], role)
+            )
+        connection.commit()
+        return _public_user({**dict(created_user), "roles": roles})
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 class PlayerIdentityConflict(Exception):
     """Raised when an existing CURP cannot be claimed by a registration."""
 
 
-def create_player_account(registration, profile_photo_path):
+def create_player_account(registration, profile_photo):
     """Create a player identity and linked login in one transaction.
 
     Existing roster players may claim their identity only when name and age
@@ -132,23 +172,33 @@ def create_player_account(registration, profile_photo_path):
         if player is None:
             player = connection.execute(
                 """
-                INSERT INTO players (name, curp, age, aka, profile_photo_path)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO players (
+                    name, curp, age, aka, profile_photo_path,
+                    profile_photo_data, profile_photo_type
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, name, age
                 """,
                 (
                     registration.name.strip(), registration.curp,
-                    registration.age, registration.aka, profile_photo_path
+                    registration.age, registration.aka,
+                    profile_photo["filename"], profile_photo["content"],
+                    profile_photo["media_type"]
                 )
             ).fetchone()
         else:
             connection.execute(
                 """
                 UPDATE players
-                SET aka = %s, profile_photo_path = %s
+                SET aka = %s, profile_photo_path = %s,
+                    profile_photo_data = %s, profile_photo_type = %s
                 WHERE id = %s
                 """,
-                (registration.aka, profile_photo_path, player["id"])
+                (
+                    registration.aka, profile_photo["filename"],
+                    profile_photo["content"], profile_photo["media_type"],
+                    player["id"]
+                )
             )
 
         password_hash = hash_password(registration.password.get_secret_value())
@@ -189,7 +239,7 @@ def get_user_by_email(email):
         """
         SELECT
             users.id, users.email, users.name, users.role, users.status,
-            users.player_id,
+            users.player_id, users.must_change_password,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
             players.aka AS player_aka
         FROM users
@@ -215,6 +265,7 @@ def get_user_credentials_by_email(email):
         SELECT
             users.id, users.email, users.name, users.password_hash,
             users.role, users.status, users.player_id,
+            users.must_change_password,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
             players.aka AS player_aka
         FROM users
@@ -239,7 +290,7 @@ def get_user_by_id(user_id):
         """
         SELECT
             users.id, users.email, users.name, users.role, users.status,
-            users.player_id,
+            users.player_id, users.must_change_password,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
             players.aka AS player_aka
         FROM users
@@ -278,7 +329,8 @@ def get_all_users():
     rows = connection.execute(
         """
         SELECT users.id, users.email, users.name, users.role, users.status,
-            users.player_id, players.aka AS player_aka,
+            users.player_id, users.must_change_password,
+            players.aka AS player_aka,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles
         FROM users
         LEFT JOIN players ON players.id = users.player_id
@@ -287,6 +339,33 @@ def get_all_users():
     ).fetchall()
     connection.close()
     return [_public_user(row) for row in rows]
+
+
+def change_user_password(user_id, current_password, new_password):
+    """Replace a verified password and clear its first-login requirement."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            "SELECT password_hash FROM users WHERE id = %s FOR UPDATE",
+            (user_id,)
+        ).fetchone()
+        if row is None or not verify_password(current_password, row["password_hash"]):
+            return False
+        connection.execute(
+            """
+            UPDATE users
+            SET password_hash = %s, must_change_password = false
+            WHERE id = %s
+            """,
+            (hash_password(new_password), user_id)
+        )
+        connection.commit()
+        return True
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def set_user_roles(user_id, roles):

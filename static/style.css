@@ -811,6 +811,19 @@ body.role-league_admin .team-delete-button.admin-only {
 .role-choices { display: grid; gap: 8px; min-width: 180px; }
 .role-choice { display: flex; align-items: center; gap: 8px; font-weight: 400; }
 .role-choice input { width: 18px; min-height: 18px; margin: 0; }
+
+.staff-account-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: end;
+}
+.staff-account-form label { display: grid; gap: 8px; font-weight: 600; }
+.staff-account-form fieldset { display: grid; gap: 8px; margin: 0; }
+.staff-account-form button { min-height: 48px; }
+@media (max-width: 900px) {
+    .staff-account-form { grid-template-columns: 1fr; }
+}
 .assigned-referees { display: flex; flex-wrap: wrap; gap: 8px; color: var(--color-muted); }
 .assigned-referee { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 10px; }
 .assigned-referee button { min-height: 28px; padding: 0 8px; }
@@ -884,7 +897,7 @@ body.role-league_admin .team-delete-button.admin-only {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .nav-link,
+    body.sidebar-collapsed .nav-link,
     body.sidebar-collapsed .navigation,
     body.sidebar-collapsed .session-controls {
         display: none;

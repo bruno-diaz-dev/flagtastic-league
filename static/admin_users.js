@@ -2,6 +2,8 @@
 
 const usersBody = document.querySelector("#admin-users-body");
 const usersMessage = document.querySelector("#admin-users-message");
+const staffForm = document.querySelector("#staff-account-form");
+const staffMessage = document.querySelector("#staff-account-message");
 
 const roleLabels = {
     player: "Jugador",
@@ -59,6 +61,34 @@ usersBody.addEventListener("click", async (event) => {
         : (body.detail || "No se pudieron actualizar los roles.");
     event.target.disabled = false;
     if (response.ok) await loadUsers();
+});
+
+
+staffForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(staffForm);
+    const roles = data.getAll("staff_roles");
+    if (roles.length === 0) {
+        staffMessage.textContent = "Selecciona al menos un rol.";
+        return;
+    }
+    const submit = staffForm.querySelector("button[type='submit']");
+    submit.disabled = true;
+    const response = await createStaffAccount({
+        name: data.get("name"),
+        email: data.get("email"),
+        password: data.get("password"),
+        roles
+    });
+    const body = await response.json();
+    staffMessage.textContent = response.ok
+        ? `Cuenta de ${body.display_name || body.name} creada.`
+        : (body.detail || "No se pudo crear la cuenta.");
+    submit.disabled = false;
+    if (response.ok) {
+        staffForm.reset();
+        await loadUsers();
+    }
 });
 
 

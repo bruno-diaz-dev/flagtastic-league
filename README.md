@@ -447,14 +447,12 @@ docker volume create flagtastic-profile-photos
 
 docker run --rm -p 8000:8000 `
     -e DATABASE_URL="postgresql://flagtastic:flagtastic@host.docker.internal:5432/flagtastic" `
-    -e PROFILE_PHOTO_DIR="/data/profile-photos" `
-    -v flagtastic-profile-photos:/data/profile-photos `
     flagtastic-league
 ```
 
-The named volume is required while profile photos use local storage. Replacing
-the application container does not remove uploaded media. Production must also
-leave `SESSION_COOKIE_SECURE=true` and serve the application through HTTPS.
+Profile photos are stored in PostgreSQL so they survive replacement of a
+container or serverless function. Production must leave
+`SESSION_COOKIE_SECURE=true` and serve the application through HTTPS.
 
 Health check:
 
@@ -631,6 +629,13 @@ remain optional for U6, regular games, and finals. Referees use
 `/referee/games` to see only their own schedule; the backend enforces that
 scope even if somebody calls the API directly.
 
+League administrators can also create operational staff accounts from
+`/admin/users`. These accounts receive one or more non-player roles and do not
+require CURP, age, roster membership, or a profile photo. This supports league
+staff such as a president who is both an administrator and a referee.
+Administrator-created accounts must replace their initial password at first
+login before any protected operation becomes available.
+
 Administrators can upload the official referee role as a JPG, PNG, or WebP
 image from `/referee/games`. Local OCR proposes matching games, fields, and
 active referee accounts. The recognized text and every proposal remain
@@ -643,9 +648,9 @@ the same assignment. Historical workbook imports may temporarily display
 `Campo por asignar` until the official referee schedule supplies it.
 
 Player self-registration requires a JPG, PNG, or WebP profile photo of at most
-5 MB and accepts an optional `AKA`. Files receive generated names under
-`PROFILE_PHOTO_DIR` (default: `uploads/profiles`); PostgreSQL stores only the
-generated filename. Players, including accounts created before AKA support,
+5 MB and accepts an optional `AKA`. PostgreSQL stores the validated image bytes,
+media type, and generated public filename so profile media remains available
+on stateless deployments. Players, including accounts created before AKA support,
 can edit it from the personal dashboard. Public navigation and official roles
 prefer the AKA while administration retains the legal name as supporting identity.
 

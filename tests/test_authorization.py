@@ -198,6 +198,60 @@ def test_league_admin_can_grant_another_admin_role():
     assert "password" not in response.text
 
 
+def test_league_admin_can_create_admin_referee_without_player_identity():
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("staff-creator")
+    create_user(UserCreate(
+        email=admin_email, name="League Admin", password="supersecret",
+        role="league_admin"
+    ))
+    _, staff_email = unique_identity("president")
+    assert login(admin_email, "supersecret").status_code == 200
+
+    response = client.post(
+        "/api/admin/users",
+        json={
+            "email": staff_email,
+            "name": "League President",
+            "password": "anothersecret",
+            "roles": ["league_admin", "referee"]
+        }
+    )
+
+    assert response.status_code == 201
+    assert response.json()["roles"] == ["league_admin", "referee"]
+    assert "player_id" not in response.json()
+    assert "password_hash" not in response.text
+    assert '"password":' not in response.text
+
+    client.cookies.clear()
+    assert login(staff_email, "anothersecret").status_code == 200
+    assert client.get("/api/admin/users").status_code == 403
+
+
+def test_non_admin_cannot_create_staff_account():
+    disable_test_authorization_override()
+    _, referee_email = unique_identity("staff-denied")
+    create_user(UserCreate(
+        email=referee_email, name="Referee", password="supersecret",
+        role="referee"
+    ))
+    _, staff_email = unique_identity("forbidden-staff")
+    assert login(referee_email, "supersecret").status_code == 200
+
+    response = client.post(
+        "/api/admin/users",
+        json={
+            "email": staff_email,
+            "name": "Unauthorized Staff",
+            "password": "anothersecret",
+            "roles": ["league_admin"]
+        }
+    )
+
+    assert response.status_code == 403
+
+
 def test_league_admin_cannot_remove_own_admin_role():
     disable_test_authorization_override()
     _, email = unique_identity("self-admin")

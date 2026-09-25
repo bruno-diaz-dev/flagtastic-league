@@ -2,9 +2,13 @@
 
 from fastapi import APIRouter, Cookie, File, Form, HTTPException, Response, UploadFile
 
-from models import LoginRequest, PlayerAccountCreate
+from models import LoginRequest, PasswordChange, PlayerAccountCreate
 from psycopg.errors import UniqueViolation
-from repositories.users import create_player_account, PlayerIdentityConflict
+from repositories.users import (
+    PlayerIdentityConflict,
+    change_user_password,
+    create_player_account
+)
 from repositories.sessions import (
     create_session,
     revoke_session
@@ -45,17 +49,17 @@ async def register_player_account(
         age=age,
         aka=aka
     )
-    photo_filename = await save_profile_photo(photo)
+    profile_photo = await save_profile_photo(photo)
     try:
-        return create_player_account(registration, photo_filename)
+        return create_player_account(registration, profile_photo)
     except PlayerIdentityConflict as error:
-        remove_profile_photo(photo_filename)
+        remove_profile_photo(profile_photo)
         raise HTTPException(
             status_code=409,
             detail="Los datos no coinciden con el jugador registrado"
         ) from error
     except UniqueViolation as error:
-        remove_profile_photo(photo_filename)
+        remove_profile_photo(profile_photo)
         constraint = error.diag.constraint_name
         if constraint == "users_email_key":
             detail = "El correo ya esta registrado"
@@ -65,7 +69,7 @@ async def register_player_account(
             raise
         raise HTTPException(status_code=409, detail=detail) from error
     except Exception:
-        remove_profile_photo(photo_filename)
+        remove_profile_photo(profile_photo)
         raise
 
 @router.post("/login")
@@ -120,6 +124,29 @@ def get_current_user(
         )
     
     return user
+
+
+@router.post("/change-password", status_code=204)
+def change_password(
+    update: PasswordChange,
+    session_token: str | None = Cookie(
+        default=None,
+        alias=SESSION_COOKIE_NAME
+    )
+):
+    """Change the current password, including mandatory first-login changes."""
+    if session_token is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    user = get_authenticated_user(session_token)
+    if user is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    changed = change_user_password(
+        user["id"],
+        update.current_password.get_secret_value(),
+        update.new_password.get_secret_value()
+    )
+    if not changed:
+        raise HTTPException(status_code=400, detail="La contraseña actual no coincide")
 
 @router.post("/logout", status_code=204)
 def logout(

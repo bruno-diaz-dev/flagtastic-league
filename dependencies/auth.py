@@ -26,6 +26,11 @@ def require_authenticated_user(
     )
     if user is None:
         raise HTTPException(status_code=401, detail="No autenticado")
+    if user.get("must_change_password"):
+        raise HTTPException(
+            status_code=403,
+            detail="Debes cambiar tu contraseña antes de continuar"
+        )
     return user
 
 

@@ -127,6 +127,13 @@ class LoginRequest(BaseModel):
         return normalized_email
 
 
+class PasswordChange(BaseModel):
+    """Validate a replacement password for an authenticated account."""
+
+    current_password: SecretStr
+    new_password: SecretStr = Field(min_length=8)
+
+
 class PlayerAccountCreate(BaseModel):
     """Validate a self-service player account registration."""
 
@@ -200,6 +207,32 @@ class UserRolesUpdate(BaseModel):
         normalized = {role.strip().lower() for role in roles}
         if not normalized or not normalized.issubset(ALLOWED_USER_ROLES):
             raise ValueError("Invalid roles")
+        return normalized
+
+
+class StaffAccountCreate(BaseModel):
+    """Validate an administrator-created account without player identity."""
+
+    email: str = Field(min_length=3)
+    name: str = Field(min_length=1)
+    password: SecretStr = Field(min_length=8)
+    roles: set[str] = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, email):
+        normalized = email.strip().lower()
+        if "@" not in normalized or "." not in normalized:
+            raise ValueError("Invalid email")
+        return normalized
+
+    @field_validator("roles")
+    @classmethod
+    def validate_roles(cls, roles):
+        normalized = {role.strip().lower() for role in roles}
+        staff_roles = ALLOWED_USER_ROLES - {"player"}
+        if not normalized or not normalized.issubset(staff_roles):
+            raise ValueError("Invalid staff roles")
         return normalized
 
 
