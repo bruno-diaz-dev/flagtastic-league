@@ -57,7 +57,12 @@ function renderStandings(standings) {
                 ${standings
                     .map((team) => `
                         <tr>
-                            <td>${team.team_name}</td>
+                            <td>
+                                <span class="standings-team">
+                                    ${team.team_logo_url ? `<img class="team-logo team-logo-small" src="${team.team_logo_url}" alt="">` : ""}
+                                    ${escapeHtml(team.team_name)}
+                                </span>
+                            </td>
                             <td>${team.wins}</td>
                             <td>${team.losses}</td>
                             <td>${team.points_for}</td>

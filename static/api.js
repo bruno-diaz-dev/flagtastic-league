@@ -76,6 +76,15 @@ async function createPlayer(teamId, payload) {
     return response
 }
 
+async function uploadTeamLogo(teamId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`/api/teams/${teamId}/logo`, {
+        method: "PUT",
+        body: formData
+    });
+}
+
 async function getGameDetails(gameId) {
     return fetch(`/api/games/${gameId}/details`);
 }

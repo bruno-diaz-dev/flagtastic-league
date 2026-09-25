@@ -512,6 +512,44 @@ select option {
     cursor: pointer;
 }
 
+.team-logo {
+    width: 56px;
+    height: 56px;
+    flex: 0 0 56px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: white;
+    object-fit: contain;
+}
+
+.team-logo-small {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+}
+
+.team-logo-placeholder {
+    display: grid;
+    place-items: center;
+    background: var(--color-navy);
+    color: var(--color-gold);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.game-matchup,
+.standings-team {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.matchup-versus {
+    color: var(--color-muted);
+    font-size: 14px;
+    font-weight: 400;
+}
+
 .team-card:hover {
     border-color: rgba(244, 197, 66, 0.54);
 }

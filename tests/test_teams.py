@@ -228,4 +228,37 @@ def test_same_team_name_can_exist_in_different_category():
 
     assert first_response.status_code == 201
     assert second_reponse.status_code == 201
+
+
+def test_team_manager_can_upload_and_read_team_logo():
+    team_id = create_test_team(name="Halcones")
+    png = b"\x89PNG\r\n\x1a\nlogo-test"
+
+    response = client.put(
+        f"/api/teams/{team_id}/logo",
+        files={"file": ("logo.png", png, "image/png")}
+    )
+
+    assert response.status_code == 204
+    teams = client.get("/api/teams").json()
+    assert teams[0]["logo_url"] == f"/api/teams/{team_id}/logo"
+
+    logo = client.get(f"/api/teams/{team_id}/logo")
+    assert logo.status_code == 200
+    assert logo.headers["content-type"] == "image/png"
+    assert logo.content == png
+
+
+def test_team_logo_rejects_unsupported_content():
+    team_id = create_test_team(name="Halcones")
+    response = client.put(
+        f"/api/teams/{team_id}/logo",
+        files={"file": ("logo.svg", b"<svg></svg>", "image/svg+xml")}
+    )
+    assert response.status_code == 415
+
+
+def test_missing_team_logo_returns_not_found():
+    team_id = create_test_team(name="Halcones")
+    assert client.get(f"/api/teams/{team_id}/logo").status_code == 404
 """API tests for team registration, listing, and detail views."""

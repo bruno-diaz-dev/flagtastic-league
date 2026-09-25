@@ -28,6 +28,9 @@ function renderTeams(teams) {
         .map((team) => `
             <article class="team-card">
                 <button class="team-card-main" type="button" data-team-id="${team.id}">
+                    ${team.logo_url
+                        ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}">`
+                        : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
                     <div>
                         <h3>${escapeHtml(team.name)}</h3>
                         <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p>
@@ -125,7 +128,16 @@ async function registerTeam(event) {
             return;
         }
 
-        await response.json();
+        const createdTeam = await response.json();
+        const logoResponse = await uploadTeamLogo(
+            createdTeam.id,
+            formData.get("logo")
+        );
+        if (!logoResponse.ok) {
+            formMessage.textContent = "El equipo se registró, pero no se pudo guardar el logo.";
+            await loadTeams();
+            return;
+        }
 
         teamForm.reset();
         formMessage.textContent = "Equipo registrado correctamente.";
