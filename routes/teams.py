@@ -1,15 +1,17 @@
 """HTTP endpoints for team registration and roster-aware team details."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from psycopg.errors import UniqueViolation
 
 from repositories.players import get_players_by_team
 from models import TeamCreate
 from repositories.teams import (
     create_team,
+    delete_team,
     get_all_teams,
     get_team_by_id
 )
+from dependencies.auth import require_league_admin, require_team_creator
 
 router = APIRouter(
     prefix="/api/teams",
@@ -17,10 +19,16 @@ router = APIRouter(
 )
 
 @router.post("", status_code=201)
-def register_team(team: TeamCreate):
+def register_team(
+    team: TeamCreate,
+    user=Depends(require_team_creator)
+):
     """Register a team or report a duplicate division entry."""
     try:
-        return create_team(team)
+        representative_id = (
+            user["id"] if user["role"] == "team_representative" else None
+        )
+        return create_team(team, representative_id)
 
     except UniqueViolation:
         raise HTTPException(
@@ -52,10 +60,19 @@ def get_team_details(team_id: int):
             {
                 "id": player["id"],
                 "name": player["name"],
+                "aka": player["aka"],
                 "age": player["age"],
+                "profile_photo_url": player["profile_photo_url"],
                 "jersey_number": player["jersey_number"]
             }
 
             for player in players
         ]
     }
+
+
+@router.delete("/{team_id}", status_code=204)
+def remove_team(team_id: int, _user=Depends(require_league_admin)):
+    """Allow league administrators to remove an erroneous team record."""
+    if not delete_team(team_id):
+        raise HTTPException(status_code=404, detail="Team not found")

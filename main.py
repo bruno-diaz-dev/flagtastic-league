@@ -4,12 +4,16 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from settings import PROFILE_PHOTO_DIR
 
 from routes.teams import router as teams_router
 from routes.players import router as players_router
 from routes.games import router as games_router
 from routes.standings import router as standings_router
 from routes.auth import router as auth_router
+from routes.statistics import router as statistics_router
+from routes.dashboard import router as dashboard_router
+from routes.admin import router as admin_router
 
 app = FastAPI(
     title="Flagtastic Football League"
@@ -21,6 +25,13 @@ app.mount(
     name="static"
 )
 
+PROFILE_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/media/profiles",
+    StaticFiles(directory=PROFILE_PHOTO_DIR),
+    name="profile-photos"
+)
+
 templates = Jinja2Templates(directory="templates")
 
 app.include_router(teams_router)
@@ -28,6 +39,9 @@ app.include_router(players_router)
 app.include_router(games_router)
 app.include_router(standings_router)
 app.include_router(auth_router)
+app.include_router(statistics_router)
+app.include_router(dashboard_router)
+app.include_router(admin_router)
 
 @app.get("/")
 def index():
@@ -43,7 +57,7 @@ def liveness():
 
 @app.get("/teams")
 def teams_page(request: Request):
-    """Render the team and roster operations page."""
+    """Render the searchable team directory."""
     return templates.TemplateResponse(
         request,
         "teams.html"
@@ -64,3 +78,43 @@ def standings_page(request: Request):
         request,
         "standings.html"
     )
+
+
+@app.get("/teams/{team_id}/roster")
+def roster_page(request: Request, team_id: int):
+    """Render one team's public roster and authorized management controls."""
+    return templates.TemplateResponse(
+        request=request,
+        name="roster.html",
+        context={"team_id": team_id}
+    )
+
+
+@app.get("/statistics")
+def statistics_page(request: Request):
+    """Render the public individual-statistics leaderboards."""
+    return templates.TemplateResponse(request, "statistics.html")
+
+
+@app.get("/login")
+def login_page(request: Request):
+    """Render the authentication form for operational users."""
+    return templates.TemplateResponse(request, "login.html")
+
+
+@app.get("/register")
+def register_page(request: Request):
+    """Render player self-registration."""
+    return templates.TemplateResponse(request, "register.html")
+
+
+@app.get("/dashboard")
+def dashboard_page(request: Request):
+    """Render the authenticated player's personal dashboard."""
+    return templates.TemplateResponse(request, "dashboard.html")
+
+
+@app.get("/admin/users")
+def user_administration_page(request: Request):
+    """Render role administration; the API enforces actual access."""
+    return templates.TemplateResponse(request, "admin_users.html")

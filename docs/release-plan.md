@@ -25,6 +25,7 @@ Target structure:
 templates/
   base.html
   teams.html
+  roster.html
   games.html
   standings.html
 
@@ -32,6 +33,7 @@ static/
   api.js
   layout.js
   teams.js
+  roster.js
   games.js
   standings.js
   style.css
@@ -48,6 +50,7 @@ Target web routes:
 
 ```text
 GET /teams
+GET /teams/{team_id}/roster
 GET /games
 GET /standings
 GET / -> redirect to /teams
@@ -65,8 +68,8 @@ GET  /api/games
 POST /api/games
 PATCH /api/games/{game_id}/score
 GET  /api/standings
-POST /api/games/{game_id}/player-stats
-GET  /api/games/{game_id}/player-stats
+POST /api/weeks/{week}/player-stats/import
+GET  /api/weeks/{week}/player-stats
 GET  /api/players/{player_id}/stats
 ```
 
@@ -78,56 +81,60 @@ The goal is to support basic public player performance data without delaying the
 
 ### V1 Scope
 
-Statistics are recorded per player, per game.
+Statistics are recorded per player and jornada. Each import is the complete jornada snapshot across all branches, categories, and teams.
 
 Minimum fields:
 
 ```text
-player_game_stats
+player_week_stats
 - id
-- game_id
+- week
 - player_id
 - team_id
-- touchdowns
+- points
+- receptions
 - interceptions
 - sacks
-- flag_pulls
+- tackles
+- passes_completed
+- passes_attempted
 ```
 
 The first version should support:
 
-- Manual stat capture by league administrators.
-- Listing player stats for a game.
+- Complete-jornada Excel imports by league administrators.
+- Resolving players by branch, category, team, and jersey number.
+- Listing player stats for a jornada.
 - Showing aggregated player stats publicly.
-- Keeping stat totals derived from per-game records, not manually edited as lifetime totals.
+- Showing the top five players for each metric by branch and category.
+- Keeping stat totals derived from weekly records, not manually edited as lifetime totals.
 
 ### V1 API Direction
 
 ```text
-POST /api/games/{game_id}/player-stats
-GET  /api/games/{game_id}/player-stats
+POST /api/weeks/{week}/player-stats/import
+GET  /api/weeks/{week}/player-stats
 GET  /api/players/{player_id}/stats
+GET  /api/statistics/leaderboards
 ```
 
 Expected backend rules:
 
-- The game must exist.
+- The jornada must be greater than zero.
 - The player must exist.
 - The team must exist.
 - The player must belong to the selected team.
-- The selected team must be one of the teams in the selected game.
+- The branch, category, team, and jersey number must match one roster membership.
 - Stat values must be zero or greater.
-- The same player should have only one stat row per game.
+- The same player should have only one stat row per team and jornada.
 
 ### V1 UI Direction
 
-For the first release, avoid a large dedicated statistics dashboard.
-
 Add statistics where they naturally fit:
 
-- On the games page, allow an operational/admin workflow to capture player stats for a game.
-- On team rosters, show simple aggregated totals for each player once available.
-- On public views, keep statistics readable and compact.
+- On the statistics page, allow an operational/admin workflow to import a complete jornada workbook.
+- On dedicated team roster pages, show each player's photo, AKA, legal name, jersey, and basic roster data.
+- On a public statistics page, show compact top-five leaderboards.
 
 ### Out Of Scope For V1
 
@@ -135,9 +142,7 @@ The following are deferred until after launch:
 
 - Advanced offensive/defensive breakdowns.
 - Passing yards, rushing yards, receiving yards, completions, attempts, receptions, and tackles.
-- League-wide statistical leaderboards.
 - Player profile pages with full history.
-- CSV imports.
 - Automated stat feeds.
 - Audit history for each stat correction.
 
@@ -235,6 +240,8 @@ Access control should be introduced in stages:
 
 Frontend visibility is not security. Buttons and forms may be hidden in the UI, but the backend must enforce the actual permission rules.
 
+Implemented status: stages 1-5 are active. Administrative actions are hidden for public visitors and enforced again by backend dependencies.
+
 ## Sprint 1: Multipage Architecture
 
 Target dates: September 14-16, 2026
@@ -275,7 +282,8 @@ Tasks:
 - Improve the teams page:
   - Filter by branch and category.
   - Keep team cards readable with many teams.
-  - Keep roster display clear.
+  - Navigate each team to a dedicated roster page.
+- Keep roster display and authorized roster management isolated in `/teams/{team_id}/roster`.
 - Improve the games page:
   - Make games and scores easy to scan.
   - Keep score update workflows operational.
@@ -301,17 +309,25 @@ Goal: Add the first version of personal player statistics and make the app relia
 
 Tasks:
 
-- Add the `player_game_stats` table.
-- Add a repository layer for player game statistics.
-- Add API contracts for creating and reading player game stats.
-- Add `POST /api/games/{game_id}/player-stats`.
-- Add `GET /api/games/{game_id}/player-stats`.
+- Add the `player_week_stats` table.
+- Add a repository layer for weekly player statistics.
+- Add API contracts for importing and reading jornada statistics.
+- Add `POST /api/weeks/{week}/player-stats/import`.
+- Add `GET /api/weeks/{week}/player-stats`.
 - Add `GET /api/players/{player_id}/stats`.
-- Validate that a player stat row belongs to a player on one of the teams in the game.
-- Prevent duplicate stat rows for the same player in the same game.
+- Resolve every stat row against an existing roster using division, team, and jersey.
+- Prevent duplicate stat rows for the same player, team, and jornada.
 - Add tests for personal statistics v1.
-- Add a minimal operational UI for capturing stats by game.
+- Add an operational UI for importing a complete jornada.
 - Add a minimal public display for aggregated player stats.
+- Import `.xlsx` files atomically by jornada.
+- Publish top-five leaderboards by branch, category, and statistic.
+- Add player self-registration and a personal dashboard.
+- Require a validated profile photo, accept an optional AKA, and reuse that identity in dashboards, rosters, and leaderboards.
+- Let representatives create and automatically manage their teams.
+- Let players join one team per branch and category.
+- Show each player's totals and team standings position.
+- Rank passing completion percentage with the jornada 4 / 30-attempt rule.
 - Confirm all required environment variables are documented.
 - Confirm Docker build and runtime behavior.
 - Confirm image tagging strategy for future promoted deployments.
@@ -369,13 +385,11 @@ Definition of done:
 
 The following items are important, but should not block the September 27 launch unless business requirements change:
 
-- Full authentication UI.
 - Complete role management UI.
 - Audit logging.
 - Advanced player statistics beyond the v1 scope.
-- League-wide statistical leaderboards.
 - Full player profile pages.
-- Player self-service flows.
+- Approval workflow for player team-membership requests.
 - Team logo uploads.
 - Season management.
 - Playoff brackets.
@@ -385,6 +399,7 @@ The following items are important, but should not block the September 27 launch 
 
 ## Immediate Next Step
 
-Start Sprint 1 by extracting the shared layout into `templates/base.html`, then migrate only the teams page to `/teams`.
-
-Do not migrate games or standings until `/teams` is working and CI is green.
+Run the complete Sprint 3 smoke test with one administrator, one
+representative, and one player. Then freeze feature work and use Sprint 4 for
+responsive verification, launch-blocking fixes, deployment, and release
+documentation.

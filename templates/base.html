@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flagtastic League</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20260925-4">
 </head>
 <body>
     <div class="layout">
@@ -46,7 +46,33 @@
                     <span class="nav-text">Tabla</span>
                     <span class="nav-short">TB</span>
                 </a>
+
+                <a class="nav-link" href="/statistics">
+                    <span class="nav-text">Estadísticas</span>
+                    <span class="nav-short">ES</span>
+                </a>
+
+                <a id="dashboard-link" class="nav-link hidden" href="/dashboard">
+                    <span class="nav-text">Mi dashboard</span>
+                    <span class="nav-short">MI</span>
+                </a>
+
+                <a id="admin-users-link" class="nav-link hidden" href="/admin/users">
+                    <span class="nav-text">Usuarios</span>
+                    <span class="nav-short">US</span>
+                </a>
             </nav>
+
+            <div class="session-controls">
+                <span id="session-user" class="session-user"></span>
+                <a id="login-link" class="nav-link" href="/login">
+                    <span class="nav-text">Iniciar sesión</span>
+                    <span class="nav-short">IN</span>
+                </a>
+                <button id="logout-button" class="logout-button hidden" type="button">
+                    Cerrar sesión
+                </button>
+            </div>
         </aside>
 
         <main class="content">
@@ -54,7 +80,7 @@
         </main>
     </div>
 
-    <script src="/static/layout.js"></script>
+    <script src="/static/layout.js?v=20260925-2"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

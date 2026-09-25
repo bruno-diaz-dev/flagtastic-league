@@ -1,21 +1,11 @@
-// Teams page controller: registration, filtering, roster loading, and players.
+// Teams directory controller: registration, filtering, navigation, and deletion.
 
 const teamForm = document.querySelector("#team-form");
 const formMessage = document.querySelector("#form-message");
 const teamsContainer = document.querySelector("#teams");
 
-const rosterPanel = document.querySelector("#roster-panel");
-const rosterTitle = document.querySelector("#roster-title");
-const rosterSubtitle = document.querySelector("#roster-subtitle");
-const rosterContainer = document.querySelector("#roster");
-
-const playerForm = document.querySelector("#player-form");
-const playerFormMessage = document.querySelector("#player-form-message");
-
 const teamFilterBranch = document.querySelector("#team-filter-branch");
 const teamFilterCategory = document.querySelector("#team-filter-category");
-
-let selectedTeamId = null;
 
 let teamsState = [];
 
@@ -36,13 +26,21 @@ function renderTeams(teams) {
 
     teamsContainer.innerHTML = teams
         .map((team) => `
-            <button class="team-card" type="button" data-team-id="${team.id}">
-                <div>
-                    <h3>${team.name}</h3>
-                    <p>${team.branch} / ${team.category}</p>
-                </div>
-                <span class="team-status">${team.status}</span>
-            </button>
+            <article class="team-card">
+                <button class="team-card-main" type="button" data-team-id="${team.id}">
+                    <div>
+                        <h3>${escapeHtml(team.name)}</h3>
+                        <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p>
+                    </div>
+                    <span class="team-status">${escapeHtml(team.status)}</span>
+                </button>
+                <button
+                    class="team-delete-button admin-only"
+                    type="button"
+                    data-delete-team-id="${team.id}"
+                    data-team-name="${escapeHtml(team.name)}"
+                >Eliminar</button>
+            </article>
         `)
         .join("");
 }
@@ -66,34 +64,6 @@ function getFilteredTeams() {
 function renderFilteredTeams() {
     const filteredTeams = getFilteredTeams();
     renderTeams(filteredTeams);
-}
-
-function renderRoster(team) {
-    rosterPanel.classList.remove("hidden");
-    rosterTitle.textContent = `Roster de ${team.name}`;
-    rosterSubtitle.textContent = `${team.branch} / ${team.category}`;
-
-    if (team.players.length === 0) {
-        rosterContainer.innerHTML = `
-            <div class="empty-state">
-                <h3>Sin jugadores registrados</h3>
-                <p>Este equipo todavía no tiene jugadores registrados.</p>
-            </div>
-        `;
-        return;
-    }
-
-    rosterContainer.innerHTML = team.players
-        .map((player) => `
-            <article class="roster-player">
-                <span class="jersey-number">#${player.jersey_number}</span>
-                <div>
-                    <h3>${player.name}</h3>
-                    <p>${player.age} años</p>
-                </div>
-            </article>
-        `)
-        .join("");
 }
 
 async function loadTeams() {
@@ -127,30 +97,6 @@ async function loadTeams() {
                 <p>Revisa que el servidor esté encendido.</p>
             </div>
         `;
-    }
-}
-
-async function loadTeamDetail(teamId) {
-    // Selecting a team drives both roster rendering and player registration.
-    rosterPanel.classList.remove("hidden");
-    rosterTitle.textContent = "Cargando roster";
-    rosterSubtitle.textContent = "Espera un momento.";
-    rosterContainer.innerHTML = "";
-
-    try {
-        const response = await getTeamDetail(teamId);
-
-        if (!response.ok) {
-            rosterTitle.textContent = "No se pudo cargar el roster";
-            rosterSubtitle.textContent = "Intenta seleccionar el equipo otra vez.";
-            return;
-        }
-
-        const team = await response.json();
-        renderRoster(team);
-    } catch (error) {
-        rosterTitle.textContent = "No se pudo cargar el roster";
-        rosterSubtitle.textContent = "Revisa que el servidor esté encendido.";
     }
 }
 
@@ -190,62 +136,37 @@ async function registerTeam(event) {
     }
 }
 
-teamsContainer.addEventListener("click", (event) => {
+teamsContainer.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest("[data-delete-team-id]");
+
+    if (deleteButton !== null) {
+        const teamName = deleteButton.dataset.teamName;
+        const confirmed = window.confirm(
+            `¿Eliminar ${teamName}? También se eliminarán sus partidos, roster y estadísticas.`
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        const response = await deleteTeam(deleteButton.dataset.deleteTeamId);
+        if (!response.ok) {
+            formMessage.textContent = "No se pudo eliminar el equipo.";
+            return;
+        }
+
+        formMessage.textContent = "Equipo eliminado correctamente.";
+        await loadTeams();
+        return;
+    }
+
     const teamCard = event.target.closest("[data-team-id]");
 
     if (teamCard === null) {
         return;
     }
 
-    selectedTeamId = teamCard.dataset.teamId
-    loadTeamDetail(selectedTeamId);
+    window.location.assign(`/teams/${teamCard.dataset.teamId}/roster`);
 });
-
-async function registerPlayer(event) {
-    event.preventDefault();
-
-    if (selectedTeamId === null) {
-        playerFormMessage.textContent = "Selecciona un equipo primero";
-        return;
-    }
-
-    const formData = new FormData(playerForm);
-
-    const payload ={
-        name: formData.get("name"),
-        curp: formData.get("curp"),
-        age: Number(formData.get("age")),
-        jersey_number: Number(formData.get("jersey_number"))
-    };
-
-    playerFormMessage.textContent = "Registrando jugador...";
-
-    try {
-        const response = await createPlayer(selectedTeamId, payload);
-
-        if (response.status === 409) {
-            const error = await response.json();
-            playerFormMessage.textContent = error.detail;
-            return;
-        }
-
-        if (!response.ok) {
-            playerFormMessage.textContent = "No se pudo registrar al jugador.";
-            return;
-        }
-
-        playerForm.reset();
-        playerFormMessage.textContent = "Jugador registrado correctamente.";
-
-        await loadTeamDetail(selectedTeamId);
-    } catch (error) {
-        playerFormMessage.textContent = "No se pudo conectar con el servidor."
-    }
-}
-
-if (playerForm !== null) {
-    playerForm.addEventListener("submit", registerPlayer);
-}
 
 teamFilterBranch.addEventListener("change", renderFilteredTeams);
 teamFilterCategory.addEventListener("change", renderFilteredTeams);

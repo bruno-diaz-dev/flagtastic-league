@@ -25,6 +25,10 @@ def clean_database():
         """
     )
 
+    # Teams cascade roster memberships; unlinked player identities are then safe
+    # to clear so this module never inherits a CURP from another test module.
+    connection.execute("DELETE FROM players")
+
     connection.commit()
     connection.close()
 
@@ -119,6 +123,8 @@ def test_get_team_detail_with_roster():
     player = data["players"][0]
 
     assert player["name"] == "Bruno Diaz"
+    assert player["aka"] is None
+    assert player["profile_photo_url"] is None
     assert player["age"] == 29
     assert player["jersey_number"] == 83
     assert "id" in player

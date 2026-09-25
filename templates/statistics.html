@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <header class="section-header">
+        <div>
+            <h2>Líderes individuales</h2>
+            <p>Los cinco mejores jugadores por rama y categoría.</p>
+        </div>
+    </header>
+
+    <section class="form-panel admin-only">
+        <h3>Cargar estadísticas individuales</h3>
+        <form id="statistics-import-form" class="stats-import-form">
+            <label>
+                Archivo oficial de estadísticas (.xlsx)
+                <input name="file" type="file" accept=".xlsx" required>
+            </label>
+            <button type="submit">Importar estadísticas</button>
+        </form>
+        <p class="form-help">
+            Se importarán todas las hojas Wk y se sustituirán esas jornadas.
+        </p>
+        <a class="secondary-action" href="/api/statistics/import-template">
+            Descargar plantilla Excel
+        </a>
+        <p id="statistics-import-message" class="form-message" role="status"></p>
+    </section>
+
+    <section class="form-panel">
+        <h3>Consultar estadísticas</h3>
+        <form id="leaderboard-form" class="filter-form">
+            <label>
+                Rama
+                <select name="branch" required>
+                    <option value="varonil">Varonil</option>
+                    <option value="femenil">Femenil</option>
+                    <option value="mixto">Mixto</option>
+                </select>
+            </label>
+            <label>
+                Categoría
+                <select name="category" required>
+                    <option value="u6">U6</option>
+                    <option value="u8">U8</option>
+                    <option value="u10">U10</option>
+                    <option value="u12">U12</option>
+                    <option value="u14">U14</option>
+                    <option value="u16">U16</option>
+                    <option value="u18">U18</option>
+                    <option value="libre" selected>Libre</option>
+                </select>
+            </label>
+            <button type="submit">Consultar líderes</button>
+        </form>
+    </section>
+
+    <section id="leaderboards" class="leaderboards" aria-live="polite"></section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-4"></script>
+<script src="/static/statistics.js?v=20260925-4"></script>
+{% endblock %}

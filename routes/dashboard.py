@@ -1,0 +1,47 @@
+"""Authenticated player dashboard and self-service roster endpoints."""
+
+from fastapi import APIRouter, Depends, HTTPException
+from psycopg.errors import UniqueViolation
+
+from dependencies.auth import require_player
+from models import TeamMembershipCreate
+from repositories.dashboard import get_player_dashboard
+from repositories.players import join_team, PlayerAlreadyRegisteredInDivision
+from repositories.teams import get_team_by_id
+
+
+router = APIRouter(prefix="/api/me", tags=["dashboard"])
+
+
+@router.get("/dashboard")
+def player_dashboard(user=Depends(require_player)):
+    """Return only data belonging to the authenticated player."""
+    dashboard = get_player_dashboard(user["player_id"])
+    if dashboard is None:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado")
+    return dashboard
+
+
+@router.post("/teams/{team_id}", status_code=201)
+def register_my_team(
+    team_id: int,
+    membership: TeamMembershipCreate,
+    user=Depends(require_player)
+):
+    """Let a player join one team per branch and category."""
+    team = get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    try:
+        return join_team(user["player_id"], team, membership.jersey_number)
+    except PlayerAlreadyRegisteredInDivision as error:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya estas registrado en esta rama y categoria"
+        ) from error
+    except UniqueViolation as error:
+        if error.diag.constraint_name == "team_players_team_id_jersey_number_key":
+            detail = "Ese numero ya esta registrado en este equipo"
+        else:
+            detail = "Ya estas registrado en este equipo"
+        raise HTTPException(status_code=409, detail=detail) from error

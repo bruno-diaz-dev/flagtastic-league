@@ -172,12 +172,16 @@ def test_list_games():
 
     assert games[0]["home_team"] == {
         "id": tigres_id,
-        "name": "Tigres"
+        "name": "Tigres",
+        "branch": "varonil",
+        "category": "libre"
     }
 
     assert games[0]["away_team"] == {
         "id": ravens_id,
-        "name": "Ravens"
+        "name": "Ravens",
+        "branch": "varonil",
+        "category": "libre"
     }
 
     assert games[0]["home_score"] == 32

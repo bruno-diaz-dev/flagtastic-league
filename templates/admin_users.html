@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-users-page">
+    <header class="section-header">
+        <h2>Usuarios y roles</h2>
+        <p>Otorga únicamente el acceso necesario para las funciones de cada persona.</p>
+    </header>
+    <div id="admin-users-message" class="form-message" role="status"></div>
+    <div class="users-table-wrapper">
+        <table class="users-table">
+            <thead><tr><th>Persona</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead>
+            <tbody id="admin-users-body"></tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-2"></script>
+<script src="/static/admin_users.js?v=20260925-2"></script>
+{% endblock %}

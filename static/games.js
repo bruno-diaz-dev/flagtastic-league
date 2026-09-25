@@ -6,6 +6,12 @@ const gamesContainer = document.querySelector("#games");
 
 const homeTeamSelect = document.querySelector("[name='home_team_id']");
 const awayTeamSelect = document.querySelector("[name='away_team_id']");
+const gameFilterWeek = document.querySelector("#game-filter-week");
+const gameFilterBranch = document.querySelector("#game-filter-branch");
+const gameFilterCategory = document.querySelector("#game-filter-category");
+const gamesCount = document.querySelector("#games-count");
+
+let gamesState = [];
 
 
 function renderGameTeamOption(teams){
@@ -21,6 +27,8 @@ function renderGameTeamOption(teams){
 }
 
 function renderGames(games) {
+    gamesCount.textContent = `${games.length} partido${games.length === 1 ? "" : "s"}`;
+
     if (games.length === 0) {
         gamesContainer.innerHTML = `
             <div class="empty-state">
@@ -41,17 +49,17 @@ function renderGames(games) {
             return `
                 <article class="game-card">
                     <div>
-                        <h3>${game.home_team.name} vs ${game.away_team.name}</h3>
-                        <p>${game.home_team.name} local / ${game.away_team.name} visitante</p>
+                        <h3>${escapeHtml(game.home_team.name)} vs ${escapeHtml(game.away_team.name)}</h3>
+                        <p>Jornada ${game.week} · ${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)}</p>
                     </div>
                    
                     ${
                         hasScore
                         ? `<strong>${score}</strong>`
                         : `
-                            <form class="score-form" data-game-id="${game.id}">
+                            <form class="score-form admin-only" data-game-id="${game.id}">
                                 <label>
-                                    ${game.home_team.name}
+                                    ${escapeHtml(game.home_team.name)}
                                     <input
                                         type="number"
                                         name="home_score"
@@ -61,7 +69,7 @@ function renderGames(games) {
                                 </label>
 
                                 <label>
-                                    ${game.away_team.name}
+                                    ${escapeHtml(game.away_team.name)}
                                     <input
                                         type="number"
                                         name="away_score"
@@ -78,6 +86,38 @@ function renderGames(games) {
             `;
         })
         .join("");
+}
+
+function populateWeekFilter(games) {
+    const selectedWeek = gameFilterWeek.value;
+    const weeks = [...new Set(games.map((game) => game.week))]
+        .sort((first, second) => first - second);
+
+    gameFilterWeek.innerHTML = `
+        <option value="">Todas las jornadas</option>
+        ${weeks.map((week) => `<option value="${week}">Jornada ${week}</option>`).join("")}
+    `;
+    gameFilterWeek.value = selectedWeek;
+}
+
+function renderFilteredGames() {
+    const filteredGames = gamesState.filter((game) => {
+        const matchesWeek = (
+            gameFilterWeek.value === ""
+            || String(game.week) === gameFilterWeek.value
+        );
+        const matchesBranch = (
+            gameFilterBranch.value === ""
+            || game.home_team.branch === gameFilterBranch.value
+        );
+        const matchesCategory = (
+            gameFilterCategory.value === ""
+            || game.home_team.category === gameFilterCategory.value
+        );
+        return matchesWeek && matchesBranch && matchesCategory;
+    });
+
+    renderGames(filteredGames);
 }
 
 async function loadGamesTeams() {
@@ -117,8 +157,9 @@ async function loadGames() {
             return;
         }
 
-        const games = await response.json();
-        renderGames(games);
+        gamesState = await response.json();
+        populateWeekFilter(gamesState);
+        renderFilteredGames();
     } catch (error) {
         gamesContainer.innerHTML = `
             <div class="empty-state">
@@ -136,7 +177,8 @@ async function registerGame(event) {
 
     const payload = {
         home_team_id: Number(formData.get("home_team_id")),
-        away_team_id: Number(formData.get("away_team_id"))
+        away_team_id: Number(formData.get("away_team_id")),
+        week: Number(formData.get("week"))
     };
 
     gameFormMessage.textContent = "Registrando partido...";
@@ -195,17 +237,19 @@ async function submitGamesScore(event) {
 
 gamesContainer.addEventListener("submit", (event) => {
     // Score forms are rendered dynamically, so one delegated listener handles all.
-    if (!event.target.classList.contains("score-form")) {
-        return;
+    if (event.target.classList.contains("score-form")) {
+        submitGamesScore(event);
     }
-
-    submitGamesScore(event);
 });
 
 
 if (gameForm !== null) {
     gameForm.addEventListener("submit", registerGame);
 }
+
+[gameFilterWeek, gameFilterBranch, gameFilterCategory].forEach((filter) => {
+    filter.addEventListener("change", renderFilteredGames);
+});
 
 
 loadGamesTeams();

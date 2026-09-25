@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="auth-page">
+    <div class="auth-panel">
+        <p class="eyebrow">Acceso operativo</p>
+        <h2>Iniciar sesión</h2>
+        <p>Ingresa con la cuenta asignada por la liga.</p>
+
+        <form id="login-form" class="auth-form">
+            <label>
+                Correo electrónico
+                <input name="email" type="email" autocomplete="username" required>
+            </label>
+            <label>
+                Contraseña
+                <input
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                >
+            </label>
+            <button type="submit">Entrar</button>
+        </form>
+        <p id="login-message" class="form-message" role="status"></p>
+        <a href="/register">Crear cuenta de jugador</a>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-2"></script>
+<script src="/static/login.js?v=20260925-2"></script>
+{% endblock %}

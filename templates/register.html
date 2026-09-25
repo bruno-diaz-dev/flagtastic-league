@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="auth-page">
+    <header class="section-header">
+        <h2>Crear cuenta de jugador</h2>
+        <p>Usa los mismos datos con los que apareces en el roster.</p>
+    </header>
+    <form id="register-form" class="form-panel auth-form" enctype="multipart/form-data">
+        <label>Nombre completo<input name="name" required autocomplete="name"></label>
+        <label>AKA <span class="optional-label">Opcional</span><input name="aka" maxlength="80" autocomplete="nickname"></label>
+        <label>CURP<input name="curp" required minlength="18" maxlength="18"></label>
+        <label>Edad<input name="age" type="number" min="1" required></label>
+        <label>Correo<input name="email" type="email" required autocomplete="email"></label>
+        <label>Contraseña<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+        <label>
+            Foto de perfil
+            <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
+            <small>JPG, PNG o WebP. Máximo 5 MB.</small>
+        </label>
+        <button type="submit">Crear cuenta</button>
+        <p id="register-message" class="form-message" role="status"></p>
+        <a href="/login">Ya tengo una cuenta</a>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-3"></script>
+<script src="/static/register.js?v=20260925-3"></script>
+{% endblock %}

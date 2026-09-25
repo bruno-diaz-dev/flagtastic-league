@@ -117,6 +117,27 @@ h1 {
     gap: 8px;
 }
 
+.session-controls {
+    display: grid;
+    gap: 8px;
+    margin-top: 28px;
+}
+
+.session-user {
+    color: var(--color-gold);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.logout-button {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
 .nav-link {
     width: 100%;
     border: 1px solid transparent;
@@ -255,6 +276,205 @@ select option {
     color: var(--color-muted);
 }
 
+/* Authentication and statistics-specific operational surfaces. */
+.auth-page {
+    display: grid;
+    min-height: calc(100vh - 64px);
+    place-items: center;
+}
+
+.auth-panel {
+    width: min(440px, 100%);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: rgba(16, 27, 49, 0.92);
+    padding: 28px;
+}
+
+.auth-panel > p:not(.eyebrow) {
+    color: var(--color-muted);
+}
+
+.auth-form,
+.filter-form,
+.stats-import-form {
+    display: grid;
+    gap: 12px;
+}
+
+.auth-form label,
+.filter-form label,
+.stats-import-form label {
+    display: grid;
+    gap: 6px;
+}
+
+.auth-form input,
+.filter-form select,
+.stats-import-form input {
+    width: 100%;
+    border: 1px solid rgba(184, 195, 217, 0.35);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text);
+    font: inherit;
+}
+
+.auth-form button,
+.filter-form button,
+.stats-import-form button {
+    border: 0;
+    border-radius: 6px;
+    padding: 11px 14px;
+    background: var(--color-gold);
+    color: var(--color-navy-dark);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.optional-label {
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.auth-form small {
+    color: var(--color-muted);
+    font-weight: 400;
+}
+
+.player-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-photo {
+    width: 88px;
+    height: 88px;
+    border: 2px solid var(--color-gold);
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-surface-raised);
+}
+
+.filter-form {
+    grid-template-columns: repeat(2, minmax(180px, 1fr)) minmax(180px, 1fr);
+    align-items: end;
+}
+
+.stats-import-form {
+    min-width: 280px;
+}
+
+.import-status {
+    min-height: 18px;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.leaderboards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.leaderboard-panel {
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: rgba(16, 27, 49, 0.86);
+}
+
+.leaderboard-panel h3 {
+    margin: 0;
+    padding: 16px;
+    background: var(--color-navy);
+    color: var(--color-gold);
+}
+
+.leaderboard-statistic {
+    margin: -4px 0 14px;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.secondary-action {
+    display: inline-block;
+    margin-top: 14px;
+    color: var(--color-gold);
+    font-weight: 700;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+}
+
+.leaderboard-table th {
+    color: var(--color-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.leaderboard-table td span {
+    display: block;
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.leaderboard-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.leaderboard-player small {
+    display: block;
+    margin-top: 2px;
+    color: var(--color-muted);
+}
+
+.leaderboard-photo,
+.roster-player-photo {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border: 1px solid rgba(244, 197, 66, 0.45);
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-surface-raised);
+}
+
+.profile-placeholder {
+    display: inline-grid !important;
+    place-items: center;
+    background: var(--color-navy-soft);
+    color: var(--color-gold) !important;
+    font-weight: 700;
+}
+
+.leaderboard-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.rank-cell,
+.stat-value {
+    width: 64px;
+    color: var(--color-gold);
+    font-weight: 700;
+}
+
 /* Reusable resource cards and roster/game collections. */
 .teams-grid {
     display: grid;
@@ -273,18 +493,38 @@ select option {
 
 .team-card {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: stretch;
     gap: 16px;
     width: 100%;
+}
+
+.team-card-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex: 1;
+    border: 0;
+    padding: 0;
+    background: transparent;
     text-align: left;
     font: inherit;
-    color: var(--color-text);
+    color: var(--color-text) !important;
     cursor: pointer;
 }
 
 .team-card:hover {
     border-color: rgba(244, 197, 66, 0.54);
+}
+
+.team-delete-button {
+    align-self: center;
+    border: 1px solid rgba(255, 123, 102, 0.5);
+    border-radius: 6px;
+    padding: 8px 12px;
+    background: rgba(143, 39, 39, 0.22);
+    color: #ffb4a8;
+    font: inherit;
+    cursor: pointer;
 }
 
 .team-card h3 {
@@ -312,6 +552,29 @@ select option {
     display: none;
 }
 
+/* Operational controls stay hidden until the session role is resolved. */
+.admin-only,
+.team-manager-only {
+    display: none !important;
+}
+
+body.role-league_admin .admin-only,
+body.role-league_admin .team-manager-only,
+body.role-team_representative .team-manager-only {
+    display: block !important;
+}
+
+body.role-league_admin form.admin-only,
+body.role-league_admin form.team-manager-only,
+body.role-team_representative form.team-manager-only {
+    display: grid !important;
+}
+
+/* This action is inline rather than a panel, so it needs its own display mode. */
+body.role-league_admin .team-delete-button.admin-only {
+    display: inline-flex !important;
+}
+
 .roster-panel {
     margin-top: 32px;
 }
@@ -322,6 +585,10 @@ select option {
     gap: 12px;
 }
 
+.roster-list {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
 .roster-player {
     display: flex;
     align-items: center;
@@ -330,6 +597,32 @@ select option {
     border-radius: 8px;
     background: rgba(16, 27, 49, 0.86);
     padding: 14px 16px;
+}
+
+.roster-player-photo {
+    width: 64px;
+    height: 64px;
+}
+
+.roster-player-identity {
+    min-width: 0;
+    flex: 1;
+}
+
+.roster-player .jersey-number {
+    margin-left: auto;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: var(--color-gold);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
 }
 
 .jersey-number {
@@ -402,6 +695,15 @@ select option {
     font: inherit;
 }
 
+.games-filters {
+    grid-template-columns: repeat(3, minmax(180px, 260px));
+}
+
+.results-count {
+    margin: 0 0 12px;
+    color: var(--color-muted);
+}
+
 /* Dense standings table with horizontal overflow on narrow screens. */
 .standings-table {
     overflow-x: auto;
@@ -458,6 +760,55 @@ select option {
     font-weight: 700;
 }
 
+.dashboard-page { display: grid; gap: 28px; }
+
+.dashboard-join-form {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) minmax(120px, 1fr) minmax(180px, 1fr);
+    gap: 16px;
+    align-items: end;
+}
+
+.dashboard-join-form label,
+.auth-form label { display: grid; gap: 8px; font-weight: 600; }
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.stat-item {
+    min-height: 96px;
+    padding: 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: rgba(16, 27, 49, 0.86);
+    display: grid;
+    gap: 8px;
+}
+
+.stat-item span { color: var(--color-muted); }
+.stat-item strong { color: var(--color-gold); font-size: 26px; }
+.dashboard-teams { display: grid; gap: 12px; }
+
+.users-table-wrapper { overflow-x: auto; }
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--color-border);
+    background: rgba(16, 27, 49, 0.86);
+}
+.users-table th,
+.users-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+}
+.users-table th { background: var(--color-navy); }
+.users-table select { min-width: 190px; }
+.save-role-button { min-height: 42px; padding: 0 18px; }
+
 /* Collapse the desktop shell into a single-column mobile layout. */
 @media (max-width: 820px) {
     .layout,
@@ -507,17 +858,17 @@ select option {
         flex-direction: column;
     }
 
-    .game-form {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        align-items: end;
+    .player-form,
+    .filter-form,
+    .filters-panel,
+    .leaderboards {
+        grid-template-columns: 1fr;
     }
 
-    .player-form {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 12px;
-        align-items: end;
+    .stats-import-form {
+        min-width: 0;
+        width: 100%;
     }
+
+    .dashboard-join-form { grid-template-columns: 1fr; }
 }

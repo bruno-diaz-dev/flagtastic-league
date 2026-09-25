@@ -1,10 +1,10 @@
 """HTTP endpoints for creating and revoking authenticated sessions."""
 
-import os
+from fastapi import APIRouter, Cookie, File, Form, HTTPException, Response, UploadFile
 
-from fastapi import APIRouter, Cookie, HTTPException, Response
-
-from models import LoginRequest
+from models import LoginRequest, PlayerAccountCreate
+from psycopg.errors import UniqueViolation
+from repositories.users import create_player_account, PlayerIdentityConflict
 from repositories.sessions import (
     create_session,
     revoke_session
@@ -13,22 +13,60 @@ from services.auth import (
     authenticate_user,
     get_authenticated_user
 )
+from services.profile_photos import remove_profile_photo, save_profile_photo
+from settings import (
+    SESSION_COOKIE_NAME,
+    SESSION_MAX_AGE_SECONDS,
+    session_cookie_is_secure
+)
 
 router = APIRouter(
     prefix="/api/auth",
     tags=["auth"]
 )
 
-SESSION_COOKIE_NAME = "flagtastic_session"
-SESSION_MAX_AGE_SECONDS = 12 * 60 * 60
 
-def session_cookie_is_secure():
-    """Return whether session cookies must only travel over HTTPS."""
-
-    return (
-        os.getenv("SESSION_COOKIE_SECURE", "true").lower()
-        == "true"
+@router.post("/register/player", status_code=201)
+async def register_player_account(
+    email: str = Form(...),
+    password: str = Form(...),
+    name: str = Form(...),
+    curp: str = Form(...),
+    age: int = Form(...),
+    aka: str | None = Form(default=None),
+    photo: UploadFile = File(...)
+):
+    """Create a player login without exposing credentials or CURP."""
+    registration = PlayerAccountCreate(
+        email=email,
+        password=password,
+        name=name,
+        curp=curp,
+        age=age,
+        aka=aka
     )
+    photo_filename = await save_profile_photo(photo)
+    try:
+        return create_player_account(registration, photo_filename)
+    except PlayerIdentityConflict as error:
+        remove_profile_photo(photo_filename)
+        raise HTTPException(
+            status_code=409,
+            detail="Los datos no coinciden con el jugador registrado"
+        ) from error
+    except UniqueViolation as error:
+        remove_profile_photo(photo_filename)
+        constraint = error.diag.constraint_name
+        if constraint == "users_email_key":
+            detail = "El correo ya esta registrado"
+        elif constraint == "users_player_id_key":
+            detail = "El jugador ya tiene una cuenta"
+        else:
+            raise
+        raise HTTPException(status_code=409, detail=detail) from error
+    except Exception:
+        remove_profile_photo(photo_filename)
+        raise
 
 @router.post("/login")
 def login(credentials: LoginRequest, response: Response):

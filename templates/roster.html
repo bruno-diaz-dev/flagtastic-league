@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="roster-page" data-team-id="{{ team_id }}">
+    <a class="back-link" href="/teams">← Volver a equipos</a>
+
+    <header class="section-header roster-header">
+        <div>
+            <h2 id="roster-title">Roster</h2>
+            <p id="roster-subtitle">Cargando equipo...</p>
+        </div>
+    </header>
+
+    <section class="form-panel team-manager-only">
+        <h3>Registrar jugador</h3>
+        <form id="player-form" class="player-form">
+            <label>Nombre<input name="name" autocomplete="off" required></label>
+            <label>CURP<input name="curp" autocomplete="off" minlength="18" maxlength="18" required></label>
+            <label>Edad<input name="age" type="number" min="1" required></label>
+            <label>Número<input name="jersey_number" type="number" min="0" required></label>
+            <button type="submit">Registrar jugador</button>
+        </form>
+        <p id="player-form-message" class="form-message" role="status"></p>
+    </section>
+
+    <div id="roster" class="roster-list" aria-live="polite"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-4"></script>
+<script src="/static/roster.js?v=20260925-4"></script>
+{% endblock %}

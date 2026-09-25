@@ -1,7 +1,7 @@
 """HTTP endpoints for player registration and team rosters."""
 
 from psycopg.errors import UniqueViolation
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from models import PlayerCreate
 from repositories.teams import get_team_by_id
@@ -10,6 +10,7 @@ from repositories.players import (
     get_players_by_team,
     PlayerAlreadyRegisteredInDivision
 )
+from dependencies.auth import require_team_manager
 
 router = APIRouter(
     prefix="/api/teams/{team_id}/players",
@@ -19,7 +20,8 @@ router = APIRouter(
 @router.post("", status_code=201)
 def register_player(
     team_id: int,
-    player: PlayerCreate
+    player: PlayerCreate,
+    _user=Depends(require_team_manager)
 ):
     """Register a player while translating roster conflicts to HTTP errors."""
 

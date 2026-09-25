@@ -111,7 +111,12 @@ def get_players_by_team(team_id):
             players.id,
             team_players.team_id,
             players.name,
+            players.aka,
             players.age,
+            CASE
+                WHEN players.profile_photo_path IS NULL THEN NULL
+                ELSE '/media/profiles/' || players.profile_photo_path
+            END AS profile_photo_url,
             team_players.jersey_number
         FROM team_players
         JOIN players
@@ -125,3 +130,38 @@ def get_players_by_team(team_id):
     connection.close()
 
     return[dict(row) for row in rows]
+
+
+def join_team(player_id, team, jersey_number):
+    """Attach an existing player identity to one eligible division roster."""
+    connection = get_connection()
+    try:
+        conflict = connection.execute(
+            """
+            SELECT 1
+            FROM team_players
+            JOIN teams ON teams.id = team_players.team_id
+            WHERE team_players.player_id = %s
+              AND teams.branch = %s
+              AND teams.category = %s
+            """,
+            (player_id, team["branch"], team["category"])
+        ).fetchone()
+        if conflict is not None:
+            raise PlayerAlreadyRegisteredInDivision()
+
+        membership = connection.execute(
+            """
+            INSERT INTO team_players (team_id, player_id, jersey_number)
+            VALUES (%s, %s, %s)
+            RETURNING team_id, player_id, jersey_number
+            """,
+            (team["id"], player_id, jersey_number)
+        ).fetchone()
+        connection.commit()
+        return dict(membership)
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()

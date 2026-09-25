@@ -11,17 +11,20 @@ def create_game(game):
             """
             INSERT INTO games (
                 home_team_id,
-                away_team_id
+                away_team_id,
+                week
             )
-            VALUES (%s, %s)
+            VALUES (%s, %s, %s)
             RETURNING
                 id,
                 home_team_id,
-                away_team_id
+                away_team_id,
+                week
             """,
             (
                 game.home_team_id,
-                game.away_team_id
+                game.away_team_id,
+                game.week
             )
         ).fetchone()
 
@@ -46,10 +49,15 @@ def get_games():
             games.id,
             games.home_score,
             games.away_score,
+            games.week,
             home_team.id AS "home_team_id",
             home_team.name AS "home_team_name",
+            home_team.branch AS "home_team_branch",
+            home_team.category AS "home_team_category",
             away_team.id AS "away_team_id",
-            away_team.name AS "away_team_name"
+            away_team.name AS "away_team_name",
+            away_team.branch AS "away_team_branch",
+            away_team.category AS "away_team_category"
         FROM games
         JOIN teams AS home_team
             ON games.home_team_id = home_team.id
@@ -66,15 +74,20 @@ def get_games():
             "id": row["id"],
             "home_team": {
                 "id": row["home_team_id"],
-                "name": row["home_team_name"]
+                "name": row["home_team_name"],
+                "branch": row["home_team_branch"],
+                "category": row["home_team_category"]
             },
 
             "away_team": {
                 "id": row["away_team_id"],
-                "name": row["away_team_name"]
+                "name": row["away_team_name"],
+                "branch": row["away_team_branch"],
+                "category": row["away_team_category"]
             },
             "home_score": row["home_score"],
-            "away_score": row["away_score"]
+            "away_score": row["away_score"],
+            "week": row["week"]
         }
         for row in rows
     ]

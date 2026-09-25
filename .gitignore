@@ -6,6 +6,8 @@ __pycache__/
 
 # Virtual environment
 .venv/
+.test-deps/
+.codex-test-deps*/
 venv/
 env/
 
@@ -48,3 +50,4 @@ dist/
 # Temporary files
 *.tmp
 *.temp
+uploads/

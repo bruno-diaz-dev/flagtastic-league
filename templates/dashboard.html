@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-page">
+    <header class="section-header">
+        <div class="player-profile-header">
+            <img id="dashboard-photo" class="profile-photo hidden" alt="Foto de perfil">
+            <div>
+                <h2 id="dashboard-player-name">Mi dashboard</h2>
+                <p id="dashboard-greeting">Tu temporada en un solo lugar.</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="form-panel">
+        <h3>Registrarme en un equipo</h3>
+        <form id="join-team-form" class="dashboard-join-form">
+            <label>Equipo<select name="team_id" required></select></label>
+            <label>Número<input name="jersey_number" type="number" min="0" required></label>
+            <button type="submit">Unirme al equipo</button>
+        </form>
+        <p id="join-team-message" class="form-message" role="status"></p>
+    </section>
+
+    <section aria-labelledby="personal-stats-title">
+        <h3 id="personal-stats-title">Mis estadísticas</h3>
+        <div id="personal-stats" class="stat-grid" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="my-teams-title">
+        <h3 id="my-teams-title">Mis equipos</h3>
+        <div id="dashboard-teams" class="dashboard-teams" aria-live="polite"></div>
+    </section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-3"></script>
+<script src="/static/dashboard.js?v=20260925-3"></script>
+{% endblock %}

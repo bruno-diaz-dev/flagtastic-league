@@ -63,6 +63,7 @@ class GameCreate(BaseModel):
     """Validate the two participants of a new game."""
     home_team_id: int = Field(gt=0)
     away_team_id: int = Field(gt=0)
+    week: int = Field(default=1, gt=0)
 
 class GameScoreUpdate(BaseModel):
     """Validate a non-negative final score update."""
@@ -111,4 +112,53 @@ class LoginRequest(BaseModel):
             raise ValueError("Invalid email")
 
         return normalized_email
-        
+
+
+class PlayerAccountCreate(BaseModel):
+    """Validate a self-service player account registration."""
+
+    email: str = Field(min_length=3)
+    password: SecretStr = Field(min_length=8)
+    name: str = Field(min_length=1)
+    aka: str | None = Field(default=None, max_length=80)
+    curp: str = Field(min_length=18, max_length=18)
+    age: int = Field(gt=0)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, email):
+        normalized_email = email.strip().lower()
+        if "@" not in normalized_email or "." not in normalized_email:
+            raise ValueError("Invalid email")
+        return normalized_email
+
+    @field_validator("curp")
+    @classmethod
+    def normalize_curp(cls, curp):
+        return curp.strip().upper()
+
+    @field_validator("aka")
+    @classmethod
+    def normalize_aka(cls, aka):
+        normalized = aka.strip() if aka is not None else ""
+        return normalized or None
+
+
+class TeamMembershipCreate(BaseModel):
+    """Validate the jersey selected by a player joining a team."""
+
+    jersey_number: int = Field(ge=0)
+
+
+class UserRoleUpdate(BaseModel):
+    """Validate a role selected by a league administrator."""
+
+    role: str = Field(min_length=1)
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, role):
+        normalized_role = role.strip().lower()
+        if normalized_role not in ALLOWED_USER_ROLES:
+            raise ValueError("Invalid role")
+        return normalized_role

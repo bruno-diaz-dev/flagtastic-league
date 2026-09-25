@@ -252,6 +252,7 @@ flagtastic-league/
 │   ├── auth.py
 │   ├── games.py
 │   ├── standings.py
+│   ├── statistics.py
 │   ├── teams.py
 │   └── players.py
 │
@@ -265,6 +266,9 @@ flagtastic-league/
 ├── templates/
 │   ├── base.html
 │   ├── games.html
+│   ├── login.html
+│   ├── roster.html
+│   ├── statistics.html
 │   ├── standings.html
 │   └── teams.html
 │
@@ -273,6 +277,9 @@ flagtastic-league/
 │   ├── games.js
 │   ├── layout.js
 │   ├── standings.js
+│   ├── statistics.js
+│   ├── login.js
+│   ├── roster.js
 │   ├── style.css
 │   └── teams.js
 │
@@ -401,10 +408,13 @@ The test environment uses:
 postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test
 ```
 
-Configure and migrate the test database, then run the test suite:
+Configure and migrate the test database, then run the test suite. The test
+configuration reads `TEST_DATABASE_URL` locally and will not reuse the
+development `DATABASE_URL`:
 
 ```powershell
-$env:DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
+$env:TEST_DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
+$env:DATABASE_URL=$env:TEST_DATABASE_URL
 python -m alembic upgrade head
 pytest -v
 ```
@@ -463,7 +473,7 @@ flowchart LR
     B[Player Rosters]
     C[Eligibility Rules]
     D[Games]
-    E[Player Game Stats]
+    E[Player Week Stats]
     F[Season Stats]
     G[Leaderboards]
     H[Authentication & Roles]
@@ -502,29 +512,45 @@ teams
 players
 team_players
 games
-player_game_stats
+player_week_stats
 ```
 
 ---
 
-# 📊 Planned Player Statistics
+# 📊 Player Statistics
 
-Player statistics will be recorded **per game** rather than stored only as lifetime totals.
+Player statistics are recorded **per jornada** rather than stored only as lifetime totals. The official multi-sheet Excel workbook can import every `Wk` sheet in one operation.
 
 This will allow Flagtastic to calculate statistics by:
 
-- Game
+- Jornada
 - Season
 - Team
 - Player
 - Category
 - Branch
 
-Planned statistics include:
+The workbook identifies each roster entry with `rama`, `categoria`, `equipo`, and `numero`. The application resolves the internal player ID and displays the roster name; names are never trusted from the spreadsheet.
+
+Each pair of consecutive 15-row team blocks represents one matchup. Scores are inferred from `TD`, `Conv 1`, and `Conv 2`; when the event-only source omits enough information to produce a tie, defensive events provide a deterministic one-point tiebreak because league games cannot end tied. Formula-helper columns are ignored so events are not counted twice.
+
+The games page filters the imported schedule by jornada, branch, and category.
+For visual testing of standings, development schedules can be equalized without
+changing existing results:
+
+```powershell
+python -m scripts.balance_mock_games
+```
+
+The command inserts deterministic, non-tied mock games in a new jornada until
+every team in each active division has the same number of completed games. It
+is idempotent, so running it again after balance is reached creates nothing.
+
+Statistics include:
 
 | Statistic | Description |
 |---|---|
-| Pass completions | Completed passes |
+| Pass completion | Completion percentage (completed / attempted) |
 | Receptions | Successful receptions |
 | Points | Points scored |
 | Tackles | Defensive stops |
@@ -544,13 +570,13 @@ Interceptions:  1
 
 ---
 
-# 🏆 Planned Leaderboards
+# 🏆 Leaderboards
 
 Accumulated game statistics will power league leaderboards.
 
 | Statistic | Leaderboard |
 |---|---|
-| Pass completions | 🎯 El Francotirador |
+| Pass completion | 🎯 El Francotirador |
 | Receptions | 👐 Manos de Acero |
 | Points | ⚡ Máquina de Puntos |
 | Tackles | 🧱 El Muro |
@@ -580,7 +606,39 @@ Team Representative
 Player
 ```
 
-The authentication API supports login, current-user lookup, and idempotent logout. Role-based authorization rules are the next security boundary to implement before administrative endpoints are exposed.
+Player self-registration requires a JPG, PNG, or WebP profile photo of at most
+5 MB and accepts an optional `AKA`. Files receive generated names under
+`PROFILE_PHOTO_DIR` (default: `uploads/profiles`); PostgreSQL stores only the
+generated filename. The personal dashboard displays the AKA when present and
+keeps the legal roster name as supporting identity.
+
+`/teams` is the searchable team directory. Selecting a team opens its dedicated
+`/teams/{team_id}/roster` page instead of expanding roster management inside the
+directory. Public roster entries and individual-statistics leaderboards show the
+profile photo and prefer the player's AKA as the display name while retaining the
+legal roster name as supporting identity. Existing players without a photo use an
+initials placeholder, so imported and historical data remains readable.
+
+The authentication API supports login, current-user lookup, and idempotent logout. Backend authorization restricts league-wide writes to administrators and roster writes to administrators or representatives assigned to that team.
+
+Only league administrators can delete an erroneous team from `/teams`. This is
+a cascading operation: its roster memberships, games, representative links,
+and statistics are removed with the team, so the interface requires explicit
+confirmation before sending the request.
+
+Create the first trusted administrator locally after applying migrations:
+
+```powershell
+python -m scripts.create_admin --email admin@flagtastic.com --name "League Admin"
+```
+
+If that email already belongs to a registered player or representative, the
+command preserves the existing password and identity and promotes the account
+instead of creating a duplicate.
+
+That administrator can open `/admin/users` and grant the `league_admin`,
+`team_representative`, or `player` roles. Administrators cannot remove their
+own admin role accidentally.
 
 Administrative functionality will have access to private player information only when required by its role.
 
@@ -649,22 +707,26 @@ Completed foundation:
 ✅ Player / team membership separation
 ✅ Duplicate jersey protection
 ✅ Automated tests
+✅ Secure session authentication and role-based authorization
+✅ Player self-registration and personal dashboard
+✅ Excel statistics imports and top-five leaderboards
+✅ Passing completion leaderboard with jornada qualification rules
 ```
 
 Current focus:
 
 ```text
-🚧 Player eligibility rules
+🚧 Public-release stabilization
 ```
 
 Coming next:
 
 ```text
-⬜ Games
-⬜ Per-game statistics
-⬜ Season statistics
-⬜ Leaderboards
-🚧 Role-based authorization
+✅ Games
+✅ Per-game statistics
+✅ Aggregated player statistics
+✅ Leaderboards
+✅ Role-based authorization
 ⬜ Deployment
 ```
 
