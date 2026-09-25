@@ -111,3 +111,14 @@ def delete_team(team_id):
         raise
     finally:
         connection.close()
+
+
+def get_represented_team_ids(user_id):
+    """Return the teams explicitly managed by one representative account."""
+    connection = get_connection()
+    rows = connection.execute(
+        "SELECT team_id FROM team_representatives WHERE user_id = %s",
+        (user_id,)
+    ).fetchall()
+    connection.close()
+    return [row["team_id"] for row in rows]

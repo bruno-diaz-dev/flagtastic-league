@@ -50,7 +50,9 @@ def import_statistics_workbook(weeks, games=None):
                         f"Jornada {week}, fila {row_number}: no existe el "
                         f"numero {row['jersey_number']} en {row['team']}"
                     )
-                membership = (player["id"], team["id"])
+                membership = (
+                    row.get("game_index"), player["id"], team["id"]
+                )
                 if membership in seen_memberships:
                     raise StatisticsValidationError(
                         f"Jornada {week}, fila {row_number}: jugador repetido"
@@ -61,7 +63,8 @@ def import_statistics_workbook(weeks, games=None):
 
         resolved_games = []
         for week, week_games in (games or {}).items():
-            for game in week_games:
+            for game_index, game in enumerate(week_games):
+                game = {**game, "game_index": game_index}
                 division = (
                     game["branch"].strip().casefold(),
                     game["category"].strip().casefold()
@@ -85,20 +88,58 @@ def import_statistics_workbook(weeks, games=None):
             "DELETE FROM player_week_stats WHERE week = ANY(%s)",
             (list(resolved_weeks),)
         )
+        game_ids = {}
+        used_existing_game_ids = set()
+        for week, home_team_id, away_team_id, game in resolved_games:
+            existing_candidates = connection.execute(
+                """
+                SELECT id FROM games
+                WHERE week = %s AND home_team_id = %s AND away_team_id = %s
+                ORDER BY id
+                """,
+                (week, home_team_id, away_team_id)
+            ).fetchall()
+            existing = next(
+                (candidate for candidate in existing_candidates
+                 if candidate["id"] not in used_existing_game_ids),
+                None
+            )
+            if existing is None:
+                saved_game = connection.execute(
+                    """
+                    INSERT INTO games (
+                        home_team_id, away_team_id, home_score, away_score, week
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (home_team_id, away_team_id, game["home_score"],
+                     game["away_score"], week)
+                ).fetchone()
+            else:
+                saved_game = connection.execute(
+                    """
+                    UPDATE games SET home_score = %s, away_score = %s
+                    WHERE id = %s RETURNING id
+                    """,
+                    (game["home_score"], game["away_score"], existing["id"])
+                ).fetchone()
+            used_existing_game_ids.add(saved_game["id"])
+            game_ids[(week, game["game_index"])] = saved_game["id"]
         imported = []
         for week, resolved_rows in resolved_weeks.items():
             for player, team, row in resolved_rows:
+                game_id = game_ids.get((week, row.get("game_index")))
                 created = connection.execute(
                     """
                     INSERT INTO player_week_stats (
-                        week, player_id, team_id, points, receptions,
+                        week, game_id, player_id, team_id, points, receptions,
                         interceptions, sacks, tackles, passes_completed,
                         passes_attempted
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING *
                     """,
-                    (week, player["id"], team["id"], row["points"],
+                    (week, game_id, player["id"], team["id"], row["points"],
                      row["receptions"], row["interceptions"], row["sacks"],
                      row["tackles"], row["passes_completed"],
                      row["passes_attempted"])
@@ -108,22 +149,26 @@ def import_statistics_workbook(weeks, games=None):
                     "team_name": team["name"], "branch": team["branch"],
                     "category": team["category"]
                 })
-        if games is not None:
-            connection.execute(
-                "DELETE FROM games WHERE week = ANY(%s)",
-                (sorted(games),)
-            )
-            for week, home_team_id, away_team_id, game in resolved_games:
-                connection.execute(
-                    """
-                    INSERT INTO games (
-                        home_team_id, away_team_id, home_score, away_score, week
-                    )
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (home_team_id, away_team_id, game["home_score"],
-                     game["away_score"], week)
-                )
+        # Associate rows only when a team has one unambiguous game that week.
+        connection.execute(
+            """
+            UPDATE player_week_stats AS stats
+            SET game_id = matched.game_id
+            FROM (
+                SELECT stats_row.id AS stats_id, MIN(games.id) AS game_id
+                FROM player_week_stats AS stats_row
+                JOIN games ON games.week = stats_row.week
+                  AND stats_row.team_id IN (
+                      games.home_team_id, games.away_team_id
+                  )
+                WHERE stats_row.week = ANY(%s)
+                GROUP BY stats_row.id
+                HAVING COUNT(games.id) = 1
+            ) AS matched
+            WHERE stats.id = matched.stats_id
+            """,
+            (list(resolved_weeks),)
+        )
         connection.commit()
         return imported
     except Exception:
@@ -197,6 +242,43 @@ def get_player_statistics(player_id):
         if result["passes_attempted"] > 0 else None
     )
     return result
+
+
+def get_game_statistics(game_id, team_ids=None, player_id=None):
+    """Return game-scoped rows filtered to authorized teams or one player."""
+    connection = get_connection()
+    conditions = ["stats.game_id = %s"]
+    parameters = [game_id]
+    if team_ids is not None:
+        conditions.append("stats.team_id = ANY(%s)")
+        parameters.append(list(team_ids))
+    if player_id is not None:
+        conditions.append("stats.player_id = %s")
+        parameters.append(player_id)
+    rows = connection.execute(
+        f"""
+        SELECT stats.*, players.name AS player_name, players.aka AS player_aka,
+               teams.name AS team_name, team_players.jersey_number
+        FROM player_week_stats AS stats
+        JOIN players ON players.id = stats.player_id
+        JOIN teams ON teams.id = stats.team_id
+        JOIN team_players ON team_players.team_id = stats.team_id
+          AND team_players.player_id = stats.player_id
+        WHERE {' AND '.join(conditions)}
+        ORDER BY teams.name, team_players.jersey_number
+        """,
+        tuple(parameters)
+    ).fetchall()
+    connection.close()
+    results = []
+    for row in rows:
+        result = dict(row)
+        result["completion_percentage"] = (
+            round(result["passes_completed"] * 100 / result["passes_attempted"], 2)
+            if result["passes_attempted"] else None
+        )
+        results.append(result)
+    return results
 
 
 def get_leaderboards(branch, category, limit=5):

@@ -18,8 +18,9 @@ def reset_test_database():
     """Reset only the dedicated test database used by pytest."""
     connection = get_connection()
     for table in (
-        "sessions", "player_week_stats", "games", "team_players",
-        "team_representatives", "users", "players", "teams"
+        "game_referees", "sessions", "player_week_stats", "games",
+        "team_players", "team_representatives", "user_roles", "users",
+        "players", "teams"
     ):
         connection.execute(f"DELETE FROM {table}")
     connection.commit()
@@ -118,7 +119,8 @@ def test_complete_release_flow_for_public_and_all_roles():
         json={
             "home_team_id": home_team["id"],
             "away_team_id": away_team["id"],
-            "week": 1
+            "week": 1,
+            "field_number": 3
         }
     )
     assert game_response.status_code == 201
@@ -149,4 +151,3 @@ def test_complete_release_flow_for_public_and_all_roles():
         "/standings", "/statistics"
     ):
         assert client.get(path).status_code == 200
-

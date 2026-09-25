@@ -87,6 +87,35 @@ def create_official_workbook():
     return content.getvalue()
 
 
+def create_doubleheader_workbook(repeated_opponent=False):
+    """Create two games where the same team plays twice in one jornada."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Wk 5"
+    sheet.append(["Equipo", "Categoría", "Estadística", 1, 2, 3, 4])
+    labels = [
+        "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
+        "6 Puntos", "2 Puntos", "1 Puntos", "Intercepciones Pase", "TD",
+        "Conv 1", "Conv 2", "Sacks", "Tacleo", "Intercepciones Def",
+        "Asistencia"
+    ]
+    second_game = (
+        (("Kittys", 1, True), ("Diablos", 2, False))
+        if repeated_opponent
+        else (("Diablos", 2, True), ("APXGP", 3, False))
+    )
+    for team, number, points in (
+        ("Kittys", 1, True), ("Diablos", 2, False), *second_game
+    ):
+        for label in labels:
+            events = [number] if label == "Asistencia" or (points and label == "TD") else []
+            sheet.append([team, "Mix Libre", label, *events])
+    content = BytesIO()
+    workbook.save(content)
+    workbook.close()
+    return content.getvalue()
+
+
 def upload_week(week, rows, filename="estadisticas.xlsx"):
     return client.post(
         f"/api/weeks/{week}/player-stats/import",
@@ -157,6 +186,70 @@ def test_imports_the_official_horizontal_workbook_format():
     assert games[0]["away_team"]["id"] == ravens
     assert games[0]["home_score"] == 6
     assert games[0]["away_score"] == 0
+
+
+def test_doubleheader_statistics_remain_scoped_to_each_game():
+    """A team playing twice must expose the correct rows in both details."""
+    kittys = create_team("Kittys", "mixto", "libre")
+    diablos = create_team("Diablos", "mixto", "libre")
+    apxgp = create_team("APXGP", "mixto", "libre")
+    create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
+    create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
+    create_player(apxgp, "APXGP Three", "APXX010101HASXX003", 3)
+
+    response = client.post(
+        "/api/statistics/import",
+        files={"file": ("doubleheader.xlsx", create_doubleheader_workbook())}
+    )
+    assert response.status_code == 200
+
+    connection = get_connection()
+    games = connection.execute(
+        "SELECT id, home_team_id, away_team_id FROM games ORDER BY id"
+    ).fetchall()
+    first_teams = {
+        row["team_id"] for row in connection.execute(
+            "SELECT DISTINCT team_id FROM player_week_stats WHERE game_id = %s",
+            (games[0]["id"],)
+        ).fetchall()
+    }
+    second_teams = {
+        row["team_id"] for row in connection.execute(
+            "SELECT DISTINCT team_id FROM player_week_stats WHERE game_id = %s",
+            (games[1]["id"],)
+        ).fetchall()
+    }
+    connection.close()
+    assert first_teams == {kittys, diablos}
+    assert second_teams == {diablos, apxgp}
+
+
+def test_repeated_matchup_creates_two_distinct_game_snapshots():
+    """Two games between the same teams cannot share one statistics identity."""
+    kittys = create_team("Kittys", "mixto", "libre")
+    diablos = create_team("Diablos", "mixto", "libre")
+    create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
+    create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
+
+    response = client.post(
+        "/api/statistics/import",
+        files={"file": (
+            "repeated-matchup.xlsx",
+            create_doubleheader_workbook(repeated_opponent=True)
+        )}
+    )
+    assert response.status_code == 200
+
+    connection = get_connection()
+    games = connection.execute("SELECT id FROM games ORDER BY id").fetchall()
+    game_ids = {
+        row["game_id"] for row in connection.execute(
+            "SELECT DISTINCT game_id FROM player_week_stats"
+        ).fetchall()
+    }
+    connection.close()
+    assert len(games) == 2
+    assert game_ids == {games[0]["id"], games[1]["id"]}
 
 
 def test_team_identity_includes_branch_and_category():

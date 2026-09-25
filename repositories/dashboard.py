@@ -5,6 +5,21 @@ from repositories.standings import get_standings
 from repositories.statistics import get_player_statistics
 
 
+def update_player_aka(player_id, aka):
+    """Update the player's public name without changing legal identity."""
+    connection = get_connection()
+    row = connection.execute(
+        """
+        UPDATE players SET aka = %s WHERE id = %s
+        RETURNING id, name, aka
+        """,
+        (aka, player_id)
+    ).fetchone()
+    connection.commit()
+    connection.close()
+    return dict(row) if row is not None else None
+
+
 def get_player_dashboard(player_id):
     """Combine identity, memberships, statistics and standings positions."""
     connection = get_connection()

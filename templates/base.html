@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flagtastic League</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260925-4">
+    <link rel="stylesheet" href="/static/style.css?v=20260925-7">
 </head>
-<body>
+<body class="sidebar-collapsed">
     <div class="layout">
         <aside class="sidebar">
             <button
                 id="sidebar-toggle"
                 class="sidebar-toggle"
                 type="button"
-                aria-label="Contraer menu"
-                aria-expanded="true"
+                aria-label="Expandir menu"
+                aria-expanded="false"
             >
                 <span></span>
                 <span></span>
@@ -61,6 +61,11 @@
                     <span class="nav-text">Usuarios</span>
                     <span class="nav-short">US</span>
                 </a>
+
+                <a id="referee-games-link" class="nav-link hidden" href="/referee/games">
+                    <span class="nav-text">Mis partidos</span>
+                    <span class="nav-short">AR</span>
+                </a>
             </nav>
 
             <div class="session-controls">
@@ -80,7 +85,7 @@
         </main>
     </div>
 
-    <script src="/static/layout.js?v=20260925-2"></script>
+    <script src="/static/layout.js?v=20260925-5"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

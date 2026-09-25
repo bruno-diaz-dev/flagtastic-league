@@ -11,8 +11,12 @@ PASSWORD_ITERATIONS = 390000
 
 
 def _public_user(row):
-    """Keep player linkage available only when the account has one."""
+    """Add a public display name while preserving the account's legal name."""
     user = dict(row)
+    user["roles"] = list(user.get("roles") or [user["role"]])
+    aka = user.pop("player_aka", None)
+    user["aka"] = aka
+    user["display_name"] = aka or user["name"]
     if user.get("player_id") is None:
         user.pop("player_id", None)
     return user
@@ -85,9 +89,14 @@ def create_user(user):
             )
         ).fetchone()
 
+        connection.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES (%s, %s)",
+            (created_user["id"], user.role)
+        )
+
         connection.commit()
 
-        return dict(created_user)
+        return _public_user({**dict(created_user), "roles": [user.role]})
 
     except Exception:
         connection.rollback()
@@ -156,8 +165,16 @@ def create_player_account(registration, profile_photo_path):
                 player["id"]
             )
         ).fetchone()
+        connection.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES (%s, 'player')",
+            (created_user["id"],)
+        )
         connection.commit()
-        return dict(created_user)
+        return _public_user({
+            **dict(created_user),
+            "roles": ["player"],
+            "player_aka": registration.aka
+        })
     except Exception:
         connection.rollback()
         raise
@@ -171,14 +188,13 @@ def get_user_by_email(email):
     row = connection.execute(
         """
         SELECT
-            id,
-            email,
-            name,
-            role,
-            status,
-            player_id
+            users.id, users.email, users.name, users.role, users.status,
+            users.player_id,
+            ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
+            players.aka AS player_aka
         FROM users
-        WHERE email = %s
+        LEFT JOIN players ON players.id = users.player_id
+        WHERE users.email = %s
         """,
         (email.strip().lower(),)
     ).fetchone()
@@ -197,15 +213,13 @@ def get_user_credentials_by_email(email):
     row = connection.execute(
         """
         SELECT
-            id,
-            email,
-            name,
-            password_hash,
-            role,
-            status,
-            player_id
+            users.id, users.email, users.name, users.password_hash,
+            users.role, users.status, users.player_id,
+            ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
+            players.aka AS player_aka
         FROM users
-        WHERE email = %s
+        LEFT JOIN players ON players.id = users.player_id
+        WHERE users.email = %s
         """,
         (email.strip().lower(),)
     ).fetchone()
@@ -224,14 +238,13 @@ def get_user_by_id(user_id):
     row = connection.execute(
         """
         SELECT
-            id,
-            email,
-            name,
-            role,
-            status,
-            player_id
+            users.id, users.email, users.name, users.role, users.status,
+            users.player_id,
+            ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
+            players.aka AS player_aka
         FROM users
-        WHERE id = %s
+        LEFT JOIN players ON players.id = users.player_id
+        WHERE users.id = %s
         """,
         (user_id,)
     ).fetchone()
@@ -264,17 +277,20 @@ def get_all_users():
     connection = get_connection()
     rows = connection.execute(
         """
-        SELECT id, email, name, role, status, player_id
+        SELECT users.id, users.email, users.name, users.role, users.status,
+            users.player_id, players.aka AS player_aka,
+            ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles
         FROM users
-        ORDER BY name, email
+        LEFT JOIN players ON players.id = users.player_id
+        ORDER BY COALESCE(NULLIF(players.aka, ''), users.name), users.email
         """
     ).fetchall()
     connection.close()
-    return [dict(row) for row in rows]
+    return [_public_user(row) for row in rows]
 
 
-def update_user_role(user_id, role):
-    """Change a role while preserving the user's identity and status."""
+def set_user_roles(user_id, roles):
+    """Replace an account's role set while preserving identity constraints."""
     connection = get_connection()
     try:
         user = connection.execute(
@@ -283,22 +299,33 @@ def update_user_role(user_id, role):
         ).fetchone()
         if user is None:
             return None
-        if role == "player" and user["player_id"] is None:
+        if "player" in roles and user["player_id"] is None:
             raise PlayerIdentityConflict()
 
-        updated = connection.execute(
-            """
-            UPDATE users
-            SET role = %s
-            WHERE id = %s
-            RETURNING id, email, name, role, status, player_id
-            """,
-            (role, user_id)
-        ).fetchone()
+        connection.execute("DELETE FROM user_roles WHERE user_id = %s", (user_id,))
+        for role in sorted(roles):
+            connection.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES (%s, %s)",
+                (user_id, role)
+            )
+
+        # Keep the legacy primary role stable for older integrations.
+        primary_role = next(
+            (role for role in ("league_admin", "team_representative", "player", "referee") if role in roles)
+        )
+        connection.execute(
+            "UPDATE users SET role = %s WHERE id = %s",
+            (primary_role, user_id)
+        )
         connection.commit()
-        return dict(updated)
     except Exception:
         connection.rollback()
         raise
     finally:
         connection.close()
+    return get_user_by_id(user_id)
+
+
+def update_user_role(user_id, role):
+    """Compatibility helper that replaces the account with one role."""
+    return set_user_roles(user_id, {role})

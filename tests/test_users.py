@@ -172,11 +172,14 @@ def test_get_user_by_id_does_not_expose_password_hash():
 
     assert user == {
         "id": created_user["id"],
-        "email": "admin@flagtastic.com",
-        "name": "League admin",
-        "role": "league_admin",
-        "status": "active"
-    }
+            "email": "admin@flagtastic.com",
+            "name": "League admin",
+            "aka": None,
+            "display_name": "League admin",
+            "role": "league_admin",
+            "roles": ["league_admin"],
+            "status": "active"
+        }
 
     assert "password_hash" not in user
 

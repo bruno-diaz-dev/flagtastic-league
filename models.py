@@ -1,5 +1,7 @@
 """Pydantic request contracts and league-wide input constraints."""
 
+from datetime import time
+
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
 ALLOWED_BRANCHES = {
@@ -22,7 +24,16 @@ ALLOWED_CATEGORIES = {
 ALLOWED_USER_ROLES = {
     "league_admin",
     "team_representative",
-    "player"
+    "player",
+    "referee"
+}
+
+OFFICIAL_POSITIONS = {
+    "referee",
+    "down_judge",
+    "field_judge",
+    "side_judge",
+    "statistician"
 }
 
 class TeamCreate(BaseModel):
@@ -64,6 +75,8 @@ class GameCreate(BaseModel):
     home_team_id: int = Field(gt=0)
     away_team_id: int = Field(gt=0)
     week: int = Field(default=1, gt=0)
+    field_number: int = Field(ge=1, le=8)
+    start_time: time | None = None
 
 class GameScoreUpdate(BaseModel):
     """Validate a non-negative final score update."""
@@ -150,6 +163,18 @@ class TeamMembershipCreate(BaseModel):
     jersey_number: int = Field(ge=0)
 
 
+class PlayerProfileUpdate(BaseModel):
+    """Validate player-editable public profile fields."""
+
+    aka: str | None = Field(default=None, max_length=80)
+
+    @field_validator("aka")
+    @classmethod
+    def normalize_aka(cls, aka):
+        normalized = aka.strip() if aka is not None else ""
+        return normalized or None
+
+
 class UserRoleUpdate(BaseModel):
     """Validate a role selected by a league administrator."""
 
@@ -162,3 +187,61 @@ class UserRoleUpdate(BaseModel):
         if normalized_role not in ALLOWED_USER_ROLES:
             raise ValueError("Invalid role")
         return normalized_role
+
+
+class UserRolesUpdate(BaseModel):
+    """Validate the complete role set managed by a league administrator."""
+
+    roles: set[str] = Field(min_length=1)
+
+    @field_validator("roles")
+    @classmethod
+    def validate_roles(cls, roles):
+        normalized = {role.strip().lower() for role in roles}
+        if not normalized or not normalized.issubset(ALLOWED_USER_ROLES):
+            raise ValueError("Invalid roles")
+        return normalized
+
+
+class GameOfficialAssignment(BaseModel):
+    """Pair one official account with its position in a game."""
+
+    user_id: int = Field(gt=0)
+    position: str = Field(min_length=1)
+
+    @field_validator("position")
+    @classmethod
+    def validate_position(cls, position):
+        normalized = position.strip().lower()
+        if normalized not in OFFICIAL_POSITIONS:
+            raise ValueError("Invalid official position")
+        return normalized
+
+
+class OfficialPositionUpdate(BaseModel):
+    """Validate the position selected for a manual assignment."""
+
+    position: str = Field(min_length=1)
+
+    @field_validator("position")
+    @classmethod
+    def validate_position(cls, position):
+        normalized = position.strip().lower()
+        if normalized not in OFFICIAL_POSITIONS:
+            raise ValueError("Invalid official position")
+        return normalized
+
+
+class RefereeScheduleAssignment(BaseModel):
+    """Validate one administrator-reviewed row from schedule OCR."""
+
+    game_id: int = Field(gt=0)
+    field_number: int = Field(ge=1, le=8)
+    scheduled_time: time | None = None
+    officials: list[GameOfficialAssignment] = Field(default_factory=list)
+
+
+class RefereeScheduleConfirmation(BaseModel):
+    """Validate the complete set of reviewed schedule assignments."""
+
+    assignments: list[RefereeScheduleAssignment] = Field(min_length=1)

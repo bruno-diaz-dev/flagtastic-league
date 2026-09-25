@@ -5,6 +5,8 @@ const joinMessage = document.querySelector("#join-team-message");
 const teamSelect = joinForm.elements.team_id;
 const statsContainer = document.querySelector("#personal-stats");
 const teamsContainer = document.querySelector("#dashboard-teams");
+const profileForm = document.querySelector("#profile-form");
+const profileMessage = document.querySelector("#profile-message");
 
 const statisticLabels = {
     games: "Partidos",
@@ -30,6 +32,7 @@ async function loadDashboard() {
     }
     const dashboard = await response.json();
     const displayName = dashboard.player.aka || dashboard.player.name;
+    profileForm.elements.aka.value = dashboard.player.aka || "";
     document.querySelector("#dashboard-player-name").textContent = displayName;
     document.querySelector("#dashboard-greeting").textContent = dashboard.player.aka
         ? `${dashboard.player.name} · esta es tu temporada.`
@@ -80,6 +83,20 @@ joinForm.addEventListener("submit", async (event) => {
     joinMessage.textContent = "Registro completado.";
     joinForm.reset();
     await loadDashboard();
+});
+
+profileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const aka = new FormData(profileForm).get("aka").trim();
+    const response = await updateMyProfile({aka: aka || null});
+    const body = await response.json();
+    profileMessage.textContent = response.ok
+        ? "AKA actualizado correctamente."
+        : (body.detail || "No se pudo actualizar el AKA.");
+    if (response.ok) {
+        await loadDashboard();
+        await loadSessionIdentity();
+    }
 });
 
 Promise.all([loadTeams(), loadDashboard()]).catch(() => {

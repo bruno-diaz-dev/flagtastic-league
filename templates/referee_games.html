@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <header class="section-header">
+        <h2>Arbitrajes</h2>
+        <p>Consulta tus partidos asignados y administra el rol oficial.</p>
+    </header>
+    <section class="form-panel admin-only">
+        <h3>Cargar rol de árbitros</h3>
+        <p>Sube una imagen legible. Podrás revisar campos y árbitros antes de guardar.</p>
+        <form id="referee-schedule-form" class="filter-form">
+            <label>
+                Imagen del rol
+                <input name="file" type="file" accept="image/jpeg,image/png,image/webp" required>
+            </label>
+            <button type="submit">Analizar imagen</button>
+        </form>
+        <p id="schedule-import-message" class="form-message" role="status"></p>
+        <div id="schedule-review" class="schedule-review hidden">
+            <div class="table-scroll">
+                <table class="standings-table">
+                    <thead><tr><th>Partido</th><th>Campo</th><th>Equipo arbitral</th></tr></thead>
+                    <tbody id="schedule-review-body"></tbody>
+                </table>
+            </div>
+            <button id="confirm-schedule" type="button">Confirmar asignaciones</button>
+            <details><summary>Texto reconocido</summary><pre id="schedule-raw-text"></pre></details>
+        </div>
+    </section>
+    <p id="referee-games-message" class="form-message" role="status"></p>
+    <section id="referee-games" class="games-list" aria-live="polite"></section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-5"></script>
+<script src="/static/referee_games.js?v=20260925-5"></script>
+{% endblock %}

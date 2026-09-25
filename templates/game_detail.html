@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="game-detail-page" data-game-id="{{ game_id }}">
+    <header class="section-header">
+        <div>
+            <a class="back-link" href="/games">← Partidos</a>
+            <h2 id="game-detail-title">Detalle del partido</h2>
+            <p id="game-detail-meta">Cargando información...</p>
+        </div>
+    </header>
+    <section id="game-score" class="form-panel" aria-live="polite"></section>
+    <section id="my-game-statistics" class="hidden" aria-labelledby="my-game-stats-title">
+        <h3 id="my-game-stats-title">Mis estadísticas</h3>
+        <div id="my-game-stats-grid" class="stat-grid"></div>
+    </section>
+    <section id="team-game-statistics" class="hidden" aria-labelledby="team-game-stats-title">
+        <h3 id="team-game-stats-title">Estadísticas del equipo</h3>
+        <div class="standings-table"><table class="standings-data-table">
+            <thead><tr><th>Jugador</th><th>#</th><th>PTS</th><th>REC</th><th>INT</th><th>CAP</th><th>TAC</th><th>PC</th><th>PL</th><th>%</th></tr></thead>
+            <tbody id="team-game-stats-body"></tbody>
+        </table></div>
+    </section>
+    <section id="game-officials" class="hidden" aria-labelledby="game-officials-title">
+        <h3 id="game-officials-title">Equipo arbitral</h3>
+        <div id="game-officials-list" class="assigned-referees"></div>
+        <form id="game-official-form" class="filter-form admin-only">
+            <label>
+                Persona
+                <select name="user_id" required></select>
+            </label>
+            <label>
+                Puesto
+                <select name="position" required>
+                    <option value="referee">Referee</option>
+                    <option value="down_judge">Down Judge</option>
+                    <option value="field_judge">Field Judge</option>
+                    <option value="side_judge">Side Judge</option>
+                    <option value="statistician">Estadístico</option>
+                </select>
+            </label>
+            <button type="submit">Asignar o reemplazar</button>
+        </form>
+        <p id="game-official-message" class="form-message admin-only" role="status"></p>
+    </section>
+    <p id="game-detail-message" class="form-message" role="status"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260925-6"></script>
+<script src="/static/game_detail.js?v=20260925-2"></script>
+{% endblock %}

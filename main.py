@@ -71,6 +71,16 @@ def games_page(request: Request):
         "games.html"
     )
 
+
+@app.get("/games/{game_id}")
+def game_detail_page(request: Request, game_id: int):
+    """Render one game's public shell with role-scoped private sections."""
+    return templates.TemplateResponse(
+        request=request,
+        name="game_detail.html",
+        context={"game_id": game_id}
+    )
+
 @app.get("/standings")
 def standings_page(request: Request):
     """Render the standings query page."""
@@ -118,3 +128,9 @@ def dashboard_page(request: Request):
 def user_administration_page(request: Request):
     """Render role administration; the API enforces actual access."""
     return templates.TemplateResponse(request, "admin_users.html")
+
+
+@app.get("/referee/games")
+def referee_games_page(request: Request):
+    """Render the private schedule shell; its API enforces referee access."""
+    return templates.TemplateResponse(request, "referee_games.html")

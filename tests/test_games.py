@@ -53,7 +53,8 @@ def test_create_game():
         "api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": ravens_id
+            "away_team_id": ravens_id,
+            "field_number": 1
         }
     )
 
@@ -64,6 +65,24 @@ def test_create_game():
     assert "id" in data
     assert data["home_team_id"] == tigres_id
     assert data["away_team_id"] == ravens_id
+    assert data["field_number"] == 1
+
+
+@pytest.mark.parametrize("field_number", [0, 9])
+def test_game_field_must_be_between_one_and_eight(field_number):
+    tigres_id = create_test_team(name="Tigres")
+    ravens_id = create_test_team(name="Ravens")
+
+    response = client.post(
+        "/api/games",
+        json={
+            "home_team_id": tigres_id,
+            "away_team_id": ravens_id,
+            "field_number": field_number
+        }
+    )
+
+    assert response.status_code == 422
 
 def test_team_cannot_play_against_itself():
     tigres_id = create_test_team(
@@ -74,7 +93,8 @@ def test_team_cannot_play_against_itself():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": tigres_id
+            "away_team_id": tigres_id,
+            "field_number": 1
         }
     )
 
@@ -92,7 +112,8 @@ def test_create_game_against_nonexistent_team():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": 9999
+            "away_team_id": 9999,
+            "field_number": 1
         }
     )
 
@@ -116,7 +137,8 @@ def test_list_games():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": ravens_id 
+            "away_team_id": ravens_id,
+            "field_number": 1
         }
     )
 
@@ -146,7 +168,8 @@ def test_list_games():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": ravens_id
+            "away_team_id": ravens_id,
+            "field_number": 2
         }
     )
 
@@ -186,6 +209,7 @@ def test_list_games():
 
     assert games[0]["home_score"] == 32
     assert games[0]["away_score"] == 24
+    assert games[0]["field_number"] == 2
 
 def test_update_game_score():
     tigres_id = create_test_team(
@@ -200,7 +224,8 @@ def test_update_game_score():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": ravens_id
+            "away_team_id": ravens_id,
+            "field_number": 1
         }
     )
 
@@ -251,7 +276,8 @@ def test_game_score_cannot_be_tied():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": ravens_id
+            "away_team_id": ravens_id,
+            "field_number": 1
         }
     )
 

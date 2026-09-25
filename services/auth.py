@@ -28,7 +28,10 @@ def authenticate_user(email, password):
         "id": credentials["id"],
         "email": credentials["email"],
         "name": credentials["name"],
+        "aka": credentials.get("aka"),
+        "display_name": credentials["display_name"],
         "role": credentials["role"],
+        "roles": credentials["roles"],
         "status": credentials["status"]
     }
 

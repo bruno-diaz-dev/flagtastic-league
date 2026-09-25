@@ -30,11 +30,13 @@ def register_player(**overrides):
 
 def _clean_database():
     connection = get_connection()
+    connection.execute("DELETE FROM game_referees")
     connection.execute("DELETE FROM sessions")
     connection.execute("DELETE FROM player_week_stats")
     connection.execute("DELETE FROM games")
     connection.execute("DELETE FROM team_players")
     connection.execute("DELETE FROM team_representatives")
+    connection.execute("DELETE FROM user_roles")
     connection.execute("DELETE FROM users")
     connection.execute("DELETE FROM players")
     connection.execute("DELETE FROM teams")
@@ -131,3 +133,18 @@ def test_player_registration_requires_a_valid_profile_photo():
     )
     assert invalid.status_code == 415
     assert invalid.json()["detail"] == "La foto debe ser JPG, PNG o WebP"
+
+
+def test_existing_player_can_update_public_aka():
+    register_player(aka="")
+    client.post(
+        "/api/auth/login",
+        json={"email": "player@example.com", "password": "supersecret"}
+    )
+
+    updated = client.patch("/api/me/profile", json={"aka": "Brucie"})
+
+    assert updated.status_code == 200
+    assert updated.json()["aka"] == "Brucie"
+    assert client.get("/api/auth/me").json()["display_name"] == "Brucie"
+    assert client.get("/api/me/dashboard").json()["player"]["aka"] == "Brucie"

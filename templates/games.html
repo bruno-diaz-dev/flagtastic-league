@@ -28,10 +28,51 @@
                 <input name="week" type="number" min="1" value="1" required>
             </label>
 
+            <label>
+                Campo
+                <select name="field_number" required>
+                    {% for field_number in range(1, 9) %}
+                    <option value="{{ field_number }}">Campo {{ field_number }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                Hora
+                <input name="start_time" type="time">
+            </label>
+
             <button type="submit">Registrar partido</button>
         </form>
 
         <p id="game-form-message" class="form-message" role="status"></p>
+    </section>
+
+    <section class="form-panel admin-only">
+        <h3>Asignar oficial</h3>
+        <form id="referee-assignment-form" class="filter-form">
+            <label>
+                Partido
+                <select name="game_id" required></select>
+            </label>
+            <label>
+                Persona
+                <select name="referee_id" required></select>
+            </label>
+            <label>
+                Puesto
+                <select name="position" required>
+                    <option value="referee">Referee</option>
+                    <option value="down_judge">Down Judge</option>
+                    <option value="field_judge">Field Judge</option>
+                    <option value="side_judge">Side Judge</option>
+                    <option value="statistician">Estadístico</option>
+                </select>
+            </label>
+            <button type="submit">Asignar oficial</button>
+        </form>
+        <p id="referee-assignment-message" class="form-message" role="status"></p>
+        <div id="assigned-referees" class="assigned-referees"></div>
     </section>
 
     <section class="filters-panel games-filters" aria-label="Filtros de partidos">
@@ -66,6 +107,16 @@
                 <option value="libre">Libre</option>
             </select>
         </label>
+
+        <label>
+            Campo
+            <select id="game-filter-field">
+                <option value="">Todos los campos</option>
+                {% for field_number in range(1, 9) %}
+                <option value="{{ field_number }}">Campo {{ field_number }}</option>
+                {% endfor %}
+            </select>
+        </label>
     </section>
 
     <p id="games-count" class="results-count" aria-live="polite"></p>
@@ -74,6 +125,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260925-2"></script>
-<script src="/static/games.js?v=20260925-2"></script>
+<script src="/static/api.js?v=20260925-5"></script>
+<script src="/static/games.js?v=20260925-5"></script>
 {% endblock %}

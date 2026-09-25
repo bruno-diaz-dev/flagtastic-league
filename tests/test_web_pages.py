@@ -15,6 +15,24 @@ from main import app
 client = TestClient(app)
 
 
+def test_navigation_starts_collapsed_and_remembers_the_user_choice():
+    page = client.get("/teams")
+    layout = client.get("/static/layout.js")
+    styles = client.get("/static/style.css")
+
+    assert page.status_code == 200
+    assert layout.status_code == 200
+    assert styles.status_code == 200
+    assert '<body class="sidebar-collapsed">' in page.text
+    assert 'aria-expanded="false"' in page.text
+    assert "flagtastic-sidebar-collapsed" in layout.text
+    assert "localStorage.setItem" in layout.text
+    assert "savedSidebarState === null ? true" in layout.text
+    assert "body.sidebar-collapsed .navigation" in styles.text
+    assert "body.sidebar-collapsed .brand-logo" in styles.text
+    assert ".hidden {\n    display: none !important;" in styles.text
+
+
 def test_login_page_renders_protected_password_form():
     response = client.get("/login")
 
@@ -88,3 +106,13 @@ def test_user_administration_page_is_available():
     assert response.status_code == 200
     assert "Usuarios y roles" in response.text
     assert 'src="/static/admin_users.js' in response.text
+
+
+def test_referee_page_has_reviewed_image_import():
+    response = client.get("/referee/games")
+
+    assert response.status_code == 200
+    assert 'id="referee-schedule-form"' in response.text
+    assert 'accept="image/jpeg,image/png,image/webp"' in response.text
+    assert 'id="schedule-review-body"' in response.text
+    assert 'id="confirm-schedule"' in response.text

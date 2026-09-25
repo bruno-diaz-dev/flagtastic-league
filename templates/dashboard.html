@@ -13,6 +13,15 @@
     </header>
 
     <section class="form-panel">
+        <h3>Mi perfil público</h3>
+        <form id="profile-form" class="dashboard-join-form">
+            <label>AKA<input name="aka" type="text" maxlength="80" placeholder="Tu apodo en la liga"></label>
+            <button type="submit">Guardar AKA</button>
+        </form>
+        <p id="profile-message" class="form-message" role="status"></p>
+    </section>
+
+    <section class="form-panel">
         <h3>Registrarme en un equipo</h3>
         <form id="join-team-form" class="dashboard-join-form">
             <label>Equipo<select name="team_id" required></select></label>
@@ -35,6 +44,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260925-3"></script>
-<script src="/static/dashboard.js?v=20260925-3"></script>
+<script src="/static/api.js?v=20260925-5"></script>
+<script src="/static/dashboard.js?v=20260925-5"></script>
 {% endblock %}

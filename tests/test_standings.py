@@ -66,7 +66,8 @@ def test_get_standings_for_branch_and_category():
         "/api/games",
         json={
             "home_team_id": tigres_id,
-            "away_team_id": ravens_id
+            "away_team_id": ravens_id,
+            "field_number": 1
         }
     )
 

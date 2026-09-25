@@ -55,11 +55,14 @@ def test_authenticate_user_with_valid_credentials():
 
     assert authenticated_user == {
         "id": authenticated_user["id"],
-        "email": "admin@flagtastic.com",
-        "name": "League Admin",
-        "role": "league_admin",
-        "status": "active"
-    }
+            "email": "admin@flagtastic.com",
+            "name": "League Admin",
+            "aka": None,
+            "display_name": "League Admin",
+            "role": "league_admin",
+            "roles": ["league_admin"],
+            "status": "active"
+        }
 
 def test_authenticate_user_with_invalid_password():
     create_user(
@@ -178,4 +181,3 @@ def test_login_request_normalizes_email_and_hides_password():
     assert login.email == "admin@flagtastic.com"
     assert login.password.get_secret_value() == "supersecret"
     assert "supersecret" not in repr(login)
-    

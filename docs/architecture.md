@@ -485,9 +485,82 @@ import replaces that game's complete statistics snapshot atomically.
 ## Role Administration
 
 The first trusted `league_admin` is created from a local terminal. Subsequent
-roles are granted through `/admin/users`; both listing users and changing a
-role are protected by the backend administrator dependency. Responses never
-include password hashes or CURP, and administrators cannot demote themselves.
+roles are granted through `/admin/users`; both listing users and changing roles
+are protected by the backend administrator dependency. Responses never include
+password hashes or CURP, and administrators cannot demote themselves.
+
+Authorization is cumulative. `user_roles` stores one or more roles per account:
+`league_admin`, `team_representative`, `player`, and `referee`. The legacy
+`users.role` column is maintained during the transition, but authorization
+checks use the complete role collection. A promoted player therefore retains
+their `player_id`, personal dashboard, and roster membership.
+
+`game_referees` links games to official accounts and records `position`,
+`assigned_by`, and `assigned_at`. Supported positions are Referee, Down Judge,
+Field Judge, Side Judge, and Statistician. Referee and Down Judge are required
+when an administrator confirms a complete imported role; the remaining slots
+are optional. This supports two referees plus a statistician for U6, three
+referees plus a statistician for normal games, and a fourth referee for finals.
+One account and one position can appear only once per game. A referee can read
+only their own assignments and position through `GET /api/games/mine/referee`;
+referee access does not grant score editing or league administration.
+
+`games.field_number` stores a field from 1 through 8. It is nullable only for
+historical imports whose source did not contain venue assignments; manually
+created games require it at the API boundary. The same value is exposed in the
+public schedule and private referee view.
+
+`games.start_time` stores the scheduled local time separately from the jornada
+and field. The referee grid importer updates both field and time after review;
+when OCR cannot recognize a time it preserves the existing value instead of
+erasing it.
+
+The referee-role image import uses Pillow for safe raster decoding and local
+Tesseract OCR. `POST /api/games/referee-schedule/analyze` returns proposals and
+recognized source text without writing data. After an administrator reviews
+the table, `POST /api/games/referee-schedule/confirm` atomically updates the
+selected fields and replaces referee links only for those selected games. This
+two-step boundary prevents uncertain OCR output from silently becoming an
+official assignment.
+
+The current grid format prints four names in this order: Referee, Down Judge,
+Field Judge, Statistician. A five-name finals row inserts Side Judge before the
+Statistician. Empty slash-delimited positions remain empty, so a missing Field
+Judge does not shift the Statistician into the wrong role. Development data for
+schedule testing is created idempotently with
+`python -m scripts.seed_referee_schedule`; existing accounts and AKA values are
+reused before a technical test account is created.
+
+League administrators can assign, replace, or remove officials from the game
+detail view. Assigning an occupied position replaces that position atomically,
+which supports last-minute role changes without leaving duplicate assignments.
+The write endpoints remain protected by the administrator dependency.
+
+## Game Detail Privacy
+
+`player_week_stats.game_id` links an imported statistical row to the exact
+game. Imports backfill this link only when a team has exactly one matching game
+in the jornada, avoiding an arbitrary match when a schedule is ambiguous.
+Official workbooks retain the source's paired 15-row team blocks, so a team
+playing a doubleheader can have a separate player row for each game. Reimports
+reuse matching game records and update their inferred scores instead of
+deleting them, preserving field, time, and officiating assignments.
+Repeated matchups in the same jornada consume distinct game records in source
+order. The development seed creates missing teams and deterministic mock roster
+identities before importing, making repeated runs safe while keeping real
+players and existing memberships intact.
+
+The game detail endpoint always exposes teams, jornada, time, field, and score.
+Additional sections follow least privilege:
+
+- Players see only their own row for that game.
+- Team representatives see rows for participating teams they represent.
+- Referees see the officiating crew but no team statistics.
+- League administrators see both team statistics and officiating assignments.
+- Anonymous visitors see only public game information.
+
+Private keys are omitted from the response rather than returned as empty data,
+so the browser cannot reveal a hidden section that was never authorized.
 
 ## Player Profile Media
 
@@ -498,8 +571,11 @@ server validates its binary signature, never trusts the client filename, and
 serves accepted files from `/media/profiles`. Local media lives outside source
 control under the configurable `PROFILE_PHOTO_DIR`; production deployment can
 replace this persistence boundary with object storage without changing player
-or authentication records. The same public identity presentation is reused in
+or authentication records. Players can maintain AKA from their authenticated
+dashboard, including accounts created before the field existed. The same public identity presentation is reused in
 the personal dashboard, dedicated team rosters, and individual-statistics
 leaderboards. AKA is preferred for display, the legal roster name remains
 visible as supporting identity, and players without media receive an initials
-placeholder rather than a broken image.
+placeholder rather than a broken image. User responses expose `display_name`,
+which prefers AKA for navigation, schedules, and official roles while retaining
+the legal `name` for administration and identity checks.

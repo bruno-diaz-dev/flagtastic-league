@@ -614,13 +614,40 @@ Current account roles are:
 League Administrator
 Team Representative
 Player
+Referee
 ```
+
+Roles are cumulative. One account may simultaneously be a player, league
+administrator, team representative, and referee. `user_roles` is the source of
+truth for authorization; the older `users.role` value remains only for
+compatibility with existing integrations. Granting an operational role never
+removes the player's identity or personal dashboard.
+
+League administrators assign officials to games from `/games`. Each assignment
+has one position: Referee, Down Judge, Field Judge, Side Judge, or Statistician,
+and records the administrator who made it and its timestamp. Referee and Down
+Judge are required when confirming a complete imported role; the other slots
+remain optional for U6, regular games, and finals. Referees use
+`/referee/games` to see only their own schedule; the backend enforces that
+scope even if somebody calls the API directly.
+
+Administrators can upload the official referee role as a JPG, PNG, or WebP
+image from `/referee/games`. Local OCR proposes matching games, fields, and
+active referee accounts. The recognized text and every proposal remain
+editable; no official record changes until an administrator confirms the
+review table.
+
+Every newly scheduled game identifies a field from 1 through 8. Public game
+cards and private referee schedules show that field so teams and officials use
+the same assignment. Historical workbook imports may temporarily display
+`Campo por asignar` until the official referee schedule supplies it.
 
 Player self-registration requires a JPG, PNG, or WebP profile photo of at most
 5 MB and accepts an optional `AKA`. Files receive generated names under
 `PROFILE_PHOTO_DIR` (default: `uploads/profiles`); PostgreSQL stores only the
-generated filename. The personal dashboard displays the AKA when present and
-keeps the legal roster name as supporting identity.
+generated filename. Players, including accounts created before AKA support,
+can edit it from the personal dashboard. Public navigation and official roles
+prefer the AKA while administration retains the legal name as supporting identity.
 
 `/teams` is the searchable team directory. Selecting a team opens its dedicated
 `/teams/{team_id}/roster` page instead of expanding roster management inside the
@@ -646,9 +673,10 @@ If that email already belongs to a registered player or representative, the
 command preserves the existing password and identity and promotes the account
 instead of creating a duplicate.
 
-That administrator can open `/admin/users` and grant the `league_admin`,
-`team_representative`, or `player` roles. Administrators cannot remove their
-own admin role accidentally.
+That administrator can open `/admin/users` and grant any combination of
+`league_admin`, `team_representative`, `player`, and `referee`. The `player`
+role requires an account already linked to a player identity. Administrators
+cannot remove their own admin role accidentally.
 
 Administrative functionality will have access to private player information only when required by its role.
 
@@ -721,6 +749,9 @@ Completed foundation:
 ✅ Player self-registration and personal dashboard
 ✅ Excel statistics imports and top-five leaderboards
 ✅ Passing completion leaderboard with jornada qualification rules
+✅ Referee schedule image review and per-game official assignments
+✅ Role-scoped game details and per-game statistics
+✅ Administrator replacement of last-minute officiating assignments
 ```
 
 Current focus:
@@ -728,6 +759,19 @@ Current focus:
 ```text
 🚧 Public-release stabilization
 ```
+
+## Local demo data
+
+The official multi-jornada workbook can prepare a complete local dataset with:
+
+```powershell
+python -m scripts.seed_statistics_workbook "C:\path\to\Stats ALL.xlsx"
+```
+
+The command is idempotent: it creates only missing teams and mock roster
+members, then imports games and game-scoped player statistics. Matching games
+are reused so their field, time, and officiating assignments are preserved.
+Run `python -m alembic upgrade head` before importing a workbook.
 
 Coming next:
 

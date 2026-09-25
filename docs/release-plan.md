@@ -221,6 +221,8 @@ Allowed:
 - Update scores.
 - Manage standings indirectly through scores.
 - Manage user roles and team assignments.
+- Assign one or more referees to games.
+- Assign a field from 1 through 8 to every newly scheduled game.
 
 Not allowed:
 
@@ -239,6 +241,25 @@ Access control should be introduced in stages:
 6. Add audit logging for administrative actions.
 
 Frontend visibility is not security. Buttons and forms may be hidden in the UI, but the backend must enforce the actual permission rules.
+
+### Referee
+
+Referees have an authenticated, private assignment view.
+
+Allowed:
+
+- View public league data.
+- View only the games assigned to their own account.
+
+Not allowed by the referee role alone:
+
+- View another referee's private schedule.
+- Create games or update official scores.
+- Manage teams, users, or role assignments.
+
+Roles are cumulative rather than mutually exclusive. A single account may be
+a player, referee, and league administrator; each capability is evaluated
+independently so operational access never hides the player dashboard.
 
 Implemented status: stages 1-5 are active. Administrative actions are hidden for public visitors and enforced again by backend dependencies.
 
@@ -381,6 +402,15 @@ Definition of done:
 - CI is green.
 - Known limitations are documented.
 
+### Responsive verification
+
+Desktop Chrome and a Pixel 5 viewport were exercised against the running local
+application for Teams, Games, Standings, Statistics, and the dedicated Roster
+page. Mobile navigation now starts as a compact branded bar with the logo and
+hamburger visible; opening the control reveals the full navigation. Forms and
+leaderboards collapse to one column, standings retain horizontal table scrolling,
+and roster and game cards remain readable without horizontal page overflow.
+
 ## Deferred Until After Public Launch
 
 The following items are important, but should not block the September 27 launch unless business requirements change:
@@ -405,3 +435,17 @@ representative, one player, and an anonymous visitor in
 the corresponding browser walkthrough, and then freeze feature work. Sprint 4
 is reserved for responsive verification, launch-blocking fixes, deployment,
 and release documentation.
+
+Multi-role authorization and private referee schedules are now part of the
+release gate. The administrator assigns referees from the games page, while
+`/referee/games` lists only the authenticated referee's assignments. Automated
+coverage verifies that an administrator who is also a player and referee keeps
+all three capabilities.
+
+Game records now carry fields 1-8 and expose them to teams and assigned
+officials. Each role sheet has named slots for Referee, Down Judge, Field Judge,
+Side Judge, and Statistician; Referee and Down Judge are the required core.
+Administrators can upload an official schedule image, inspect its OCR text,
+correct every proposed field and position, and explicitly confirm the result.
+Analysis itself never changes official data. Existing players can update AKA
+from their dashboard, and that public name is used on official assignments.

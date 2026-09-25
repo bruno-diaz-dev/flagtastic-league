@@ -76,6 +76,10 @@ async function createPlayer(teamId, payload) {
     return response
 }
 
+async function getGameDetails(gameId) {
+    return fetch(`/api/games/${gameId}/details`);
+}
+
 async function deleteTeam(teamId) {
     return fetch(`/api/teams/${teamId}`, {method: "DELETE"});
 }
@@ -141,5 +145,58 @@ async function updateAdminUserRole(userId, role) {
         method: "PATCH",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({role})
+    });
+}
+
+async function updateAdminUserRoles(userId, roles) {
+    return fetch(`/api/admin/users/${userId}/roles`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({roles})
+    });
+}
+
+async function getMyRefereeGames() {
+    return fetch("/api/games/mine/referee");
+}
+
+async function getGameReferees(gameId) {
+    return fetch(`/api/games/${gameId}/referees`);
+}
+
+async function assignGameReferee(gameId, userId, position) {
+    return fetch(`/api/games/${gameId}/referees/${userId}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({position})
+    });
+}
+
+async function updateMyProfile(payload) {
+    return fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
+async function removeGameReferee(gameId, userId) {
+    return fetch(`/api/games/${gameId}/referees/${userId}`, {method: "DELETE"});
+}
+
+async function analyzeRefereeSchedule(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch("/api/games/referee-schedule/analyze", {
+        method: "POST",
+        body: formData
+    });
+}
+
+async function confirmRefereeSchedule(assignments) {
+    return fetch("/api/games/referee-schedule/confirm", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({assignments})
     });
 }

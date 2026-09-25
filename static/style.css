@@ -549,7 +549,7 @@ select option {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* Operational controls stay hidden until the session role is resolved. */
@@ -808,6 +808,37 @@ body.role-league_admin .team-delete-button.admin-only {
 .users-table th { background: var(--color-navy); }
 .users-table select { min-width: 190px; }
 .save-role-button { min-height: 42px; padding: 0 18px; }
+.role-choices { display: grid; gap: 8px; min-width: 180px; }
+.role-choice { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.role-choice input { width: 18px; min-height: 18px; margin: 0; }
+.assigned-referees { display: flex; flex-wrap: wrap; gap: 8px; color: var(--color-muted); }
+.assigned-referee { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 10px; }
+.assigned-referee button { min-height: 28px; padding: 0 8px; }
+
+.schedule-review { margin-top: 20px; }
+.schedule-referees { display: grid; gap: 10px; min-width: 240px; }
+.schedule-official-slot { display: grid; gap: 4px; font-size: 0.875rem; }
+.schedule-official-slot select { width: 100%; }
+
+.game-detail-score {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+}
+
+.game-detail-score strong { color: var(--gold); font-size: 2rem; }
+.game-detail-page { display: grid; gap: 28px; }
+.game-detail-page > section > h3 { margin: 0 0 16px; }
+.game-detail-page .standings-table { width: 100%; }
+.secondary-link, .back-link { color: var(--gold); font-weight: 700; }
+.schedule-review pre {
+    max-height: 240px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: var(--color-muted);
+}
 
 /* Collapse the desktop shell into a single-column mobile layout. */
 @media (max-width: 820px) {
@@ -819,15 +850,34 @@ body.role-league_admin .team-delete-button.admin-only {
     .sidebar {
         border-right: 0;
         border-bottom: 1px solid var(--color-border);
+        padding: 16px;
+    }
+
+    body.sidebar-collapsed .sidebar {
+        display: grid;
+        grid-template-columns: 44px 72px 1fr;
+        align-items: center;
+        gap: 12px;
+        min-height: 96px;
+        padding: 12px 16px;
+    }
+
+    body.sidebar-collapsed .sidebar-toggle {
+        margin: 0;
+    }
+
+    body.sidebar-collapsed .brand {
+        margin: 0;
     }
 
     body.sidebar-collapsed .brand-logo {
-        width: 120px;
+        width: 72px;
+        margin: 0;
     }
 
     body.sidebar-collapsed .eyebrow,
     body.sidebar-collapsed .brand h1 {
-        display: block;
+        display: none;
     }
 
     .navigation {
@@ -835,15 +885,8 @@ body.role-league_admin .team-delete-button.admin-only {
     }
 
     .nav-link,
-    body.sidebar-collapsed .nav-link {
-        text-align: center;
-    }
-
-    body.sidebar-collapsed .nav-text {
-        display: inline;
-    }
-
-    body.sidebar-collapsed .nav-short {
+    body.sidebar-collapsed .navigation,
+    body.sidebar-collapsed .session-controls {
         display: none;
     }
 
@@ -860,6 +903,7 @@ body.role-league_admin .team-delete-button.admin-only {
 
     .player-form,
     .filter-form,
+    .standings-form,
     .filters-panel,
     .leaderboards {
         grid-template-columns: 1fr;

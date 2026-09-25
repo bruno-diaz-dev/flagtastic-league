@@ -4,13 +4,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg.errors import UniqueViolation
 
 from dependencies.auth import require_player
-from models import TeamMembershipCreate
-from repositories.dashboard import get_player_dashboard
+from models import PlayerProfileUpdate, TeamMembershipCreate
+from repositories.dashboard import get_player_dashboard, update_player_aka
 from repositories.players import join_team, PlayerAlreadyRegisteredInDivision
 from repositories.teams import get_team_by_id
 
 
 router = APIRouter(prefix="/api/me", tags=["dashboard"])
+
+
+@router.patch("/profile")
+def update_my_profile(profile: PlayerProfileUpdate, user=Depends(require_player)):
+    """Let a player maintain the AKA used in public league views."""
+    updated = update_player_aka(user["player_id"], profile.aka)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado")
+    return updated
 
 
 @router.get("/dashboard")

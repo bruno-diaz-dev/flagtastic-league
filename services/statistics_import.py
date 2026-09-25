@@ -174,62 +174,51 @@ def _parse_official_games(sheet, week):
 
 
 def _parse_official_week_sheet(sheet, week):
-    """Aggregate event cells into one row per roster entry for a jornada."""
+    """Preserve each 15-row team block as statistics for one exact game."""
     players = defaultdict(lambda: Counter({
         "points": 0, "receptions": 0, "interceptions": 0,
         "sacks": 0, "tackles": 0, "passes_completed": 0,
         "passes_attempted": 0
     }))
-    current_team = None
-    current_branch = None
-    current_category = None
-
-    for row_number, values in enumerate(
-        sheet.iter_rows(min_row=2, values_only=True), start=2
-    ):
-        team_value, category_value, label_value = values[:3]
-        label = _normalized_text(label_value)
-        if team_value:
-            current_team = str(team_value).strip()
-        if category_value:
-            current_branch, current_category = _division_from_official_category(
-                category_value, sheet.title, row_number
-            )
-        if not current_team or not current_category or label not in IDENTITY_EVENT_LABELS:
-            continue
-
-        numbers = list(_jersey_numbers(_official_event_values(values)))
-        for jersey_number in numbers:
-            identity = (
-                current_branch, current_category, current_team, jersey_number
-            )
-            players[identity]  # Attendance and helper rows still establish identity.
-
-        metric = EVENT_METRICS.get(label)
-        if metric:
-            metric_name, multiplier = metric
-            for jersey_number, count in Counter(numbers).items():
-                identity = (
-                    current_branch, current_category, current_team, jersey_number
-                )
-                players[identity][metric_name] += count * multiplier
-        elif label == "para % pases":
-            # A completion is also an attempt. `Intentos Pase` stores only
-            # incomplete attempts in this official workbook.
-            for jersey_number, count in Counter(numbers).items():
-                identity = (
-                    current_branch, current_category, current_team, jersey_number
-                )
-                players[identity]["passes_completed"] += count
-                players[identity]["passes_attempted"] += count
+    source_rows = list(sheet.iter_rows(min_row=2, values_only=True))
+    blocks = [
+        source_rows[start:start + 15]
+        for start in range(0, len(source_rows), 15)
+        if len(source_rows[start:start + 15]) == 15
+        and source_rows[start:start + 15][0][0]
+    ]
+    for block_index, block in enumerate(blocks):
+        team = str(block[0][0]).strip()
+        branch, category = _division_from_official_category(
+            block[0][1], sheet.title, block_index * 15 + 2
+        )
+        game_index = block_index // 2
+        for values in block:
+            label = _normalized_text(values[2])
+            if label not in IDENTITY_EVENT_LABELS:
+                continue
+            numbers = list(_jersey_numbers(_official_event_values(values)))
+            for jersey_number in numbers:
+                players[(game_index, branch, category, team, jersey_number)]
+            metric = EVENT_METRICS.get(label)
+            if metric:
+                metric_name, multiplier = metric
+                for jersey_number, count in Counter(numbers).items():
+                    players[(game_index, branch, category, team, jersey_number)][metric_name] += count * multiplier
+            elif label == "para % pases":
+                for jersey_number, count in Counter(numbers).items():
+                    identity = (game_index, branch, category, team, jersey_number)
+                    players[identity]["passes_completed"] += count
+                    players[identity]["passes_attempted"] += count
 
     rows = []
-    for (branch, category, team, jersey_number), metrics in players.items():
+    for (game_index, branch, category, team, jersey_number), metrics in players.items():
         rows.append({
             "branch": branch,
             "category": category,
             "team": team,
             "jersey_number": jersey_number,
+            "game_index": game_index,
             **dict(metrics)
         })
     rows.sort(key=lambda row: (
