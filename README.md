@@ -443,8 +443,18 @@ docker build -t flagtastic-league .
 Run the app:
 
 ```powershell
-docker run --rm -p 8000:8000 -e DATABASE_URL="postgresql://flagtastic:flagtastic@host.docker.internal:5432/flagtastic" flagtastic-league
+docker volume create flagtastic-profile-photos
+
+docker run --rm -p 8000:8000 `
+    -e DATABASE_URL="postgresql://flagtastic:flagtastic@host.docker.internal:5432/flagtastic" `
+    -e PROFILE_PHOTO_DIR="/data/profile-photos" `
+    -v flagtastic-profile-photos:/data/profile-photos `
+    flagtastic-league
 ```
+
+The named volume is required while profile photos use local storage. Replacing
+the application container does not remove uploaded media. Production must also
+leave `SESSION_COOKIE_SECURE=true` and serve the application through HTTPS.
 
 Health check:
 

@@ -399,7 +399,9 @@ The following items are important, but should not block the September 27 launch 
 
 ## Immediate Next Step
 
-Run the complete Sprint 3 smoke test with one administrator, one
-representative, and one player. Then freeze feature work and use Sprint 4 for
-responsive verification, launch-blocking fixes, deployment, and release
-documentation.
+The automated Sprint 3 release smoke test now covers one administrator, one
+representative, one player, and an anonymous visitor in
+`tests/test_release_smoke.py`. Keep that test in the CI release gate, perform
+the corresponding browser walkthrough, and then freeze feature work. Sprint 4
+is reserved for responsive verification, launch-blocking fixes, deployment,
+and release documentation.

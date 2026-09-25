@@ -1,7 +1,10 @@
 .venv
+.test-deps
+.codex-test-deps*
 __pycache__
 .pytest_cache
 .git
 .github
 .env
 *.pyc
+uploads

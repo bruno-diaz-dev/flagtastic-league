@@ -384,6 +384,11 @@ python -m alembic upgrade head
 
 The `Dockerfile` builds an image based on `python:3.14-slim`, installs dependencies from `requirements.txt`, copies the project, and starts Uvicorn on `0.0.0.0:8000`.
 
+While profile media uses local filesystem storage, deployed containers must
+mount persistent storage at `PROFILE_PHOTO_DIR`. The image excludes local
+uploads and development dependency directories from its build context. A
+container replacement must therefore reuse the same media volume.
+
 Application command:
 
 ```text
