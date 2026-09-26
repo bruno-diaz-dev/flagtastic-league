@@ -34,6 +34,7 @@ POST /api/teams
 GET /api/teams
 PATCH /api/teams/{team_id}/staff
 PATCH /api/teams/{team_id}/status
+PATCH /api/teams/{team_id}/name
 PUT /api/teams/{team_id}/representatives/{user_id}
 ```
 

@@ -110,6 +110,20 @@ class TeamStatusUpdate(BaseModel):
         return normalized
 
 
+class TeamNameUpdate(BaseModel):
+    """Validate an administrator correction to a team's public name."""
+
+    name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, name):
+        normalized = name.strip()
+        if not normalized:
+            raise ValueError("Team name cannot be empty")
+        return normalized
+
+
 class PlayerCreate(BaseModel):
     """Validate a player registration for a team roster."""
     name: str = Field(min_length=1)

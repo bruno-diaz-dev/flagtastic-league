@@ -270,7 +270,8 @@ Implemented status: stages 1-5 are active. Administrative actions are hidden for
 Team operations now include an administrator-controlled lifecycle
 (`pending`, `active`, `inactive`) and explicit representative assignment for
 historical teams. New team creation continues to link its authenticated
-creator atomically.
+creator atomically. Administrators may also correct a team name without
+changing its branch or category; duplicate division entries remain blocked.
 
 ## Sprint 1: Multipage Architecture
 

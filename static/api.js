@@ -110,6 +110,14 @@ async function updateTeamStatus(teamId, status) {
     });
 }
 
+async function updateTeamName(teamId, name) {
+    return fetch(`/api/teams/${teamId}/name`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({name})
+    });
+}
+
 async function assignTeamRepresentative(teamId, userId) {
     return fetch(`/api/teams/${teamId}/representatives/${userId}`, {
         method: "PUT"

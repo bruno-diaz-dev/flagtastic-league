@@ -425,3 +425,42 @@ def test_only_league_admin_can_assign_historical_team_representative():
     ))
     assert login(admin_email, "supersecret").status_code == 200
     assert client.put(endpoint).status_code == 204
+
+
+def test_only_league_admin_can_correct_team_name():
+    disable_test_authorization_override()
+    team_name, representative_email = unique_identity("rename-team")
+    representative = create_user(UserCreate(
+        email=representative_email, name="Representative",
+        password="supersecret", role="team_representative"
+    ))
+    connection = get_connection()
+    team = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category)
+        VALUES (%s, 'mixto', 'libre') RETURNING id
+        """,
+        (team_name,)
+    ).fetchone()
+    connection.execute(
+        "INSERT INTO team_representatives (user_id, team_id) VALUES (%s, %s)",
+        (representative["id"], team["id"])
+    )
+    connection.commit()
+    connection.close()
+
+    assert login(representative_email, "supersecret").status_code == 200
+    endpoint = f"/api/teams/{team['id']}/name"
+    assert client.patch(endpoint, json={"name": "Representative Edit"}).status_code == 403
+
+    client.cookies.clear()
+    _, admin_email = unique_identity("rename-admin")
+    create_user(UserCreate(
+        email=admin_email, name="Admin", password="supersecret",
+        role="league_admin"
+    ))
+    assert login(admin_email, "supersecret").status_code == 200
+    corrected_name, _ = unique_identity("admin-correction")
+    response = client.patch(endpoint, json={"name": corrected_name})
+    assert response.status_code == 200
+    assert response.json()["name"] == corrected_name

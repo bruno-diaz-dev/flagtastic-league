@@ -99,6 +99,28 @@ def test_team_status_rejects_unknown_value():
     assert response.status_code == 422
 
 
+def test_league_admin_can_correct_team_name():
+    team_id = create_test_team(name="Misspelled Team")
+    response = client.patch(
+        f"/api/teams/{team_id}/name",
+        json={"name": "  Correct Team  "}
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Correct Team"
+    assert client.get(f"/api/teams/{team_id}").json()["name"] == "Correct Team"
+
+
+def test_team_name_correction_rejects_duplicate_in_same_division():
+    create_test_team(name="Existing Team")
+    team_id = create_test_team(name="Team To Rename")
+    response = client.patch(
+        f"/api/teams/{team_id}/name",
+        json={"name": "Existing Team"}
+    )
+    assert response.status_code == 409
+    assert client.get(f"/api/teams/{team_id}").json()["name"] == "Team To Rename"
+
+
 def test_admin_can_assign_existing_representative_to_historical_team():
     representative = create_user(UserCreate(
         email=f"historical-{uuid4().hex}@example.com",
@@ -122,6 +144,37 @@ def test_admin_can_assign_existing_representative_to_historical_team():
     ).fetchone()
     connection.close()
     assert assignments["total"] == 1
+
+
+def test_admin_can_assign_legacy_representative_without_user_roles_row():
+    connection = get_connection()
+    representative = connection.execute(
+        """
+        INSERT INTO users (email, name, password_hash, role)
+        VALUES (%s, 'Legacy Representative', 'unused', 'team_representative')
+        RETURNING id
+        """,
+        (f"legacy-{uuid4().hex}@example.com",)
+    ).fetchone()
+    connection.commit()
+    connection.close()
+    team_id = create_test_team(name="Legacy Representative Team")
+
+    response = client.put(
+        f"/api/teams/{team_id}/representatives/{representative['id']}"
+    )
+    assert response.status_code == 204
+
+    connection = get_connection()
+    assignment = connection.execute(
+        """
+        SELECT 1 FROM team_representatives
+        WHERE user_id = %s AND team_id = %s
+        """,
+        (representative["id"], team_id)
+    ).fetchone()
+    connection.close()
+    assert assignment is not None
 
 
 def test_historical_team_assignment_requires_representative_role():

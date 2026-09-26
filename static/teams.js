@@ -46,6 +46,11 @@ function renderTeams(teams) {
                 </button>
                 <div class="team-admin-actions admin-only">
                     <label>
+                        Nombre del equipo
+                        <input type="text" value="${escapeHtml(team.name)}" maxlength="120" data-team-name-id="${team.id}" aria-label="Nombre de ${escapeHtml(team.name)}">
+                    </label>
+                    <button class="team-status-button" type="button" data-update-team-name="${team.id}">Guardar nombre</button>
+                    <label>
                         Estado
                         <select data-team-status-id="${team.id}" aria-label="Estado de ${escapeHtml(team.name)}">
                             <option value="pending" ${team.status === "pending" ? "selected" : ""}>Pendiente</option>
@@ -178,6 +183,31 @@ async function registerTeam(event) {
 }
 
 teamsContainer.addEventListener("click", async (event) => {
+    const nameButton = event.target.closest("[data-update-team-name]");
+
+    if (nameButton !== null) {
+        const teamId = nameButton.dataset.updateTeamName;
+        const nameInput = teamsContainer.querySelector(
+            `[data-team-name-id="${teamId}"]`
+        );
+        const name = nameInput.value.trim();
+        if (!name) {
+            formMessage.textContent = "El nombre del equipo es obligatorio.";
+            return;
+        }
+        nameButton.disabled = true;
+        const response = await updateTeamName(teamId, name);
+        const body = await response.json().catch(() => ({}));
+        nameButton.disabled = false;
+        if (!response.ok) {
+            formMessage.textContent = body.detail || "No se pudo actualizar el nombre.";
+            return;
+        }
+        formMessage.textContent = "Nombre del equipo actualizado.";
+        await loadTeams();
+        return;
+    }
+
     const representativeButton = event.target.closest(
         "[data-assign-team-representative]"
     );
@@ -196,10 +226,11 @@ teamsContainer.addEventListener("click", async (event) => {
             teamId,
             representativeSelect.value
         );
+        const body = await response.json().catch(() => ({}));
         representativeButton.disabled = false;
         formMessage.textContent = response.ok
             ? "Representante vinculado correctamente."
-            : "No se pudo vincular al representante.";
+            : (body.detail || "No se pudo vincular al representante.");
         return;
     }
 

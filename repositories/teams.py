@@ -193,6 +193,30 @@ def update_team_status(team_id, status):
         connection.close()
 
 
+def update_team_name(team_id, name):
+    """Correct a team's public name without changing its division."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            UPDATE teams SET name = %s
+            WHERE id = %s
+            RETURNING id, name, branch, category, status,
+                      head_coach, coach, manager,
+                      logo_data IS NOT NULL AS has_logo,
+                      md5(logo_data) AS logo_version
+            """,
+            (name, team_id)
+        ).fetchone()
+        connection.commit()
+        return _public_team(row) if row is not None else None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_team_logo(team_id):
     """Return stored logo bytes and media type without exposing other fields."""
     connection = get_connection()
@@ -235,18 +259,25 @@ def get_represented_team_ids(user_id):
 
 
 def assign_team_representative(team_id, user_id):
-    """Assign an existing representative account to an existing team."""
+    """Assign a current or legacy representative account to a team."""
     connection = get_connection()
     try:
         row = connection.execute(
             """
             INSERT INTO team_representatives (user_id, team_id)
-            SELECT user_roles.user_id, teams.id
-            FROM user_roles
+            SELECT users.id, teams.id
+            FROM users
             CROSS JOIN teams
-            WHERE user_roles.user_id = %s
-              AND user_roles.role = 'team_representative'
+            WHERE users.id = %s
               AND teams.id = %s
+              AND (
+                  users.role = 'team_representative'
+                  OR EXISTS (
+                      SELECT 1 FROM user_roles
+                      WHERE user_roles.user_id = users.id
+                        AND user_roles.role = 'team_representative'
+                  )
+              )
             ON CONFLICT (user_id, team_id) DO NOTHING
             RETURNING user_id, team_id
             """,
