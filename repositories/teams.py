@@ -70,7 +70,7 @@ def create_team(team, representative_user_id=None):
         connection.close()
 
 def get_all_teams():
-    """Return all teams in stable creation order."""
+    """Return teams grouped by category and then by case-insensitive name."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -80,7 +80,20 @@ def get_all_teams():
                logo_data IS NOT NULL AS has_logo,
                md5(logo_data) AS logo_version
         FROM teams
-        ORDER BY id
+        ORDER BY
+            CASE category
+                WHEN 'u6' THEN 1
+                WHEN 'u8' THEN 2
+                WHEN 'u10' THEN 3
+                WHEN 'u12' THEN 4
+                WHEN 'u14' THEN 5
+                WHEN 'u16' THEN 6
+                WHEN 'u18' THEN 7
+                WHEN 'libre' THEN 8
+                ELSE 9
+            END,
+            LOWER(name),
+            id
         """
     ).fetchall()
 
