@@ -253,8 +253,8 @@ This separation allows the same person to play for multiple teams when league el
 - New teams are created with `status = "pending"`.
 - League administrators transition teams among `pending`, `active`, and
   `inactive`; the status is operational state, not free-form display text.
-- Team directories group records by category (`U6` through `Libre`) and sort
-  names alphabetically within each category.
+- Team directories group records by branch (`Varonil`, `Femenil`, `Mixto`),
+  then category (`U6` through `Libre`), and finally by team name.
 
 ### Players
 

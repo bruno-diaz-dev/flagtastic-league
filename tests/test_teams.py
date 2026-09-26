@@ -229,7 +229,7 @@ def test_list_teams():
     assert teams[0]["status"] == "pending"
 
 
-def test_list_teams_orders_by_category_then_name():
+def test_list_teams_orders_by_branch_category_then_name():
     teams = [
         {"name": "Zorros", "branch": "mixto", "category": "libre"},
         {"name": "Tigres", "branch": "varonil", "category": "u10"},
@@ -244,13 +244,14 @@ def test_list_teams_orders_by_category_then_name():
 
     assert response.status_code == 200
     assert [
-        (team["category"], team["name"]) for team in response.json()
+        (team["branch"], team["category"], team["name"])
+        for team in response.json()
     ] == [
-        ("u6", "Águilas"),
-        ("u6", "Halcones"),
-        ("u10", "Búfalos"),
-        ("u10", "Tigres"),
-        ("libre", "Zorros")
+        ("varonil", "u10", "Búfalos"),
+        ("varonil", "u10", "Tigres"),
+        ("femenil", "u6", "Águilas"),
+        ("femenil", "u6", "Halcones"),
+        ("mixto", "libre", "Zorros")
     ]
 
 def test_get_team_detail_with_roster():

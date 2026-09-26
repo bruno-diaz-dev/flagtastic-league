@@ -143,6 +143,7 @@ def test_team_directory_exposes_admin_status_controls():
     assert "assignTeamRepresentative" in script.text
     assert "getTeamRepresentativeAssignments" in script.text
     assert "team-representatives-summary" in script.text
+    assert 'const branchOrder = ["varonil", "femenil", "mixto"]' in script.text
 
 
 def test_user_administration_page_is_available():
