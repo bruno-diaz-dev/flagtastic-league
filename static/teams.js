@@ -111,7 +111,10 @@ async function registerTeam(event) {
     const payload = {
         name: formData.get("name"),
         branch: formData.get("branch"),
-        category: formData.get("category")
+        category: formData.get("category"),
+        head_coach: formData.get("head_coach"),
+        coach: formData.get("coach"),
+        manager: formData.get("manager")
     };
 
     formMessage.textContent = "Registrando equipo...";

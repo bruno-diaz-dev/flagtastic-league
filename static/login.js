@@ -25,7 +25,13 @@ loginForm.addEventListener("submit", async (event) => {
             window.location.assign("/change-password");
             return;
         }
-        window.location.assign(user.role === "player" ? "/dashboard" : "/teams");
+        const roles = user.roles || [user.role];
+        const destination = roles.includes("player")
+            ? "/dashboard"
+            : roles.includes("team_representative")
+                ? "/representative-dashboard"
+                : "/teams";
+        window.location.assign(destination);
     } catch (error) {
         loginMessage.textContent = "No se pudo conectar con el servidor.";
     }

@@ -4,14 +4,15 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from psycopg.errors import UniqueViolation
 
 from repositories.players import get_players_by_team
-from models import TeamCreate
+from models import TeamCreate, TeamStaffUpdate
 from repositories.teams import (
     create_team,
     delete_team,
     get_all_teams,
     get_team_by_id,
     get_team_logo,
-    update_team_logo
+    update_team_logo,
+    update_team_staff
 )
 from dependencies.auth import (
     require_league_admin,
@@ -32,10 +33,8 @@ def register_team(
 ):
     """Register a team or report a duplicate division entry."""
     try:
-        representative_id = (
-            user["id"] if user["role"] == "team_representative" else None
-        )
-        return create_team(team, representative_id)
+        # The creator becomes an explicit manager regardless of their other roles.
+        return create_team(team, user["id"])
 
     except UniqueViolation:
         raise HTTPException(
@@ -89,6 +88,19 @@ async def upload_team_logo(
         raise HTTPException(status_code=404, detail="Team not found")
     logo = await save_team_logo(file)
     update_team_logo(team_id, logo["content"], logo["media_type"])
+
+
+@router.patch("/{team_id}/staff")
+def edit_team_staff(
+    team_id: int,
+    staff: TeamStaffUpdate,
+    _user=Depends(require_team_manager)
+):
+    """Let an assigned representative maintain public roster staff."""
+    updated = update_team_staff(team_id, staff)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return updated
 
 
 @router.get("/{team_id}/logo")

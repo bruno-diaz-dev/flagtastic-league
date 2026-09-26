@@ -18,12 +18,18 @@ Teams can be registered with:
 - Branch
 - Category
 - Status
+- Head Coach, Coach, and Manager
+
+The authenticated creator is linked to the new team through
+`team_representatives`, including creators who also carry administrator or
+player roles. Assigned representatives can later maintain the logo and staff.
 
 Available endpoints:
 
 ```http
 POST /api/teams
 GET /api/teams
+PATCH /api/teams/{team_id}/staff
 ```
 
 Example team:
@@ -35,6 +41,10 @@ Example team:
   "category": "libre"
 }
 ```
+
+Representatives have a private dashboard at `/representative-dashboard`. It
+shows only assigned teams and combines roster size, standing, record, points
+for/against, team totals, passing percentage, and per-player season totals.
 
 ---
 

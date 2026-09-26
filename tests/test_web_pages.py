@@ -99,6 +99,16 @@ def test_player_dashboard_page_is_available():
     assert 'src="/static/dashboard.js' in response.text
 
 
+def test_representative_dashboard_page_is_available():
+    response = client.get("/representative-dashboard")
+    assert response.status_code == 200
+    assert "Dashboard de representante" in response.text
+    assert 'src="/static/representative_dashboard.js' in response.text
+
+    navigation = client.get("/teams").text
+    assert 'id="representative-dashboard-link"' in navigation
+
+
 def test_public_player_profile_page_is_available():
     response = client.get("/players/123")
 
@@ -117,6 +127,7 @@ def test_team_roster_has_a_dedicated_page():
     assert 'src="/static/roster.js' in response.text
     assert "Volver a equipos" in response.text
     assert 'id="team-logo-form"' in response.text
+    assert 'id="team-staff-form"' in response.text
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
 
 

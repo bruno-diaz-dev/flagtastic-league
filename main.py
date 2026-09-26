@@ -143,6 +143,12 @@ def dashboard_page(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
 
 
+@app.get("/representative-dashboard")
+def representative_dashboard_page(request: Request):
+    """Render the private representative operations dashboard."""
+    return templates.TemplateResponse(request, "representative_dashboard.html")
+
+
 @app.get("/players/{player_id}")
 def public_player_profile_page(request: Request, player_id: int):
     """Render a read-only public player season profile."""

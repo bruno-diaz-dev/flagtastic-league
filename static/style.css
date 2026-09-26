@@ -1194,3 +1194,64 @@ body.role-league_admin .team-delete-button.admin-only {
         margin-left: 0;
     }
 }
+
+/* Team ownership surfaces share the same compact, operational visual language. */
+.team-staff {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.team-staff > div {
+    border-left: 3px solid var(--color-gold);
+    padding: 8px 12px;
+}
+
+.team-staff span,
+.team-staff strong {
+    display: block;
+}
+
+.team-staff span,
+.muted-text {
+    color: var(--color-muted);
+}
+
+.representative-teams {
+    display: grid;
+    gap: 20px;
+}
+
+.representative-team-panel {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.representative-team-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.representative-team-header .secondary-link {
+    margin-left: auto;
+}
+
+@media (max-width: 700px) {
+    .team-staff {
+        grid-template-columns: 1fr;
+    }
+
+    .representative-team-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .representative-team-header .secondary-link {
+        margin-left: 0;
+        width: 100%;
+    }
+}

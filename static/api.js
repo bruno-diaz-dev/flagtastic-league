@@ -190,6 +190,18 @@ async function updateAdminUserRoles(userId, roles) {
     });
 }
 
+async function updateTeamStaff(teamId, payload) {
+    return fetch(`/api/teams/${teamId}/staff`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
+async function getMyRepresentativeDashboard() {
+    return fetch("/api/me/representative-dashboard");
+}
+
 async function deleteAdminUser(userId) {
     return fetch(`/api/admin/users/${userId}`, {method: "DELETE"});
 }

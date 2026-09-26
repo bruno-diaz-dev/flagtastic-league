@@ -12,6 +12,8 @@
         </div>
     </header>
 
+    <section id="team-staff" class="team-staff" aria-label="Cuerpo técnico"></section>
+
     <section class="form-panel team-manager-only">
         <h3>Actualizar logo</h3>
         <form id="team-logo-form" class="stats-import-form">
@@ -23,6 +25,15 @@
             <button type="submit">Guardar logo</button>
         </form>
         <p id="team-logo-message" class="form-message" role="status"></p>
+
+        <h3>Cuerpo técnico</h3>
+        <form id="team-staff-form" class="player-form">
+            <label>Head Coach<input name="head_coach" maxlength="120"></label>
+            <label>Coach<input name="coach" maxlength="120"></label>
+            <label>Manager<input name="manager" maxlength="120"></label>
+            <button type="submit">Guardar cuerpo técnico</button>
+        </form>
+        <p id="team-staff-message" class="form-message" role="status"></p>
 
         <h3>Registrar jugador</h3>
         <form id="player-form" class="player-form">
@@ -53,5 +64,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260926-1"></script>
-<script src="/static/roster.js?v=20260926-2"></script>
+<script src="/static/roster.js?v=20260926-3"></script>
 {% endblock %}
