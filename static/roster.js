@@ -11,6 +11,9 @@ const rosterImportForm = document.querySelector("#roster-import-form");
 const rosterImportMessage = document.querySelector("#roster-import-message");
 const teamLogoForm = document.querySelector("#team-logo-form");
 const teamLogoMessage = document.querySelector("#team-logo-message");
+const teamStaff = document.querySelector("#team-staff");
+const teamStaffForm = document.querySelector("#team-staff-form");
+const teamStaffMessage = document.querySelector("#team-staff-message");
 
 
 function initials(name) {
@@ -37,6 +40,17 @@ function renderRoster(team) {
     } else {
         teamLogo.classList.add("hidden");
     }
+    const staff = [
+        ["Head Coach", team.head_coach],
+        ["Coach", team.coach],
+        ["Manager", team.manager]
+    ].filter((entry) => entry[1]);
+    teamStaff.innerHTML = staff.length
+        ? staff.map(([role, name]) => `<div><span>${role}</span><strong>${escapeHtml(name)}</strong></div>`).join("")
+        : `<p class="muted-text">Cuerpo técnico pendiente de registrar.</p>`;
+    teamStaffForm.elements.head_coach.value = team.head_coach || "";
+    teamStaffForm.elements.coach.value = team.coach || "";
+    teamStaffForm.elements.manager.value = team.manager || "";
 
     if (team.players.length === 0) {
         rosterContainer.innerHTML = `
@@ -135,6 +149,23 @@ teamLogoForm.addEventListener("submit", async (event) => {
     } catch (error) {
         teamLogoMessage.textContent = "No se pudo conectar con el servidor.";
     }
+});
+
+
+teamStaffForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const fields = new FormData(teamStaffForm);
+    const response = await updateTeamStaff(teamId, {
+        head_coach: fields.get("head_coach"),
+        coach: fields.get("coach"),
+        manager: fields.get("manager")
+    });
+    if (!response.ok) {
+        teamStaffMessage.textContent = "No se pudo actualizar el cuerpo técnico.";
+        return;
+    }
+    teamStaffMessage.textContent = "Cuerpo técnico actualizado.";
+    await loadRoster();
 });
 
 

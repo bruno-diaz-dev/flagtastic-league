@@ -68,6 +68,13 @@ def require_player(user=Depends(require_authenticated_user)):
     return user
 
 
+def require_team_representative(user=Depends(require_authenticated_user)):
+    """Allow accounts explicitly carrying the representative role."""
+    if not user_has_role(user, "team_representative"):
+        raise HTTPException(status_code=403, detail="Acceso no autorizado")
+    return user
+
+
 def require_team_manager(
     team_id: int,
     user=Depends(require_authenticated_user)

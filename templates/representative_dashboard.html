@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <header class="section-header">
+        <div>
+            <h2>Dashboard de representante</h2>
+            <p>Posición, resultados y estadísticas de tus equipos.</p>
+        </div>
+    </header>
+    <div id="representative-teams" class="representative-teams" aria-live="polite"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260926-2"></script>
+<script src="/static/representative_dashboard.js?v=20260926-1"></script>
+{% endblock %}

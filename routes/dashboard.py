@@ -3,14 +3,21 @@
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg.errors import UniqueViolation
 
-from dependencies.auth import require_player
+from dependencies.auth import require_player, require_team_representative
 from models import PlayerProfileUpdate, TeamMembershipCreate
 from repositories.dashboard import get_player_dashboard, update_player_aka
 from repositories.players import join_team, PlayerAlreadyRegisteredInDivision
 from repositories.teams import get_team_by_id
+from repositories.representative_dashboard import get_representative_dashboard
 
 
 router = APIRouter(prefix="/api/me", tags=["dashboard"])
+
+
+@router.get("/representative-dashboard")
+def representative_dashboard(user=Depends(require_team_representative)):
+    """Return data only for teams explicitly assigned to this representative."""
+    return get_representative_dashboard(user["id"])
 
 
 @router.patch("/profile")

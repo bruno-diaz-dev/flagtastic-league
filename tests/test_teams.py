@@ -56,6 +56,25 @@ def test_register_team():
     assert "id" in data
 
 
+def test_team_staff_is_created_and_can_be_updated():
+    response = client.post("/api/teams", json={
+        "name": "Staffed Team", "branch": "mixto", "category": "libre",
+        "head_coach": "Ana Head", "coach": "Carlos Coach",
+        "manager": "Marina Manager"
+    })
+    assert response.status_code == 201
+    team_id = response.json()["id"]
+    assert response.json()["head_coach"] == "Ana Head"
+
+    updated = client.patch(f"/api/teams/{team_id}/staff", json={
+        "head_coach": "Ana Nueva", "coach": "", "manager": "Marina Manager"
+    })
+    assert updated.status_code == 200
+    assert updated.json()["head_coach"] == "Ana Nueva"
+    assert updated.json()["coach"] is None
+    assert client.get(f"/api/teams/{team_id}").json()["manager"] == "Marina Manager"
+
+
 def test_list_teams():
     team = {
         "name": "Raptors",

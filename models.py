@@ -41,6 +41,23 @@ class TeamCreate(BaseModel):
     name: str = Field(min_length=1)
     branch: str = Field(min_length=1)
     category: str = Field(min_length=1)
+    head_coach: str | None = Field(default=None, max_length=120)
+    coach: str | None = Field(default=None, max_length=120)
+    manager: str | None = Field(default=None, max_length=120)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_team_name(cls, value):
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Team name is required")
+        return normalized
+
+    @field_validator("head_coach", "coach", "manager")
+    @classmethod
+    def normalize_team_staff(cls, value):
+        normalized = value.strip() if value is not None else ""
+        return normalized or None
 
     @field_validator("branch")
     @classmethod
@@ -61,6 +78,20 @@ class TeamCreate(BaseModel):
             raise ValueError("Invalid category")
 
         return normalized_category
+
+
+class TeamStaffUpdate(BaseModel):
+    """Validate the staff names displayed on a public roster."""
+
+    head_coach: str | None = Field(default=None, max_length=120)
+    coach: str | None = Field(default=None, max_length=120)
+    manager: str | None = Field(default=None, max_length=120)
+
+    @field_validator("head_coach", "coach", "manager")
+    @classmethod
+    def normalize_staff_name(cls, value):
+        normalized = value.strip() if value is not None else ""
+        return normalized or None
 
 
 class PlayerCreate(BaseModel):

@@ -63,7 +63,8 @@ Responsibilities:
 
 Current models:
 
-- `TeamCreate`: name, branch, and category.
+- `TeamCreate`: identity, division, and optional Head Coach, Coach, and Manager.
+- `TeamStaffUpdate`: editable public staff names for an existing roster.
 - `PlayerCreate`: name, CURP, age, and jersey number.
 - `GameCreate`: home team and away team.
 - `UserCreate`: email, name, password, and role.
@@ -118,6 +119,7 @@ Current repositories:
 - `repositories/games.py`
 - `repositories/users.py`
 - `repositories/statistics.py`
+- `repositories/representative_dashboard.py`
 
 ### Services
 
@@ -295,6 +297,8 @@ Rules that need league context, such as preventing a player from registering twi
 | `POST` | `/api/teams` | Creates a team |
 | `GET` | `/api/teams` | Lists teams |
 | `PUT` | `/api/teams/{team_id}/logo` | Replaces a team logo; administrators or its assigned representatives only |
+| `PATCH` | `/api/teams/{team_id}/staff` | Replaces public Head Coach, Coach, and Manager fields; team managers only |
+| `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
 | `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
 | `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
@@ -473,8 +477,20 @@ player identifier from the browser.
 
 Representatives may create teams. The creator is inserted into
 `team_representatives` in the same transaction, giving that user management
-rights only over the new team. Players join rosters directly in V1 while the
+rights only over the new team. Assignment uses the authenticated user id, not
+the legacy primary-role string, so cumulative-role users are linked correctly.
+Players join rosters directly in V1 while the
 existing one-team-per-division and unique-jersey constraints remain active.
+
+### Representative Dashboard And Team Staff
+
+`teams.head_coach`, `teams.coach`, and `teams.manager` are nullable public
+metadata accepted during registration and editable by a team manager. The
+representative dashboard begins with `team_representatives`, then combines
+official standings, roster membership, and aggregates from
+`player_week_stats`. It never accepts a user id from the browser, preventing a
+representative from requesting another representative's operational view.
+Player rows link to public profiles; CURP and credentials are never selected.
 
 ## Passing Leaderboard
 

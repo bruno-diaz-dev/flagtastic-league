@@ -194,6 +194,10 @@ Not allowed:
 
 Team representatives manage only their assigned team or teams.
 
+The team creator is assigned atomically even when the account has multiple
+roles. Representatives maintain the logo, Head Coach, Coach and Manager, and
+use a private dashboard for standings, team totals, and per-player statistics.
+
 Allowed:
 
 - View public league data.

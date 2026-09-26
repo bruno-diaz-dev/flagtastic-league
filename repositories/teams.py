@@ -17,16 +17,22 @@ def create_team(team, representative_user_id=None):
                 name,
                 branch,
                 category,
-                status
+                status,
+                head_coach,
+                coach,
+                manager
             )
-            VALUES (%s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
                 name,
                 branch,
                 category,
-                "pending"
+                "pending",
+                team.head_coach,
+                team.coach,
+                team.manager
             )
         )
 
@@ -37,9 +43,9 @@ def create_team(team, representative_user_id=None):
             connection.execute(
                 """
                 INSERT INTO team_representatives (user_id, team_id)
-                VALUES (%s, %s)
+                SELECT id, %s FROM users WHERE id = %s
                 """,
-                (representative_user_id, team_id)
+                (team_id, representative_user_id)
             )
 
         connection.commit()
@@ -50,6 +56,9 @@ def create_team(team, representative_user_id=None):
             "branch": branch,
             "category": category,
             "status": "pending",
+            "head_coach": team.head_coach,
+            "coach": team.coach,
+            "manager": team.manager,
             "logo_url": None
         }
 
@@ -67,6 +76,7 @@ def get_all_teams():
     rows = connection.execute(
         """
         SELECT id, name, branch, category, status,
+               head_coach, coach, manager,
                logo_data IS NOT NULL AS has_logo
         FROM teams
         ORDER BY id
@@ -84,6 +94,7 @@ def get_team_by_id(team_id):
     row = connection.execute(
         """
         SELECT id, name, branch, category, status,
+               head_coach, coach, manager,
                logo_data IS NOT NULL AS has_logo
         FROM teams
         WHERE id = %s
@@ -120,6 +131,30 @@ def update_team_logo(team_id, content, media_type):
         ).fetchone()
         connection.commit()
         return row is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def update_team_staff(team_id, staff):
+    """Replace the roster staff fields while preserving team identity."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            UPDATE teams
+            SET head_coach = %s, coach = %s, manager = %s
+            WHERE id = %s
+            RETURNING id, name, branch, category, status,
+                      head_coach, coach, manager,
+                      logo_data IS NOT NULL AS has_logo
+            """,
+            (staff.head_coach, staff.coach, staff.manager, team_id)
+        ).fetchone()
+        connection.commit()
+        return _public_team(row) if row is not None else None
     except Exception:
         connection.rollback()
         raise

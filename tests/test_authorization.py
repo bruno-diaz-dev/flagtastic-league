@@ -100,7 +100,7 @@ def test_representative_creates_and_is_assigned_to_team():
 def test_league_admin_can_create_team():
     disable_test_authorization_override()
     team_name, email = unique_identity("admin")
-    create_user(UserCreate(
+    admin = create_user(UserCreate(
         email=email,
         name="Admin",
         password="supersecret",
@@ -114,6 +114,13 @@ def test_league_admin_can_create_team():
     )
 
     assert response.status_code == 201
+    connection = get_connection()
+    assignment = connection.execute(
+        "SELECT 1 FROM team_representatives WHERE user_id = %s AND team_id = %s",
+        (admin["id"], response.json()["id"])
+    ).fetchone()
+    connection.close()
+    assert assignment is not None
 
 
 def test_team_representative_can_manage_only_assigned_team():
