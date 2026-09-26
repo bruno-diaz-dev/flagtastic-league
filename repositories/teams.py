@@ -258,6 +258,31 @@ def get_represented_team_ids(user_id):
     return [row["team_id"] for row in rows]
 
 
+def get_team_representative_assignments():
+    """Return current team ownership for the league administration UI."""
+    connection = get_connection()
+    rows = connection.execute(
+        """
+        SELECT team_representatives.team_id, users.id AS user_id,
+               users.name, players.aka
+        FROM team_representatives
+        JOIN users ON users.id = team_representatives.user_id
+        LEFT JOIN players ON players.id = users.player_id
+        ORDER BY team_representatives.team_id,
+                 COALESCE(NULLIF(players.aka, ''), users.name)
+        """
+    ).fetchall()
+    connection.close()
+    return [
+        {
+            "team_id": row["team_id"],
+            "user_id": row["user_id"],
+            "display_name": row["aka"] or row["name"]
+        }
+        for row in rows
+    ]
+
+
 def assign_team_representative(team_id, user_id):
     """Assign a current or legacy representative account to a team."""
     connection = get_connection()

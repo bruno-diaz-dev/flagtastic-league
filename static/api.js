@@ -124,6 +124,10 @@ async function assignTeamRepresentative(teamId, userId) {
     });
 }
 
+async function getTeamRepresentativeAssignments() {
+    return fetch("/api/teams/representative-assignments");
+}
+
 async function login(payload) {
     return fetch("/api/auth/login", {
         method: "POST",

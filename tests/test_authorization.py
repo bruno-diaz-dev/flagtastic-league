@@ -416,6 +416,7 @@ def test_only_league_admin_can_assign_historical_team_representative():
     assert login(representative_email, "supersecret").status_code == 200
     endpoint = f"/api/teams/{team['id']}/representatives/{representative['id']}"
     assert client.put(endpoint).status_code == 403
+    assert client.get("/api/teams/representative-assignments").status_code == 403
 
     client.cookies.clear()
     _, admin_email = unique_identity("historical-owner-admin")
@@ -425,6 +426,13 @@ def test_only_league_admin_can_assign_historical_team_representative():
     ))
     assert login(admin_email, "supersecret").status_code == 200
     assert client.put(endpoint).status_code == 204
+    assignments = client.get("/api/teams/representative-assignments")
+    assert assignments.status_code == 200
+    assert any(
+        item["team_id"] == team["id"]
+        and item["user_id"] == representative["id"]
+        for item in assignments.json()
+    )
 
 
 def test_only_league_admin_can_correct_team_name():
