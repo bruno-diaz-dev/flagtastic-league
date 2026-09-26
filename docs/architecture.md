@@ -301,6 +301,7 @@ Rules that need league context, such as preventing a player from registering twi
 | `PUT` | `/api/teams/{team_id}/logo` | Replaces a team logo; administrators or its assigned representatives only |
 | `PATCH` | `/api/teams/{team_id}/staff` | Replaces public Head Coach, Coach, and Manager fields; team managers only |
 | `PATCH` | `/api/teams/{team_id}/status` | Changes pending, active, or inactive state; league administrators only |
+| `PATCH` | `/api/teams/{team_id}/name` | Corrects only the public team name; league administrators only |
 | `PUT` | `/api/teams/{team_id}/representatives/{user_id}` | Links an existing representative account to a historical team; league administrators only |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |

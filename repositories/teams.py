@@ -193,6 +193,30 @@ def update_team_status(team_id, status):
         connection.close()
 
 
+def update_team_name(team_id, name):
+    """Correct a team's public name without changing its division."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            UPDATE teams SET name = %s
+            WHERE id = %s
+            RETURNING id, name, branch, category, status,
+                      head_coach, coach, manager,
+                      logo_data IS NOT NULL AS has_logo,
+                      md5(logo_data) AS logo_version
+            """,
+            (name, team_id)
+        ).fetchone()
+        connection.commit()
+        return _public_team(row) if row is not None else None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_team_logo(team_id):
     """Return stored logo bytes and media type without exposing other fields."""
     connection = get_connection()

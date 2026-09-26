@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from psycopg.errors import UniqueViolation
 
 from repositories.players import get_players_by_team
-from models import TeamCreate, TeamStaffUpdate, TeamStatusUpdate
+from models import TeamCreate, TeamNameUpdate, TeamStaffUpdate, TeamStatusUpdate
 from repositories.teams import (
     assign_team_representative,
     create_team,
@@ -13,6 +13,7 @@ from repositories.teams import (
     get_team_by_id,
     get_team_logo,
     update_team_logo,
+    update_team_name,
     update_team_staff,
     update_team_status
 )
@@ -113,6 +114,25 @@ def edit_team_status(
 ):
     """Allow league administrators to approve or deactivate a team."""
     updated = update_team_status(team_id, payload.status)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return updated
+
+
+@router.patch("/{team_id}/name")
+def edit_team_name(
+    team_id: int,
+    payload: TeamNameUpdate,
+    _user=Depends(require_league_admin)
+):
+    """Allow only league administrators to correct a team name."""
+    try:
+        updated = update_team_name(team_id, payload.name)
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="Team already registered in this branch and category"
+        )
     if updated is None:
         raise HTTPException(status_code=404, detail="Team not found")
     return updated

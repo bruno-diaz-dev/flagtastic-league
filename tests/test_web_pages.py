@@ -136,6 +136,8 @@ def test_team_directory_exposes_admin_status_controls():
     assert script.status_code == 200
     assert "data-update-team-status" in script.text
     assert "updateTeamStatus" in script.text
+    assert "data-update-team-name" in script.text
+    assert "updateTeamName" in script.text
     assert 'active: "Activo"' in script.text
     assert "data-assign-team-representative" in script.text
     assert "assignTeamRepresentative" in script.text

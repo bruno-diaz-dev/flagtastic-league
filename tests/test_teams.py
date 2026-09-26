@@ -99,6 +99,28 @@ def test_team_status_rejects_unknown_value():
     assert response.status_code == 422
 
 
+def test_league_admin_can_correct_team_name():
+    team_id = create_test_team(name="Misspelled Team")
+    response = client.patch(
+        f"/api/teams/{team_id}/name",
+        json={"name": "  Correct Team  "}
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Correct Team"
+    assert client.get(f"/api/teams/{team_id}").json()["name"] == "Correct Team"
+
+
+def test_team_name_correction_rejects_duplicate_in_same_division():
+    create_test_team(name="Existing Team")
+    team_id = create_test_team(name="Team To Rename")
+    response = client.patch(
+        f"/api/teams/{team_id}/name",
+        json={"name": "Existing Team"}
+    )
+    assert response.status_code == 409
+    assert client.get(f"/api/teams/{team_id}").json()["name"] == "Team To Rename"
+
+
 def test_admin_can_assign_existing_representative_to_historical_team():
     representative = create_user(UserCreate(
         email=f"historical-{uuid4().hex}@example.com",
