@@ -74,9 +74,39 @@ function renderRoster(team) {
                     <p>${identity}</p>
                 </a>
                 <span class="jersey-number">#${player.jersey_number}</span>
+                <form class="roster-photo-form team-manager-only" data-player-id="${player.id}">
+                    <label>
+                        <span class="sr-only">Foto de ${escapeHtml(displayName)}</span>
+                        <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
+                    </label>
+                    <button type="submit">Guardar foto</button>
+                    <span class="roster-photo-message" role="status"></span>
+                </form>
             </article>`;
     }).join("");
 }
+
+
+rosterContainer.addEventListener("submit", async (event) => {
+    const form = event.target.closest(".roster-photo-form");
+    if (!form) return;
+    event.preventDefault();
+    const message = form.querySelector(".roster-photo-message");
+    const file = form.elements.photo.files[0];
+    message.textContent = "Guardando...";
+    const response = await uploadRosterPlayerPhoto(
+        teamId,
+        form.dataset.playerId,
+        file
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        message.textContent = body.detail || "No se pudo guardar la foto.";
+        return;
+    }
+    message.textContent = "Foto actualizada.";
+    await loadRoster();
+});
 
 
 async function loadRoster() {

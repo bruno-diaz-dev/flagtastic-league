@@ -102,6 +102,15 @@ async function deleteTeam(teamId) {
     return fetch(`/api/teams/${teamId}`, {method: "DELETE"});
 }
 
+async function uploadRosterPlayerPhoto(teamId, playerId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`/api/teams/${teamId}/players/${playerId}/photo`, {
+        method: "PUT",
+        body: formData
+    });
+}
+
 async function updateTeamStatus(teamId, status) {
     return fetch(`/api/teams/${teamId}/status`, {
         method: "PATCH",

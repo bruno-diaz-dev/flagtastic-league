@@ -193,6 +193,18 @@ def test_team_representative_can_manage_only_assigned_team():
     assert assigned_logo.status_code == 204
     assert other_logo.status_code == 403
 
+    player_id = assigned_response.json()["id"]
+    assigned_photo = client.put(
+        f"/api/teams/{assigned_team['id']}/players/{player_id}/photo",
+        files={"file": ("player.png", png, "image/png")}
+    )
+    other_photo = client.put(
+        f"/api/teams/{other_team['id']}/players/{player_id}/photo",
+        files={"file": ("player.png", png, "image/png")}
+    )
+    assert assigned_photo.status_code == 204
+    assert other_photo.status_code == 403
+
 
 def test_league_admin_can_grant_another_admin_role():
     disable_test_authorization_override()

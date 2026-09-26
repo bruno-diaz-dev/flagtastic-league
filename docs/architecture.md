@@ -510,6 +510,9 @@ official standings, roster membership, and aggregates from
 `player_week_stats`. It never accepts a user id from the browser, preventing a
 representative from requesting another representative's operational view.
 Player rows link to public profiles; CURP and credentials are never selected.
+Assigned representatives and league administrators may add or replace a
+player photo after manual or CSV/XLSX roster creation. The write verifies both
+team-management permission and the player's membership in that exact roster.
 
 ## Passing Leaderboard
 
