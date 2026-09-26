@@ -129,10 +129,12 @@ def test_team_roster_has_a_dedicated_page():
     assert 'id="team-logo-form"' in response.text
     assert 'id="team-staff-form"' in response.text
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
+    assert 'class="form-panel team-scope-manager-only"' in response.text
 
     script = client.get("/static/roster.js")
-    assert "roster-photo-form" in script.text
+    assert "roster-photo-form team-scope-manager-only" in script.text
     assert "uploadRosterPlayerPhoto" in script.text
+    assert 'team.can_manage === true' in script.text
 
 
 def test_team_change_center_has_a_dedicated_page():

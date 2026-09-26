@@ -20,10 +20,13 @@ from repositories.teams import (
     update_team_status
 )
 from dependencies.auth import (
+    optional_authenticated_user,
     require_league_admin,
     require_team_creator,
-    require_team_manager
+    require_team_manager,
+    user_has_role
 )
+from repositories.users import user_represents_team
 from services.profile_photos import save_team_logo
 
 router = APIRouter(
@@ -62,7 +65,10 @@ def list_team_representative_assignments(
 
 
 @router.get("/{team_id}")
-def get_team_details(team_id: int):
+def get_team_details(
+    team_id: int,
+    user=Depends(optional_authenticated_user)
+):
     """Return a team and its public roster, or a 404 response."""
     team = get_team_by_id(team_id)
 
@@ -73,9 +79,19 @@ def get_team_details(team_id: int):
         )
 
     players = get_players_by_team(team_id)
+    can_manage = user is not None and (
+        user_has_role(user, "league_admin")
+        or (
+            user_has_role(user, "team_representative")
+            and user_represents_team(user["id"], team_id)
+        )
+    )
 
     return {
         **team,
+        # Public data stays visible, but roster controls require this exact
+        # team assignment (or league-wide administrator access).
+        "can_manage": can_manage,
         "players": [
             {
                 "id": player["id"],

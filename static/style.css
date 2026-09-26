@@ -739,7 +739,8 @@ body.role-league_admin .team-manage-link.admin-only {
 
 /* Operational controls stay hidden until the session role is resolved. */
 .admin-only,
-.team-manager-only {
+.team-manager-only,
+.team-scope-manager-only {
     display: none !important;
 }
 
@@ -752,6 +753,14 @@ body.role-team_representative .team-manager-only {
 body.role-league_admin form.admin-only,
 body.role-league_admin form.team-manager-only,
 body.role-team_representative form.team-manager-only {
+    display: grid !important;
+}
+
+body.can-manage-team .team-scope-manager-only {
+    display: block !important;
+}
+
+body.can-manage-team form.team-scope-manager-only {
     display: grid !important;
 }
 

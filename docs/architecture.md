@@ -658,6 +658,12 @@ roll back the complete upload instead of leaving a partial roster. Imported
 players remain ordinary global identities and can later claim their account
 through the CURP-backed registration flow described above.
 
+Roster management is scoped by assignment, not merely by possession of the
+`team_representative` role. Representatives can see and use roster forms,
+imports, staff/logo updates, and player-photo controls only for teams linked to
+them in `team_representatives`. League administrators retain league-wide
+management access, while every roster remains publicly readable.
+
 `players.aka` stores an optional public nickname and
 `players.profile_photo_path` stores a generated public filename, while
 `profile_photo_data` and `profile_photo_type` store the validated image in
