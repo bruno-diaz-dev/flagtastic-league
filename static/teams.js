@@ -18,8 +18,16 @@ const teamStatusLabels = {
 };
 
 const categoryOrder = ["u6", "u8", "u10", "u12", "u14", "u16", "u18", "libre"];
+const branchOrder = ["varonil", "femenil", "mixto"];
 
 function compareTeams(left, right) {
+    const leftBranch = branchOrder.indexOf(left.branch);
+    const rightBranch = branchOrder.indexOf(right.branch);
+    const branchComparison = (leftBranch === -1 ? branchOrder.length : leftBranch)
+        - (rightBranch === -1 ? branchOrder.length : rightBranch);
+    if (branchComparison !== 0) {
+        return branchComparison;
+    }
     const leftCategory = categoryOrder.indexOf(left.category);
     const rightCategory = categoryOrder.indexOf(right.category);
     const categoryComparison = (leftCategory === -1 ? categoryOrder.length : leftCategory)

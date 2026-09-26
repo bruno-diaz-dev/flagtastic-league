@@ -70,7 +70,7 @@ def create_team(team, representative_user_id=None):
         connection.close()
 
 def get_all_teams():
-    """Return teams grouped by category and then by case-insensitive name."""
+    """Return teams grouped by branch, category, and alphabetical name."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -81,6 +81,12 @@ def get_all_teams():
                md5(logo_data) AS logo_version
         FROM teams
         ORDER BY
+            CASE branch
+                WHEN 'varonil' THEN 1
+                WHEN 'femenil' THEN 2
+                WHEN 'mixto' THEN 3
+                ELSE 4
+            END,
             CASE category
                 WHEN 'u6' THEN 1
                 WHEN 'u8' THEN 2
