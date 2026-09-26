@@ -90,6 +90,34 @@ def test_player_registers_joins_team_and_reads_dashboard():
     assert body["statistics"]["passes_attempted"] == 0
 
 
+def test_player_claims_representative_created_roster_identity():
+    """Account registration enriches the roster row instead of duplicating it."""
+    team = client.post(
+        "/api/teams",
+        json={"name": "Tigres", "branch": "varonil", "category": "libre"}
+    ).json()
+    roster_player = client.post(
+        f"/api/teams/{team['id']}/players",
+        json={
+            "name": "Bruno Diaz",
+            "curp": "dibb961215hasxxx00",
+            "age": 29,
+            "jersey_number": 83
+        }
+    ).json()
+
+    registration = register_player()
+
+    assert registration.status_code == 201
+    assert registration.json()["player_id"] == roster_player["id"]
+    roster = client.get(f"/api/teams/{team['id']}").json()["players"]
+    assert len(roster) == 1
+    assert roster[0]["id"] == roster_player["id"]
+    assert roster[0]["jersey_number"] == 83
+    assert roster[0]["aka"] == "El Muro"
+    assert roster[0]["profile_photo_url"].startswith("/media/profiles/")
+
+
 def test_player_cannot_join_two_teams_in_same_division():
     first = client.post(
         "/api/teams",
