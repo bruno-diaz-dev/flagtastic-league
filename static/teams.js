@@ -17,6 +17,19 @@ const teamStatusLabels = {
     inactive: "Inactivo"
 };
 
+const categoryOrder = ["u6", "u8", "u10", "u12", "u14", "u16", "u18", "libre"];
+
+function compareTeams(left, right) {
+    const leftCategory = categoryOrder.indexOf(left.category);
+    const rightCategory = categoryOrder.indexOf(right.category);
+    const categoryComparison = (leftCategory === -1 ? categoryOrder.length : leftCategory)
+        - (rightCategory === -1 ? categoryOrder.length : rightCategory);
+    if (categoryComparison !== 0) {
+        return categoryComparison;
+    }
+    return left.name.localeCompare(right.name, "es", {sensitivity: "base"});
+}
+
 function renderEmptyTeamsState() {
     teamsContainer.innerHTML = `
         <div class="empty-state">
@@ -105,7 +118,7 @@ function getFilteredTeams() {
             selectedCategory === "" || team.category === selectedCategory;
 
         return matchesBranch && matchesCategory;
-    });
+    }).sort(compareTeams);
 }
 
 function renderFilteredTeams() {

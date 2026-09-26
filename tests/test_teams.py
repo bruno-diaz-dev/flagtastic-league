@@ -228,6 +228,31 @@ def test_list_teams():
     assert teams[0]["category"] == "libre"
     assert teams[0]["status"] == "pending"
 
+
+def test_list_teams_orders_by_category_then_name():
+    teams = [
+        {"name": "Zorros", "branch": "mixto", "category": "libre"},
+        {"name": "Tigres", "branch": "varonil", "category": "u10"},
+        {"name": "Águilas", "branch": "femenil", "category": "u6"},
+        {"name": "Búfalos", "branch": "varonil", "category": "u10"},
+        {"name": "Halcones", "branch": "femenil", "category": "u6"}
+    ]
+    for team in teams:
+        assert client.post("/api/teams", json=team).status_code == 201
+
+    response = client.get("/api/teams")
+
+    assert response.status_code == 200
+    assert [
+        (team["category"], team["name"]) for team in response.json()
+    ] == [
+        ("u6", "Águilas"),
+        ("u6", "Halcones"),
+        ("u10", "Búfalos"),
+        ("u10", "Tigres"),
+        ("libre", "Zorros")
+    ]
+
 def test_get_team_detail_with_roster():
     response = client.post(
         "/api/teams",
