@@ -260,12 +260,22 @@ def test_team_manager_can_upload_and_read_team_logo():
 
     assert response.status_code == 204
     teams = client.get("/api/teams").json()
-    assert teams[0]["logo_url"] == f"/api/teams/{team_id}/logo"
+    first_url = teams[0]["logo_url"]
+    assert first_url.startswith(f"/api/teams/{team_id}/logo?v=")
 
     logo = client.get(f"/api/teams/{team_id}/logo")
     assert logo.status_code == 200
     assert logo.headers["content-type"] == "image/png"
     assert logo.content == png
+
+    replacement = b"\x89PNG\r\n\x1a\nreplacement-logo"
+    assert client.put(
+        f"/api/teams/{team_id}/logo",
+        files={"file": ("replacement.png", replacement, "image/png")}
+    ).status_code == 204
+    second_url = client.get(f"/api/teams/{team_id}").json()["logo_url"]
+    assert second_url.startswith(f"/api/teams/{team_id}/logo?v=")
+    assert second_url != first_url
 
 
 def test_team_logo_rejects_unsupported_content():

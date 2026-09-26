@@ -77,7 +77,8 @@ def get_all_teams():
         """
         SELECT id, name, branch, category, status,
                head_coach, coach, manager,
-               logo_data IS NOT NULL AS has_logo
+               logo_data IS NOT NULL AS has_logo,
+               md5(logo_data) AS logo_version
         FROM teams
         ORDER BY id
         """
@@ -95,7 +96,8 @@ def get_team_by_id(team_id):
         """
         SELECT id, name, branch, category, status,
                head_coach, coach, manager,
-               logo_data IS NOT NULL AS has_logo
+               logo_data IS NOT NULL AS has_logo,
+               md5(logo_data) AS logo_version
         FROM teams
         WHERE id = %s
         """,
@@ -111,10 +113,14 @@ def get_team_by_id(team_id):
 
 
 def _public_team(row):
-    """Expose a stable logo URL without returning image bytes in JSON."""
+    """Expose a content-versioned logo URL without returning image bytes."""
     team = dict(row)
     has_logo = team.pop("has_logo", False)
-    team["logo_url"] = f"/api/teams/{team['id']}/logo" if has_logo else None
+    logo_version = team.pop("logo_version", None)
+    team["logo_url"] = (
+        f"/api/teams/{team['id']}/logo?v={logo_version}"
+        if has_logo else None
+    )
     return team
 
 
@@ -149,7 +155,8 @@ def update_team_staff(team_id, staff):
             WHERE id = %s
             RETURNING id, name, branch, category, status,
                       head_coach, coach, manager,
-                      logo_data IS NOT NULL AS has_logo
+                      logo_data IS NOT NULL AS has_logo,
+                      md5(logo_data) AS logo_version
             """,
             (staff.head_coach, staff.coach, staff.manager, team_id)
         ).fetchone()
