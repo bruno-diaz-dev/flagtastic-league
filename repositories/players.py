@@ -204,6 +204,41 @@ def get_players_by_team(team_id):
     return[dict(row) for row in rows]
 
 
+def update_roster_player_photo(team_id, player_id, photo):
+    """Replace a player's photo only when they belong to the managed team."""
+    connection = get_connection()
+    try:
+        updated = connection.execute(
+            """
+            UPDATE players
+            SET profile_photo_path = %s,
+                profile_photo_data = %s,
+                profile_photo_type = %s
+            WHERE id = %s
+              AND EXISTS (
+                  SELECT 1 FROM team_players
+                  WHERE team_players.team_id = %s
+                    AND team_players.player_id = players.id
+              )
+            RETURNING id
+            """,
+            (
+                photo["filename"],
+                photo["content"],
+                photo["media_type"],
+                player_id,
+                team_id
+            )
+        ).fetchone()
+        connection.commit()
+        return updated is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def join_team(player_id, team, jersey_number):
     """Attach an existing player identity to one eligible division roster."""
     connection = get_connection()

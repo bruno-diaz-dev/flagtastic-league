@@ -130,6 +130,10 @@ def test_team_roster_has_a_dedicated_page():
     assert 'id="team-staff-form"' in response.text
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
 
+    script = client.get("/static/roster.js")
+    assert "roster-photo-form" in script.text
+    assert "uploadRosterPlayerPhoto" in script.text
+
 
 def test_team_change_center_has_a_dedicated_page():
     response = client.get("/teams/123/manage")

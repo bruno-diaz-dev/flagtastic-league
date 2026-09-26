@@ -9,10 +9,12 @@ from repositories.players import (
     create_player,
     import_players,
     get_players_by_team,
+    update_roster_player_photo,
     PlayerAlreadyRegisteredInDivision
 )
 from dependencies.auth import require_team_manager
 from services.roster_import import RosterImportError, parse_roster_file
+from services.profile_photos import save_profile_photo
 
 router = APIRouter(
     prefix="/api/teams/{team_id}/players",
@@ -133,6 +135,19 @@ def download_roster_template(_user=Depends(require_team_manager)):
             "Content-Disposition": 'attachment; filename="plantilla-roster.csv"'
         }
     )
+
+
+@router.put("/{player_id}/photo", status_code=204)
+async def upload_roster_player_photo(
+    team_id: int,
+    player_id: int,
+    file: UploadFile = File(...),
+    _user=Depends(require_team_manager)
+):
+    """Allow a team manager to complete or replace a roster player's photo."""
+    photo = await save_profile_photo(file)
+    if not update_roster_player_photo(team_id, player_id, photo):
+        raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
 
 @router.get("")
 def list_players(team_id: int):
