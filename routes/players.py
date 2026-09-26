@@ -1,21 +1,24 @@
 """HTTP endpoints for player registration and team rosters."""
 
 from psycopg.errors import UniqueViolation
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from models import PlayerCreate
 from repositories.teams import get_team_by_id
 from repositories.players import (
     create_player,
+    import_players,
     get_players_by_team,
     PlayerAlreadyRegisteredInDivision
 )
 from dependencies.auth import require_team_manager
+from services.roster_import import RosterImportError, parse_roster_file
 
 router = APIRouter(
     prefix="/api/teams/{team_id}/players",
     tags=["players"]
 )
+MAX_ROSTER_IMPORT_BYTES = 5 * 1024 * 1024
 
 @router.post("", status_code=201)
 def register_player(
@@ -65,6 +68,55 @@ def register_player(
                 detail="Este jugador ya esta registrado en este equipo"
             )
         raise
+
+
+@router.post("/import", status_code=201)
+async def import_team_roster(
+    team_id: int,
+    file: UploadFile = File(...),
+    _user=Depends(require_team_manager)
+):
+    """Import several roster players from a CSV or XLSX file."""
+    team = get_team_by_id(team_id)
+
+    if team is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
+    if not file.filename:
+        raise HTTPException(status_code=415, detail="Se requiere un archivo .csv o .xlsx")
+
+    content = await file.read(MAX_ROSTER_IMPORT_BYTES + 1)
+    if len(content) > MAX_ROSTER_IMPORT_BYTES:
+        raise HTTPException(status_code=413, detail="El archivo excede 5 MB")
+
+    try:
+        players = parse_roster_file(file.filename, content)
+        imported = import_players(team, players)
+    except RosterImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except PlayerAlreadyRegisteredInDivision:
+        raise HTTPException(
+            status_code=409,
+            detail="Uno de los jugadores ya esta registrado en esta rama y categoria"
+        )
+    except UniqueViolation as error:
+        constraint = error.diag.constraint_name
+        if constraint == "team_players_team_id_jersey_number_key":
+            raise HTTPException(
+                status_code=409,
+                detail="Uno de los numeros ya esta registrado en este equipo"
+            )
+        if constraint == "team_players_team_id_player_id_key":
+            raise HTTPException(
+                status_code=409,
+                detail="Uno de los jugadores ya esta registrado en este equipo"
+            )
+        raise
+
+    return {"imported": len(imported), "rows": imported}
 
 @router.get("")
 def list_players(team_id: int):

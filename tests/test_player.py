@@ -1,7 +1,9 @@
 import os
+from io import BytesIO
 
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import Workbook
 from repositories import players
 
 os.environ.setdefault(
@@ -384,4 +386,72 @@ def test_reused_curp_creates_one_player_with_multiple_memberships():
 
     assert player_count == 1
     assert membership_count == 2
+
+
+def test_import_roster_from_csv():
+    team_id = create_test_team()
+    content = (
+        "nombre,curp,edad,numero\n"
+        "Bruno Diaz,DIBB961215HASXXX00,29,83\n"
+        "Selina Kyle,KYLS970101MASXXX01,27,12\n"
+    ).encode("utf-8")
+
+    response = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", content, "text/csv")}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["imported"] == 2
+
+    roster = client.get(f"/api/teams/{team_id}/players").json()
+    assert [player["name"] for player in roster] == ["Selina Kyle", "Bruno Diaz"]
+    assert [player["jersey_number"] for player in roster] == [12, 83]
+
+
+def test_import_roster_from_xlsx():
+    team_id = create_test_team()
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Nombre", "CURP", "Edad", "Numero"])
+    sheet.append(["Diana Prince", "PRID950101MASXXX01", 28, 8])
+    content = BytesIO()
+    workbook.save(content)
+    workbook.close()
+    content.seek(0)
+
+    response = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={
+            "file": (
+                "roster.xlsx",
+                content.getvalue(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        }
+    )
+
+    assert response.status_code == 201
+    assert response.json()["imported"] == 1
+
+    roster = client.get(f"/api/teams/{team_id}/players").json()
+    assert roster[0]["name"] == "Diana Prince"
+    assert roster[0]["jersey_number"] == 8
+
+
+def test_invalid_roster_import_rolls_back_all_rows():
+    team_id = create_test_team()
+    content = (
+        "nombre,curp,edad,numero\n"
+        "Bruce Wayne,WAYB950101HASXXX01,31,1\n"
+        "Clark Kent,KENC950101HASXXX02,32,1\n"
+    ).encode("utf-8")
+
+    response = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", content, "text/csv")}
+    )
+
+    assert response.status_code == 409
+    assert client.get(f"/api/teams/{team_id}/players").json() == []
 """API tests for player identity, eligibility, and roster membership."""

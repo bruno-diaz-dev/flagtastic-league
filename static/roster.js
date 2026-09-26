@@ -7,6 +7,8 @@ const rosterSubtitle = document.querySelector("#roster-subtitle");
 const rosterContainer = document.querySelector("#roster");
 const playerForm = document.querySelector("#player-form");
 const playerFormMessage = document.querySelector("#player-form-message");
+const rosterImportForm = document.querySelector("#roster-import-form");
+const rosterImportMessage = document.querySelector("#roster-import-message");
 
 
 function initials(name) {
@@ -82,6 +84,21 @@ playerForm.addEventListener("submit", async (event) => {
     }
     playerForm.reset();
     playerFormMessage.textContent = "Jugador registrado correctamente.";
+    await loadRoster();
+});
+
+
+rosterImportForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const fields = new FormData(rosterImportForm);
+    const response = await importRoster(teamId, fields.get("file"));
+    const data = await response.json();
+    if (!response.ok) {
+        rosterImportMessage.textContent = data.detail || "No se pudo importar el roster.";
+        return;
+    }
+    rosterImportForm.reset();
+    rosterImportMessage.textContent = `${data.imported} jugadores importados correctamente.`;
     await loadRoster();
 });
 
