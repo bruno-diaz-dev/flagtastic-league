@@ -1,4 +1,5 @@
 import os
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,8 @@ os.environ.setdefault(
 
 from database import get_connection
 from main import app
+from models import UserCreate
+from repositories.users import create_user
 
 client = TestClient(app)
 
@@ -73,6 +76,67 @@ def test_team_staff_is_created_and_can_be_updated():
     assert updated.json()["head_coach"] == "Ana Nueva"
     assert updated.json()["coach"] is None
     assert client.get(f"/api/teams/{team_id}").json()["manager"] == "Marina Manager"
+
+
+@pytest.mark.parametrize("status", ["pending", "active", "inactive"])
+def test_league_admin_can_update_team_status(status):
+    team_id = create_test_team(name=f"Status {status}")
+    response = client.patch(
+        f"/api/teams/{team_id}/status",
+        json={"status": status.upper()}
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == status
+    assert client.get(f"/api/teams/{team_id}").json()["status"] == status
+
+
+def test_team_status_rejects_unknown_value():
+    team_id = create_test_team(name="Invalid Status")
+    response = client.patch(
+        f"/api/teams/{team_id}/status",
+        json={"status": "approved"}
+    )
+    assert response.status_code == 422
+
+
+def test_admin_can_assign_existing_representative_to_historical_team():
+    representative = create_user(UserCreate(
+        email=f"historical-{uuid4().hex}@example.com",
+        name="Historical Representative",
+        password="supersecret",
+        role="team_representative"
+    ))
+    team_id = create_test_team(name="Historical Team")
+
+    endpoint = f"/api/teams/{team_id}/representatives/{representative['id']}"
+    assert client.put(endpoint).status_code == 204
+    assert client.put(endpoint).status_code == 204
+
+    connection = get_connection()
+    assignments = connection.execute(
+        """
+        SELECT COUNT(*) AS total FROM team_representatives
+        WHERE user_id = %s AND team_id = %s
+        """,
+        (representative["id"], team_id)
+    ).fetchone()
+    connection.close()
+    assert assignments["total"] == 1
+
+
+def test_historical_team_assignment_requires_representative_role():
+    player = create_user(UserCreate(
+        email=f"player-{uuid4().hex}@example.com",
+        name="Player Only",
+        password="supersecret",
+        role="player"
+    ))
+    team_id = create_test_team(name="Unassigned Historical Team")
+
+    response = client.put(
+        f"/api/teams/{team_id}/representatives/{player['id']}"
+    )
+    assert response.status_code == 404
 
 
 def test_list_teams():

@@ -23,6 +23,9 @@ Teams can be registered with:
 The authenticated creator is linked to the new team through
 `team_representatives`, including creators who also carry administrator or
 player roles. Assigned representatives can later maintain the logo and staff.
+League administrators can explicitly link an existing representative account
+to a historical team whose creator was not recorded before automatic linking
+was introduced.
 
 Available endpoints:
 
@@ -30,6 +33,8 @@ Available endpoints:
 POST /api/teams
 GET /api/teams
 PATCH /api/teams/{team_id}/staff
+PATCH /api/teams/{team_id}/status
+PUT /api/teams/{team_id}/representatives/{user_id}
 ```
 
 Example team:

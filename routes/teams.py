@@ -4,15 +4,17 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from psycopg.errors import UniqueViolation
 
 from repositories.players import get_players_by_team
-from models import TeamCreate, TeamStaffUpdate
+from models import TeamCreate, TeamStaffUpdate, TeamStatusUpdate
 from repositories.teams import (
+    assign_team_representative,
     create_team,
     delete_team,
     get_all_teams,
     get_team_by_id,
     get_team_logo,
     update_team_logo,
-    update_team_staff
+    update_team_staff,
+    update_team_status
 )
 from dependencies.auth import (
     require_league_admin,
@@ -101,6 +103,33 @@ def edit_team_staff(
     if updated is None:
         raise HTTPException(status_code=404, detail="Team not found")
     return updated
+
+
+@router.patch("/{team_id}/status")
+def edit_team_status(
+    team_id: int,
+    payload: TeamStatusUpdate,
+    _user=Depends(require_league_admin)
+):
+    """Allow league administrators to approve or deactivate a team."""
+    updated = update_team_status(team_id, payload.status)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return updated
+
+
+@router.put("/{team_id}/representatives/{user_id}", status_code=204)
+def link_team_representative(
+    team_id: int,
+    user_id: int,
+    _user=Depends(require_league_admin)
+):
+    """Repair or extend ownership for teams created before auto-linking."""
+    if not assign_team_representative(team_id, user_id):
+        raise HTTPException(
+            status_code=404,
+            detail="Team or representative not found"
+        )
 
 
 @router.get("/{team_id}/logo")
