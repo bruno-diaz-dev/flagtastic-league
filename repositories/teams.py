@@ -169,6 +169,30 @@ def update_team_staff(team_id, staff):
         connection.close()
 
 
+def update_team_status(team_id, status):
+    """Persist a league administrator's team lifecycle decision."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            UPDATE teams SET status = %s
+            WHERE id = %s
+            RETURNING id, name, branch, category, status,
+                      head_coach, coach, manager,
+                      logo_data IS NOT NULL AS has_logo,
+                      md5(logo_data) AS logo_version
+            """,
+            (status, team_id)
+        ).fetchone()
+        connection.commit()
+        return _public_team(row) if row is not None else None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_team_logo(team_id):
     """Return stored logo bytes and media type without exposing other fields."""
     connection = get_connection()
@@ -208,3 +232,37 @@ def get_represented_team_ids(user_id):
     ).fetchall()
     connection.close()
     return [row["team_id"] for row in rows]
+
+
+def assign_team_representative(team_id, user_id):
+    """Assign an existing representative account to an existing team."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            INSERT INTO team_representatives (user_id, team_id)
+            SELECT user_roles.user_id, teams.id
+            FROM user_roles
+            CROSS JOIN teams
+            WHERE user_roles.user_id = %s
+              AND user_roles.role = 'team_representative'
+              AND teams.id = %s
+            ON CONFLICT (user_id, team_id) DO NOTHING
+            RETURNING user_id, team_id
+            """,
+            (user_id, team_id)
+        ).fetchone()
+        already_assigned = connection.execute(
+            """
+            SELECT 1 FROM team_representatives
+            WHERE user_id = %s AND team_id = %s
+            """,
+            (user_id, team_id)
+        ).fetchone()
+        connection.commit()
+        return row is not None or already_assigned is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()

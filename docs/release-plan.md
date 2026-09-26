@@ -267,6 +267,11 @@ independently so operational access never hides the player dashboard.
 
 Implemented status: stages 1-5 are active. Administrative actions are hidden for public visitors and enforced again by backend dependencies.
 
+Team operations now include an administrator-controlled lifecycle
+(`pending`, `active`, `inactive`) and explicit representative assignment for
+historical teams. New team creation continues to link its authenticated
+creator atomically.
+
 ## Sprint 1: Multipage Architecture
 
 Target dates: September 14-16, 2026

@@ -131,6 +131,16 @@ def test_team_roster_has_a_dedicated_page():
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
 
 
+def test_team_directory_exposes_admin_status_controls():
+    script = client.get("/static/teams.js")
+    assert script.status_code == 200
+    assert "data-update-team-status" in script.text
+    assert "updateTeamStatus" in script.text
+    assert 'active: "Activo"' in script.text
+    assert "data-assign-team-representative" in script.text
+    assert "assignTeamRepresentative" in script.text
+
+
 def test_user_administration_page_is_available():
     response = client.get("/admin/users")
 

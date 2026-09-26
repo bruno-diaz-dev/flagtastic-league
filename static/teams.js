@@ -8,6 +8,13 @@ const teamFilterBranch = document.querySelector("#team-filter-branch");
 const teamFilterCategory = document.querySelector("#team-filter-category");
 
 let teamsState = [];
+let representativesState = [];
+
+const teamStatusLabels = {
+    pending: "Pendiente",
+    active: "Activo",
+    inactive: "Inactivo"
+};
 
 function renderEmptyTeamsState() {
     teamsContainer.innerHTML = `
@@ -35,14 +42,33 @@ function renderTeams(teams) {
                         <h3>${escapeHtml(team.name)}</h3>
                         <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p>
                     </div>
-                    <span class="team-status">${escapeHtml(team.status)}</span>
+                    <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
                 </button>
-                <button
-                    class="team-delete-button admin-only"
-                    type="button"
-                    data-delete-team-id="${team.id}"
-                    data-team-name="${escapeHtml(team.name)}"
-                >Eliminar</button>
+                <div class="team-admin-actions admin-only">
+                    <label>
+                        Estado
+                        <select data-team-status-id="${team.id}" aria-label="Estado de ${escapeHtml(team.name)}">
+                            <option value="pending" ${team.status === "pending" ? "selected" : ""}>Pendiente</option>
+                            <option value="active" ${team.status === "active" ? "selected" : ""}>Activo</option>
+                            <option value="inactive" ${team.status === "inactive" ? "selected" : ""}>Inactivo</option>
+                        </select>
+                    </label>
+                    <button class="team-status-button" type="button" data-update-team-status="${team.id}">Actualizar</button>
+                    <label>
+                        Vincular representante
+                        <select data-team-representative-id="${team.id}" aria-label="Representante de ${escapeHtml(team.name)}">
+                            <option value="">Selecciona una persona</option>
+                            ${representativesState.map((user) => `<option value="${user.id}">${escapeHtml(user.display_name || user.name)}</option>`).join("")}
+                        </select>
+                    </label>
+                    <button class="team-status-button" type="button" data-assign-team-representative="${team.id}">Vincular</button>
+                    <button
+                        class="team-delete-button"
+                        type="button"
+                        data-delete-team-id="${team.id}"
+                        data-team-name="${escapeHtml(team.name)}"
+                    >Eliminar</button>
+                </div>
             </article>
         `)
         .join("");
@@ -152,6 +178,50 @@ async function registerTeam(event) {
 }
 
 teamsContainer.addEventListener("click", async (event) => {
+    const representativeButton = event.target.closest(
+        "[data-assign-team-representative]"
+    );
+
+    if (representativeButton !== null) {
+        const teamId = representativeButton.dataset.assignTeamRepresentative;
+        const representativeSelect = teamsContainer.querySelector(
+            `[data-team-representative-id="${teamId}"]`
+        );
+        if (!representativeSelect.value) {
+            formMessage.textContent = "Selecciona un representante.";
+            return;
+        }
+        representativeButton.disabled = true;
+        const response = await assignTeamRepresentative(
+            teamId,
+            representativeSelect.value
+        );
+        representativeButton.disabled = false;
+        formMessage.textContent = response.ok
+            ? "Representante vinculado correctamente."
+            : "No se pudo vincular al representante.";
+        return;
+    }
+
+    const statusButton = event.target.closest("[data-update-team-status]");
+
+    if (statusButton !== null) {
+        const teamId = statusButton.dataset.updateTeamStatus;
+        const statusSelect = teamsContainer.querySelector(
+            `[data-team-status-id="${teamId}"]`
+        );
+        statusButton.disabled = true;
+        const response = await updateTeamStatus(teamId, statusSelect.value);
+        statusButton.disabled = false;
+        if (!response.ok) {
+            formMessage.textContent = "No se pudo actualizar el estado del equipo.";
+            return;
+        }
+        formMessage.textContent = "Estado del equipo actualizado.";
+        await loadTeams();
+        return;
+    }
+
     const deleteButton = event.target.closest("[data-delete-team-id]");
 
     if (deleteButton !== null) {
@@ -187,4 +257,15 @@ teamFilterBranch.addEventListener("change", renderFilteredTeams);
 teamFilterCategory.addEventListener("change", renderFilteredTeams);
 teamForm.addEventListener("submit", registerTeam);
 
-loadTeams();
+async function initializeTeams() {
+    const usersResponse = await getAdminUsers();
+    if (usersResponse.ok) {
+        const users = await usersResponse.json();
+        representativesState = users.filter((user) =>
+            (user.roles || [user.role]).includes("team_representative")
+        );
+    }
+    await loadTeams();
+}
+
+initializeTeams();

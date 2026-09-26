@@ -102,6 +102,20 @@ async function deleteTeam(teamId) {
     return fetch(`/api/teams/${teamId}`, {method: "DELETE"});
 }
 
+async function updateTeamStatus(teamId, status) {
+    return fetch(`/api/teams/${teamId}/status`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({status})
+    });
+}
+
+async function assignTeamRepresentative(teamId, userId) {
+    return fetch(`/api/teams/${teamId}/representatives/${userId}`, {
+        method: "PUT"
+    });
+}
+
 async function login(payload) {
     return fetch("/api/auth/login", {
         method: "POST",

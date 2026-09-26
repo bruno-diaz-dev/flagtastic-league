@@ -251,6 +251,8 @@ This separation allows the same person to play for multiple teams when league el
 
 - Every team has `name`, `branch`, `category`, and `status`.
 - New teams are created with `status = "pending"`.
+- League administrators transition teams among `pending`, `active`, and
+  `inactive`; the status is operational state, not free-form display text.
 
 ### Players
 
@@ -298,6 +300,8 @@ Rules that need league context, such as preventing a player from registering twi
 | `GET` | `/api/teams` | Lists teams |
 | `PUT` | `/api/teams/{team_id}/logo` | Replaces a team logo; administrators or its assigned representatives only |
 | `PATCH` | `/api/teams/{team_id}/staff` | Replaces public Head Coach, Coach, and Manager fields; team managers only |
+| `PATCH` | `/api/teams/{team_id}/status` | Changes pending, active, or inactive state; league administrators only |
+| `PUT` | `/api/teams/{team_id}/representatives/{user_id}` | Links an existing representative account to a historical team; league administrators only |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
 | `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
@@ -479,6 +483,9 @@ Representatives may create teams. The creator is inserted into
 `team_representatives` in the same transaction, giving that user management
 rights only over the new team. Assignment uses the authenticated user id, not
 the legacy primary-role string, so cumulative-role users are linked correctly.
+Teams created before this behavior do not contain reliable creator history.
+An administrator must therefore select the correct representative explicitly;
+the application never guesses ownership from roster names or account data.
 Players join rosters directly in V1 while the
 existing one-team-per-division and unique-jersey constraints remain active.
 

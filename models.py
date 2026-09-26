@@ -28,6 +28,8 @@ ALLOWED_USER_ROLES = {
     "referee"
 }
 
+ALLOWED_TEAM_STATUSES = {"pending", "active", "inactive"}
+
 OFFICIAL_POSITIONS = {
     "referee",
     "down_judge",
@@ -92,6 +94,20 @@ class TeamStaffUpdate(BaseModel):
     def normalize_staff_name(cls, value):
         normalized = value.strip() if value is not None else ""
         return normalized or None
+
+
+class TeamStatusUpdate(BaseModel):
+    """Validate a league-controlled team lifecycle transition."""
+
+    status: str = Field(min_length=1)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, status):
+        normalized = status.strip().lower()
+        if normalized not in ALLOWED_TEAM_STATUSES:
+            raise ValueError("Invalid team status")
+        return normalized
 
 
 class PlayerCreate(BaseModel):

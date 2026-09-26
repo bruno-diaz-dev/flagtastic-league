@@ -352,3 +352,76 @@ def test_only_league_admin_can_delete_team():
     assert login(admin_email, "supersecret").status_code == 200
     assert client.delete(f"/api/teams/{team['id']}").status_code == 204
     assert client.get(f"/api/teams/{team['id']}").status_code == 404
+
+
+def test_only_league_admin_can_change_team_status():
+    disable_test_authorization_override()
+    team_name, representative_email = unique_identity("status-team")
+    representative = create_user(UserCreate(
+        email=representative_email, name="Representative",
+        password="supersecret", role="team_representative"
+    ))
+    connection = get_connection()
+    team = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category)
+        VALUES (%s, 'varonil', 'u18') RETURNING id
+        """,
+        (team_name,)
+    ).fetchone()
+    connection.execute(
+        "INSERT INTO team_representatives (user_id, team_id) VALUES (%s, %s)",
+        (representative["id"], team["id"])
+    )
+    connection.commit()
+    connection.close()
+
+    assert login(representative_email, "supersecret").status_code == 200
+    assert client.patch(
+        f"/api/teams/{team['id']}/status", json={"status": "active"}
+    ).status_code == 403
+
+    client.cookies.clear()
+    _, admin_email = unique_identity("status-admin")
+    create_user(UserCreate(
+        email=admin_email, name="Admin", password="supersecret",
+        role="league_admin"
+    ))
+    assert login(admin_email, "supersecret").status_code == 200
+    approved = client.patch(
+        f"/api/teams/{team['id']}/status", json={"status": "active"}
+    )
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "active"
+
+
+def test_only_league_admin_can_assign_historical_team_representative():
+    disable_test_authorization_override()
+    team_name, representative_email = unique_identity("historical-owner")
+    representative = create_user(UserCreate(
+        email=representative_email, name="Representative",
+        password="supersecret", role="team_representative"
+    ))
+    connection = get_connection()
+    team = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category)
+        VALUES (%s, 'femenil', 'libre') RETURNING id
+        """,
+        (team_name,)
+    ).fetchone()
+    connection.commit()
+    connection.close()
+
+    assert login(representative_email, "supersecret").status_code == 200
+    endpoint = f"/api/teams/{team['id']}/representatives/{representative['id']}"
+    assert client.put(endpoint).status_code == 403
+
+    client.cookies.clear()
+    _, admin_email = unique_identity("historical-owner-admin")
+    create_user(UserCreate(
+        email=admin_email, name="Admin", password="supersecret",
+        role="league_admin"
+    ))
+    assert login(admin_email, "supersecret").status_code == 200
+    assert client.put(endpoint).status_code == 204
