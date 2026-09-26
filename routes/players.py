@@ -1,7 +1,7 @@
 """HTTP endpoints for player registration and team rosters."""
 
 from psycopg.errors import UniqueViolation
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
 from models import PlayerCreate
 from repositories.teams import get_team_by_id
@@ -19,6 +19,10 @@ router = APIRouter(
     tags=["players"]
 )
 MAX_ROSTER_IMPORT_BYTES = 5 * 1024 * 1024
+ROSTER_CSV_TEMPLATE = (
+    "nombre,curp,edad,numero\n"
+    "Nombre Completo,ABCD000101HASXXX00,25,10\n"
+)
 
 @router.post("", status_code=201)
 def register_player(
@@ -117,6 +121,18 @@ async def import_team_roster(
         raise
 
     return {"imported": len(imported), "rows": imported}
+
+
+@router.get("/import/template.csv")
+def download_roster_template(_user=Depends(require_team_manager)):
+    """Provide the canonical columns accepted by CSV and XLSX imports."""
+    return Response(
+        content="\ufeff" + ROSTER_CSV_TEMPLATE,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="plantilla-roster.csv"'
+        }
+    )
 
 @router.get("")
 def list_players(team_id: int):

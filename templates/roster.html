@@ -25,9 +25,13 @@
         <form id="roster-import-form" class="stats-import-form">
             <label>Importar roster (.csv o .xlsx)
                 <input name="file" type="file" accept=".csv,.xlsx" required>
+                <small>Columnas requeridas: nombre, CURP, edad y número.</small>
             </label>
             <button type="submit">Importar roster</button>
         </form>
+        <a class="secondary-link" href="/api/teams/{{ team_id }}/players/import/template.csv">
+            Descargar plantilla CSV
+        </a>
         <p id="roster-import-message" class="form-message" role="status"></p>
     </section>
 

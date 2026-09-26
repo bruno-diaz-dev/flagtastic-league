@@ -452,6 +452,36 @@ def test_invalid_roster_import_rolls_back_all_rows():
         files={"file": ("roster.csv", content, "text/csv")}
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 422
+    assert "fila 3" in response.json()["detail"].lower()
     assert client.get(f"/api/teams/{team_id}/players").json() == []
+
+
+def test_roster_csv_template_uses_canonical_headers():
+    team_id = create_test_team()
+    response = client.get(
+        f"/api/teams/{team_id}/players/import/template.csv"
+    )
+
+    assert response.status_code == 200
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.content.decode("utf-8-sig").startswith(
+        "nombre,curp,edad,numero"
+    )
+
+
+def test_import_roster_accepts_semicolon_csv_from_excel():
+    team_id = create_test_team()
+    content = (
+        "nombre;curp;edad;numero\n"
+        "Barry Allen;ALLB950101HASXXX01;30;7\n"
+    ).encode("utf-8")
+
+    response = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", content, "text/csv")}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["imported"] == 1
 """API tests for player identity, eligibility, and roster membership."""

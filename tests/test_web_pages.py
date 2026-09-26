@@ -30,7 +30,8 @@ def test_navigation_starts_collapsed_and_remembers_the_user_choice():
     assert "savedSidebarState === null ? true" in layout.text
     assert "body.sidebar-collapsed .navigation" in styles.text
     assert "body.sidebar-collapsed .brand-logo" in styles.text
-    assert ".hidden {\n    display: none !important;" in styles.text
+    normalized_styles = styles.text.replace("\r\n", "\n")
+    assert ".hidden {\n    display: none !important;" in normalized_styles
 
 
 def test_login_page_renders_protected_password_form():

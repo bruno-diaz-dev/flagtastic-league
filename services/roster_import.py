@@ -1,6 +1,6 @@
 """Parse roster imports from CSV and XLSX uploads."""
 
-from csv import DictReader
+from csv import DictReader, Sniffer
 from io import BytesIO, StringIO
 import unicodedata
 
@@ -27,6 +27,7 @@ HEADER_ALIASES = {
         "jersey_number",
     },
 }
+MAX_ROSTER_ROWS = 100
 
 
 def parse_roster_file(filename, content):
@@ -48,7 +49,12 @@ def _read_csv(content):
     except UnicodeDecodeError as error:
         raise RosterImportError("El CSV debe estar codificado en UTF-8") from error
 
-    reader = DictReader(StringIO(text))
+    try:
+        dialect = Sniffer().sniff(text[:4096], delimiters=",;")
+    except Exception:
+        dialect = "excel"
+
+    reader = DictReader(StringIO(text), dialect=dialect)
     if reader.fieldnames is None:
         raise RosterImportError("El archivo no contiene encabezados")
 
@@ -119,6 +125,8 @@ def _map_headers(headers):
 
 def _validate_rows(rows):
     players = []
+    seen_curps = {}
+    seen_numbers = {}
     for row in rows:
         values = {
             key: _cell_to_text(value)
@@ -127,11 +135,31 @@ def _validate_rows(rows):
         if not any(values.values()):
             continue
         try:
-            players.append(PlayerCreate.model_validate(values))
+            player = PlayerCreate.model_validate(values)
         except ValidationError as error:
             raise RosterImportError(
                 f"Fila {row['row_number']}: revisa nombre, CURP, edad y numero"
             ) from error
+
+        if player.curp in seen_curps:
+            raise RosterImportError(
+                f"Fila {row['row_number']}: la CURP ya aparece en la fila "
+                f"{seen_curps[player.curp]}"
+            )
+        if player.jersey_number in seen_numbers:
+            raise RosterImportError(
+                f"Fila {row['row_number']}: el numero {player.jersey_number} "
+                f"ya aparece en la fila {seen_numbers[player.jersey_number]}"
+            )
+
+        seen_curps[player.curp] = row["row_number"]
+        seen_numbers[player.jersey_number] = row["row_number"]
+        players.append(player)
+
+        if len(players) > MAX_ROSTER_ROWS:
+            raise RosterImportError(
+                f"El archivo no puede contener mas de {MAX_ROSTER_ROWS} jugadores"
+            )
 
     if not players:
         raise RosterImportError("El archivo no contiene jugadores")
