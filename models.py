@@ -70,6 +70,12 @@ class PlayerCreate(BaseModel):
     age: int = Field(gt=0)
     jersey_number: int = Field(ge=0)
 
+    @field_validator("curp")
+    @classmethod
+    def normalize_curp(cls, curp):
+        """Keep representative-created identities claimable at registration."""
+        return curp.strip().upper()
+
 class GameCreate(BaseModel):
     """Validate the two participants of a new game."""
     home_team_id: int = Field(gt=0)

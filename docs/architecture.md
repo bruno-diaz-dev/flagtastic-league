@@ -574,6 +574,29 @@ so the browser cannot reveal a hidden section that was never authorized.
 
 ## Player Profile Media
 
+### Claiming a roster identity
+
+A representative may add a player to a roster before that player has login
+credentials. The later self-registration searches the global player identity
+by normalized CURP and requires the submitted legal name and age to match. A
+successful claim links the new user to the existing `players.id`; it does not
+create another player or another `team_players` membership. The existing team
+and jersey number are therefore preserved, while the submitted AKA and profile
+photo enrich the same public roster record and become available in the player
+dashboard. A mismatch is rejected instead of silently attaching the account.
+
+### Bulk roster imports
+
+Team managers may import up to 100 players from UTF-8 CSV or XLSX files with
+the canonical columns `nombre`, `curp`, `edad`, and `numero`. CSV imports accept
+comma or semicolon delimiters so files exported by regional Excel settings work
+without manual conversion. Every row is validated through `PlayerCreate`, and
+duplicate CURPs or jersey numbers inside the file report the offending row.
+Database writes share one transaction; identity, division, or jersey conflicts
+roll back the complete upload instead of leaving a partial roster. Imported
+players remain ordinary global identities and can later claim their account
+through the CURP-backed registration flow described above.
+
 `players.aka` stores an optional public nickname and
 `players.profile_photo_path` stores a generated public filename, while
 `profile_photo_data` and `profile_photo_type` store the validated image in

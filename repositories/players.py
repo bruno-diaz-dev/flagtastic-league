@@ -101,6 +101,78 @@ def create_player(team, player):
     finally:
         connection.close()
 
+
+def import_players(team, players):
+    """Atomically create or reuse players and add them to one team roster."""
+    connection = get_connection()
+    imported = []
+
+    try:
+        for player in players:
+            existing_player = connection.execute(
+                """
+                SELECT id, name, age
+                FROM players
+                WHERE curp = %s
+                """,
+                (player.curp,)
+            ).fetchone()
+
+            if existing_player is None:
+                existing_player = connection.execute(
+                    """
+                    INSERT INTO players (name, curp, age)
+                    VALUES (%s, %s, %s)
+                    RETURNING id, name, age
+                    """,
+                    (player.name, player.curp, player.age)
+                ).fetchone()
+
+            player_id = existing_player["id"]
+
+            division_conflict = connection.execute(
+                """
+                SELECT teams.id, teams.name
+                FROM team_players
+                JOIN teams ON teams.id = team_players.team_id
+                WHERE team_players.player_id = %s
+                    AND teams.branch = %s
+                    AND teams.category = %s
+                LIMIT 1
+                """,
+                (player_id, team["branch"], team["category"])
+            ).fetchone()
+
+            if division_conflict is not None:
+                raise PlayerAlreadyRegisteredInDivision()
+
+            connection.execute(
+                """
+                INSERT INTO team_players (team_id, player_id, jersey_number)
+                VALUES (%s, %s, %s)
+                """,
+                (team["id"], player_id, player.jersey_number)
+            )
+
+            imported.append({
+                "id": player_id,
+                "team_id": team["id"],
+                "name": existing_player["name"],
+                "age": existing_player["age"],
+                "jersey_number": player.jersey_number
+            })
+
+        connection.commit()
+        return imported
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
 def get_players_by_team(team_id):
     """Return a team's public roster ordered by jersey number."""
     connection = get_connection()

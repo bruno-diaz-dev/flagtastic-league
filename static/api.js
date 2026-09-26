@@ -76,6 +76,15 @@ async function createPlayer(teamId, payload) {
     return response
 }
 
+async function importRoster(teamId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`/api/teams/${teamId}/players/import`, {
+        method: "POST",
+        body: formData
+    });
+}
+
 async function uploadTeamLogo(teamId, file) {
     const formData = new FormData();
     formData.append("file", file);
