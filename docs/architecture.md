@@ -351,6 +351,12 @@ The frontend foundation lives in:
 
 It is currently a lightweight server-rendered HTML, CSS, and JavaScript layer. Shared layout concerns live in `base.html` and `layout.js`. Page-specific behavior lives in the JavaScript file for that page. The teams page is only a directory: selecting a team navigates to its dedicated roster route, keeping directory filtering and roster management as separate responsibilities. The backend remains API-first, so the frontend can evolve without coupling directly to persistence.
 
+### Responsive layout
+
+The shared shell is mobile-first below `820px`. In that range the sidebar becomes a modal drawer over the page instead of consuming document width. The league logo remains visible in the collapsed header, while the backdrop, Escape key, and navigation links close the expanded drawer. Operational forms and resource grids collapse to one column, controls keep a minimum touch target of `44px`, and dense tables scroll inside their own containers with a sticky first column. This keeps the document itself at viewport width and prevents page-level horizontal scrolling.
+
+Responsive behavior belongs in `static/style.css` and `static/layout.js`; page scripts should not calculate viewport dimensions or duplicate drawer state. Any new table must use an existing scroll wrapper such as `.standings-table`, `.users-table-wrapper`, or `.table-scroll`.
+
 ## Testing
 
 The test suite uses `pytest` and `fastapi.testclient.TestClient`.

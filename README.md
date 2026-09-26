@@ -235,6 +235,8 @@ The project includes a lightweight server-rendered frontend using:
 
 The frontend is split into page templates. Shared layout lives in `templates/base.html`, while each page loads only the JavaScript it needs.
 
+On screens up to `820px`, the sidebar becomes an accessible overlay drawer and all forms and card grids use a single-column layout. Wide data tables remain readable through contained horizontal scrolling instead of widening the whole page. Mobile changes should be checked at `360px`, `390px`, and `430px` before release.
+
 ---
 
 # 📁 Project Structure
