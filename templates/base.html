@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flagtastic League</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260925-8">
+    <link rel="stylesheet" href="/static/style.css?v=20260926-1">
 </head>
 <body class="sidebar-collapsed">
     <div class="layout">
@@ -85,7 +85,15 @@
         </main>
     </div>
 
-    <script src="/static/layout.js?v=20260925-6"></script>
+    <button
+        id="sidebar-backdrop"
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Cerrar menu"
+        tabindex="-1"
+    ></button>
+
+    <script src="/static/layout.js?v=20260926-1"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

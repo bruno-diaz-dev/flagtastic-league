@@ -1,7 +1,9 @@
 // Shared sidebar behavior applies consistently across every operations page.
 
 const sidebarToggle = document.querySelector("#sidebar-toggle");
+const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
 const SIDEBAR_STORAGE_KEY = "flagtastic-sidebar-collapsed";
+const MOBILE_BREAKPOINT = 820;
 
 
 function setSidebarCollapsed(isCollapsed, remember = false) {
@@ -17,9 +19,19 @@ function setSidebarCollapsed(isCollapsed, remember = false) {
 }
 
 
+function closeMobileSidebar() {
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        setSidebarCollapsed(true, true);
+    }
+}
+
+
 // The menu is closed by default and keeps the user's explicit choice.
 const savedSidebarState = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-setSidebarCollapsed(savedSidebarState === null ? true : savedSidebarState === "true");
+const startsCollapsed = window.innerWidth <= MOBILE_BREAKPOINT
+    ? true
+    : savedSidebarState === null || savedSidebarState === "true";
+setSidebarCollapsed(startsCollapsed);
 
 if (sidebarToggle !== null) {
     sidebarToggle.addEventListener("click", () => {
@@ -29,6 +41,20 @@ if (sidebarToggle !== null) {
         );
     });
 }
+
+
+// Mobile navigation behaves as a modal drawer and never obscures the selected page.
+sidebarBackdrop?.addEventListener("click", closeMobileSidebar);
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeMobileSidebar();
+});
+document.querySelectorAll(".navigation .nav-link").forEach((link) => {
+    link.addEventListener("click", closeMobileSidebar);
+});
+
+window.addEventListener("resize", () => {
+    if (window.innerWidth <= MOBILE_BREAKPOINT) closeMobileSidebar();
+});
 
 const sessionUser = document.querySelector("#session-user");
 const loginLink = document.querySelector("#login-link");

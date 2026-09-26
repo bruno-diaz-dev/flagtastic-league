@@ -27,9 +27,15 @@ def test_navigation_starts_collapsed_and_remembers_the_user_choice():
     assert 'aria-expanded="false"' in page.text
     assert "flagtastic-sidebar-collapsed" in layout.text
     assert "localStorage.setItem" in layout.text
-    assert "savedSidebarState === null ? true" in layout.text
+    assert "window.innerWidth <= MOBILE_BREAKPOINT" in layout.text
+    assert "setSidebarCollapsed(true, true)" in layout.text
     assert "body.sidebar-collapsed .navigation" in styles.text
     assert "body.sidebar-collapsed .brand-logo" in styles.text
+    assert 'id="sidebar-backdrop"' in page.text
+    assert "closeMobileSidebar" in layout.text
+    assert 'event.key === "Escape"' in layout.text
+    assert ".sidebar-backdrop" in styles.text
+    assert "position: fixed" in styles.text
     normalized_styles = styles.text.replace("\r\n", "\n")
     assert ".hidden {\n    display: none !important;" in normalized_styles
 
