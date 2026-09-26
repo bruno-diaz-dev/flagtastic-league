@@ -440,6 +440,56 @@ def test_team_manager_can_upload_and_read_team_logo():
     assert second_url != first_url
 
 
+def test_team_manager_can_add_photo_after_player_is_on_roster():
+    team_id = create_test_team(name="Imported Roster Team")
+    player = client.post(
+        f"/api/teams/{team_id}/players",
+        json={
+            "name": "Roster Photo Player",
+            "curp": "ROPP000101HASXXX01",
+            "age": 22,
+            "jersey_number": 19
+        }
+    ).json()
+    png = b"\x89PNG\r\n\x1a\nplayer-photo"
+
+    response = client.put(
+        f"/api/teams/{team_id}/players/{player['id']}/photo",
+        files={"file": ("player.png", png, "image/png")}
+    )
+
+    assert response.status_code == 204
+    roster_player = client.get(f"/api/teams/{team_id}").json()["players"][0]
+    assert roster_player["profile_photo_url"].startswith("/media/profiles/")
+    photo = client.get(roster_player["profile_photo_url"])
+    assert photo.status_code == 200
+    assert photo.headers["content-type"] == "image/png"
+    assert photo.content == png
+
+
+def test_team_manager_cannot_update_photo_outside_team_roster():
+    managed_team_id = create_test_team(name="Managed Photo Team")
+    other_team_id = create_test_team(
+        name="Other Photo Team", branch="femenil", category="u18"
+    )
+    player = client.post(
+        f"/api/teams/{other_team_id}/players",
+        json={
+            "name": "Other Team Player",
+            "curp": "OTPP000101MASXXX01",
+            "age": 21,
+            "jersey_number": 8
+        }
+    ).json()
+
+    response = client.put(
+        f"/api/teams/{managed_team_id}/players/{player['id']}/photo",
+        files={"file": ("player.png", b"\x89PNG\r\n\x1a\nphoto", "image/png")}
+    )
+
+    assert response.status_code == 404
+
+
 def test_team_logo_rejects_unsupported_content():
     team_id = create_test_team(name="Halcones")
     response = client.put(
