@@ -14,6 +14,7 @@ from repositories.statistics import (
     import_statistics_workbook,
     import_week_statistics
 )
+from repositories.dashboard import get_player_dashboard
 from services.statistics_import import (
     StatisticsFileError,
     parse_games_workbook,
@@ -136,6 +137,15 @@ def player_statistics(player_id: int):
     if statistics is None:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     return statistics
+
+
+@router.get("/api/players/{player_id}/profile")
+def public_player_profile(player_id: int):
+    """Return the public season profile without account or CURP data."""
+    profile = get_player_dashboard(player_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado")
+    return profile
 
 
 @router.get("/api/statistics/leaderboards")

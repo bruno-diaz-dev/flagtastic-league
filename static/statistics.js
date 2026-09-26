@@ -27,14 +27,14 @@ function leaderboardIdentity(leader) {
         ? `<small>${escapeHtml(leader.player_name)}</small>`
         : "";
     return `
-        <div class="leaderboard-player">
+        <a class="leaderboard-player player-profile-link" href="/players/${leader.player_id}">
             ${photo}
             <div>
                 <strong>${escapeHtml(displayName)}</strong>
                 ${legalName}
                 <span>#${leader.jersey_number} · ${escapeHtml(leader.team_name)}</span>
             </div>
-        </div>`;
+        </a>`;
 }
 
 

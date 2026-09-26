@@ -35,18 +35,39 @@ async function loadUsers() {
     const users = await response.json();
     usersBody.innerHTML = users.map((user) => `
         <tr data-user-id="${user.id}">
-            <td><strong>${escapeHtml(user.display_name || user.name)}</strong>${user.aka ? `<small>Nombre legal: ${escapeHtml(user.name)}</small>` : ""}</td>
+            <td>${user.player_id
+                ? `<a class="player-profile-link" href="/players/${user.player_id}"><strong>${escapeHtml(user.display_name || user.name)}</strong></a>`
+                : `<strong>${escapeHtml(user.display_name || user.name)}</strong>`
+            }${user.aka ? `<small>Nombre legal: ${escapeHtml(user.name)}</small>` : ""}</td>
             <td>${escapeHtml(user.email)}</td>
             <td><div class="role-choices">${roleChoices(user.roles || [user.role])}</div></td>
             <td>${user.status === "active" ? "Activo" : "Inactivo"}</td>
-            <td><button class="save-role-button" type="button">Guardar</button></td>
+            <td class="user-actions">
+                <button class="save-role-button" type="button">Guardar</button>
+                <button class="delete-user-button" type="button">Eliminar</button>
+            </td>
         </tr>`).join("");
 }
 
 
 usersBody.addEventListener("click", async (event) => {
-    if (!event.target.classList.contains("save-role-button")) return;
     const row = event.target.closest("tr");
+    if (event.target.classList.contains("delete-user-button")) {
+        const name = row.querySelector("strong").textContent;
+        if (!window.confirm(`¿Eliminar la cuenta de ${name}? Su historial deportivo se conservará.`)) return;
+        event.target.disabled = true;
+        const response = await deleteAdminUser(row.dataset.userId);
+        if (response.ok) {
+            usersMessage.textContent = `Cuenta de ${name} eliminada.`;
+            await loadUsers();
+            return;
+        }
+        const body = await response.json();
+        usersMessage.textContent = body.detail || "No se pudo eliminar la cuenta.";
+        event.target.disabled = false;
+        return;
+    }
+    if (!event.target.classList.contains("save-role-button")) return;
     const roles = [...row.querySelectorAll("[name='roles']:checked")]
         .map((input) => input.value);
     if (roles.length === 0) {

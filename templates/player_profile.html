@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="public-player-profile" class="dashboard-page" data-player-id="{{ player_id }}">
+    <button id="public-profile-back" class="back-link link-button" type="button">← Volver</button>
+
+    <header class="section-header">
+        <div class="player-profile-header">
+            <span id="public-player-photo-placeholder" class="profile-photo profile-placeholder" aria-hidden="true"></span>
+            <img id="public-player-photo" class="profile-photo hidden" alt="">
+            <div>
+                <h2 id="public-player-name">Perfil de jugador</h2>
+                <p id="public-player-identity">Cargando temporada...</p>
+            </div>
+        </div>
+    </header>
+
+    <section aria-labelledby="public-player-stats-title">
+        <h3 id="public-player-stats-title">Estadísticas de temporada</h3>
+        <div id="public-player-stats" class="stat-grid" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="public-player-teams-title">
+        <h3 id="public-player-teams-title">Equipos</h3>
+        <div id="public-player-teams" class="dashboard-teams" aria-live="polite"></div>
+    </section>
+
+    <p id="public-player-message" class="form-message" role="status"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260926-2"></script>
+<script src="/static/player_profile.js?v=20260926-1"></script>
+{% endblock %}

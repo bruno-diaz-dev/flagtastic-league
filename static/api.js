@@ -190,6 +190,14 @@ async function updateAdminUserRoles(userId, roles) {
     });
 }
 
+async function deleteAdminUser(userId) {
+    return fetch(`/api/admin/users/${userId}`, {method: "DELETE"});
+}
+
+async function getPublicPlayerProfile(playerId) {
+    return fetch(`/api/players/${playerId}/profile`);
+}
+
 async function getMyRefereeGames() {
     return fetch("/api/games/mine/referee");
 }
