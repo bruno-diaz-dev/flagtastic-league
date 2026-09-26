@@ -36,6 +36,8 @@ def test_navigation_starts_collapsed_and_remembers_the_user_choice():
     assert 'event.key === "Escape"' in layout.text
     assert ".sidebar-backdrop" in styles.text
     assert "position: fixed" in styles.text
+    assert ".content > section" in styles.text
+    assert "max-width: 100%" in styles.text
     normalized_styles = styles.text.replace("\r\n", "\n")
     assert ".hidden {\n    display: none !important;" in normalized_styles
 
