@@ -494,6 +494,10 @@ the application never guesses ownership from roster names or account data.
 The assignment write accepts the legacy primary role as well as the cumulative
 `user_roles` grant so accounts created before the multi-role migration remain
 manageable.
+League administrators perform team-level corrections in the dedicated
+`/teams/{team_id}/manage` change center. The public directory stays focused on
+discovery and roster navigation instead of rendering administrative forms in
+every team card.
 Players join rosters directly in V1 while the
 existing one-team-per-division and unique-jersey constraints remain active.
 
