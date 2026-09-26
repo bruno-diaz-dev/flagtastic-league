@@ -48,6 +48,7 @@ select {
 .layout {
     display: grid;
     grid-template-columns: 260px 1fr;
+    min-width: 0;
     min-height: 100vh;
     transition: grid-template-columns 180ms ease;
 }
@@ -193,6 +194,8 @@ body.sidebar-collapsed .nav-short {
 /* Shared page content and operational forms. */
 .content {
     width: min(1120px, calc(100% - 32px));
+    min-width: 0;
+    max-width: 100%;
     margin: 0 auto;
     padding: 32px 0;
 }
@@ -755,6 +758,9 @@ body.role-league_admin .team-delete-button.admin-only {
 
 /* Dense standings table with horizontal overflow on narrow screens. */
 .standings-table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
 }
 
@@ -995,7 +1001,19 @@ body.role-league_admin .team-delete-button.admin-only {
 
     .content {
         width: 100%;
-        padding: 100px 16px 32px;
+        min-width: 0;
+        padding: 92px 16px 32px;
+    }
+
+    .content > section,
+    .content > section > section,
+    .form-panel,
+    .filters-panel,
+    .teams-grid,
+    .games-list,
+    .leaderboards {
+        min-width: 0;
+        max-width: 100%;
     }
 
     .section-header h2 {
