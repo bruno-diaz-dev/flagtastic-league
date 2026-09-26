@@ -341,3 +341,24 @@ def assign_team_representative(team_id, user_id):
         raise
     finally:
         connection.close()
+
+
+def remove_team_representative(team_id, user_id):
+    """Remove one representative assignment without deleting either record."""
+    connection = get_connection()
+    try:
+        deleted = connection.execute(
+            """
+            DELETE FROM team_representatives
+            WHERE team_id = %s AND user_id = %s
+            RETURNING id
+            """,
+            (team_id, user_id)
+        ).fetchone()
+        connection.commit()
+        return deleted is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()

@@ -113,6 +113,16 @@ def roster_page(request: Request, team_id: int):
     )
 
 
+@app.get("/teams/{team_id}/manage")
+def team_management_page(request: Request, team_id: int):
+    """Render one team's league-administration change center."""
+    return templates.TemplateResponse(
+        request=request,
+        name="team_manage.html",
+        context={"team_id": team_id}
+    )
+
+
 @app.get("/statistics")
 def statistics_page(request: Request):
     """Render the public individual-statistics leaderboards."""

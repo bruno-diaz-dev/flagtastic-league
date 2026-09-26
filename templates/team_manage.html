@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="team-management-page" class="admin-only" data-team-id="{{ team_id }}">
+    <a class="back-link" href="/teams">← Volver a equipos</a>
+
+    <header class="section-header team-management-header">
+        <img id="managed-team-logo" class="team-logo roster-team-logo hidden" alt="">
+        <div>
+            <h2 id="managed-team-title">Administrar equipo</h2>
+            <p id="managed-team-division">Cargando equipo...</p>
+        </div>
+    </header>
+
+    <div class="team-management-grid">
+        <section class="form-panel">
+            <h3>Identidad</h3>
+            <form id="team-name-form" class="management-form">
+                <label>Nombre del equipo<input name="name" maxlength="120" required></label>
+                <button type="submit">Guardar nombre</button>
+            </form>
+            <p id="team-name-message" class="form-message" role="status"></p>
+        </section>
+
+        <section class="form-panel">
+            <h3>Estado</h3>
+            <form id="team-status-form" class="management-form">
+                <label>Estado del equipo
+                    <select name="status" required>
+                        <option value="pending">Pendiente</option>
+                        <option value="active">Activo</option>
+                        <option value="inactive">Inactivo</option>
+                    </select>
+                </label>
+                <button type="submit">Actualizar estado</button>
+            </form>
+            <p id="team-status-message" class="form-message" role="status"></p>
+        </section>
+
+        <section class="form-panel team-representative-management">
+            <h3>Representantes</h3>
+            <div id="assigned-representatives" class="assigned-representatives"></div>
+            <form id="team-representative-form" class="management-form">
+                <label>Vincular representante<select name="user_id" required></select></label>
+                <button type="submit">Vincular</button>
+            </form>
+            <p id="team-representative-message" class="form-message" role="status"></p>
+        </section>
+
+        <section class="form-panel danger-zone">
+            <h3>Eliminar equipo</h3>
+            <p>Esta acción también elimina partidos, roster y estadísticas relacionados.</p>
+            <button id="delete-managed-team" class="team-delete-button" type="button">Eliminar equipo</button>
+            <p id="team-delete-message" class="form-message" role="status"></p>
+        </section>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260926-4"></script>
+<script src="/static/team_manage.js?v=20260926-1"></script>
+{% endblock %}

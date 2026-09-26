@@ -13,6 +13,7 @@ from repositories.teams import (
     get_team_representative_assignments,
     get_team_by_id,
     get_team_logo,
+    remove_team_representative,
     update_team_logo,
     update_team_name,
     update_team_staff,
@@ -160,6 +161,17 @@ def link_team_representative(
             status_code=404,
             detail="Team or representative not found"
         )
+
+
+@router.delete("/{team_id}/representatives/{user_id}", status_code=204)
+def unlink_team_representative(
+    team_id: int,
+    user_id: int,
+    _user=Depends(require_league_admin)
+):
+    """Remove an incorrect representative assignment without deleting data."""
+    if not remove_team_representative(team_id, user_id):
+        raise HTTPException(status_code=404, detail="Assignment not found")
 
 
 @router.get("/{team_id}/logo")

@@ -131,19 +131,29 @@ def test_team_roster_has_a_dedicated_page():
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
 
 
-def test_team_directory_exposes_admin_status_controls():
-    script = client.get("/static/teams.js")
-    assert script.status_code == 200
-    assert "data-update-team-status" in script.text
-    assert "updateTeamStatus" in script.text
-    assert "data-update-team-name" in script.text
-    assert "updateTeamName" in script.text
-    assert 'active: "Activo"' in script.text
-    assert "data-assign-team-representative" in script.text
-    assert "assignTeamRepresentative" in script.text
-    assert "getTeamRepresentativeAssignments" in script.text
-    assert "team-representatives-summary" in script.text
-    assert 'const branchOrder = ["varonil", "femenil", "mixto"]' in script.text
+def test_team_change_center_has_a_dedicated_page():
+    response = client.get("/teams/123/manage")
+    directory_script = client.get("/static/teams.js")
+    management_script = client.get("/static/team_manage.js")
+
+    assert response.status_code == 200
+    assert 'id="team-management-page"' in response.text
+    assert 'data-team-id="123"' in response.text
+    assert 'id="team-name-form"' in response.text
+    assert 'id="team-status-form"' in response.text
+    assert 'id="team-representative-form"' in response.text
+    assert 'id="delete-managed-team"' in response.text
+    assert 'src="/static/team_manage.js' in response.text
+
+    assert 'href="/teams/${team.id}/manage"' in directory_script.text
+    assert "data-update-team-status" not in directory_script.text
+    assert 'const branchOrder = ["varonil", "femenil", "mixto"]' in directory_script.text
+
+    assert management_script.status_code == 200
+    assert "updateTeamStatus" in management_script.text
+    assert "updateTeamName" in management_script.text
+    assert "assignTeamRepresentative" in management_script.text
+    assert "removeTeamRepresentative" in management_script.text
 
 
 def test_user_administration_page_is_available():

@@ -601,6 +601,82 @@ select option {
     white-space: nowrap;
 }
 
+.team-manage-link {
+    align-self: center;
+    border: 1px solid rgba(244, 197, 66, 0.45);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--color-gold);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.role-league_admin .team-manage-link.admin-only {
+    display: inline-flex !important;
+}
+
+.team-management-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.team-management-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.team-management-grid .form-panel {
+    margin-bottom: 0;
+}
+
+.management-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+}
+
+.team-representative-management {
+    grid-column: 1 / -1;
+}
+
+.assigned-representatives {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0 18px;
+}
+
+.assigned-representative {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.assigned-representative button {
+    border: 1px solid rgba(255, 123, 102, 0.5);
+    border-radius: 6px;
+    padding: 7px 10px;
+    background: rgba(143, 39, 39, 0.22);
+    color: #ffb4a8;
+    font: inherit;
+    cursor: pointer;
+}
+
+.empty-inline-state,
+.danger-zone p {
+    color: var(--color-muted);
+}
+
+.danger-zone .team-delete-button {
+    margin-top: 12px;
+}
+
 /* Shared form language: every operational panel uses the Teams controls. */
 .form-panel form {
     gap: 16px;
@@ -657,63 +733,6 @@ select option {
     color: var(--color-muted);
 }
 
-.team-admin-actions {
-    flex: 1 0 100%;
-    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
-    align-items: end;
-    gap: 12px;
-    border-top: 1px solid var(--color-border);
-    padding-top: 14px;
-    width: 100%;
-}
-
-.team-admin-actions label {
-    display: grid;
-    flex: 1;
-    gap: 6px;
-    color: var(--color-muted);
-    font-size: 13px;
-}
-
-.team-representatives-summary,
-.team-action-message {
-    grid-column: 1 / -1;
-    color: var(--color-muted);
-    font-size: 13px;
-}
-
-.team-representatives-summary strong {
-    color: var(--color-text);
-}
-
-.team-action-message:not(:empty) {
-    color: var(--color-gold);
-}
-
-.team-admin-actions input,
-.team-admin-actions select {
-    width: 100%;
-    min-height: 40px;
-    border: 1px solid rgba(184, 195, 217, 0.35);
-    border-radius: 6px;
-    padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--color-text);
-    font: inherit;
-}
-
-.team-status-button {
-    min-width: 132px;
-    min-height: 40px;
-    border: 1px solid rgba(244, 197, 66, 0.45);
-    border-radius: 6px;
-    padding: 8px 14px;
-    background: rgba(244, 197, 66, 0.14);
-    color: var(--color-gold);
-    font: inherit;
-    cursor: pointer;
-}
-
 .hidden {
     display: none !important;
 }
@@ -739,16 +758,6 @@ body.role-team_representative form.team-manager-only {
 /* This action is inline rather than a panel, so it needs its own display mode. */
 body.role-league_admin .team-delete-button.admin-only {
     display: inline-flex !important;
-}
-
-body.role-league_admin .team-admin-actions.admin-only {
-    display: grid !important;
-}
-
-.team-admin-actions .team-delete-button {
-    grid-column: 2;
-    justify-self: stretch;
-    margin-top: 4px;
 }
 
 .roster-panel {
@@ -1379,19 +1388,12 @@ body.role-league_admin .team-admin-actions.admin-only {
         width: 100%;
     }
 
-    body.role-league_admin .team-admin-actions.admin-only {
+    .team-management-grid,
+    .management-form {
         grid-template-columns: 1fr;
-        align-items: stretch;
     }
 
-    .team-admin-actions button {
-        justify-content: center;
-        width: 100%;
-    }
-
-    .team-admin-actions .team-delete-button,
-    .team-action-message,
-    .team-representatives-summary {
+    .team-representative-management {
         grid-column: 1;
     }
 }

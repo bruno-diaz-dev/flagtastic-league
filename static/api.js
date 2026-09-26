@@ -128,6 +128,12 @@ async function getTeamRepresentativeAssignments() {
     return fetch("/api/teams/representative-assignments");
 }
 
+async function removeTeamRepresentative(teamId, userId) {
+    return fetch(`/api/teams/${teamId}/representatives/${userId}`, {
+        method: "DELETE"
+    });
+}
+
 async function login(payload) {
     return fetch("/api/auth/login", {
         method: "POST",
