@@ -659,8 +659,11 @@ select option {
 
 .team-admin-actions {
     flex: 1 0 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
     align-items: end;
-    gap: 10px;
+    gap: 12px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 14px;
     width: 100%;
 }
 
@@ -674,7 +677,7 @@ select option {
 
 .team-representatives-summary,
 .team-action-message {
-    flex: 1 0 100%;
+    grid-column: 1 / -1;
     color: var(--color-muted);
     font-size: 13px;
 }
@@ -700,6 +703,8 @@ select option {
 }
 
 .team-status-button {
+    min-width: 132px;
+    min-height: 40px;
     border: 1px solid rgba(244, 197, 66, 0.45);
     border-radius: 6px;
     padding: 8px 14px;
@@ -737,7 +742,13 @@ body.role-league_admin .team-delete-button.admin-only {
 }
 
 body.role-league_admin .team-admin-actions.admin-only {
-    display: flex !important;
+    display: grid !important;
+}
+
+.team-admin-actions .team-delete-button {
+    grid-column: 2;
+    justify-self: stretch;
+    margin-top: 4px;
 }
 
 .roster-panel {
@@ -1369,13 +1380,19 @@ body.role-league_admin .team-admin-actions.admin-only {
     }
 
     body.role-league_admin .team-admin-actions.admin-only {
+        grid-template-columns: 1fr;
         align-items: stretch;
-        flex-direction: column;
     }
 
     .team-admin-actions button {
         justify-content: center;
         width: 100%;
+    }
+
+    .team-admin-actions .team-delete-button,
+    .team-action-message,
+    .team-representatives-summary {
+        grid-column: 1;
     }
 }
 
