@@ -672,6 +672,21 @@ select option {
     font-size: 13px;
 }
 
+.team-representatives-summary,
+.team-action-message {
+    flex: 1 0 100%;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.team-representatives-summary strong {
+    color: var(--color-text);
+}
+
+.team-action-message:not(:empty) {
+    color: var(--color-gold);
+}
+
 .team-admin-actions input,
 .team-admin-actions select {
     width: 100%;

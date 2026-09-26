@@ -145,6 +145,16 @@ def test_admin_can_assign_existing_representative_to_historical_team():
     connection.close()
     assert assignments["total"] == 1
 
+    visible_assignments = client.get(
+        "/api/teams/representative-assignments"
+    )
+    assert visible_assignments.status_code == 200
+    assert {
+        "team_id": team_id,
+        "user_id": representative["id"],
+        "display_name": "Historical Representative"
+    } in visible_assignments.json()
+
 
 def test_admin_can_assign_legacy_representative_without_user_roles_row():
     connection = get_connection()

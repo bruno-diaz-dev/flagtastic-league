@@ -9,6 +9,7 @@ const teamFilterCategory = document.querySelector("#team-filter-category");
 
 let teamsState = [];
 let representativesState = [];
+let representativeAssignmentsState = [];
 
 const teamStatusLabels = {
     pending: "Pendiente",
@@ -32,7 +33,11 @@ function renderTeams(teams) {
     }
 
     teamsContainer.innerHTML = teams
-        .map((team) => `
+        .map((team) => {
+            const assigned = representativeAssignmentsState.filter(
+                (assignment) => assignment.team_id === team.id
+            );
+            return `
             <article class="team-card">
                 <button class="team-card-main" type="button" data-team-id="${team.id}">
                     ${team.logo_url
@@ -45,6 +50,12 @@ function renderTeams(teams) {
                     <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
                 </button>
                 <div class="team-admin-actions admin-only">
+                    <p class="team-representatives-summary">
+                        <strong>Representantes:</strong>
+                        ${assigned.length
+                            ? assigned.map((assignment) => escapeHtml(assignment.display_name)).join(", ")
+                            : "Sin representante vinculado"}
+                    </p>
                     <label>
                         Nombre del equipo
                         <input type="text" value="${escapeHtml(team.name)}" maxlength="120" data-team-name-id="${team.id}" aria-label="Nombre de ${escapeHtml(team.name)}">
@@ -67,6 +78,7 @@ function renderTeams(teams) {
                         </select>
                     </label>
                     <button class="team-status-button" type="button" data-assign-team-representative="${team.id}">Vincular</button>
+                    <span class="team-action-message" data-team-action-message="${team.id}" role="status"></span>
                     <button
                         class="team-delete-button"
                         type="button"
@@ -75,7 +87,8 @@ function renderTeams(teams) {
                     >Eliminar</button>
                 </div>
             </article>
-        `)
+        `;
+        })
         .join("");
 }
 
@@ -217,8 +230,11 @@ teamsContainer.addEventListener("click", async (event) => {
         const representativeSelect = teamsContainer.querySelector(
             `[data-team-representative-id="${teamId}"]`
         );
+        const actionMessage = teamsContainer.querySelector(
+            `[data-team-action-message="${teamId}"]`
+        );
         if (!representativeSelect.value) {
-            formMessage.textContent = "Selecciona un representante.";
+            actionMessage.textContent = "Selecciona un representante.";
             return;
         }
         representativeButton.disabled = true;
@@ -228,9 +244,15 @@ teamsContainer.addEventListener("click", async (event) => {
         );
         const body = await response.json().catch(() => ({}));
         representativeButton.disabled = false;
-        formMessage.textContent = response.ok
-            ? "Representante vinculado correctamente."
-            : (body.detail || "No se pudo vincular al representante.");
+        if (!response.ok) {
+            actionMessage.textContent = body.detail || "No se pudo vincular al representante.";
+            return;
+        }
+        const assignmentsResponse = await getTeamRepresentativeAssignments();
+        if (assignmentsResponse.ok) {
+            representativeAssignmentsState = await assignmentsResponse.json();
+        }
+        renderFilteredTeams();
         return;
     }
 
@@ -289,12 +311,18 @@ teamFilterCategory.addEventListener("change", renderFilteredTeams);
 teamForm.addEventListener("submit", registerTeam);
 
 async function initializeTeams() {
-    const usersResponse = await getAdminUsers();
+    const [usersResponse, assignmentsResponse] = await Promise.all([
+        getAdminUsers(),
+        getTeamRepresentativeAssignments()
+    ]);
     if (usersResponse.ok) {
         const users = await usersResponse.json();
         representativesState = users.filter((user) =>
             (user.roles || [user.role]).includes("team_representative")
         );
+    }
+    if (assignmentsResponse.ok) {
+        representativeAssignmentsState = await assignmentsResponse.json();
     }
     await loadTeams();
 }

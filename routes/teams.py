@@ -10,6 +10,7 @@ from repositories.teams import (
     create_team,
     delete_team,
     get_all_teams,
+    get_team_representative_assignments,
     get_team_by_id,
     get_team_logo,
     update_team_logo,
@@ -49,6 +50,15 @@ def register_team(
 def list_teams():
     """Return every registered team."""
     return get_all_teams()
+
+
+@router.get("/representative-assignments")
+def list_team_representative_assignments(
+    _user=Depends(require_league_admin)
+):
+    """Let administrators verify the representatives assigned to each team."""
+    return get_team_representative_assignments()
+
 
 @router.get("/{team_id}")
 def get_team_details(team_id: int):

@@ -141,6 +141,8 @@ def test_team_directory_exposes_admin_status_controls():
     assert 'active: "Activo"' in script.text
     assert "data-assign-team-representative" in script.text
     assert "assignTeamRepresentative" in script.text
+    assert "getTeamRepresentativeAssignments" in script.text
+    assert "team-representatives-summary" in script.text
 
 
 def test_user_administration_page_is_available():
