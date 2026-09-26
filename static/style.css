@@ -686,6 +686,28 @@ select option {
     color: var(--color-text);
 }
 
+.team-representative-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 4px 0 0;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 4px 5px 4px 10px;
+    color: var(--color-text);
+}
+
+.team-representative-chip button {
+    border: 0;
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: rgba(143, 39, 39, 0.3);
+    color: #ffb4a8;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
 .team-action-message:not(:empty) {
     color: var(--color-gold);
 }

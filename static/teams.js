@@ -74,7 +74,17 @@ function renderTeams(teams) {
                     <p class="team-representatives-summary">
                         <strong>Representantes:</strong>
                         ${assigned.length
-                            ? assigned.map((assignment) => escapeHtml(assignment.display_name)).join(", ")
+                            ? assigned.map((assignment) => `
+                                <span class="team-representative-chip">
+                                    ${escapeHtml(assignment.display_name)}
+                                    <button
+                                        type="button"
+                                        data-remove-team-representative="${assignment.user_id}"
+                                        data-representative-team-id="${team.id}"
+                                        aria-label="Quitar a ${escapeHtml(assignment.display_name)} de ${escapeHtml(team.name)}"
+                                    >Quitar</button>
+                                </span>
+                            `).join("")
                             : "Sin representante vinculado"}
                     </p>
                     <label>
@@ -217,6 +227,32 @@ async function registerTeam(event) {
 }
 
 teamsContainer.addEventListener("click", async (event) => {
+    const removeRepresentativeButton = event.target.closest(
+        "[data-remove-team-representative]"
+    );
+
+    if (removeRepresentativeButton !== null) {
+        const teamId = removeRepresentativeButton.dataset.representativeTeamId;
+        const userId = removeRepresentativeButton.dataset.removeTeamRepresentative;
+        const actionMessage = teamsContainer.querySelector(
+            `[data-team-action-message="${teamId}"]`
+        );
+        removeRepresentativeButton.disabled = true;
+        const response = await removeTeamRepresentative(teamId, userId);
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            removeRepresentativeButton.disabled = false;
+            actionMessage.textContent = body.detail || "No se pudo quitar al representante.";
+            return;
+        }
+        const assignmentsResponse = await getTeamRepresentativeAssignments();
+        if (assignmentsResponse.ok) {
+            representativeAssignmentsState = await assignmentsResponse.json();
+        }
+        renderFilteredTeams();
+        return;
+    }
+
     const nameButton = event.target.closest("[data-update-team-name]");
 
     if (nameButton !== null) {

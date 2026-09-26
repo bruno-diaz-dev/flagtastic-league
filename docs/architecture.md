@@ -305,6 +305,7 @@ Rules that need league context, such as preventing a player from registering twi
 | `PATCH` | `/api/teams/{team_id}/status` | Changes pending, active, or inactive state; league administrators only |
 | `PATCH` | `/api/teams/{team_id}/name` | Corrects only the public team name; league administrators only |
 | `PUT` | `/api/teams/{team_id}/representatives/{user_id}` | Links an existing representative account to a historical team; league administrators only |
+| `DELETE` | `/api/teams/{team_id}/representatives/{user_id}` | Removes one incorrect team assignment without deleting the account; league administrators only |
 | `GET` | `/api/teams/representative-assignments` | Lists current team ownership for verification in the league administration UI |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
