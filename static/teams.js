@@ -226,10 +226,11 @@ teamsContainer.addEventListener("click", async (event) => {
             teamId,
             representativeSelect.value
         );
+        const body = await response.json().catch(() => ({}));
         representativeButton.disabled = false;
         formMessage.textContent = response.ok
             ? "Representante vinculado correctamente."
-            : "No se pudo vincular al representante.";
+            : (body.detail || "No se pudo vincular al representante.");
         return;
     }
 

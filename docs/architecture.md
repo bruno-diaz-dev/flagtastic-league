@@ -487,6 +487,9 @@ the legacy primary-role string, so cumulative-role users are linked correctly.
 Teams created before this behavior do not contain reliable creator history.
 An administrator must therefore select the correct representative explicitly;
 the application never guesses ownership from roster names or account data.
+The assignment write accepts the legacy primary role as well as the cumulative
+`user_roles` grant so accounts created before the multi-role migration remain
+manageable.
 Players join rosters directly in V1 while the
 existing one-team-per-division and unique-jersey constraints remain active.
 
