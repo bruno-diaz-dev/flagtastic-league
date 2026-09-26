@@ -89,6 +89,15 @@ def test_player_registers_joins_team_and_reads_dashboard():
     assert body["teams"][0]["standing_position"] == 1
     assert body["statistics"]["passes_attempted"] == 0
 
+    public_profile = client.get(
+        f"/api/players/{registration.json()['player_id']}/profile"
+    )
+    assert public_profile.status_code == 200
+    assert public_profile.json()["player"]["aka"] == "El Muro"
+    assert public_profile.json()["teams"][0]["team_name"] == "Tigres"
+    assert "curp" not in public_profile.text.lower()
+    assert "email" not in public_profile.text.lower()
+
 
 def test_player_claims_representative_created_roster_identity():
     """Account registration enriches the roster row instead of duplicating it."""

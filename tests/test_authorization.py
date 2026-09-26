@@ -174,6 +174,18 @@ def test_team_representative_can_manage_only_assigned_team():
     assert assigned_response.status_code == 201
     assert other_response.status_code == 403
 
+    png = b"\x89PNG\r\n\x1a\nrepresentative-logo"
+    assigned_logo = client.put(
+        f"/api/teams/{assigned_team['id']}/logo",
+        files={"file": ("logo.png", png, "image/png")}
+    )
+    other_logo = client.put(
+        f"/api/teams/{other_team['id']}/logo",
+        files={"file": ("logo.png", png, "image/png")}
+    )
+    assert assigned_logo.status_code == 204
+    assert other_logo.status_code == 403
+
 
 def test_league_admin_can_grant_another_admin_role():
     disable_test_authorization_override()
@@ -278,6 +290,28 @@ def test_non_admin_cannot_list_users():
     login(email, "supersecret")
 
     assert client.get("/api/admin/users").status_code == 403
+
+
+def test_league_admin_can_delete_another_account_but_not_their_own():
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("delete-user-admin")
+    admin = create_user(UserCreate(
+        email=admin_email, name="Admin", password="supersecret",
+        role="league_admin"
+    ))
+    _, user_email = unique_identity("delete-user-target")
+    target = create_user(UserCreate(
+        email=user_email, name="Target", password="supersecret",
+        role="team_representative"
+    ))
+    assert login(admin_email, "supersecret").status_code == 200
+
+    assert client.delete(f"/api/admin/users/{admin['id']}").status_code == 409
+    assert client.delete(f"/api/admin/users/{target['id']}").status_code == 204
+    assert client.delete(f"/api/admin/users/{target['id']}").status_code == 404
+
+    client.cookies.clear()
+    assert login(user_email, "supersecret").status_code == 401
 
 
 def test_only_league_admin_can_delete_team():

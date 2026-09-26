@@ -341,6 +341,27 @@ def get_all_users():
     return [_public_user(row) for row in rows]
 
 
+def delete_user_account(user_id):
+    """Delete login access while preserving any linked player history.
+
+    Database cascades remove sessions, role grants and representative links.
+    The independent player row remains available to rosters and statistics.
+    """
+    connection = get_connection()
+    try:
+        deleted = connection.execute(
+            "DELETE FROM users WHERE id = %s RETURNING id",
+            (user_id,)
+        ).fetchone()
+        connection.commit()
+        return deleted is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def change_user_password(user_id, current_password, new_password):
     """Replace a verified password and clear its first-login requirement."""
     connection = get_connection()

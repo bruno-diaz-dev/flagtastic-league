@@ -9,6 +9,8 @@ const playerForm = document.querySelector("#player-form");
 const playerFormMessage = document.querySelector("#player-form-message");
 const rosterImportForm = document.querySelector("#roster-import-form");
 const rosterImportMessage = document.querySelector("#roster-import-message");
+const teamLogoForm = document.querySelector("#team-logo-form");
+const teamLogoMessage = document.querySelector("#team-logo-message");
 
 
 function initials(name) {
@@ -27,6 +29,14 @@ function playerPhoto(player) {
 function renderRoster(team) {
     rosterTitle.textContent = `Roster de ${team.name}`;
     rosterSubtitle.textContent = `${team.branch} / ${team.category} · ${team.players.length} jugadores`;
+    const teamLogo = document.querySelector("#roster-team-logo");
+    if (team.logo_url) {
+        teamLogo.src = `${team.logo_url}?v=${Date.now()}`;
+        teamLogo.alt = `Logo de ${team.name}`;
+        teamLogo.classList.remove("hidden");
+    } else {
+        teamLogo.classList.add("hidden");
+    }
 
     if (team.players.length === 0) {
         rosterContainer.innerHTML = `
@@ -45,10 +55,10 @@ function renderRoster(team) {
         return `
             <article class="roster-player">
                 ${playerPhoto(player)}
-                <div class="roster-player-identity">
+                <a class="roster-player-identity player-profile-link" href="/players/${player.id}">
                     <h3>${escapeHtml(displayName)}</h3>
                     <p>${identity}</p>
-                </div>
+                </a>
                 <span class="jersey-number">#${player.jersey_number}</span>
             </article>`;
     }).join("");
@@ -104,6 +114,26 @@ rosterImportForm.addEventListener("submit", async (event) => {
         await loadRoster();
     } catch (error) {
         rosterImportMessage.textContent = "No se pudo conectar con el servidor.";
+    }
+});
+
+
+teamLogoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const fields = new FormData(teamLogoForm);
+    teamLogoMessage.textContent = "Actualizando logo...";
+    try {
+        const response = await uploadTeamLogo(teamId, fields.get("logo"));
+        if (!response.ok) {
+            const error = await response.json();
+            teamLogoMessage.textContent = error.detail || "No se pudo actualizar el logo.";
+            return;
+        }
+        teamLogoForm.reset();
+        teamLogoMessage.textContent = "Logo actualizado correctamente.";
+        await loadRoster();
+    } catch (error) {
+        teamLogoMessage.textContent = "No se pudo conectar con el servidor.";
     }
 });
 

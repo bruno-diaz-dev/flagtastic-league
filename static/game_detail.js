@@ -64,7 +64,7 @@ async function loadGameDetail() {
     if (detail.team_statistics) {
         document.querySelector("#team-game-statistics").classList.remove("hidden");
         document.querySelector("#team-game-stats-body").innerHTML = detail.team_statistics.map((row) => `
-            <tr><td>${escapeHtml(row.player_aka || row.player_name)}</td><td>${row.jersey_number}</td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}</td><td>${row.passes_attempted}</td><td>${row.completion_percentage ?? "-"}</td></tr>
+            <tr><td><a class="player-profile-link" href="/players/${row.player_id}">${escapeHtml(row.player_aka || row.player_name)}</a></td><td>${row.jersey_number}</td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}</td><td>${row.passes_attempted}</td><td>${row.completion_percentage ?? "-"}</td></tr>
         `).join("") || `<tr><td colspan="10">Sin estadísticas registradas.</td></tr>`;
     }
     if (detail.officials) {

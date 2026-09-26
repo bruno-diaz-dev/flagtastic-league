@@ -294,6 +294,7 @@ Rules that need league context, such as preventing a player from registering twi
 | `POST` | `/api/auth/logout` | Revokes the current session and removes its cookie |
 | `POST` | `/api/teams` | Creates a team |
 | `GET` | `/api/teams` | Lists teams |
+| `PUT` | `/api/teams/{team_id}/logo` | Replaces a team logo; administrators or its assigned representatives only |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
 | `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
 | `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
@@ -305,7 +306,9 @@ Rules that need league context, such as preventing a player from registering twi
 | `POST` | `/api/statistics/import` | Atomically imports all official `Wk` sheets, statistics, games, and inferred scores |
 | `GET` | `/api/weeks/{week}/player-stats` | Lists a jornada's individual statistics |
 | `GET` | `/api/players/{player_id}/stats` | Returns a player's derived totals |
+| `GET` | `/api/players/{player_id}/profile` | Returns a public profile with identity, teams, standings and statistics |
 | `GET` | `/api/statistics/leaderboards` | Returns five leaders per metric and division |
+| `DELETE` | `/api/admin/users/{user_id}` | Deletes another user's login account while preserving player history |
 
 The weekly spreadsheet uses `rama`, `categoria`, `equipo`, and `numero` to resolve a roster membership. Player names shown publicly always come from `players.name`, never from imported text. Only the 50 source-event columns are read; formula-helper columns are deliberately excluded to prevent double counting. Completed passes count as both a completion and an attempt, while `Intentos Pase` supplies incomplete attempts.
 
@@ -495,12 +498,26 @@ roles are granted through `/admin/users`; both listing users and changing roles
 are protected by the backend administrator dependency. Responses never include
 password hashes or CURP, and administrators cannot demote themselves.
 
+Administrators may also delete another account from this page, but cannot delete
+their own active account. Account deletion revokes access by cascading sessions,
+roles and representative assignments. A linked `players` row is deliberately
+preserved, so rosters, game history and individual statistics do not disappear.
+
 Administrators create non-player staff accounts through `POST /api/admin/users`.
 The request accepts cumulative operational roles but deliberately rejects the
 `player` role, because player identity must be claimed through the CURP-backed
 self-registration flow. Staff-only accounts therefore need no CURP, age, photo,
 or player record; a league president can hold `league_admin` and `referee`
 simultaneously.
+
+Assigned representatives and league administrators can replace a team's logo
+from its roster page. `require_team_manager` verifies ownership server-side;
+hiding the form for other roles is only a presentation concern.
+
+Public player profiles are available at `/players/{player_id}` and are linked
+from roster entries, leaderboards and player rows in administration. Their API
+read model reuses the dashboard's season totals, memberships and standings but
+never includes CURP, email, account roles or credentials.
 These accounts start with `must_change_password = true`. Login creates the
 session but redirects to `/change-password`; protected dependencies reject that
 session until the current password is verified and replaced.

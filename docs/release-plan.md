@@ -418,9 +418,7 @@ The following items are important, but should not block the September 27 launch 
 - Complete role management UI.
 - Audit logging.
 - Advanced player statistics beyond the v1 scope.
-- Full player profile pages.
 - Approval workflow for player team-membership requests.
-- Team logo uploads.
 - Season management.
 - Playoff brackets.
 - Payment workflows.

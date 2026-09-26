@@ -663,6 +663,11 @@ profile photo and prefer the player's AKA as the display name while retaining th
 legal roster name as supporting identity. Existing players without a photo use an
 initials placeholder, so imported and historical data remains readable.
 
+Selecting a player from a roster, leaderboard, or linked administration row opens
+the read-only `/players/{player_id}` season profile. It shows the public photo,
+AKA, legal roster name, age, teams, standings positions, and derived statistics;
+it does not expose CURP, email, roles, or account credentials.
+
 The authentication API supports login, current-user lookup, and idempotent logout. Backend authorization restricts league-wide writes to administrators and roster writes to administrators or representatives assigned to that team.
 
 Only league administrators can delete an erroneous team from `/teams`. This is
@@ -684,6 +689,12 @@ That administrator can open `/admin/users` and grant any combination of
 `league_admin`, `team_representative`, `player`, and `referee`. The `player`
 role requires an account already linked to a player identity. Administrators
 cannot remove their own admin role accidentally.
+
+Administrators can delete another user's login account from `/admin/users`, but
+cannot delete themselves. This removes sessions and permissions while preserving
+the separate player identity and historical sports data. Assigned representatives
+can replace their own team's logo from its roster page; backend ownership checks
+prevent them from changing another team's branding.
 
 Administrative functionality will have access to private player information only when required by its role.
 

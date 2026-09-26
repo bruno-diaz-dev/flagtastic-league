@@ -99,6 +99,15 @@ def test_player_dashboard_page_is_available():
     assert 'src="/static/dashboard.js' in response.text
 
 
+def test_public_player_profile_page_is_available():
+    response = client.get("/players/123")
+
+    assert response.status_code == 200
+    assert 'data-player-id="123"' in response.text
+    assert 'id="public-player-stats"' in response.text
+    assert 'src="/static/player_profile.js' in response.text
+
+
 def test_team_roster_has_a_dedicated_page():
     response = client.get("/teams/123/roster")
 
@@ -107,6 +116,8 @@ def test_team_roster_has_a_dedicated_page():
     assert 'data-team-id="123"' in response.text
     assert 'src="/static/roster.js' in response.text
     assert "Volver a equipos" in response.text
+    assert 'id="team-logo-form"' in response.text
+    assert 'accept="image/jpeg,image/png,image/webp"' in response.text
 
 
 def test_user_administration_page_is_available():
@@ -115,6 +126,18 @@ def test_user_administration_page_is_available():
     assert response.status_code == 200
     assert "Usuarios y roles" in response.text
     assert 'src="/static/admin_users.js' in response.text
+
+    script = client.get("/static/admin_users.js")
+    assert "delete-user-button" in script.text
+    assert "deleteAdminUser" in script.text
+
+
+def test_public_player_links_are_rendered_by_roster_and_leaderboards():
+    roster_script = client.get("/static/roster.js")
+    statistics_script = client.get("/static/statistics.js")
+
+    assert 'href="/players/${player.id}"' in roster_script.text
+    assert 'href="/players/${leader.player_id}"' in statistics_script.text
 
 
 def test_referee_page_has_reviewed_image_import():

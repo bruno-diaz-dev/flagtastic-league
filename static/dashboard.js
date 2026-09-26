@@ -9,7 +9,7 @@ const profileForm = document.querySelector("#profile-form");
 const profileMessage = document.querySelector("#profile-message");
 
 const statisticLabels = {
-    games: "Partidos",
+    weeks: "Jornadas con estadísticas",
     receptions: "Recepciones",
     points: "Puntos",
     tackles: "Tacleadas",

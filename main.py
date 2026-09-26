@@ -143,6 +143,16 @@ def dashboard_page(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
 
 
+@app.get("/players/{player_id}")
+def public_player_profile_page(request: Request, player_id: int):
+    """Render a read-only public player season profile."""
+    return templates.TemplateResponse(
+        request=request,
+        name="player_profile.html",
+        context={"player_id": player_id}
+    )
+
+
 @app.get("/admin/users")
 def user_administration_page(request: Request):
     """Render role administration; the API enforces actual access."""

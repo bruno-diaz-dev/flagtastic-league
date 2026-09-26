@@ -8,6 +8,7 @@ from models import StaffAccountCreate, UserRoleUpdate, UserRolesUpdate
 from repositories.users import (
     PlayerIdentityConflict,
     create_staff_account,
+    delete_user_account,
     get_all_users,
     set_user_roles,
     update_user_role
@@ -84,3 +85,18 @@ def replace_user_roles(
     if user is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
+
+
+@router.delete("/{user_id}", status_code=204)
+def remove_user_account(
+    user_id: int,
+    admin=Depends(require_league_admin)
+):
+    """Remove an account without deleting its historical player identity."""
+    if user_id == admin["id"]:
+        raise HTTPException(
+            status_code=409,
+            detail="No puedes eliminar tu propia cuenta"
+        )
+    if not delete_user_account(user_id):
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
