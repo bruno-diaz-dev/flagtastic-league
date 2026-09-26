@@ -574,6 +574,17 @@ so the browser cannot reveal a hidden section that was never authorized.
 
 ## Player Profile Media
 
+### Claiming a roster identity
+
+A representative may add a player to a roster before that player has login
+credentials. The later self-registration searches the global player identity
+by normalized CURP and requires the submitted legal name and age to match. A
+successful claim links the new user to the existing `players.id`; it does not
+create another player or another `team_players` membership. The existing team
+and jersey number are therefore preserved, while the submitted AKA and profile
+photo enrich the same public roster record and become available in the player
+dashboard. A mismatch is rejected instead of silently attaching the account.
+
 `players.aka` stores an optional public nickname and
 `players.profile_photo_path` stores a generated public filename, while
 `profile_photo_data` and `profile_photo_type` store the validated image in
