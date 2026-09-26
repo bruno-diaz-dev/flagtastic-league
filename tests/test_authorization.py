@@ -162,6 +162,11 @@ def test_team_representative_can_manage_only_assigned_team():
     connection.close()
 
     login(email, "supersecret")
+    assigned_detail = client.get(f"/api/teams/{assigned_team['id']}")
+    other_detail = client.get(f"/api/teams/{other_team['id']}")
+    assert assigned_detail.json()["can_manage"] is True
+    assert other_detail.json()["can_manage"] is False
+
     player = {
         "name": "Roster Player",
         "curp": uuid4().hex[:18].upper(),
@@ -192,6 +197,28 @@ def test_team_representative_can_manage_only_assigned_team():
     )
     assert assigned_logo.status_code == 204
     assert other_logo.status_code == 403
+
+    assigned_staff = client.patch(
+        f"/api/teams/{assigned_team['id']}/staff",
+        json={"head_coach": "Head Coach", "coach": "Coach", "manager": "Manager"}
+    )
+    other_staff = client.patch(
+        f"/api/teams/{other_team['id']}/staff",
+        json={"head_coach": "No Access", "coach": "", "manager": ""}
+    )
+    assert assigned_staff.status_code == 200
+    assert other_staff.status_code == 403
+
+    roster_csv = b"nombre,curp,edad,numero\nImported Player,ABCD000101HASXXX01,25,12\n"
+    other_import = client.post(
+        f"/api/teams/{other_team['id']}/players/import",
+        files={"file": ("roster.csv", roster_csv, "text/csv")}
+    )
+    other_template = client.get(
+        f"/api/teams/{other_team['id']}/players/import/template.csv"
+    )
+    assert other_import.status_code == 403
+    assert other_template.status_code == 403
 
     player_id = assigned_response.json()["id"]
     assigned_photo = client.put(

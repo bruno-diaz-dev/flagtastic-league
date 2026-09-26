@@ -74,7 +74,7 @@ function renderRoster(team) {
                     <p>${identity}</p>
                 </a>
                 <span class="jersey-number">#${player.jersey_number}</span>
-                <form class="roster-photo-form team-manager-only" data-player-id="${player.id}">
+                <form class="roster-photo-form team-scope-manager-only" data-player-id="${player.id}">
                     <label>
                         <span class="sr-only">Foto de ${escapeHtml(displayName)}</span>
                         <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
@@ -118,7 +118,11 @@ async function loadRoster() {
         return;
     }
     if (!response.ok) throw new Error("Roster request failed");
-    renderRoster(await response.json());
+    const team = await response.json();
+    // A representative role does not grant league-wide access. The API
+    // resolves whether this user manages this particular team.
+    document.body.classList.toggle("can-manage-team", team.can_manage === true);
+    renderRoster(team);
 }
 
 
