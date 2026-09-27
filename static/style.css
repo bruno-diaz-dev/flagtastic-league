@@ -1505,6 +1505,14 @@ body.can-manage-team .roster-player-actions.team-scope-manager-only {
     min-width: 0;
 }
 
+#join-team-form {
+    grid-template-columns: repeat(2, minmax(150px, 0.8fr)) minmax(240px, 1.5fr) minmax(110px, 0.6fr) minmax(180px, 0.8fr);
+}
+
+#join-team-form > * {
+    min-width: 0;
+}
+
 @media (max-width: 820px) {
     .dashboard-page {
         gap: 20px;
@@ -1515,6 +1523,10 @@ body.can-manage-team .roster-player-actions.team-scope-manager-only {
     }
 
     #profile-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #join-team-form {
         grid-template-columns: minmax(0, 1fr);
     }
 

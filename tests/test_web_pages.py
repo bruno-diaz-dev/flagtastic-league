@@ -98,10 +98,16 @@ def test_player_dashboard_page_is_available():
     assert "Mi dashboard" in response.text
     assert 'src="/static/dashboard.js' in response.text
     assert 'id="dashboard-photo-placeholder"' in response.text
+    assert 'id="join-team-branch"' in response.text
+    assert 'id="join-team-category"' in response.text
+    assert 'id="join-team-results"' in response.text
 
     script = client.get("/static/dashboard.js")
     stylesheet = client.get("/static/style.css")
     assert "profilePhoto.onerror" in script.text
+    assert "renderTeamOptions" in script.text
+    assert "teamBranchFilter.addEventListener" in script.text
+    assert "teamCategoryFilter.addEventListener" in script.text
     assert "#profile-form" in stylesheet.text
     assert "grid-template-columns: minmax(0, 1fr)" in stylesheet.text
 
