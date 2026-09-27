@@ -3,6 +3,9 @@
 const joinForm = document.querySelector("#join-team-form");
 const joinMessage = document.querySelector("#join-team-message");
 const teamSelect = joinForm.elements.team_id;
+const teamBranchFilter = document.querySelector("#join-team-branch");
+const teamCategoryFilter = document.querySelector("#join-team-category");
+const teamResults = document.querySelector("#join-team-results");
 const statsContainer = document.querySelector("#personal-stats");
 const teamsContainer = document.querySelector("#dashboard-teams");
 const profileForm = document.querySelector("#profile-form");
@@ -19,6 +22,54 @@ const statisticLabels = {
     passes_attempted: "Pases lanzados",
     completion_percentage: "% de pases completos"
 };
+
+const branchOrder = ["varonil", "femenil", "mixto"];
+const categoryOrder = ["u6", "u8", "u10", "u12", "u14", "u16", "u18", "libre"];
+let availableTeams = [];
+
+function orderedValues(values, preferredOrder) {
+    return [...new Set(values)].sort((left, right) => {
+        const leftIndex = preferredOrder.indexOf(left);
+        const rightIndex = preferredOrder.indexOf(right);
+        const normalizedLeftIndex = leftIndex === -1 ? preferredOrder.length : leftIndex;
+        const normalizedRightIndex = rightIndex === -1 ? preferredOrder.length : rightIndex;
+        return normalizedLeftIndex - normalizedRightIndex
+            || left.localeCompare(right, "es", {sensitivity: "base"});
+    });
+}
+
+function renderTeamFilters() {
+    const branches = orderedValues(availableTeams.map((team) => team.branch), branchOrder);
+    const categories = orderedValues(availableTeams.map((team) => team.category), categoryOrder);
+
+    teamBranchFilter.innerHTML = `<option value="">Todas las ramas</option>` + branches.map(
+        (branch) => `<option value="${escapeHtml(branch)}">${escapeHtml(branch)}</option>`
+    ).join("");
+    teamCategoryFilter.innerHTML = `<option value="">Todas las categorías</option>` + categories.map(
+        (category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`
+    ).join("");
+}
+
+function renderTeamOptions() {
+    const selectedTeamId = teamSelect.value;
+    const branch = teamBranchFilter.value;
+    const category = teamCategoryFilter.value;
+    const matchingTeams = availableTeams.filter((team) => (
+        (!branch || team.branch === branch)
+        && (!category || team.category === category)
+    ));
+
+    teamSelect.innerHTML = `<option value="">${matchingTeams.length
+        ? "Selecciona un equipo"
+        : "No hay equipos con estos filtros"}</option>` + matchingTeams.map(
+        (team) => `<option value="${team.id}">${escapeHtml(team.name)} · ${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</option>`
+    ).join("");
+    teamSelect.disabled = matchingTeams.length === 0;
+    if (matchingTeams.some((team) => String(team.id) === selectedTeamId)) {
+        teamSelect.value = selectedTeamId;
+    }
+    teamResults.textContent = `${matchingTeams.length} ${matchingTeams.length === 1 ? "equipo disponible" : "equipos disponibles"}.`;
+}
 
 async function loadDashboard() {
     const response = await getMyDashboard();
@@ -79,11 +130,16 @@ async function loadDashboard() {
 
 async function loadTeams() {
     const response = await getTeams();
-    const teams = await response.json();
-    teamSelect.innerHTML = `<option value="">Selecciona un equipo</option>` + teams.map(
-        (team) => `<option value="${team.id}">${escapeHtml(team.name)} · ${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</option>`
-    ).join("");
+    if (!response.ok) {
+        throw new Error("No se pudieron cargar los equipos");
+    }
+    availableTeams = await response.json();
+    renderTeamFilters();
+    renderTeamOptions();
 }
+
+teamBranchFilter.addEventListener("change", renderTeamOptions);
+teamCategoryFilter.addEventListener("change", renderTeamOptions);
 
 joinForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -98,6 +154,7 @@ joinForm.addEventListener("submit", async (event) => {
     }
     joinMessage.textContent = "Registro completado.";
     joinForm.reset();
+    renderTeamOptions();
     await loadDashboard();
 });
 
