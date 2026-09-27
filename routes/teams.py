@@ -158,7 +158,7 @@ def edit_team_name(
     except UniqueViolation:
         raise HTTPException(
             status_code=409,
-            detail="Team already registered in this branch and category"
+            detail="Ya existe un equipo con ese nombre en esta rama y categoria"
         )
     if updated is None:
         raise HTTPException(status_code=404, detail="Team not found")

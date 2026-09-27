@@ -808,6 +808,47 @@ body.role-league_admin .team-delete-button.admin-only {
     margin-left: auto;
 }
 
+.roster-player-actions,
+.form-actions {
+    align-items: center;
+    gap: 8px;
+}
+
+.secondary-button {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+}
+
+.danger-button {
+    border: 1px solid rgba(220, 85, 85, 0.55);
+    background: rgba(160, 35, 35, 0.16);
+    color: #ffb3b3;
+}
+
+body.can-manage-team .roster-player-actions.team-scope-manager-only {
+    display: flex !important;
+}
+
+.roster-edit-form {
+    flex-basis: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.roster-edit-form .form-actions,
+.roster-edit-message {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 820px) {
+    .roster-edit-form {
+        grid-template-columns: 1fr;
+    }
+}
+
 .roster-photo-form {
     flex: 1 0 100%;
     display: grid;

@@ -102,6 +102,24 @@ async function deleteTeam(teamId) {
     return fetch(`/api/teams/${teamId}`, {method: "DELETE"});
 }
 
+function calendarAgeFromCurp(value) {
+    const curp = String(value || "").trim().toUpperCase();
+    if (curp.length !== 18 || !/^\d{6}$/.test(curp.slice(4, 10))) return null;
+    const marker = curp.charAt(16);
+    const century = /^\d$/.test(marker) ? 1900 : 2000;
+    const year = century + Number(curp.slice(4, 6));
+    const month = Number(curp.slice(6, 8));
+    const day = Number(curp.slice(8, 10));
+    const birthDate = new Date(Date.UTC(year, month - 1, day));
+    if (
+        birthDate.getUTCFullYear() !== year
+        || birthDate.getUTCMonth() !== month - 1
+        || birthDate.getUTCDate() !== day
+        || birthDate > new Date()
+    ) return null;
+    return new Date().getFullYear() - year;
+}
+
 async function uploadRosterPlayerPhoto(teamId, playerId, file) {
     const formData = new FormData();
     formData.append("file", file);
@@ -109,6 +127,22 @@ async function uploadRosterPlayerPhoto(teamId, playerId, file) {
         method: "PUT",
         body: formData
     });
+}
+
+async function getManagedRosterPlayer(teamId, playerId) {
+    return fetch(`/api/teams/${teamId}/players/${playerId}/management`);
+}
+
+async function updateRosterPlayer(teamId, playerId, payload) {
+    return fetch(`/api/teams/${teamId}/players/${playerId}`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
+async function deactivateRosterPlayer(teamId, playerId) {
+    return fetch(`/api/teams/${teamId}/players/${playerId}`, {method: "DELETE"});
 }
 
 async function updateTeamStatus(teamId, status) {

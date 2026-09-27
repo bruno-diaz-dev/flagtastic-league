@@ -36,7 +36,7 @@ async def register_player_account(
     password: str = Form(...),
     name: str = Form(...),
     curp: str = Form(...),
-    age: int = Form(...),
+    age: int | None = Form(default=None),
     aka: str | None = Form(default=None),
     photo: UploadFile = File(...)
 ):

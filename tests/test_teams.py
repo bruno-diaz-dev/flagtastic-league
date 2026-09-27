@@ -306,7 +306,7 @@ def test_get_team_detail_with_roster():
     assert player["name"] == "Bruno Diaz"
     assert player["aka"] is None
     assert player["profile_photo_url"] is None
-    assert player["age"] == 29
+    assert player["age"] == 30
     assert player["jersey_number"] == 83
     assert "id" in player
     assert "team_id" not in player
@@ -409,6 +409,21 @@ def test_same_team_name_can_exist_in_different_category():
 
     assert first_response.status_code == 201
     assert second_reponse.status_code == 201
+
+
+def test_multiple_teams_are_allowed_in_same_branch_and_category():
+    first = client.post(
+        "/api/teams",
+        json={"name": "Mixto Libre Uno", "branch": "mixto", "category": "libre"}
+    )
+    second = client.post(
+        "/api/teams",
+        json={"name": "Mixto Libre Dos", "branch": "mixto", "category": "libre"}
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] != second.json()["id"]
 
 
 def test_team_manager_can_upload_and_read_team_logo():

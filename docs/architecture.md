@@ -664,6 +664,19 @@ imports, staff/logo updates, and player-photo controls only for teams linked to
 them in `team_representatives`. League administrators retain league-wide
 management access, while every roster remains publicly readable.
 
+Assigned representatives can correct a roster player's legal name, CURP, and
+jersey number. A roster removal is a soft deactivation of `team_players`, not a
+player deletion: the identity, login, and historical statistics remain intact,
+while the former jersey becomes available to an active player. Re-adding the
+same identity reactivates its existing membership.
+
+Player age is calendar-based and derived from the CURP birth year, meaning it
+is the age the player reaches during the current year. The seventeenth CURP
+character selects the 1900 or 2000 century according to RENAPO conventions.
+Manual registration and account creation show the derived read-only age, and
+CSV/XLSX imports require only `nombre`, `curp`, and `numero`; legacy files that
+still include `edad` remain accepted.
+
 `players.aka` stores an optional public nickname and
 `players.profile_photo_path` stores a generated public filename, while
 `profile_photo_data` and `profile_photo_type` store the validated image in

@@ -145,7 +145,7 @@ async function registerTeam(event) {
         const response = await createTeam(payload)
 
         if (response.status === 409) {
-            formMessage.textContent = "Este equipo ya esta registrado en esta rama y categoria.";
+            formMessage.textContent = "Ya existe un equipo con ese nombre en esta rama y categoría.";
             return;
         }
         if (!response.ok) {

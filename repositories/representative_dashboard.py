@@ -15,7 +15,8 @@ def get_representative_dashboard(user_id):
                COUNT(DISTINCT team_players.player_id)::INTEGER AS roster_count
         FROM team_representatives
         JOIN teams ON teams.id = team_representatives.team_id
-        LEFT JOIN team_players ON team_players.team_id = teams.id
+        LEFT JOIN team_players
+          ON team_players.team_id = teams.id AND team_players.active
         WHERE team_representatives.user_id = %s
         GROUP BY teams.id
         ORDER BY teams.branch, teams.category, teams.name
@@ -46,6 +47,7 @@ def get_representative_dashboard(user_id):
         LEFT JOIN player_week_stats AS stats
           ON stats.team_id = teams.id AND stats.player_id = players.id
         WHERE teams.id = ANY(%s)
+          AND team_players.active
         GROUP BY teams.id, players.id, team_players.jersey_number
         ORDER BY teams.id, points DESC, players.name
         """,

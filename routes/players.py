@@ -3,12 +3,15 @@
 from psycopg.errors import UniqueViolation
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
-from models import PlayerCreate
+from models import PlayerCreate, RosterPlayerUpdate
 from repositories.teams import get_team_by_id
 from repositories.players import (
     create_player,
+    deactivate_roster_player,
+    get_managed_roster_player,
     import_players,
     get_players_by_team,
+    update_roster_player,
     update_roster_player_photo,
     PlayerAlreadyRegisteredInDivision
 )
@@ -22,8 +25,8 @@ router = APIRouter(
 )
 MAX_ROSTER_IMPORT_BYTES = 5 * 1024 * 1024
 ROSTER_CSV_TEMPLATE = (
-    "nombre,curp,edad,numero\n"
-    "Nombre Completo,ABCD000101HASXXX00,25,10\n"
+    "nombre,curp,numero\n"
+    "Nombre Completo,ABCD000101HASXXX00,10\n"
 )
 
 @router.post("", status_code=201)
@@ -147,6 +150,54 @@ async def upload_roster_player_photo(
     """Allow a team manager to complete or replace a roster player's photo."""
     photo = await save_profile_photo(file)
     if not update_roster_player_photo(team_id, player_id, photo):
+        raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
+
+
+@router.get("/{player_id}/management")
+def get_roster_player_management_fields(
+    team_id: int,
+    player_id: int,
+    _user=Depends(require_team_manager)
+):
+    """Return private identity fields to an authorized roster manager."""
+    player = get_managed_roster_player(team_id, player_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
+    return player
+
+
+@router.patch("/{player_id}")
+def edit_roster_player(
+    team_id: int,
+    player_id: int,
+    payload: RosterPlayerUpdate,
+    _user=Depends(require_team_manager)
+):
+    """Correct an active player's identity and jersey assignment."""
+    try:
+        updated = update_roster_player(team_id, player_id, payload)
+    except UniqueViolation as error:
+        constraint = error.diag.constraint_name
+        if constraint == "players_curp_key":
+            detail = "La CURP ya pertenece a otro jugador"
+        elif constraint == "team_players_team_id_jersey_number_key":
+            detail = "Ese numero ya esta registrado en este equipo"
+        else:
+            raise
+        raise HTTPException(status_code=409, detail=detail) from error
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
+    return updated
+
+
+@router.delete("/{player_id}", status_code=204)
+def remove_roster_player(
+    team_id: int,
+    player_id: int,
+    _user=Depends(require_team_manager)
+):
+    """Deactivate a roster membership while preserving player history."""
+    if not deactivate_roster_player(team_id, player_id):
         raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
 
 @router.get("")

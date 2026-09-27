@@ -3,6 +3,10 @@
 const registerForm = document.querySelector("#register-form");
 const registerMessage = document.querySelector("#register-message");
 
+registerForm.elements.curp.addEventListener("input", (event) => {
+    registerForm.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
+});
+
 registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fields = new FormData(registerForm);
