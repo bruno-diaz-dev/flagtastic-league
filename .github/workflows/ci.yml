@@ -34,6 +34,7 @@ jobs:
           --health-retries 10
 
     env:
+      APP_ENV: test
       DATABASE_URL: postgresql://flagtastic_ci:flagtastic_ci@localhost:5432/flagtastic_test
 
     steps:
