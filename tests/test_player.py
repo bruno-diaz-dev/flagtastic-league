@@ -69,7 +69,7 @@ def test_register_player():
 
     assert data["team_id"] == team_id
     assert data["name"] == "Bruno Diaz"
-    assert data["age"] == 29
+    assert data["age"] == 30
     assert data["jersey_number"] == 83
     assert "id" in data
 
@@ -409,6 +409,88 @@ def test_import_roster_from_csv():
     assert [player["jersey_number"] for player in roster] == [12, 83]
 
 
+def test_import_roster_derives_calendar_age_from_curp_without_age_column():
+    team_id = create_test_team()
+    content = (
+        "nombre,curp,numero\n"
+        "Bruno Diaz,DIBB961215HASXXX00,83\n"
+    ).encode("utf-8")
+
+    response = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", content, "text/csv")}
+    )
+
+    assert response.status_code == 201
+    roster = client.get(f"/api/teams/{team_id}/players").json()
+    assert roster[0]["age"] == 30
+
+
+def test_team_manager_can_edit_and_deactivate_roster_player():
+    team_id = create_test_team()
+    created = client.post(
+        f"/api/teams/{team_id}/players",
+        json={
+            "name": "Nombre Incorrecto",
+            "curp": "DIBB961215HASXXX00",
+            "jersey_number": 83
+        }
+    ).json()
+
+    updated = client.patch(
+        f"/api/teams/{team_id}/players/{created['id']}",
+        json={
+            "name": "Bruno Diaz",
+            "curp": "DIBB961215HASXXX00",
+            "jersey_number": 10
+        }
+    )
+    assert updated.status_code == 200
+    assert updated.json()["age"] == 30
+    assert updated.json()["jersey_number"] == 10
+
+    removal = client.delete(
+        f"/api/teams/{team_id}/players/{created['id']}"
+    )
+    assert removal.status_code == 204
+    assert client.get(f"/api/teams/{team_id}/players").json() == []
+
+    connection = get_connection()
+    identity = connection.execute(
+        "SELECT name FROM players WHERE id = %s", (created["id"],)
+    ).fetchone()
+    membership = connection.execute(
+        "SELECT active FROM team_players WHERE team_id = %s AND player_id = %s",
+        (team_id, created["id"])
+    ).fetchone()
+    connection.close()
+    assert identity["name"] == "Bruno Diaz"
+    assert membership["active"] is False
+
+
+def test_inactive_player_frees_jersey_number_for_current_roster():
+    team_id = create_test_team()
+    first = client.post(
+        f"/api/teams/{team_id}/players",
+        json={
+            "name": "Former Player", "curp": "DIBB961215HASXXX00",
+            "jersey_number": 7
+        }
+    ).json()
+    assert client.delete(
+        f"/api/teams/{team_id}/players/{first['id']}"
+    ).status_code == 204
+
+    replacement = client.post(
+        f"/api/teams/{team_id}/players",
+        json={
+            "name": "Current Player", "curp": "GOPJ010405HASXXA01",
+            "jersey_number": 7
+        }
+    )
+    assert replacement.status_code == 201
+
+
 def test_import_roster_from_xlsx():
     team_id = create_test_team()
     workbook = Workbook()
@@ -466,7 +548,7 @@ def test_roster_csv_template_uses_canonical_headers():
     assert response.status_code == 200
     assert "attachment" in response.headers["content-disposition"]
     assert response.content.decode("utf-8-sig").startswith(
-        "nombre,curp,edad,numero"
+        "nombre,curp,numero"
     )
 
 

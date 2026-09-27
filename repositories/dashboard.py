@@ -46,6 +46,7 @@ def get_player_dashboard(player_id):
         FROM team_players
         JOIN teams ON teams.id = team_players.team_id
         WHERE team_players.player_id = %s
+          AND team_players.active
         ORDER BY teams.branch, teams.category, teams.name
         """,
         (player_id,)

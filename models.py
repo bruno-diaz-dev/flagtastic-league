@@ -2,7 +2,9 @@
 
 from datetime import time
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
+
+from services.curp import InvalidCurpBirthDate, calendar_age_from_curp
 
 ALLOWED_BRANCHES = {
     "varonil",
@@ -128,7 +130,7 @@ class PlayerCreate(BaseModel):
     """Validate a player registration for a team roster."""
     name: str = Field(min_length=1)
     curp: str = Field(min_length=18, max_length=18)
-    age: int = Field(gt=0)
+    age: int | None = Field(default=None, gt=0)
     jersey_number: int = Field(ge=0)
 
     @field_validator("curp")
@@ -136,6 +138,20 @@ class PlayerCreate(BaseModel):
     def normalize_curp(cls, curp):
         """Keep representative-created identities claimable at registration."""
         return curp.strip().upper()
+
+    @model_validator(mode="after")
+    def derive_calendar_age(self):
+        """Prefer CURP-derived calendar age while accepting legacy test data."""
+        try:
+            self.age = calendar_age_from_curp(self.curp)
+        except InvalidCurpBirthDate:
+            if self.age is None:
+                raise ValueError("La CURP no contiene una fecha valida")
+        return self
+
+
+class RosterPlayerUpdate(PlayerCreate):
+    """Validate identity and jersey corrections for an active membership."""
 
 class GameCreate(BaseModel):
     """Validate the two participants of a new game."""
@@ -209,7 +225,7 @@ class PlayerAccountCreate(BaseModel):
     name: str = Field(min_length=1)
     aka: str | None = Field(default=None, max_length=80)
     curp: str = Field(min_length=18, max_length=18)
-    age: int = Field(gt=0)
+    age: int | None = Field(default=None, gt=0)
 
     @field_validator("email")
     @classmethod
@@ -229,6 +245,16 @@ class PlayerAccountCreate(BaseModel):
     def normalize_aka(cls, aka):
         normalized = aka.strip() if aka is not None else ""
         return normalized or None
+
+    @model_validator(mode="after")
+    def derive_calendar_age(self):
+        """Use the age reached during the current year for account matching."""
+        try:
+            self.age = calendar_age_from_curp(self.curp)
+        except InvalidCurpBirthDate:
+            if self.age is None:
+                raise ValueError("La CURP no contiene una fecha valida")
+        return self
 
 
 class TeamMembershipCreate(BaseModel):

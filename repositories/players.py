@@ -55,6 +55,7 @@ def create_player(team, player):
             WHERE team_players.player_id = %s
                 AND teams.branch = %s
                 AND teams.category = %s
+                AND team_players.active
             LIMIT 1
             """,
             (
@@ -75,6 +76,9 @@ def create_player(team, player):
                 jersey_number
             )
             VALUES (%s, %s, %s)
+            ON CONFLICT (team_id, player_id) DO UPDATE
+            SET jersey_number = EXCLUDED.jersey_number,
+                active = TRUE
             """,
             (
                 team["id"],
@@ -138,6 +142,7 @@ def import_players(team, players):
                 WHERE team_players.player_id = %s
                     AND teams.branch = %s
                     AND teams.category = %s
+                    AND team_players.active
                 LIMIT 1
                 """,
                 (player_id, team["branch"], team["category"])
@@ -150,6 +155,9 @@ def import_players(team, players):
                 """
                 INSERT INTO team_players (team_id, player_id, jersey_number)
                 VALUES (%s, %s, %s)
+                ON CONFLICT (team_id, player_id) DO UPDATE
+                SET jersey_number = EXCLUDED.jersey_number,
+                    active = TRUE
                 """,
                 (team["id"], player_id, player.jersey_number)
             )
@@ -194,6 +202,7 @@ def get_players_by_team(team_id):
         JOIN players
             ON players.id = team_players.player_id
         WHERE team_players.team_id = %s
+          AND team_players.active
         ORDER BY team_players.jersey_number
         """,
         (team_id,)
@@ -202,6 +211,25 @@ def get_players_by_team(team_id):
     connection.close()
 
     return[dict(row) for row in rows]
+
+
+def get_managed_roster_player(team_id, player_id):
+    """Return private edit fields only for an active team membership."""
+    connection = get_connection()
+    row = connection.execute(
+        """
+        SELECT players.id, players.name, players.curp, players.age,
+               team_players.jersey_number
+        FROM team_players
+        JOIN players ON players.id = team_players.player_id
+        WHERE team_players.team_id = %s
+          AND team_players.player_id = %s
+          AND team_players.active
+        """,
+        (team_id, player_id)
+    ).fetchone()
+    connection.close()
+    return dict(row) if row is not None else None
 
 
 def update_roster_player_photo(team_id, player_id, photo):
@@ -219,6 +247,7 @@ def update_roster_player_photo(team_id, player_id, photo):
                   SELECT 1 FROM team_players
                   WHERE team_players.team_id = %s
                     AND team_players.player_id = players.id
+                    AND team_players.active
               )
             RETURNING id
             """,
@@ -239,6 +268,72 @@ def update_roster_player_photo(team_id, player_id, photo):
         connection.close()
 
 
+def update_roster_player(team_id, player_id, player):
+    """Correct an active roster identity and its team-specific jersey."""
+    connection = get_connection()
+    try:
+        membership = connection.execute(
+            """
+            SELECT 1 FROM team_players
+            WHERE team_id = %s AND player_id = %s AND active
+            """,
+            (team_id, player_id)
+        ).fetchone()
+        if membership is None:
+            return None
+
+        updated = connection.execute(
+            """
+            UPDATE players
+            SET name = %s, curp = %s, age = %s
+            WHERE id = %s
+            RETURNING id, name, age
+            """,
+            (player.name, player.curp, player.age, player_id)
+        ).fetchone()
+        connection.execute(
+            """
+            UPDATE team_players
+            SET jersey_number = %s
+            WHERE team_id = %s AND player_id = %s AND active
+            """,
+            (player.jersey_number, team_id, player_id)
+        )
+        connection.commit()
+        return {
+            **dict(updated),
+            "team_id": team_id,
+            "jersey_number": player.jersey_number
+        }
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def deactivate_roster_player(team_id, player_id):
+    """Remove a player from the current roster without deleting history."""
+    connection = get_connection()
+    try:
+        removed = connection.execute(
+            """
+            UPDATE team_players
+            SET active = FALSE
+            WHERE team_id = %s AND player_id = %s AND active
+            RETURNING player_id
+            """,
+            (team_id, player_id)
+        ).fetchone()
+        connection.commit()
+        return removed is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def join_team(player_id, team, jersey_number):
     """Attach an existing player identity to one eligible division roster."""
     connection = get_connection()
@@ -251,6 +346,7 @@ def join_team(player_id, team, jersey_number):
             WHERE team_players.player_id = %s
               AND teams.branch = %s
               AND teams.category = %s
+              AND team_players.active
             """,
             (player_id, team["branch"], team["category"])
         ).fetchone()
@@ -261,6 +357,9 @@ def join_team(player_id, team, jersey_number):
             """
             INSERT INTO team_players (team_id, player_id, jersey_number)
             VALUES (%s, %s, %s)
+            ON CONFLICT (team_id, player_id) DO UPDATE
+            SET jersey_number = EXCLUDED.jersey_number,
+                active = TRUE
             RETURNING team_id, player_id, jersey_number
             """,
             (team["id"], player_id, jersey_number)

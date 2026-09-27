@@ -39,7 +39,7 @@
         <form id="player-form" class="player-form">
             <label>Nombre<input name="name" autocomplete="off" required></label>
             <label>CURP<input name="curp" autocomplete="off" minlength="18" maxlength="18" required></label>
-            <label>Edad<input name="age" type="number" min="1" required></label>
+            <label>Edad calendario<input name="age" type="number" readonly tabindex="-1"></label>
             <label>Número<input name="jersey_number" type="number" min="0" required></label>
             <button type="submit">Registrar jugador</button>
         </form>
@@ -48,7 +48,7 @@
         <form id="roster-import-form" class="stats-import-form">
             <label>Importar roster (.csv o .xlsx)
                 <input name="file" type="file" accept=".csv,.xlsx" required>
-                <small>Columnas requeridas: nombre, CURP, edad y número.</small>
+                <small>Columnas requeridas: nombre, CURP y número. La edad se calcula automáticamente.</small>
             </label>
             <button type="submit">Importar roster</button>
         </form>
@@ -63,6 +63,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260926-5"></script>
-<script src="/static/roster.js?v=20260926-5"></script>
+<script src="/static/api.js?v=20260926-6"></script>
+<script src="/static/roster.js?v=20260926-6"></script>
 {% endblock %}

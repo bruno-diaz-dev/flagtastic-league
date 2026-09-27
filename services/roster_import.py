@@ -108,16 +108,17 @@ def _map_headers(headers):
 
     mapped = {}
     missing = []
+    required_fields = {"name", "curp", "jersey_number"}
     for field, aliases in HEADER_ALIASES.items():
         match = next((alias for alias in aliases if alias in normalized), None)
-        if match is None:
+        if match is None and field in required_fields:
             missing.append(field)
-        else:
+        elif match is not None:
             mapped[field] = normalized[match]
 
     if missing:
         raise RosterImportError(
-            "Faltan columnas requeridas: nombre, curp, edad y numero"
+            "Faltan columnas requeridas: nombre, curp y numero"
         )
 
     return mapped
@@ -138,7 +139,7 @@ def _validate_rows(rows):
             player = PlayerCreate.model_validate(values)
         except ValidationError as error:
             raise RosterImportError(
-                f"Fila {row['row_number']}: revisa nombre, CURP, edad y numero"
+                f"Fila {row['row_number']}: revisa nombre, CURP y numero"
             ) from error
 
         if player.curp in seen_curps:

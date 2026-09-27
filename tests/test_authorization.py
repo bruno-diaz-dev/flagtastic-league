@@ -232,6 +232,20 @@ def test_team_representative_can_manage_only_assigned_team():
     assert assigned_photo.status_code == 204
     assert other_photo.status_code == 403
 
+    cross_team_edit = client.patch(
+        f"/api/teams/{other_team['id']}/players/{player_id}",
+        json={
+            "name": "Unauthorized Edit",
+            "curp": "DIBB961215HASXXX00",
+            "jersey_number": 9
+        }
+    )
+    cross_team_removal = client.delete(
+        f"/api/teams/{other_team['id']}/players/{player_id}"
+    )
+    assert cross_team_edit.status_code == 403
+    assert cross_team_removal.status_code == 403
+
 
 def test_league_admin_can_grant_another_admin_role():
     disable_test_authorization_override()

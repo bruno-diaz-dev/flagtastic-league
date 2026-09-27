@@ -82,6 +82,21 @@ function renderRoster(team) {
                     <button type="submit">Guardar foto</button>
                     <span class="roster-photo-message" role="status"></span>
                 </form>
+                <div class="roster-player-actions team-scope-manager-only">
+                    <button class="secondary-button" type="button" data-edit-player="${player.id}">Editar</button>
+                    <button class="danger-button" type="button" data-deactivate-player="${player.id}">Dar de baja</button>
+                </div>
+                <form class="roster-edit-form team-scope-manager-only hidden" data-player-id="${player.id}">
+                    <label>Nombre<input name="name" required></label>
+                    <label>CURP<input name="curp" minlength="18" maxlength="18" required></label>
+                    <label>Edad calendario<input name="age" type="number" readonly tabindex="-1"></label>
+                    <label>Número<input name="jersey_number" type="number" min="0" required></label>
+                    <div class="form-actions">
+                        <button type="submit">Guardar cambios</button>
+                        <button class="secondary-button" type="button" data-cancel-edit>Cancelar</button>
+                    </div>
+                    <span class="roster-edit-message" role="status"></span>
+                </form>
             </article>`;
     }).join("");
 }
@@ -109,6 +124,71 @@ rosterContainer.addEventListener("submit", async (event) => {
 });
 
 
+rosterContainer.addEventListener("submit", async (event) => {
+    const form = event.target.closest(".roster-edit-form");
+    if (!form) return;
+    event.preventDefault();
+    const message = form.querySelector(".roster-edit-message");
+    const fields = new FormData(form);
+    message.textContent = "Guardando...";
+    const response = await updateRosterPlayer(teamId, form.dataset.playerId, {
+        name: fields.get("name"),
+        curp: fields.get("curp"),
+        age: Number(fields.get("age")) || null,
+        jersey_number: Number(fields.get("jersey_number"))
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        message.textContent = body.detail || "No se pudo actualizar al jugador.";
+        return;
+    }
+    await loadRoster();
+});
+
+
+rosterContainer.addEventListener("input", (event) => {
+    if (event.target.name !== "curp") return;
+    const form = event.target.closest(".roster-edit-form");
+    if (!form) return;
+    form.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
+});
+
+
+rosterContainer.addEventListener("click", async (event) => {
+    const editButton = event.target.closest("[data-edit-player]");
+    if (editButton) {
+        const playerId = editButton.dataset.editPlayer;
+        const form = rosterContainer.querySelector(
+            `.roster-edit-form[data-player-id="${playerId}"]`
+        );
+        const response = await getManagedRosterPlayer(teamId, playerId);
+        if (!response.ok) return;
+        const player = await response.json();
+        form.elements.name.value = player.name;
+        form.elements.curp.value = player.curp;
+        form.elements.age.value = player.age;
+        form.elements.jersey_number.value = player.jersey_number;
+        form.classList.remove("hidden");
+        return;
+    }
+
+    const cancelButton = event.target.closest("[data-cancel-edit]");
+    if (cancelButton) {
+        cancelButton.closest(".roster-edit-form").classList.add("hidden");
+        return;
+    }
+
+    const deactivateButton = event.target.closest("[data-deactivate-player]");
+    if (!deactivateButton) return;
+    if (!window.confirm("¿Dar de baja a este jugador del roster? Sus estadísticas se conservarán.")) return;
+    const response = await deactivateRosterPlayer(
+        teamId,
+        deactivateButton.dataset.deactivatePlayer
+    );
+    if (response.ok) await loadRoster();
+});
+
+
 async function loadRoster() {
     const response = await getTeamDetail(teamId);
     if (response.status === 404) {
@@ -132,7 +212,7 @@ playerForm.addEventListener("submit", async (event) => {
     const response = await createPlayer(teamId, {
         name: fields.get("name"),
         curp: fields.get("curp"),
-        age: Number(fields.get("age")),
+        age: Number(fields.get("age")) || null,
         jersey_number: Number(fields.get("jersey_number"))
     });
     if (!response.ok) {
@@ -143,6 +223,11 @@ playerForm.addEventListener("submit", async (event) => {
     playerForm.reset();
     playerFormMessage.textContent = "Jugador registrado correctamente.";
     await loadRoster();
+});
+
+
+playerForm.elements.curp.addEventListener("input", (event) => {
+    playerForm.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
 });
 
 
