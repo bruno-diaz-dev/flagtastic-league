@@ -96,6 +96,8 @@ def test_player_dashboard_page_is_available():
 
     assert response.status_code == 200
     assert "Mi dashboard" in response.text
+    assert 'rel="icon" type="image/jpeg"' in response.text
+    assert 'href="/static/assets/flagtastic.jpeg' in response.text
     assert 'src="/static/dashboard.js' in response.text
     assert 'id="dashboard-photo-placeholder"' in response.text
     assert 'id="join-team-branch"' in response.text
