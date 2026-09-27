@@ -141,6 +141,12 @@ def register_page(request: Request):
     return templates.TemplateResponse(request, "register.html")
 
 
+@app.get("/privacy")
+def privacy_page(request: Request):
+    """Render the public integral privacy notice."""
+    return templates.TemplateResponse(request, "privacy.html")
+
+
 @app.get("/change-password")
 def change_password_page(request: Request):
     """Render the password replacement form used on first staff login."""

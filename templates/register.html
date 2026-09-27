@@ -18,6 +18,10 @@
             <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
             <small>JPG, PNG o WebP. Máximo 5 MB.</small>
         </label>
+        <label class="privacy-consent">
+            <input name="privacy_acknowledgement" type="checkbox" required>
+            <span>He leído el <a href="/privacy" target="_blank" rel="noopener">aviso de privacidad</a> y confirmo que proporciono mis datos o que cuento con autorización para registrar a la persona titular.</span>
+        </label>
         <button type="submit">Crear cuenta</button>
         <p id="register-message" class="form-message" role="status"></p>
         <a href="/login">Ya tengo una cuenta</a>

@@ -1,11 +1,19 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section>
+<section class="role-dashboard-page">
     <header class="section-header">
-        <h2>Arbitrajes</h2>
-        <p>Consulta tus partidos asignados y administra el rol oficial.</p>
+        <h2>Mi dashboard de arbitraje</h2>
+        <p>Consulta asignaciones, campos, horarios y el historial de tus partidos.</p>
     </header>
+    <div id="referee-summary" class="stat-grid dashboard-summary-grid" aria-live="polite"></div>
+    <nav class="dashboard-quick-links" aria-label="Accesos del árbitro">
+        <a href="/games">Todos los partidos</a>
+        <a href="/standings">Tabla de posiciones</a>
+        <a href="/privacy">Aviso de privacidad</a>
+    </nav>
+    <p id="referee-games-message" class="form-message" role="status"></p>
+    <div id="referee-games" class="referee-dashboard-games" aria-live="polite"></div>
     <section class="form-panel admin-only">
         <h3>Cargar rol de árbitros</h3>
         <p>Sube una imagen legible. Podrás revisar campos y árbitros antes de guardar.</p>
@@ -28,12 +36,10 @@
             <details><summary>Texto reconocido</summary><pre id="schedule-raw-text"></pre></details>
         </div>
     </section>
-    <p id="referee-games-message" class="form-message" role="status"></p>
-    <section id="referee-games" class="games-list" aria-live="polite"></section>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/api.js?v=20260925-5"></script>
-<script src="/static/referee_games.js?v=20260925-5"></script>
+<script src="/static/referee_games.js?v=20260927-1"></script>
 {% endblock %}

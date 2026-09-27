@@ -196,7 +196,8 @@ Team representatives manage only their assigned team or teams.
 
 The team creator is assigned atomically even when the account has multiple
 roles. Representatives maintain the logo, Head Coach, Coach and Manager, and
-use a private dashboard for standings, team totals, and per-player statistics.
+use a private dashboard for standings, team totals, per-player statistics, and
+an at-a-glance summary of their assigned teams and combined record.
 
 Allowed:
 
@@ -254,6 +255,8 @@ Allowed:
 
 - View public league data.
 - View only the games assigned to their own account.
+- Review pending assignments, fields, times, positions, and completed history
+  from their role dashboard.
 
 Not allowed by the referee role alone:
 
@@ -266,6 +269,11 @@ a player, referee, and league administrator; each capability is evaluated
 independently so operational access never hides the player dashboard.
 
 Implemented status: stages 1-5 are active. Administrative actions are hidden for public visitors and enforced again by backend dependencies.
+
+The public integral privacy notice is available from every page and from player
+registration. It covers the data currently collected by the release, including
+minor-player authorization, public sports profiles, essential sessions,
+infrastructure providers, retention, and ARCO requests.
 
 Team operations now include an administrator-controlled lifecycle
 (`pending`, `active`, `inactive`) and explicit representative assignment for

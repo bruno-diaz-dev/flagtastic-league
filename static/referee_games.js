@@ -2,6 +2,7 @@
 
 const refereeGames = document.querySelector("#referee-games");
 const refereeGamesMessage = document.querySelector("#referee-games-message");
+const refereeSummary = document.querySelector("#referee-summary");
 const scheduleForm = document.querySelector("#referee-schedule-form");
 const scheduleMessage = document.querySelector("#schedule-import-message");
 const scheduleReview = document.querySelector("#schedule-review");
@@ -19,6 +20,73 @@ const officialPositions = [
 ];
 
 
+function officialPositionLabel(position) {
+    return officialPositions.find(([value]) => value === position)?.[1] || position;
+}
+
+
+function refereeMetric(label, value) {
+    return `<div class="stat-item"><span>${label}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+}
+
+
+function renderRefereeSummary(games) {
+    const pendingGames = games.filter((game) => game.home_score === null);
+    const completedGames = games.length - pendingGames.length;
+    const nextWeek = pendingGames.length
+        ? Math.min(...pendingGames.map((game) => game.week))
+        : null;
+    const positionCounts = games.reduce((counts, game) => {
+        counts[game.official_position] = (counts[game.official_position] || 0) + 1;
+        return counts;
+    }, {});
+    const mostFrequentPosition = Object.entries(positionCounts)
+        .sort((left, right) => right[1] - left[1])[0]?.[0];
+
+    refereeSummary.innerHTML = [
+        refereeMetric("Asignaciones", games.length),
+        refereeMetric("Pendientes", pendingGames.length),
+        refereeMetric("Finalizadas", completedGames),
+        refereeMetric("Siguiente jornada", nextWeek ? `J${nextWeek}` : "-"),
+        refereeMetric("Rol más frecuente", mostFrequentPosition ? officialPositionLabel(mostFrequentPosition) : "-")
+    ].join("");
+}
+
+
+function refereeGameCard(game) {
+    const isPending = game.home_score === null;
+    return `
+        <article class="game-card referee-game-card">
+            <div class="referee-game-copy">
+                <span class="game-state ${isPending ? "game-state-pending" : "game-state-complete"}">${isPending ? "Pendiente" : "Finalizado"}</span>
+                <h4>${escapeHtml(game.home_team.name)} vs ${escapeHtml(game.away_team.name)}</h4>
+                <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
+                <p>${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
+            </div>
+            <div class="referee-game-result">
+                <strong>${isPending ? "Por jugar" : `${game.home_score} - ${game.away_score}`}</strong>
+                <a class="secondary-link" href="/games/${game.id}">Ver detalle</a>
+            </div>
+        </article>`;
+}
+
+
+function refereeGameSection(title, description, games) {
+    return `
+        <section class="referee-game-section">
+            <header class="dashboard-section-heading">
+                <div><h3>${title}</h3><p>${description}</p></div>
+                <strong>${games.length}</strong>
+            </header>
+            <div class="games-list">
+                ${games.length
+                    ? games.map(refereeGameCard).join("")
+                    : `<div class="empty-state"><h4>Sin partidos</h4><p>No hay asignaciones en esta sección.</p></div>`}
+            </div>
+        </section>`;
+}
+
+
 async function loadRefereeGames() {
     const response = await getMyRefereeGames();
     if (response.status === 401) return window.location.assign("/login");
@@ -28,19 +96,20 @@ async function loadRefereeGames() {
         return;
     }
     const games = await response.json();
-    refereeGames.innerHTML = games.length ? games.map((game) => `
-        <article class="game-card">
-            <div>
-                <h3>${escapeHtml(game.home_team.name)} vs ${escapeHtml(game.away_team.name)}</h3>
-                <p>${escapeHtml(officialPositions.find(([value]) => value === game.official_position)?.[1] || game.official_position)} · Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"} · ${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
-            </div>
-            <strong>${game.home_score === null ? "Pendiente" : `${game.home_score} - ${game.away_score}`}</strong>
-        </article>
-    `).join("") : `
-        <div class="empty-state">
-            <h3>Sin partidos asignados</h3>
-            <p>Tus próximas asignaciones aparecerán aquí.</p>
-        </div>`;
+    const pendingGames = games.filter((game) => game.home_score === null);
+    const completedGames = games.filter((game) => game.home_score !== null);
+    renderRefereeSummary(games);
+    refereeGames.innerHTML = games.length
+        ? refereeGameSection(
+            "Asignaciones pendientes",
+            "Partidos que todavía no tienen marcador final.",
+            pendingGames
+        ) + refereeGameSection(
+            "Historial de arbitrajes",
+            "Partidos finalizados en los que participaste.",
+            completedGames
+        )
+        : `<div class="empty-state"><h3>Sin partidos asignados</h3><p>Tus próximas asignaciones aparecerán aquí.</p></div>`;
 }
 
 
@@ -140,5 +209,6 @@ confirmScheduleButton?.addEventListener("click", async () => {
 
 loadAvailableReferees();
 loadRefereeGames().catch(() => {
+    refereeSummary.innerHTML = "";
     refereeGamesMessage.textContent = "No se pudo conectar con el servidor.";
 });
