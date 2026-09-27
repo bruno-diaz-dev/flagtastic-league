@@ -1,467 +1,267 @@
-# Flagtastic Public Launch Plan
+# Flagtastic Release Plan
 
-## Launch Goal
+## Purpose
 
-Flagtastic must be publicly usable by September 27, 2026.
+This document tracks the production baseline and the work required to evolve
+Flagtastic safely. It replaces the original pre-launch plan: the public MVP was
+deployed by September 27, 2026, and the project is now in stabilization and
+operational improvement.
 
-The launch target is not a complete league management platform. The target is a stable public website and operational MVP that lets the league publish and manage the core information people need:
+The working team is Bruno and Codex. Work is intentionally divided into small,
+reviewable pull requests. Every change must preserve least-privilege access,
+database migration safety, responsive behavior, and the existing public flows.
 
-- Teams by branch and category.
-- Team rosters.
-- Games and scores.
-- Standings by branch and category.
-- Personal player statistics v1.
-- A basic operational workflow for league staff to maintain data.
+## Delivery Workflow
 
-The project is being built by a two-person team: Bruno and Codex. The plan intentionally favors small, verifiable increments over large rewrites.
-
-## Architecture Direction
-
-The current single-page frontend is useful for early validation, but it is becoming harder to maintain as more workflows are added. The next architecture step is to split the frontend into server-rendered pages backed by the existing FastAPI API.
-
-Target structure:
+All changes follow this path:
 
 ```text
-templates/
-  base.html
-  teams.html
-  roster.html
-  games.html
-  standings.html
-
-static/
-  api.js
-  layout.js
-  teams.js
-  roster.js
-  games.js
-  standings.js
-  style.css
-
-routes/
-  web.py
-  teams.py
-  players.py
-  games.py
-  standings.py
+Issue or verified requirement
+        |
+Feature/fix branch
+        |
+Automated tests + local verification
+        |
+Pull request in English
+        |
+GitHub CI + CodeQL + Vercel Preview
+        |
+Production merge and smoke check
 ```
 
-Target web routes:
-
-```text
-GET /teams
-GET /teams/{team_id}/roster
-GET /games
-GET /standings
-GET / -> redirect to /teams
-```
-
-Target API routes remain stable:
+Rules:
+
+1. Do not commit directly to `main`.
+2. Keep one coherent concern per pull request whenever practical.
+3. Add or update tests for behavior changes.
+4. Use Alembic for every schema change and verify upgrade and downgrade.
+5. Test affected pages at desktop and mobile widths before merge.
+6. Update README or focused documentation when operations, architecture, or
+   user-visible behavior changes.
+7. Do not seed mock data into production unless an explicit migration plan
+   requires it.
+
+## Release 1 Production Baseline
+
+Release 1 is deployed at <https://flagtastic-league.vercel.app>.
+
+### Public experience
+
+- Multipage server-rendered interface with responsive navigation.
+- Team directory with branch/category filters and deterministic ordering.
+- Dedicated roster and public player-profile pages.
+- Filterable games, scores, fields, and game details.
+- Division standings with team logos.
+- Top-five individual leaderboards by branch and category.
+- Integral privacy notice.
+
+### Team and roster operations
+
+- Authenticated team creation with automatic creator assignment.
+- Team lifecycle: `pending`, `active`, and `inactive`.
+- Administrator team rename, representative assignment/removal, and deletion.
+- Representative access limited to explicitly assigned teams.
+- Team logos and Head Coach, Coach, and Manager fields.
+- Roster player create, edit, deactivate, and photo update workflows.
+- CSV/XLSX roster imports plus a downloadable CSV template.
+- CURP-derived age validation based on age reached during the calendar year.
+
+### Accounts and authorization
+
+- Database-backed sessions with secure production cookies.
+- Player self-registration linked to roster identity.
+- Required profile photo and optional AKA.
+- Cumulative `league_admin`, `team_representative`, `player`, and `referee`
+  roles.
+- Forced initial-password replacement for administrator-created staff.
+- Administrator user and role management.
+- Public, player, representative, referee, and administrator data scopes
+  enforced by FastAPI dependencies rather than UI visibility alone.
+
+### Games, officials, and statistics
+
+- Game scheduling, fields 1-8, scores, and jornada filtering.
+- Game-level player statistics for both participating teams.
+- Complete-jornada workbook imports linked to game, player, team, and division.
+- Aggregated player profiles and named leaderboards.
+- Passing-percentage qualification: no minimum through jornada 3, then at least
+  30 attempted passes.
+- Referee, Down Judge, Field Judge, Side Judge, and Statistician assignments.
+- Referee and Down Judge as the required core positions when confirming an
+  official role; optional positions support U6, regular games, and finals.
+- OCR-assisted official schedule review with explicit administrator
+  confirmation before data changes.
+- Private referee assignments and administrator replacement of officials.
+
+### Delivery and operations
+
+- PostgreSQL schema managed by Alembic.
+- Production database on Supabase with Row Level Security as defense in depth.
+- Application deployment and Preview environments on Vercel.
+- GitHub Actions tests migrations from scratch and runs pytest.
+- Docker image build and GHCR publication on non-PR builds.
+- CodeQL analysis and branch-based pull-request workflow.
+- Privacy-scrubbed Sentry telemetry.
+- Vercel and Supabase diagnostic logs.
+- Better Stack external monitoring of `/live` and `/ready` with email alerts.
+
+## Release Gates
+
+Every production release must satisfy all applicable gates.
+
+### Automated gates
+
+- Dependency installation and `pip check` succeed.
+- Python sources compile.
+- Alembic upgrades from base, downgrades to base, and upgrades again on clean
+  PostgreSQL.
+- Complete pytest suite passes.
+- Docker image builds.
+- CodeQL reports no blocking finding.
+- Vercel Preview deployment succeeds.
+
+### Manual gates
+
+- The affected workflow succeeds in the Preview environment.
+- No unauthorized role can call the changed write endpoint.
+- Mobile layouts have no page-level horizontal overflow at 360, 390, and 430
+  pixels.
+- Desktop behavior remains correct at 1280 pixels or wider.
+- Tables retain readable headers and contained horizontal scrolling.
+- Media changes survive reload and do not depend on local filesystem state.
+- Production smoke checks confirm `/live`, `/ready`, login, and the changed
+  public or private flow after merge.
 
-```text
-GET  /api/teams
-POST /api/teams
-GET  /api/teams/{team_id}
-POST /api/teams/{team_id}/players
-GET  /api/teams/{team_id}/players
-GET  /api/games
-POST /api/games
-PATCH /api/games/{game_id}/score
-GET  /api/standings
-POST /api/weeks/{week}/player-stats/import
-GET  /api/weeks/{week}/player-stats
-GET  /api/players/{player_id}/stats
-```
+### Database gates
 
-## Personal Statistics V1
+- Migration names and constraints are deterministic.
+- Upgrade and downgrade are tested against an isolated database.
+- Destructive data changes include an explicit backup or recovery procedure.
+- Production is migrated before application code that requires the schema is
+  promoted.
+- `alembic stamp` is never used as a substitute for applying missing schema.
 
-Personal player statistics are part of the first public release, but the first version must stay intentionally small.
+## Sprint 5: Production Stabilization
 
-The goal is to support basic public player performance data without delaying the September 27 launch.
+**Status:** In progress
 
-### V1 Scope
+**Goal:** Close launch defects and make production behavior observable and
+repeatable.
 
-Statistics are recorded per player and jornada. Each import is the complete jornada snapshot across all branches, categories, and teams.
+Completed:
 
-Minimum fields:
+- Deploy the application on Vercel with Supabase PostgreSQL.
+- Add liveness and database-readiness endpoints.
+- Integrate Sentry with privacy scrubbing.
+- Configure Better Stack process and database monitors with email alerts.
+- Document incident response and monitoring ownership.
+- Refresh the README and architecture references to describe production.
+- Establish pull-request delivery with CI, CodeQL, and Vercel Preview checks.
 
-```text
-player_week_stats
-- id
-- week
-- player_id
-- team_id
-- points
-- receptions
-- interceptions
-- sacks
-- tackles
-- passes_completed
-- passes_attempted
-```
+Remaining:
 
-The first version should support:
-
-- Complete-jornada Excel imports by league administrators.
-- Resolving players by branch, category, team, and jersey number.
-- Listing player stats for a jornada.
-- Showing aggregated player stats publicly.
-- Showing the top five players for each metric by branch and category.
-- Keeping stat totals derived from weekly records, not manually edited as lifetime totals.
-
-### V1 API Direction
-
-```text
-POST /api/weeks/{week}/player-stats/import
-GET  /api/weeks/{week}/player-stats
-GET  /api/players/{player_id}/stats
-GET  /api/statistics/leaderboards
-```
-
-Expected backend rules:
-
-- The jornada must be greater than zero.
-- The player must exist.
-- The team must exist.
-- The player must belong to the selected team.
-- The branch, category, team, and jersey number must match one roster membership.
-- Stat values must be zero or greater.
-- The same player should have only one stat row per team and jornada.
-
-### V1 UI Direction
-
-Add statistics where they naturally fit:
-
-- On the statistics page, allow an operational/admin workflow to import a complete jornada workbook.
-- On dedicated team roster pages, show each player's photo, AKA, legal name, jersey, and basic roster data.
-- On a public statistics page, show compact top-five leaderboards.
-
-### Out Of Scope For V1
-
-The following are deferred until after launch:
-
-- Advanced offensive/defensive breakdowns.
-- Passing yards, rushing yards, receiving yards, completions, attempts, receptions, and tackles.
-- Player profile pages with full history.
-- Automated stat feeds.
-- Audit history for each stat correction.
-
-## Access Control Direction
-
-The public launch must account for least-privilege access, even if the first public version ships with a simple implementation.
-
-Access should be modeled by role, not by scattered frontend checks.
-
-### Public Visitor
-
-Public visitors do not need authentication.
-
-Allowed:
-
-- View teams.
-- View team rosters.
-- View games and scores.
-- View standings.
-
-Not allowed:
-
-- Create teams.
-- Edit teams.
-- Register players.
-- Create games.
-- Update scores.
-- Access administrative screens.
-
-### Player
-
-Players should have the minimum access needed to view their own league context.
-
-Allowed:
-
-- View public league data.
-- View their own player profile when authentication exists.
-- View their own team membership.
-
-Not allowed:
-
-- Register themselves into arbitrary teams.
-- Edit official rosters.
-- Edit game scores.
-- Manage teams.
-- Access league administration.
-
-### Team Representative
-
-Team representatives manage only their assigned team or teams.
-
-The team creator is assigned atomically even when the account has multiple
-roles. Representatives maintain the logo, Head Coach, Coach and Manager, and
-use a private dashboard for standings, team totals, per-player statistics, and
-an at-a-glance summary of their assigned teams and combined record.
-
-Allowed:
-
-- View public league data.
-- View assigned team details.
-- Submit or maintain roster information for assigned teams.
-- Request player changes for assigned teams, depending on the final approval flow.
-
-Not allowed:
-
-- Edit other teams.
-- Update official game scores unless explicitly delegated.
-- Change standings directly.
-- Manage league-wide settings.
-- Manage users outside their team scope.
-
-### League Administrator
-
-League administrators manage league operations.
-
-Allowed:
-
-- Create and edit teams.
-- Register and manage players.
-- Create games.
-- Update scores.
-- Manage standings indirectly through scores.
-- Manage user roles and team assignments.
-- Assign one or more referees to games.
-- Assign a field from 1 through 8 to every newly scheduled game.
-
-Not allowed:
-
-- Bypass audit-sensitive workflows once audit logging exists.
-- Change production data without traceability in future versions.
-
-### Access Control Implementation Path
-
-Access control should be introduced in stages:
-
-1. Separate public pages from operational/admin pages.
-2. Keep all write operations behind backend checks.
-3. Add authentication.
-4. Add role-based authorization.
-5. Add team-scoped permissions for representatives.
-6. Add audit logging for administrative actions.
-
-Frontend visibility is not security. Buttons and forms may be hidden in the UI, but the backend must enforce the actual permission rules.
-
-### Referee
-
-Referees have an authenticated, private assignment view.
-
-Allowed:
-
-- View public league data.
-- View only the games assigned to their own account.
-- Review pending assignments, fields, times, positions, and completed history
-  from their role dashboard.
-
-Not allowed by the referee role alone:
-
-- View another referee's private schedule.
-- Create games or update official scores.
-- Manage teams, users, or role assignments.
-
-Roles are cumulative rather than mutually exclusive. A single account may be
-a player, referee, and league administrator; each capability is evaluated
-independently so operational access never hides the player dashboard.
-
-Implemented status: stages 1-5 are active. Administrative actions are hidden for public visitors and enforced again by backend dependencies.
-
-The public integral privacy notice is available from every page and from player
-registration. It covers the data currently collected by the release, including
-minor-player authorization, public sports profiles, essential sessions,
-infrastructure providers, retention, and ARCO requests.
-
-Team operations now include an administrator-controlled lifecycle
-(`pending`, `active`, `inactive`) and explicit representative assignment for
-historical teams. New team creation continues to link its authenticated
-creator atomically. Administrators may also correct a team name without
-changing its branch or category; duplicate division entries remain blocked.
-
-## Sprint 1: Multipage Architecture
-
-Target dates: September 14-16, 2026
-
-Goal: Replace the growing single-page structure with maintainable pages.
-
-Tasks:
-
-- Create `templates/base.html` with shared layout, sidebar, logo, and common assets.
-- Create `templates/teams.html`.
-- Add `GET /teams`.
-- Redirect `GET /` to `/teams`.
-- Replace hash navigation with real links.
-- Move teams-specific markup out of the current single template.
-- Keep `teams.js` focused only on the teams page.
-- Create `templates/games.html` and `GET /games`.
-- Create `templates/standings.html` and `GET /standings`.
-- Remove old hash-view switching logic after all pages are migrated.
+- Merge the documentation refresh after all PR checks pass.
+- Record the first production release/tag from the final deployed commit.
+- Run and record a post-release browser smoke test for every role.
+- Review unresolved Sentry events and Better Stack incidents after the first
+  real usage window.
 
 Definition of done:
 
-- `/teams`, `/games`, and `/standings` can be loaded directly.
-- Browser refresh keeps the user on the same page.
-- Each page loads only the JavaScript it needs.
-- Existing API tests pass.
-- CI is green.
+- Production health monitors remain green for 24 hours.
+- No unresolved release-blocking Sentry issue exists.
+- Deployment, rollback, database migration, and incident steps are documented.
+- Repository documentation matches deployed behavior.
 
-## Sprint 2: Public UI Stabilization
+## Sprint 6: Mobile Reliability
 
-Target dates: September 17-20, 2026
+**Goal:** Make the primary phone experience as reliable as desktop without
+changing desktop workflows unexpectedly.
 
-Goal: Make the public website usable and presentable for league users.
+Scope:
 
-Tasks:
-
-- Stabilize the dark visual theme.
-- Keep the sidebar retractable without hiding the logo.
-- Improve the teams page:
-  - Filter by branch and category.
-  - Keep team cards readable with many teams.
-  - Navigate each team to a dedicated roster page.
-- Keep roster display and authorized roster management isolated in `/teams/{team_id}/roster`.
-- Improve the games page:
-  - Make games and scores easy to scan.
-  - Keep score update workflows operational.
-- Improve the standings page:
-  - Use a professional table layout.
-  - Keep columns clear: team, wins, losses, points for, points against, point difference.
-- Validate mobile layout for the public pages.
-- Review all visible user-facing copy in Spanish.
+- Audit Teams, Rosters, Games, Game Detail, Standings, Statistics, Login,
+  Registration, Player Dashboard, Representative Dashboard, Referee Dashboard,
+  Users, and Team Management at 360, 390, and 430 pixels.
+- Keep the hamburger drawer operable by touch, keyboard, backdrop, Escape, and
+  navigation selection.
+- Prevent controls and buttons from escaping cards or viewport width.
+- Convert operational form rows to stable single-column mobile layouts.
+- Preserve table semantics with contained scrolling and sticky identifying
+  columns where useful.
+- Ensure cached team logos and player photos refresh consistently on mobile.
+- Reduce unnecessary API calls and avoid duplicate page initialization.
+- Add focused browser or DOM-level regression coverage for the shared mobile
+  shell and highest-traffic pages.
 
 Definition of done:
 
-- Public users can understand the site without explanation.
-- The three public pages are visually consistent.
-- The UI does not feel like a raw internal prototype.
-- Existing tests pass.
-- CI is green.
+- No audited page has page-level horizontal scrolling.
+- Touch targets are at least 44 pixels where practical.
+- User-visible content is not obscured by navigation or browser chrome.
+- Logo/photo updates are visible after successful replacement.
+- Desktop screenshots show no regression in the same flows.
+- CI and Vercel Preview checks are green.
 
-## Sprint 3: Personal Statistics V1 And Operational Readiness
+## Sprint 7: Administrative Integrity and Auditability
 
-Target dates: September 21-24, 2026
+**Goal:** Make sensitive league changes traceable and recoverable.
 
-Goal: Add the first version of personal player statistics and make the app reliable enough to deploy and operate.
+Scope:
 
-Tasks:
-
-- Add the `player_week_stats` table.
-- Add a repository layer for weekly player statistics.
-- Add API contracts for importing and reading jornada statistics.
-- Add `POST /api/weeks/{week}/player-stats/import`.
-- Add `GET /api/weeks/{week}/player-stats`.
-- Add `GET /api/players/{player_id}/stats`.
-- Resolve every stat row against an existing roster using division, team, and jersey.
-- Prevent duplicate stat rows for the same player, team, and jornada.
-- Add tests for personal statistics v1.
-- Add an operational UI for importing a complete jornada.
-- Add a minimal public display for aggregated player stats.
-- Import `.xlsx` files atomically by jornada.
-- Publish top-five leaderboards by branch, category, and statistic.
-- Add player self-registration and a personal dashboard.
-- Require a validated profile photo, accept an optional AKA, and reuse that identity in dashboards, rosters, and leaderboards.
-- Let representatives create and automatically manage their teams.
-- Let players join one team per branch and category.
-- Show each player's totals and team standings position.
-- Rank passing completion percentage with the jornada 4 / 30-attempt rule.
-- Confirm all required environment variables are documented.
-- Confirm Docker build and runtime behavior.
-- Confirm image tagging strategy for future promoted deployments.
-- Update README with:
-  - Local setup.
-  - Test commands.
-  - Docker build command.
-  - Docker run command.
-  - Required environment variables.
-- Run a full manual smoke test:
-  - Create a team.
-  - Register a player.
-  - Create a game.
-  - Update a score.
-  - Capture player stats for a game.
-  - View player stats.
-  - View standings.
-- Review error messages shown to users.
+- Add an append-only administrative audit log for role changes, account
+  deletion, team status/name changes, representative changes, roster
+  deactivation, score changes, imports, and official assignments.
+- Capture actor, action, target, timestamp, and non-sensitive before/after
+  metadata.
+- Add an administrator audit view with date, actor, and action filters.
+- Define retention and redaction rules for audit metadata.
+- Add confirmation and conflict handling for destructive operations.
+- Document production backup and restore verification for Supabase.
 
 Definition of done:
 
-- Personal statistics v1 works end to end.
-- Personal statistics v1 is covered by focused API tests.
-- The app can be run locally from documentation.
-- Docker image builds cleanly.
-- Manual core flow works end to end.
-- CI is green.
+- Every listed sensitive write produces an immutable audit record.
+- Audit entries never contain passwords, session tokens, CURP, raw uploads, or
+  secret configuration.
+- Administrators can answer who changed a record and when.
+- Restore steps have been exercised against a non-production database.
 
-## Sprint 4: Launch Buffer
+## Sprint 8: Competition Operations
 
-Target dates: September 25-27, 2026
+**Goal:** Reduce manual work for a complete tournament lifecycle.
 
-Goal: Stabilize the release. Avoid new feature work unless it fixes a launch blocker.
+Candidate scope, ordered only after league validation:
 
-Tasks:
+- Explicit season/tournament entity and active-season selection.
+- Jornada publication state and schedule lock.
+- Correction workflow for imported statistics.
+- Playoff bracket and finals support.
+- Exportable standings, rosters, statistics, and referee assignments.
+- Optional account or assignment notifications.
 
-- Freeze non-critical features.
-- Fix launch-blocking bugs.
-- Validate public pages on desktop.
-- Validate public pages on mobile.
-- Validate production-like environment variables.
-- Create final release tag.
-- Confirm final container image.
-- Write post-launch backlog.
+Before implementation, each candidate requires a written rule, owner, data
+model impact, authorization matrix, and acceptance test. Payment workflows and
+framework rewrites remain out of scope until the league identifies a concrete
+need.
 
-Definition of done:
+## Known Risks and Controls
 
-- The public site is functional by September 27, 2026.
-- Core public pages work.
-- Operational workflows work.
-- CI is green.
-- Known limitations are documented.
+| Risk | Control |
+|---|---|
+| Mobile CSS regression | Shared breakpoints, viewport verification, Preview screenshots |
+| Unauthorized cross-team changes | Backend role dependencies and representative ownership checks |
+| Production schema drift | Alembic-only changes and migration CI cycle |
+| Sensitive data in telemetry | Sentry scrubber, structured safe fields, no request bodies/files |
+| Stateless media loss | Store photos and logos in PostgreSQL, not local `uploads/` |
+| Incorrect workbook identity match | Resolve by division, team, and jersey against existing roster |
+| Destructive administrator mistakes | Explicit confirmation now; audit log and recovery in Sprint 7 |
+| Monitoring blind spot | Sentry, Vercel, Supabase, and Better Stack with email escalation |
 
-### Responsive verification
+## Prioritization Rule
 
-Desktop Chrome and a Pixel 5 viewport were exercised against the running local
-application for Teams, Games, Standings, Statistics, and the dedicated Roster
-page. Mobile navigation now starts as a compact branded bar with the logo and
-hamburger visible; opening the control reveals the full navigation. Forms and
-leaderboards collapse to one column, standings retain horizontal table scrolling,
-and roster and game cards remain readable without horizontal page overflow.
-
-## Deferred Until After Public Launch
-
-The following items are important, but should not block the September 27 launch unless business requirements change:
-
-- Complete role management UI.
-- Audit logging.
-- Advanced player statistics beyond the v1 scope.
-- Approval workflow for player team-membership requests.
-- Season management.
-- Playoff brackets.
-- Payment workflows.
-- Notification system.
-- Frontend framework migration.
-
-## Immediate Next Step
-
-The automated Sprint 3 release smoke test now covers one administrator, one
-representative, one player, and an anonymous visitor in
-`tests/test_release_smoke.py`. Keep that test in the CI release gate, perform
-the corresponding browser walkthrough, and then freeze feature work. Sprint 4
-is reserved for responsive verification, launch-blocking fixes, deployment,
-and release documentation.
-
-Multi-role authorization and private referee schedules are now part of the
-release gate. The administrator assigns referees from the games page, while
-`/referee/games` lists only the authenticated referee's assignments. Automated
-coverage verifies that an administrator who is also a player and referee keeps
-all three capabilities.
-
-Game records now carry fields 1-8 and expose them to teams and assigned
-officials. Each role sheet has named slots for Referee, Down Judge, Field Judge,
-Side Judge, and Statistician; Referee and Down Judge are the required core.
-Administrators can upload an official schedule image, inspect its OCR text,
-correct every proposed field and position, and explicitly confirm the result.
-Analysis itself never changes official data. Existing players can update AKA
-from their dashboard, and that public name is used on official assignments.
+Production incidents, authorization defects, data-integrity issues, and mobile
+blockers take precedence over new features. A feature request enters a sprint
+only after its league rule and acceptance criteria are understood. This keeps
+the two-person team focused on a dependable tournament platform rather than an
+unbounded backlog.
