@@ -90,6 +90,7 @@ CURP is used internally to uniquely identify a person and is not exposed in publ
 
 ```http
 GET /live
+GET /ready
 ```
 
 Example response:
@@ -99,6 +100,12 @@ Example response:
   "status": "alive"
 }
 ```
+
+`/live` checks the FastAPI process without dependencies. `/ready` verifies the
+PostgreSQL connection and returns `503` without database details when the
+application is not ready to serve traffic. Production errors, traces, JSON
+logs, alert configuration, and privacy requirements are documented in
+[`docs/observability.md`](docs/observability.md).
 
 ---
 

@@ -4,6 +4,8 @@ import os
 
 import pytest
 
+os.environ.setdefault("APP_ENV", "test")
+
 # Local tests always use a dedicated database, even if the application shell
 # currently points DATABASE_URL at development data. GitHub Actions provides
 # its own disposable PostgreSQL service through DATABASE_URL.

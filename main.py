@@ -1,10 +1,11 @@
 """FastAPI application assembly and server-rendered page routes."""
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from database import get_connection
+from observability import RequestObservabilityMiddleware, configure_observability
 
 from routes.teams import router as teams_router
 from routes.players import router as players_router
@@ -15,9 +16,12 @@ from routes.statistics import router as statistics_router
 from routes.dashboard import router as dashboard_router
 from routes.admin import router as admin_router
 
+logger = configure_observability()
+
 app = FastAPI(
     title="Flagtastic Football League"
 )
+app.add_middleware(RequestObservabilityMiddleware, logger=logger)
 
 app.mount(
     "/static",
@@ -64,9 +68,36 @@ def index():
 @app.get("/live")
 def liveness():
     """Expose a dependency-free process liveness check."""
-    return {
-        "status": "alive"
-    }
+    return JSONResponse(
+        content={"status": "alive"},
+        headers={"Cache-Control": "no-store"}
+    )
+
+
+@app.get("/ready")
+def readiness():
+    """Report whether the application can reach its required database."""
+    connection = None
+    try:
+        connection = get_connection()
+        connection.execute("SELECT 1").fetchone()
+    except Exception as error:
+        logger.warning(
+            "application.readiness.failed",
+            extra={"status_code": 503, "error_type": type(error).__name__}
+        )
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unavailable"},
+            headers={"Cache-Control": "no-store"}
+        )
+    finally:
+        if connection is not None:
+            connection.close()
+    return JSONResponse(
+        content={"status": "ready"},
+        headers={"Cache-Control": "no-store"}
+    )
 
 @app.get("/teams")
 def teams_page(request: Request):

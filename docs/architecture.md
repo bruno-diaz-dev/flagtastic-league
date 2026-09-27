@@ -447,6 +447,21 @@ Container images should be tagged with immutable references, such as a short com
 
 Avoid using `latest` as a deployment contract.
 
+## Observability
+
+`observability.py` is the single application boundary for production telemetry.
+It configures privacy-safe JSON logs, optional Sentry reporting, release tags,
+request duration, and correlation identifiers without coupling domain routes to
+a hosted provider. Sentry remains disabled when `SENTRY_DSN` is absent, keeping
+local development and CI deterministic.
+
+Every response includes `X-Request-ID`. `GET /live` is dependency-free, while
+`GET /ready` verifies PostgreSQL with a minimal query and returns only a generic
+availability result. Better Stack polls both routes externally; Vercel runtime
+logs and Supabase database logs provide provider-specific diagnostics. The
+configuration, alert rules, data exclusions, and incident workflow live in
+`docs/observability.md`.
+
 ## Expected Evolution
 
 The current architecture can grow incrementally:
