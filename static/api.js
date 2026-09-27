@@ -76,6 +76,20 @@ async function createPlayer(teamId, payload) {
     return response
 }
 
+async function searchRegisteredPlayers(teamId, query) {
+    return fetch(
+        `/api/teams/${teamId}/players/candidates?q=${encodeURIComponent(query)}`
+    );
+}
+
+async function addRegisteredPlayer(teamId, payload) {
+    return fetch(`/api/teams/${teamId}/players/registered`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
 async function importRoster(teamId, file) {
     const formData = new FormData();
     formData.append("file", file);

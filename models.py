@@ -263,6 +263,13 @@ class TeamMembershipCreate(BaseModel):
     jersey_number: int = Field(ge=0)
 
 
+class RegisteredPlayerMembershipCreate(BaseModel):
+    """Validate a jersey assigned by a manager to an existing account."""
+
+    player_id: int = Field(gt=0)
+    jersey_number: int = Field(ge=0)
+
+
 class PlayerProfileUpdate(BaseModel):
     """Validate player-editable public profile fields."""
 

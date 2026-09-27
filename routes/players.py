@@ -1,15 +1,17 @@
 """HTTP endpoints for player registration and team rosters."""
 
 from psycopg.errors import UniqueViolation
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 
-from models import PlayerCreate, RosterPlayerUpdate
+from models import PlayerCreate, RegisteredPlayerMembershipCreate, RosterPlayerUpdate
 from repositories.teams import get_team_by_id
 from repositories.players import (
     create_player,
     deactivate_roster_player,
     get_managed_roster_player,
     import_players,
+    join_registered_player,
+    search_registered_players,
     get_players_by_team,
     update_roster_player,
     update_roster_player_photo,
@@ -28,6 +30,52 @@ ROSTER_CSV_TEMPLATE = (
     "nombre,curp,numero\n"
     "Nombre Completo,ABCD000101HASXXX00,10\n"
 )
+
+
+@router.get("/candidates")
+def find_registered_player_candidates(
+    team_id: int,
+    q: str = Query(min_length=2, max_length=80),
+    _user=Depends(require_team_manager)
+):
+    """Search eligible registered players by legal name or AKA."""
+    team = get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return search_registered_players(team, q)
+
+
+@router.post("/registered", status_code=201)
+def register_existing_player(
+    team_id: int,
+    membership: RegisteredPlayerMembershipCreate,
+    _user=Depends(require_team_manager)
+):
+    """Add a selected registered player to an eligible managed roster."""
+    team = get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    try:
+        created = join_registered_player(
+            membership.player_id,
+            team,
+            membership.jersey_number
+        )
+    except PlayerAlreadyRegisteredInDivision as error:
+        raise HTTPException(
+            status_code=409,
+            detail="Este jugador ya esta registrado en esta rama y categoria"
+        ) from error
+    except UniqueViolation as error:
+        if error.diag.constraint_name == "team_players_team_id_jersey_number_key":
+            raise HTTPException(
+                status_code=409,
+                detail="Ese numero ya esta registrado en este equipo"
+            ) from error
+        raise
+    if created is None:
+        raise HTTPException(status_code=404, detail="Jugador registrado no encontrado")
+    return created
 
 @router.post("", status_code=201)
 def register_player(

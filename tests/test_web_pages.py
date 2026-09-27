@@ -158,6 +158,7 @@ def test_public_player_profile_page_is_available():
 
 def test_team_roster_has_a_dedicated_page():
     response = client.get("/teams/123/roster")
+    script = client.get("/static/roster.js")
 
     assert response.status_code == 200
     assert 'id="roster-page"' in response.text
@@ -168,9 +169,12 @@ def test_team_roster_has_a_dedicated_page():
     assert 'id="team-staff-form"' in response.text
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
     assert 'class="form-panel team-scope-manager-only"' in response.text
+    assert 'id="registered-player-search"' in response.text
+    assert 'id="registered-player-results"' in response.text
+    assert "searchRegisteredPlayers" in script.text
+    assert "addRegisteredPlayer" in script.text
     assert "Edad calendario" in response.text
 
-    script = client.get("/static/roster.js")
     assert "roster-photo-form team-scope-manager-only" in script.text
     assert "uploadRosterPlayerPhoto" in script.text
     assert 'team.can_manage === true' in script.text

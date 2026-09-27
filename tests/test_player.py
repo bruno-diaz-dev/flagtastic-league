@@ -5,6 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
 from repositories import players
+from models import UserCreate
+from repositories.users import create_user
 
 os.environ.setdefault(
     "DATABASE_URL",
@@ -48,6 +50,33 @@ def create_test_team(
 
     return response.json()["id"]
 
+
+def create_registered_player(name, aka=None):
+    """Create an active player account linked to a searchable identity."""
+    email = f"{name.lower().replace(' ', '.')}@example.test"
+    user = create_user(UserCreate(
+        email=email,
+        name=name,
+        password="supersecret",
+        role="player"
+    ))
+    connection = get_connection()
+    player = connection.execute(
+        """
+        INSERT INTO players (name, curp, age, aka)
+        VALUES (%s, %s, 24, %s)
+        RETURNING id
+        """,
+        (name, f"TEST{user['id']:014d}"[-18:], aka)
+    ).fetchone()
+    connection.execute(
+        "UPDATE users SET player_id = %s WHERE id = %s",
+        (player["id"], user["id"])
+    )
+    connection.commit()
+    connection.close()
+    return player["id"]
+
 def test_register_player():
     team_id = create_test_team()
 
@@ -72,6 +101,82 @@ def test_register_player():
     assert data["age"] == 30
     assert data["jersey_number"] == 83
     assert "id" in data
+
+
+def test_manager_searches_and_adds_a_registered_player_by_name_or_aka():
+    team_id = create_test_team()
+    player_id = create_registered_player("Cameron Test", aka="Cam")
+    create_registered_player("Different Person")
+
+    by_name = client.get(
+        f"/api/teams/{team_id}/players/candidates",
+        params={"q": "Cameron"}
+    )
+    by_aka = client.get(
+        f"/api/teams/{team_id}/players/candidates",
+        params={"q": "Cam"}
+    )
+
+    assert by_name.status_code == 200
+    assert [candidate["id"] for candidate in by_name.json()] == [player_id]
+    assert by_aka.json()[0]["aka"] == "Cam"
+    assert "email" not in by_aka.json()[0]
+    assert "curp" not in by_aka.json()[0]
+
+    added = client.post(
+        f"/api/teams/{team_id}/players/registered",
+        json={"player_id": player_id, "jersey_number": 12}
+    )
+    assert added.status_code == 201
+    assert added.json() == {
+        "team_id": team_id,
+        "player_id": player_id,
+        "jersey_number": 12
+    }
+
+    roster = client.get(f"/api/teams/{team_id}/players").json()
+    assert roster[0]["name"] == "Cameron Test"
+    assert roster[0]["jersey_number"] == 12
+
+    no_longer_eligible = client.get(
+        f"/api/teams/{team_id}/players/candidates",
+        params={"q": "Cam"}
+    )
+    assert no_longer_eligible.json() == []
+
+
+def test_manager_cannot_add_unregistered_identity_or_division_duplicate():
+    team_id = create_test_team(name="First Team")
+    other_team_id = create_test_team(name="Second Team")
+    registered_player_id = create_registered_player("Registered Player")
+
+    first = client.post(
+        f"/api/teams/{team_id}/players/registered",
+        json={"player_id": registered_player_id, "jersey_number": 4}
+    )
+    duplicate = client.post(
+        f"/api/teams/{other_team_id}/players/registered",
+        json={"player_id": registered_player_id, "jersey_number": 8}
+    )
+
+    connection = get_connection()
+    unregistered = connection.execute(
+        """
+        INSERT INTO players (name, curp, age)
+        VALUES ('Roster Only', 'ROST000101HASXXX01', 26)
+        RETURNING id
+        """
+    ).fetchone()
+    connection.commit()
+    connection.close()
+    missing_account = client.post(
+        f"/api/teams/{team_id}/players/registered",
+        json={"player_id": unregistered["id"], "jersey_number": 9}
+    )
+
+    assert first.status_code == 201
+    assert duplicate.status_code == 409
+    assert missing_account.status_code == 404
 
 def test_get_team_roster():
     team_id = create_test_team()

@@ -308,6 +308,33 @@ def get_user_by_id(user_id):
     return _public_user(row)
 
 
+def get_user_by_session_hash(token_hash):
+    """Resolve an active session and its public user in one database trip."""
+    connection = get_connection()
+    row = connection.execute(
+        """
+        SELECT
+            users.id, users.email, users.name, users.role, users.status,
+            users.player_id, users.must_change_password,
+            ARRAY(
+                SELECT role FROM user_roles
+                WHERE user_id = users.id ORDER BY role
+            ) AS roles,
+            players.aka AS player_aka
+        FROM sessions
+        JOIN users ON users.id = sessions.user_id
+        LEFT JOIN players ON players.id = users.player_id
+        WHERE sessions.token_hash = %s
+          AND sessions.revoked_at IS NULL
+          AND sessions.expires_at > NOW()
+          AND users.status = 'active'
+        """,
+        (token_hash,)
+    ).fetchone()
+    connection.close()
+    return _public_user(row) if row is not None else None
+
+
 def user_represents_team(user_id, team_id):
     """Return whether a representative is explicitly assigned to a team."""
     connection = get_connection()
