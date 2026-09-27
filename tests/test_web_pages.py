@@ -97,6 +97,13 @@ def test_player_dashboard_page_is_available():
     assert response.status_code == 200
     assert "Mi dashboard" in response.text
     assert 'src="/static/dashboard.js' in response.text
+    assert 'id="dashboard-photo-placeholder"' in response.text
+
+    script = client.get("/static/dashboard.js")
+    stylesheet = client.get("/static/style.css")
+    assert "profilePhoto.onerror" in script.text
+    assert "#profile-form" in stylesheet.text
+    assert "grid-template-columns: minmax(0, 1fr)" in stylesheet.text
 
 
 def test_representative_dashboard_page_is_available():

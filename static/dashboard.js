@@ -39,10 +39,26 @@ async function loadDashboard() {
         : "Esta es tu temporada.";
 
     const profilePhoto = document.querySelector("#dashboard-photo");
+    const profilePhotoPlaceholder = document.querySelector("#dashboard-photo-placeholder");
+    const initials = dashboard.player.name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join("")
+        .toUpperCase();
+    profilePhotoPlaceholder.textContent = initials;
     if (dashboard.player.profile_photo_url) {
         profilePhoto.src = dashboard.player.profile_photo_url;
         profilePhoto.alt = `Foto de ${displayName}`;
         profilePhoto.classList.remove("hidden");
+        profilePhotoPlaceholder.classList.add("hidden");
+        profilePhoto.onerror = () => {
+            profilePhoto.classList.add("hidden");
+            profilePhotoPlaceholder.classList.remove("hidden");
+        };
+    } else {
+        profilePhoto.classList.add("hidden");
+        profilePhotoPlaceholder.classList.remove("hidden");
     }
 
     statsContainer.innerHTML = Object.entries(statisticLabels).map(([key, label]) => {
