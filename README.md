@@ -1,875 +1,321 @@
-# 🏈 Flagtastic
+# Flagtastic League
 
-**Flagtastic** is a football league management platform built for the **Flagtastic Football League**.
+Flagtastic League is the production platform for managing the Flagtastic
+Football League. It provides public schedules, standings, rosters, player
+profiles, and leaderboards together with private workflows for players, team
+representatives, referees, and league administrators.
 
-The project is designed to provide a reliable foundation for managing teams, player rosters, eligibility rules, games, player statistics, and league-wide leaderboards.
+- Production: <https://flagtastic-league.vercel.app>
+- API docs: `/docs` and `/redoc`
+- Architecture: [`docs/architecture.md`](docs/architecture.md)
+- Release plan: [`docs/release-plan.md`](docs/release-plan.md)
+- Operations: [`docs/observability.md`](docs/observability.md)
 
-The backend is currently being built with **FastAPI**, **PostgreSQL**, and **pytest**, following an API-first approach with a simple architecture that can evolve as the application grows.
+## Product Capabilities
 
----
+### Public
 
-## ✨ Current Features
+- Browse teams by branch and category and open dedicated roster pages.
+- View player photos, AKA, legal roster names, numbers, ages, and team staff.
+- Open public player profiles without exposing CURP, email, roles, or credentials.
+- Filter games by jornada, branch, and category and inspect game details.
+- Consult division standings with team logos and calculated records.
+- View top-five individual leaderboards by branch and category.
+- Read the integral privacy notice at `/privacy`.
 
-### Teams
+### Players
 
-Teams can be registered with:
+- Create an account linked to an existing roster identity through CURP.
+- Upload a required profile photo and maintain an optional league AKA.
+- Join an eligible team with a jersey number from the personal dashboard.
+- See personal teams, standings, season totals, and game-level statistics.
 
-- Name
-- Branch
-- Category
-- Status
-- Head Coach, Coach, and Manager
+### Team representatives
 
-The authenticated creator is linked to the new team through
-`team_representatives`, including creators who also carry administrator or
-player roles. Assigned representatives can later maintain the logo and staff.
-League administrators can explicitly link an existing representative account
-to a historical team whose creator was not recorded before automatic linking
-was introduced.
+- Create teams and become their representative automatically.
+- Manage only explicitly assigned teams.
+- Update team logos and staff: Head Coach, Coach, and Manager.
+- Add, edit, deactivate, and photograph roster players.
+- Import rosters from CSV or XLSX and download the CSV template.
+- View team standings, records, roster totals, and player statistics.
 
-Available endpoints:
+### Referees
 
-```http
-POST /api/teams
-GET /api/teams
-PATCH /api/teams/{team_id}/staff
-PATCH /api/teams/{team_id}/status
-PATCH /api/teams/{team_id}/name
-PUT /api/teams/{team_id}/representatives/{user_id}
-```
+- View only their own pending and completed assignments.
+- See jornada, field, official position, and game details.
+- Combine the referee role with player, representative, or administrator roles.
 
-Example team:
+### League administrators
 
-```json
-{
-  "name": "Tigres",
-  "branch": "varonil",
-  "category": "libre"
-}
-```
+- Approve or reject teams, rename teams, manage representatives, and delete
+  erroneous teams.
+- Create staff accounts, grant cumulative roles, and delete login accounts
+  while preserving historical sports data.
+- Schedule games, record scores, and manage official assignments.
+- Upload an official schedule image for OCR-assisted assignment review.
+- Import jornada statistics and inspect both teams in game-level statistics.
 
-Representatives have a private dashboard at `/representative-dashboard`. It
-shows only assigned teams and combines roster size, standing, record, points
-for/against, team totals, passing percentage, and per-player season totals.
-Its summary exposes team count, active roster count, combined record, total
-points, and best current standing without expanding access beyond the teams
-linked through `team_representatives`.
+## Domain Rules
 
-Referees have a private dashboard at `/referee/games`. It separates pending
-assignments from completed games and summarizes assignment count, next week,
-and most frequent official position. Every game links to its detail page while
-the API continues to return only assignments for the authenticated referee.
+Player identity is separate from roster membership. A player may belong to
+multiple teams across different branch/category combinations, but cannot join
+two teams in the same division. Jersey numbers are unique only within a team.
+CURP uniquely resolves the person and remains private administrative data.
 
----
+Statistics are stored per jornada and linked to a game, team, and player. The
+official workbook resolves players from branch, category, team, and jersey
+number; spreadsheet names are not treated as authoritative identities.
 
-### Player Rosters
+Passing percentage is completed passes divided by attempted passes. During the
+first three jornadas there is no minimum; after jornada 3, a player needs at
+least 30 attempts to qualify for the passing leaderboard.
 
-Players can be registered to a team using:
+| Statistic | Leaderboard |
+|---|---|
+| Passing completion | El Francotirador |
+| Receptions | Manos de Acero |
+| Points | Maquina de Puntos |
+| Tackles | El Muro |
+| Interceptions | Cazador Aereo |
+| Sacks | Cazador de QBs |
 
-- Name
-- CURP
-- Age
-- Jersey number
+## Architecture
 
-Available endpoints:
-
-```http
-POST /api/teams/{team_id}/players
-GET /api/teams/{team_id}/players
-```
-
-Player identity and team membership are modeled separately.
-
-This allows the same person to participate in multiple teams when league eligibility rules allow it.
-
-CURP is used internally to uniquely identify a person and is not exposed in public roster responses.
-
----
-
-### Health Check
-
-```http
-GET /live
-GET /ready
-```
-
-Example response:
-
-```json
-{
-  "status": "alive"
-}
-```
-
-`/live` checks the FastAPI process without dependencies. `/ready` verifies the
-PostgreSQL connection and returns `503` without database details when the
-application is not ready to serve traffic. Production errors, traces, JSON
-logs, alert configuration, and privacy requirements are documented in
-[`docs/observability.md`](docs/observability.md).
-
-### Production Observability
-
-The production deployment uses complementary diagnostic layers:
-
-- **Sentry** captures privacy-scrubbed FastAPI errors, logs, and sampled traces.
-- **Vercel Runtime Logs** provide short-lived structured request logs.
-- **Supabase Logs Explorer** is used for PostgreSQL diagnosis.
-- **Better Stack** checks `/live` and `/ready` externally every three minutes.
-
-`SENTRY_DSN` is stored as a Vercel secret for both Production and Preview.
-Vercel supplies the environment and immutable Git release automatically. The
-production deployment has been verified with both health endpoints and with a
-startup log containing `sentry_enabled: true`. Sentry also has an email alert
-for high-priority issues. Both Better Stack monitors are active, report `Up`,
-and notify the primary responder by email after a three-minute confirmation
-period. Never commit a DSN, session token, database URL, or other deployment
-secret.
-
----
-
-# 🧠 Player Eligibility Rules
-
-A player may participate in multiple teams across different branch/category combinations.
-
-For example:
+The application is a layered FastAPI monolith with a server-rendered frontend:
 
 ```text
-Carlos López → Tigres / Varonil / Libre     ✅
-Carlos López → Ravens / Mixto / Libre       ✅
-Carlos López → Nómadas / Varonil / U18      ✅
-Carlos López → Nómadas / Varonil / U16      ✅
+Browser (Jinja, CSS, vanilla JavaScript)
+                  |
+             FastAPI routes
+                  |
+       services and authorization
+                  |
+             repositories
+                  |
+          PostgreSQL (Supabase)
 ```
 
-However, a player cannot participate in two different teams inside the **same branch and category**.
+- `main.py` assembles the application, pages, media, and health endpoints.
+- `routes/` owns HTTP validation and role boundaries.
+- `services/` owns authentication, media validation, OCR, and import parsing.
+- `repositories/` owns PostgreSQL queries and database read models.
+- `models.py` contains Pydantic contracts.
+- `migrations/` is the authoritative Alembic schema history.
+- `templates/` and `static/` implement the responsive interface.
 
-```text
-Carlos López → Tigres / Varonil / Libre     ✅
-Carlos López → Halcones / Varonil / Libre   ❌
-```
+Profile photos and team logos are stored in PostgreSQL so they remain available
+across stateless Vercel deployments. The ignored local `uploads/` directory is
+legacy/test output, not the production media store.
 
-Jersey numbers only need to be unique inside each team.
+See [`docs/architecture.md`](docs/architecture.md) for data ownership,
+authorization boundaries, and detailed flows.
 
-```text
-Tigres  → Player #83   ✅
-Ravens  → Player #83   ✅
-```
+## Technology
 
-The same jersey number may therefore exist across different teams.
+- Python 3.14, FastAPI, Pydantic, Jinja, and Uvicorn
+- PostgreSQL with Psycopg and Alembic
+- Vanilla JavaScript and responsive CSS
+- OpenPyXL for workbooks; Pillow and Tesseract bindings for images and OCR
+- pytest and FastAPI TestClient
+- GitHub Actions, Docker/GHCR, Vercel, and Supabase
+- Sentry, Vercel Runtime Logs, Supabase Logs Explorer, and Better Stack
 
----
-
-# 🗄️ Data Model
-
-Player identity is separated from team membership.
-
-This is important because a person is not inherently tied to a single team.
-
-```mermaid
-erDiagram
-
-    TEAMS ||--o{ TEAM_PLAYERS : has
-    PLAYERS ||--o{ TEAM_PLAYERS : joins
-
-    TEAMS {
-        int id PK
-        string name
-        string branch
-        string category
-        string status
-    }
-
-    PLAYERS {
-        int id PK
-        string name
-        string curp UK
-        int age
-    }
-
-    TEAM_PLAYERS {
-        int id PK
-        int team_id FK
-        int player_id FK
-        int jersey_number
-    }
-```
-
-The membership table enforces:
-
-```text
-UNIQUE(team_id, player_id)
-UNIQUE(team_id, jersey_number)
-```
-
-These constraints guarantee that:
-
-- The same player cannot appear twice in the same team.
-- Two players cannot use the same jersey number inside the same team.
-
-League-level eligibility rules, such as preventing the same player from joining two teams in the same branch and category, are validated by the application.
-
----
-
-# 🏗️ Architecture
-
-Flagtastic currently follows a lightweight layered architecture.
-
-```mermaid
-flowchart TD
-
-    A[Client / Frontend]
-    B[FastAPI Routes]
-    C[Repository Layer]
-    D[(PostgreSQL)]
-    E[Pydantic Models]
-    F[Business Rules]
-
-    A --> B
-    B --> E
-    B --> C
-    C --> F
-    C --> D
-
-    D --> G[teams]
-    D --> H[players]
-    D --> I[team_players]
-```
-
-The current request flow is:
-
-```text
-HTTP Request
-     ↓
-FastAPI Route
-     ↓
-Repository
-     ↓
-PostgreSQL
-```
-
-As the project grows, more complex business rules may be moved into a dedicated service or domain layer.
-
-The current priority is keeping the architecture understandable while the league domain is being modeled.
-
----
-
-# ⚙️ Tech Stack
-
-### Backend
-
-- Python
-- FastAPI
-- Pydantic
-- Psycopg
-
-### Database
-
-- PostgreSQL
-
-### Testing
-
-- pytest
-- FastAPI TestClient
-
-### Infrastructure
-
-- Docker
-
-### Frontend
-
-The project includes a lightweight server-rendered frontend using:
-
-- Jinja templates
-- CSS
-- Vanilla JavaScript
-
-The frontend is split into page templates. Shared layout lives in `templates/base.html`, while each page loads only the JavaScript it needs.
-
-On screens up to `820px`, the sidebar becomes an accessible overlay drawer and all forms and card grids use a single-column layout. Wide data tables remain readable through contained horizontal scrolling instead of widening the whole page. Mobile changes should be checked at `360px`, `390px`, and `430px` before release.
-
----
-
-# 📁 Project Structure
+## Repository Layout
 
 ```text
 flagtastic-league/
-├── main.py
-├── database.py
-├── models.py
-├── requirements.txt
-├── pytest.ini
-│
-├── routes/
-│   ├── __init__.py
-│   ├── auth.py
-│   ├── games.py
-│   ├── standings.py
-│   ├── statistics.py
-│   ├── teams.py
-│   └── players.py
-│
-├── repositories/
-│   ├── __init__.py
-│   ├── games.py
-│   ├── standings.py
-│   ├── teams.py
-│   └── players.py
-│
-├── templates/
-│   ├── base.html
-│   ├── games.html
-│   ├── login.html
-│   ├── roster.html
-│   ├── statistics.html
-│   ├── standings.html
-│   └── teams.html
-│
-├── static/
-│   ├── api.js
-│   ├── games.js
-│   ├── layout.js
-│   ├── standings.js
-│   ├── statistics.js
-│   ├── login.js
-│   ├── roster.js
-│   ├── style.css
-│   └── teams.js
-│
-└── tests/
-    ├── test_games.py
-    ├── test_standings.py
-    ├── test_teams.py
-    └── test_player.py
+|-- main.py                 # Application assembly and page routes
+|-- database.py             # PostgreSQL connection boundary
+|-- models.py               # Pydantic contracts
+|-- observability.py        # Structured logs and Sentry
+|-- settings.py             # Environment-backed settings
+|-- routes/                 # HTTP API endpoints
+|-- dependencies/           # Authentication and authorization
+|-- services/               # Domain, import, OCR, and media services
+|-- repositories/           # PostgreSQL access and read models
+|-- migrations/             # Alembic migrations
+|-- templates/              # Jinja templates
+|-- static/                 # CSS, JavaScript, and assets
+|-- scripts/                # Controlled admin/data utilities
+|-- tests/                  # Unit, integration, and smoke tests
+|-- docs/                   # Architecture, release, and operations docs
+|-- .github/workflows/      # CI pipeline
+|-- Dockerfile
+|-- alembic.ini
+`-- requirements.txt
 ```
 
----
+## Local Development
 
-# 🚀 Local Development
+### Prerequisites
 
-## 1. Clone the repository
+- Python 3.14
+- PostgreSQL 17 or newer
+- Tesseract OCR only for local referee-schedule recognition
 
-```bash
+```powershell
 git clone <repository-url>
 cd flagtastic-league
-```
-
----
-
-## 2. Create a virtual environment
-
-Windows PowerShell:
-
-```powershell
 python -m venv .venv
-```
-
-Activate it:
-
-```powershell
 .venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
----
-
-## 3. Install dependencies
-
-```powershell
-pip install -r requirements.txt
-```
-
----
-
-# 🐘 PostgreSQL
-
-The project can run PostgreSQL locally using Docker.
+Start PostgreSQL with Docker:
 
 ```powershell
 docker run -d `
-    --name flagtastic-postgres `
-    -e POSTGRES_USER=flagtastic `
-    -e POSTGRES_PASSWORD=flagtastic `
-    -e POSTGRES_DB=flagtastic `
-    -p 5432:5432 `
-    -v flagtastic-postgres-data:/var/lib/postgresql/data `
-    postgres:17
+  --name flagtastic-postgres `
+  -e POSTGRES_USER=flagtastic `
+  -e POSTGRES_PASSWORD=flagtastic `
+  -e POSTGRES_DB=flagtastic `
+  -p 5432:5432 `
+  -v flagtastic-postgres-data:/var/lib/postgresql/data `
+  postgres:18
 ```
 
-The local development connection used in the examples is:
-
-```text
-postgresql://flagtastic:flagtastic@localhost:5432/flagtastic
-```
-
-`DATABASE_URL` is required. The application and Alembic fail explicitly when it is not configured. Local development values are documented in `.env.example`; CI and deployed environments provide the value through environment configuration or secrets.
-
-Example:
+Configure local HTTP, migrate, and start the server:
 
 ```powershell
 $env:DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
-```
-
----
-
-# ▶️ Running the API
-
-Apply all pending database migrations before starting the FastAPI development server:
-
-```powershell
-$env:DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic"
+$env:SESSION_COOKIE_SECURE="false"
 python -m alembic upgrade head
 uvicorn main:app --reload
 ```
 
-The API will be available at:
+Open <http://127.0.0.1:8000>. `DATABASE_URL` is mandatory; both the application
+and Alembic fail explicitly when it is absent.
 
-```text
-http://127.0.0.1:8000
+### Environment variables
+
+| Variable | Required | Purpose |
+|---|---:|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection for the app and Alembic |
+| `TEST_DATABASE_URL` | Tests | Isolated local test database |
+| `SESSION_COOKIE_SECURE` | Production | Keep `true`; use `false` only for local HTTP |
+| `APP_ENV` | No | Environment name included in telemetry |
+| `LOG_LEVEL` | No | Structured application log level |
+| `SENTRY_DSN` | Production | Enables Sentry when configured |
+| `SENTRY_TRACES_SAMPLE_RATE` | No | Trace sampling rate |
+| `SENTRY_RELEASE` | No | Explicit release; Vercel Git SHA is the fallback |
+
+Never commit database URLs, DSNs, cookies, tokens, or production credentials.
+
+## Database Migrations
+
+Alembic migrations are the only supported schema-change mechanism:
+
+```powershell
+python -m alembic current
+python -m alembic upgrade head
 ```
 
-FastAPI automatically provides interactive API documentation.
+Before merging a migration, verify both directions on an isolated database:
 
-Swagger UI:
-
-```text
-http://127.0.0.1:8000/docs
+```powershell
+python -m alembic upgrade head
+python -m alembic downgrade base
+python -m alembic upgrade head
 ```
 
-ReDoc:
+Do not run `stamp head` unless the physical schema already matches the complete
+migration history.
 
-```text
-http://127.0.0.1:8000/redoc
-```
+## Tests and CI
 
----
-
-# 🧪 Testing
-
-Flagtastic uses a separate PostgreSQL database for automated tests.
-
-Create it with:
+Create and migrate an isolated local test database:
 
 ```powershell
 docker exec flagtastic-postgres `
-    psql -U flagtastic -d postgres `
-    -c "CREATE DATABASE flagtastic_test;"
-```
+  psql -U flagtastic -d postgres `
+  -c "CREATE DATABASE flagtastic_test;"
 
-The test environment uses:
-
-```text
-postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test
-```
-
-Configure and migrate the test database, then run the test suite. The test
-configuration reads `TEST_DATABASE_URL` locally and will not reuse the
-development `DATABASE_URL`:
-
-```powershell
 $env:TEST_DATABASE_URL="postgresql://flagtastic:flagtastic@localhost:5432/flagtastic_test"
 $env:DATABASE_URL=$env:TEST_DATABASE_URL
 python -m alembic upgrade head
-pytest -v
+pytest
 ```
 
-Tests currently cover core behavior including:
+Coverage includes sessions, cumulative roles and least privilege, team and
+roster administration, imports and eligibility, dashboards, games, officials,
+statistics, leaderboards, pages, observability, and release smoke behavior.
 
-- Team registration
-- Team listing
-- Player registration
-- Team roster retrieval
-- Registration against nonexistent teams
-- Duplicate jersey protection
+GitHub Actions runs for pull requests and pushes to `main`. It installs and
+checks dependencies, compiles Python, performs a full migration
+upgrade/downgrade/upgrade cycle, runs pytest, and builds a Docker image.
+Non-PR images are published to GHCR. Changes should reach `main` through a pull
+request and Vercel Preview deployment before production promotion.
 
-Additional eligibility tests will be added as the domain rules are expanded.
+## Administrative Utilities
 
----
-
-## Docker
-
-Build the image:
+Create or promote the first trusted administrator:
 
 ```powershell
-docker build -t flagtastic-league .
+python -m scripts.create_admin `
+  --email admin@flagtastic.com `
+  --name "League Admin"
 ```
 
-Run the app:
+An existing player or representative keeps the same identity and password and
+receives the administrator role.
 
-```powershell
-docker volume create flagtastic-profile-photos
-
-docker run --rm -p 8000:8000 `
-    -e DATABASE_URL="postgresql://flagtastic:flagtastic@host.docker.internal:5432/flagtastic" `
-    flagtastic-league
-```
-
-Profile photos are stored in PostgreSQL so they survive replacement of a
-container or serverless function. Production must leave
-`SESSION_COOKIE_SECURE=true` and serve the application through HTTPS.
-
-Health check:
-
-```powershell
-curl http://localhost:8000/live
-```
----
-
-## CI
-
-GitHub Actions applies all Alembic migrations to a clean PostgreSQL service and then runs the test suite on every push and pull request.
-
-The workflow uses a PostgreSQL service container and requires these repository secrets:
-
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_DB`
----
-
-# 🗺️ Development Roadmap
-
-```mermaid
-flowchart LR
-
-    A[Teams]
-    B[Player Rosters]
-    C[Eligibility Rules]
-    D[Games]
-    E[Player Week Stats]
-    F[Season Stats]
-    G[Leaderboards]
-    H[Authentication & Roles]
-    I[Deployment]
-
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-```
-
----
-
-# 🎮 Planned Game Management
-
-The next major domain entity will be games.
-
-A game will eventually represent information such as:
-
-```text
-Tigres 32 - Ravens 24
-```
-
-and connect participating teams with individual player performances.
-
-Future entities are expected to include:
-
-```text
-seasons
-categories
-teams
-players
-team_players
-games
-player_week_stats
-```
-
----
-
-# 📊 Player Statistics
-
-Player statistics are recorded **per jornada** rather than stored only as lifetime totals. The official multi-sheet Excel workbook can import every `Wk` sheet in one operation.
-
-This will allow Flagtastic to calculate statistics by:
-
-- Jornada
-- Season
-- Team
-- Player
-- Category
-- Branch
-
-The workbook identifies each roster entry with `rama`, `categoria`, `equipo`, and `numero`. The application resolves the internal player ID and displays the roster name; names are never trusted from the spreadsheet.
-
-Each pair of consecutive 15-row team blocks represents one matchup. Scores are inferred from `TD`, `Conv 1`, and `Conv 2`; when the event-only source omits enough information to produce a tie, defensive events provide a deterministic one-point tiebreak because league games cannot end tied. Formula-helper columns are ignored so events are not counted twice.
-
-The games page filters the imported schedule by jornada, branch, and category.
-For visual testing of standings, development schedules can be equalized without
-changing existing results:
-
-```powershell
-python -m scripts.balance_mock_games
-```
-
-The command inserts deterministic, non-tied mock games in a new jornada until
-every team in each active division has the same number of completed games. It
-is idempotent, so running it again after balance is reached creates nothing.
-
-Statistics include:
-
-| Statistic | Description |
-|---|---|
-| Pass completion | Completion percentage (completed / attempted) |
-| Receptions | Successful receptions |
-| Points | Points scored |
-| Tackles | Defensive stops |
-| Interceptions | Passes intercepted |
-| Sacks | Quarterback sacks |
-
-Example player performance:
-
-```text
-Bruno Díaz #83
-
-Receptions:     4
-Points:        12
-Tackles:        3
-Interceptions:  1
-```
-
----
-
-# 🏆 Leaderboards
-
-Accumulated game statistics will power league leaderboards.
-
-| Statistic | Leaderboard |
-|---|---|
-| Pass completion | 🎯 El Francotirador |
-| Receptions | 👐 Manos de Acero |
-| Points | ⚡ Máquina de Puntos |
-| Tackles | 🧱 El Muro |
-| Interceptions | 🦅 Cazador Aéreo |
-| Sacks | 💥 Cazador de QBs |
-
-Leaderboards will eventually support filtering by:
-
-```text
-Season
-Branch
-Category
-Team
-```
-
----
-
-# 🔐 Authentication and Roles
-
-Flagtastic supports credential authentication backed by database sessions. Login creates a random session token, stores only its SHA-256 hash, and sends the raw token in an `HttpOnly`, `SameSite=Lax` cookie. Production cookies are `Secure` by default.
-
-Current account roles are:
-
-```text
-League Administrator
-Team Representative
-Player
-Referee
-```
-
-Roles are cumulative. One account may simultaneously be a player, league
-administrator, team representative, and referee. `user_roles` is the source of
-truth for authorization; the older `users.role` value remains only for
-compatibility with existing integrations. Granting an operational role never
-removes the player's identity or personal dashboard.
-
-League administrators assign officials to games from `/games`. Each assignment
-has one position: Referee, Down Judge, Field Judge, Side Judge, or Statistician,
-and records the administrator who made it and its timestamp. Referee and Down
-Judge are required when confirming a complete imported role; the other slots
-remain optional for U6, regular games, and finals. Referees use
-`/referee/games` to see only their own schedule; the backend enforces that
-scope even if somebody calls the API directly.
-
-League administrators can also create operational staff accounts from
-`/admin/users`. These accounts receive one or more non-player roles and do not
-require CURP, age, roster membership, or a profile photo. This supports league
-staff such as a president who is both an administrator and a referee.
-Administrator-created accounts must replace their initial password at first
-login before any protected operation becomes available.
-
-Administrators can upload the official referee role as a JPG, PNG, or WebP
-image from `/referee/games`. Local OCR proposes matching games, fields, and
-active referee accounts. The recognized text and every proposal remain
-editable; no official record changes until an administrator confirms the
-review table.
-
-Every newly scheduled game identifies a field from 1 through 8. Public game
-cards and private referee schedules show that field so teams and officials use
-the same assignment. Historical workbook imports may temporarily display
-`Campo por asignar` until the official referee schedule supplies it.
-
-Player self-registration requires a JPG, PNG, or WebP profile photo of at most
-5 MB and accepts an optional `AKA`. PostgreSQL stores the validated image bytes,
-media type, and generated public filename so profile media remains available
-on stateless deployments. Players, including accounts created before AKA support,
-can edit it from the personal dashboard. Public navigation and official roles
-prefer the AKA while administration retains the legal name as supporting identity.
-
-`/teams` is the searchable team directory. Selecting a team opens its dedicated
-`/teams/{team_id}/roster` page instead of expanding roster management inside the
-directory. Public roster entries and individual-statistics leaderboards show the
-profile photo and prefer the player's AKA as the display name while retaining the
-legal roster name as supporting identity. Existing players without a photo use an
-initials placeholder, so imported and historical data remains readable.
-
-Selecting a player from a roster, leaderboard, or linked administration row opens
-the read-only `/players/{player_id}` season profile. It shows the public photo,
-AKA, legal roster name, age, teams, standings positions, and derived statistics;
-it does not expose CURP, email, roles, or account credentials.
-
-The authentication API supports login, current-user lookup, and idempotent logout. Backend authorization restricts league-wide writes to administrators and roster writes to administrators or representatives assigned to that team.
-
-Only league administrators can delete an erroneous team from `/teams`. This is
-a cascading operation: its roster memberships, games, representative links,
-and statistics are removed with the team, so the interface requires explicit
-confirmation before sending the request.
-
-Create the first trusted administrator locally after applying migrations:
-
-```powershell
-python -m scripts.create_admin --email admin@flagtastic.com --name "League Admin"
-```
-
-If that email already belongs to a registered player or representative, the
-command preserves the existing password and identity and promotes the account
-instead of creating a duplicate.
-
-That administrator can open `/admin/users` and grant any combination of
-`league_admin`, `team_representative`, `player`, and `referee`. The `player`
-role requires an account already linked to a player identity. Administrators
-cannot remove their own admin role accidentally.
-
-Administrators can delete another user's login account from `/admin/users`, but
-cannot delete themselves. This removes sessions and permissions while preserving
-the separate player identity and historical sports data. Assigned representatives
-can replace their own team's logo from its roster page; backend ownership checks
-prevent them from changing another team's branding.
-
-Administrative functionality will have access to private player information only when required by its role.
-
-Public endpoints will expose only information appropriate for league participants and spectators.
-
----
-
-# 🔒 Privacy
-
-Player CURP is considered administrative information.
-
-It is used to identify the same person across multiple team registrations but should not be exposed through public roster endpoints.
-
-Conceptually:
-
-```text
-Administrative Player Data
-├── Name
-├── CURP
-├── Age
-└── Memberships
-
-Public Roster
-├── Name
-├── Age
-└── Jersey Number
-```
-
----
-
-# 🎯 MVP Goal
-
-The first Flagtastic MVP aims to provide the league with a reliable system for:
-
-```text
-Team Registration
-        ↓
-Roster Management
-        ↓
-Eligibility Validation
-        ↓
-Game Registration
-        ↓
-Player Statistics
-        ↓
-League Leaderboards
-```
-
-The goal is to build the domain correctly first and expand the platform incrementally instead of introducing unnecessary complexity early in development.
-
----
-
-# 📌 Project Status
-
-**Flagtastic is currently under active development.**
-
-Completed foundation:
-
-```text
-✅ FastAPI project structure
-✅ PostgreSQL integration
-✅ Team registration
-✅ Team listing
-✅ Player registration
-✅ Team rosters
-✅ Player / team membership separation
-✅ Duplicate jersey protection
-✅ Automated tests
-✅ Secure session authentication and role-based authorization
-✅ Player self-registration and personal dashboard
-✅ Excel statistics imports and top-five leaderboards
-✅ Passing completion leaderboard with jornada qualification rules
-✅ Referee schedule image review and per-game official assignments
-✅ Role-scoped game details and per-game statistics
-✅ Administrator replacement of last-minute officiating assignments
-✅ Representative and referee role dashboards
-✅ Public integral privacy notice
-```
-
-Current focus:
-
-```text
-🚧 Public-release stabilization
-```
-
-## Local demo data
-
-The official multi-jornada workbook can prepare a complete local dataset with:
+Seed a controlled local environment from the official workbook:
 
 ```powershell
 python -m scripts.seed_statistics_workbook "C:\path\to\Stats ALL.xlsx"
 ```
 
-The command is idempotent: it creates only missing teams and mock roster
-members, then imports games and game-scoped player statistics. Matching games
-are reused so their field, time, and officiating assignments are preserved.
-Run `python -m alembic upgrade head` before importing a workbook.
+The command is idempotent: it creates missing teams and mock roster identities,
+reuses matching games, and imports game-scoped statistics. It is intended for
+development or migration work, not normal production traffic.
 
-Coming next:
+For deterministic standings UI data:
 
-```text
-✅ Games
-✅ Per-game statistics
-✅ Aggregated player statistics
-✅ Leaderboards
-✅ Role-based authorization
-⬜ Deployment
+```powershell
+python -m scripts.balance_mock_games
 ```
 
----
+## Deployment and Operations
 
-# 🏈 Flagtastic Football League
+Production runs on Vercel with PostgreSQL supplied by Supabase. The production
+database must be upgraded to the repository's Alembic head before code that
+depends on a new schema is promoted. Secure session cookies remain enabled.
 
-Flagtastic is being developed as a real-world league management platform for the **Flagtastic Football League**.
+- `GET /live` verifies the FastAPI process.
+- `GET /ready` verifies PostgreSQL and returns `503` without database details
+  when the application is not ready.
 
-The project prioritizes:
+Sentry captures scrubbed errors, logs, and sampled traces. Vercel Runtime Logs
+cover deployments and requests, Supabase Logs Explorer covers PostgreSQL, and
+Better Stack checks `/live` and `/ready` every three minutes with email alerts.
+See [`docs/observability.md`](docs/observability.md) for configuration, privacy
+safeguards, and incident response.
 
-- Clear domain modeling
-- Data integrity
-- Testable business rules
-- Simple architecture
-- Incremental development
-- Long-term maintainability
+## Security and Privacy
 
----
+- Authentication uses random database sessions. Only a SHA-256 token hash is
+  stored; the raw token uses an `HttpOnly`, `SameSite=Lax`, production `Secure`
+  cookie.
+- Roles are cumulative; `user_roles` is the authorization source of truth.
+- Representatives are scoped to explicitly linked teams.
+- Operational staff must replace their initial password before protected work.
+- CURP is private and used only for identity matching and administration.
+- Public responses exclude hashes, tokens, CURP, email, and authorization data.
+- Supabase Row Level Security is defense in depth; FastAPI still enforces every
+  authorization boundary.
+- Telemetry scrubs credentials, cookies, CURP, files, and request bodies.
+
+## Current Status
+
+The platform is deployed and in active use while receiving release-hardening
+and mobile usability improvements. Teams, rosters, profiles, games, standings,
+statistics imports, leaderboards, role dashboards, referee assignments,
+authentication, administration, privacy, and monitoring are implemented. Open
+work belongs in tracked issues or the release plan instead of being described
+as completed functionality here.
 
 ## License
 
-This project is currently developed for the **Flagtastic Football League**.
+This project is developed for the Flagtastic Football League. No public license
+has been granted.
