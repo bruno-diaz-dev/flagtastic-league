@@ -457,9 +457,11 @@ local development and CI deterministic.
 
 Every response includes `X-Request-ID`. `GET /live` is dependency-free, while
 `GET /ready` verifies PostgreSQL with a minimal query and returns only a generic
-availability result. Better Stack polls both routes externally; Vercel runtime
-logs and Supabase database logs provide provider-specific diagnostics. The
-configuration, alert rules, data exclusions, and incident workflow live in
+availability result. Better Stack is the external polling layer for both
+routes; its dashboard is the authoritative confirmation that those monitors
+are active. Vercel runtime logs and Supabase database logs provide
+provider-specific diagnostics. The configuration, alert rules, data
+exclusions, verification steps, and incident workflow live in
 `docs/observability.md`.
 
 ## Expected Evolution

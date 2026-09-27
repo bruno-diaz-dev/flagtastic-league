@@ -51,33 +51,68 @@ from application logs to avoid consuming the free log quota.
 
 ## Sentry setup
 
-1. Create a Python project at Sentry and select FastAPI when prompted.
-2. Copy the project's DSN. Do not commit it to Git.
-3. In Vercel, open the Flagtastic project, then **Settings > Environment
-   Variables**.
-4. Add `SENTRY_DSN`, `APP_ENV=production`, and
-   `SENTRY_TRACES_SAMPLE_RATE=0.1` to Production and Preview. Use
-   `APP_ENV=preview` for Preview if separate values are configured.
-5. Redeploy so the serverless function receives the variables.
-6. Under **Alerts**, enable email notifications for new issues, regressions,
-   and an unusual increase in errors.
+### Current deployment
+
+The Sentry organization is `flagtastic-league` and the FastAPI project is
+`python-fastapi`. Error monitoring, logs, and tracing are enabled. The project
+has a high-priority issue alert delivered by email.
+
+`SENTRY_DSN` is stored as a Vercel secret for both Production and Preview. No
+manual `APP_ENV` value is required on Vercel because `VERCEL_ENV` labels events
+as `production` or `preview`. The application defaults to a trace sample rate
+of `0.1`, so `SENTRY_TRACES_SAMPLE_RATE` only needs to be added when the rate
+must be changed without a code deployment.
+
+The production deployment was verified after configuration:
+
+- Vercel reported the deployment as ready.
+- `GET /live` returned `{"status": "alive"}`.
+- `GET /ready` returned `{"status": "ready"}`.
+- Vercel Runtime Logs recorded `application.observability.configured` with
+  `sentry_enabled: true` and `environment: "production"`.
+- A synthetic Sentry sample issue confirmed the project and email alert flow.
+
+The synthetic sample issue is not a production application failure.
+
+### Reconfiguration or recovery
+
+1. Open the FastAPI project in Sentry and copy its DSN. Do not commit it.
+2. In Vercel, open **Settings > Environment Variables**.
+3. Store `SENTRY_DSN` as a Secret for Production and Preview.
+4. Redeploy the affected environment so its serverless functions receive the
+   latest value.
+5. Check Vercel Runtime Logs for `sentry_enabled: true`.
+6. Confirm that the project alert named **Send a notification for high priority
+   issues** still uses email.
 
 The Sentry DSN is a write-only ingestion identifier, but it is still managed as
 deployment configuration so environments can be separated cleanly.
 
 ## Better Stack setup
 
-Create two HTTPS uptime monitors against the production domain:
+Better Stack is the active external availability layer. The league workspace
+contains the following HTTPS monitors against the production domain:
 
-| Monitor | URL | Expected result | Suggested interval |
-| --- | --- | --- | --- |
-| Process availability | `/live` | HTTP 200 | 3 minutes |
-| Database readiness | `/ready` | HTTP 200 | 3 minutes |
+| Monitor | URL | Expected result | Interval | Verified state |
+| --- | --- | --- | --- | --- |
+| Flagtastic process availability | `https://flagtastic-league.vercel.app/live` | HTTP 200 | 3 minutes | Up |
+| Flagtastic database readiness | `https://flagtastic-league.vercel.app/ready` | HTTP 200 | 3 minutes | Up |
 
-Require two consecutive failures before opening an incident. Add the league
-administrator's email as the escalation recipient and enable recovery
-notifications. The first monitor distinguishes a complete application outage;
-the second reports when the function is alive but Supabase is unavailable.
+Both monitors use a three-minute confirmation period, equivalent to a second
+failed check at the current interval, before opening an incident. Recovery also
+requires three healthy minutes. The primary responder receives email alerts.
+The first monitor distinguishes a complete application outage; the second
+reports when the function is alive but Supabase is unavailable.
+
+After creating or changing a monitor, run its manual check and confirm the last
+response is HTTP 200. Do not mark Better Stack setup complete merely because
+the endpoints work from a local machine; the authoritative signal is a
+successful check in the Better Stack dashboard.
+
+Creating or editing monitors requires membership in the league's Better Stack
+workspace. Monitor identifiers are provider metadata, not application
+configuration. No Better Stack credential, session, or magic link belongs in
+the repository.
 
 ## Incident workflow
 
@@ -88,6 +123,11 @@ the second reports when the function is alive but Supabase is unavailable.
 4. If `/ready` failed, inspect Supabase Logs Explorer and database health.
 5. Record the cause, corrective action, and affected release before resolving
    the incident.
+
+For Sentry notifications, inspect the issue before resolving it. A resolution
+does not replace a code fix or rollback. For Better Stack incidents, verify
+both `/live` and `/ready` before closing the incident so application and
+database recovery are confirmed independently.
 
 Vercel Hobby runtime logs are short-lived, so Sentry is the durable application
 record. Supabase logs are for database diagnosis and are not queried

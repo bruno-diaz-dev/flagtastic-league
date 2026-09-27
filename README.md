@@ -107,6 +107,24 @@ application is not ready to serve traffic. Production errors, traces, JSON
 logs, alert configuration, and privacy requirements are documented in
 [`docs/observability.md`](docs/observability.md).
 
+### Production Observability
+
+The production deployment uses complementary diagnostic layers:
+
+- **Sentry** captures privacy-scrubbed FastAPI errors, logs, and sampled traces.
+- **Vercel Runtime Logs** provide short-lived structured request logs.
+- **Supabase Logs Explorer** is used for PostgreSQL diagnosis.
+- **Better Stack** checks `/live` and `/ready` externally every three minutes.
+
+`SENTRY_DSN` is stored as a Vercel secret for both Production and Preview.
+Vercel supplies the environment and immutable Git release automatically. The
+production deployment has been verified with both health endpoints and with a
+startup log containing `sentry_enabled: true`. Sentry also has an email alert
+for high-priority issues. Both Better Stack monitors are active, report `Up`,
+and notify the primary responder by email after a three-minute confirmation
+period. Never commit a DSN, session token, database URL, or other deployment
+secret.
+
 ---
 
 # 🧠 Player Eligibility Rules
