@@ -1,8 +1,28 @@
 // Private representative dashboard; the API scopes every team by session user.
 const representativeTeams = document.querySelector("#representative-teams");
+const representativeSummary = document.querySelector("#representative-summary");
 
 function metric(label, value) {
     return `<div class="stat-item"><span>${label}</span><strong>${value ?? "-"}</strong></div>`;
+}
+
+function renderRepresentativeSummary(teams) {
+    const rosterCount = teams.reduce((total, team) => total + team.roster_count, 0);
+    const wins = teams.reduce((total, team) => total + team.standing.wins, 0);
+    const losses = teams.reduce((total, team) => total + team.standing.losses, 0);
+    const points = teams.reduce((total, team) => total + team.statistics.points, 0);
+    const rankedTeams = teams.filter((team) => team.standing.position !== null);
+    const bestPosition = rankedTeams.length
+        ? Math.min(...rankedTeams.map((team) => team.standing.position))
+        : null;
+
+    representativeSummary.innerHTML = [
+        metric("Equipos", teams.length),
+        metric("Jugadores activos", rosterCount),
+        metric("Récord combinado", `${wins}-${losses}`),
+        metric("Puntos anotados", points),
+        metric("Mejor posición", bestPosition ? `#${bestPosition}` : "-")
+    ].join("");
 }
 
 function renderRepresentativeTeam(team) {
@@ -11,9 +31,14 @@ function renderRepresentativeTeam(team) {
     return `
         <section class="representative-team-panel">
             <header class="representative-team-header">
-                ${team.logo_url ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}">` : ""}
+                ${team.logo_url
+                    ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}">`
+                    : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
                 <div><h3>${escapeHtml(team.name)}</h3><p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p></div>
-                <a class="secondary-link" href="/teams/${team.id}/roster">Ver roster</a>
+                <div class="representative-team-actions">
+                    <a class="secondary-link" href="/teams/${team.id}/roster">Ver y administrar roster</a>
+                    <a class="secondary-link" href="/games">Ver partidos</a>
+                </div>
             </header>
             <p class="muted-text">${staff.length ? `Cuerpo técnico: ${staff.map(escapeHtml).join(" · ")}` : "Cuerpo técnico pendiente"}</p>
             <div class="stat-grid">
@@ -46,11 +71,13 @@ async function loadRepresentativeDashboard() {
     }
     if (!response.ok) throw new Error("Dashboard request failed");
     const dashboard = await response.json();
+    renderRepresentativeSummary(dashboard.teams);
     representativeTeams.innerHTML = dashboard.teams.length
         ? dashboard.teams.map(renderRepresentativeTeam).join("")
         : `<div class="empty-state"><h3>Sin equipos asignados</h3><p>Los equipos que registres aparecerán aquí.</p></div>`;
 }
 
 loadRepresentativeDashboard().catch(() => {
+    representativeSummary.innerHTML = "";
     representativeTeams.innerHTML = `<div class="empty-state"><h3>No se pudo cargar el dashboard</h3><p>Intenta recargar la página.</p></div>`;
 });

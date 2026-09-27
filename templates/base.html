@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flagtastic League</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260927-2">
+    <link rel="stylesheet" href="/static/style.css?v=20260927-3">
 </head>
 <body class="sidebar-collapsed">
     <div class="layout">
@@ -58,7 +58,7 @@
                 </a>
 
                 <a id="representative-dashboard-link" class="nav-link hidden" href="/representative-dashboard">
-                    <span class="nav-text">Mi equipo</span>
+                    <span class="nav-text">Dashboard de equipo</span>
                     <span class="nav-short">ME</span>
                 </a>
 
@@ -68,7 +68,7 @@
                 </a>
 
                 <a id="referee-games-link" class="nav-link hidden" href="/referee/games">
-                    <span class="nav-text">Mis partidos</span>
+                    <span class="nav-text">Dashboard de árbitro</span>
                     <span class="nav-short">AR</span>
                 </a>
             </nav>
@@ -87,6 +87,10 @@
 
         <main class="content">
             {% block content %}{% endblock %}
+            <footer class="site-footer">
+                <span>Flagtastic Football League</span>
+                <a href="/privacy">Aviso de privacidad</a>
+            </footer>
         </main>
     </div>
 

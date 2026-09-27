@@ -44,6 +44,7 @@ def test_navigation_starts_collapsed_and_remembers_the_user_choice():
 
 def test_login_page_renders_protected_password_form():
     response = client.get("/login")
+    script = client.get("/static/login.js")
 
     assert response.status_code == 200
     assert 'id="login-form"' in response.text
@@ -51,6 +52,8 @@ def test_login_page_renders_protected_password_form():
     assert 'name="password"' in response.text
     assert 'type="password"' in response.text
     assert 'src="/static/login.js' in response.text
+    assert 'roles.includes("referee")' in script.text
+    assert '"/referee/games"' in script.text
 
 
 def test_statistics_page_renders_division_filters():
@@ -89,6 +92,8 @@ def test_player_registration_page_is_available():
     assert 'type="file"' in response.text
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
     assert 'name="photo" type="file"' in response.text
+    assert 'name="privacy_acknowledgement"' in response.text
+    assert 'href="/privacy"' in response.text
 
 
 def test_player_dashboard_page_is_available():
@@ -115,11 +120,29 @@ def test_player_dashboard_page_is_available():
 def test_representative_dashboard_page_is_available():
     response = client.get("/representative-dashboard")
     assert response.status_code == 200
-    assert "Dashboard de representante" in response.text
+    assert "Mi dashboard de representante" in response.text
+    assert 'id="representative-summary"' in response.text
     assert 'src="/static/representative_dashboard.js' in response.text
+
+    script = client.get("/static/representative_dashboard.js")
+    assert "renderRepresentativeSummary" in script.text
+    assert "Récord combinado" in script.text
+    assert "Mejor posición" in script.text
 
     navigation = client.get("/teams").text
     assert 'id="representative-dashboard-link"' in navigation
+    assert 'href="/privacy"' in navigation
+
+
+def test_integral_privacy_notice_is_public():
+    response = client.get("/privacy")
+
+    assert response.status_code == 200
+    assert "Aviso de privacidad integral" in response.text
+    assert "Datos personales tratados" in response.text
+    assert "Derechos ARCO" in response.text
+    assert "Personas menores de edad" in response.text
+    assert "cookies publicitarias" in response.text
 
 
 def test_public_player_profile_page_is_available():
@@ -202,7 +225,16 @@ def test_referee_page_has_reviewed_image_import():
     response = client.get("/referee/games")
 
     assert response.status_code == 200
+    assert "Mi dashboard de arbitraje" in response.text
+    assert 'id="referee-summary"' in response.text
+    assert 'id="referee-games"' in response.text
     assert 'id="referee-schedule-form"' in response.text
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
     assert 'id="schedule-review-body"' in response.text
     assert 'id="confirm-schedule"' in response.text
+
+    script = client.get("/static/referee_games.js")
+    assert "renderRefereeSummary" in script.text
+    assert "Asignaciones pendientes" in script.text
+    assert "Historial de arbitrajes" in script.text
+    assert 'href="/games/${game.id}"' in script.text

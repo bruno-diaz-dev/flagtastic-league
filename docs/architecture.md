@@ -308,6 +308,7 @@ Rules that need league context, such as preventing a player from registering twi
 | `DELETE` | `/api/teams/{team_id}/representatives/{user_id}` | Removes one incorrect team assignment without deleting the account; league administrators only |
 | `GET` | `/api/teams/representative-assignments` | Lists current team ownership for verification in the league administration UI |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
+| `GET` | `/api/games/mine/referee` | Returns only games assigned to the authenticated referee |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
 | `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
 | `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
@@ -341,6 +342,10 @@ game-count deficits, produces no tied scores, and is safe to rerun once balanced
 | `GET` | `/standings` | Standings page |
 | `GET` | `/statistics` | Public individual leaderboards |
 | `GET` | `/login` | Operational user login |
+| `GET` | `/dashboard` | Private player dashboard |
+| `GET` | `/representative-dashboard` | Private representative dashboard scoped to assigned teams |
+| `GET` | `/referee/games` | Private referee dashboard and administrator schedule import |
+| `GET` | `/privacy` | Public integral privacy notice |
 
 ## Frontend
 
@@ -372,6 +377,15 @@ It is currently a lightweight server-rendered HTML, CSS, and JavaScript layer. S
 The shared shell is mobile-first below `820px`. In that range the sidebar becomes a modal drawer over the page instead of consuming document width. The league logo remains visible in the collapsed header, while the backdrop, Escape key, and navigation links close the expanded drawer. Operational forms and resource grids collapse to one column, controls keep a minimum touch target of `44px`, and dense tables scroll inside their own containers with a sticky first column. This keeps the document itself at viewport width and prevents page-level horizontal scrolling.
 
 Responsive behavior belongs in `static/style.css` and `static/layout.js`; page scripts should not calculate viewport dimensions or duplicate drawer state. Any new table must use an existing scroll wrapper such as `.standings-table`, `.users-table-wrapper`, or `.table-scroll`.
+
+### Privacy notice
+
+The integral privacy notice is always available at `/privacy` and through the
+shared footer. Player registration requires acknowledgement of that notice.
+It documents account, CURP, profile photo, roster, statistics, official-role,
+session, hosting, minor-player, retention, and ARCO handling. Production league
+administrators remain responsible for keeping the official contact channel and
+the responsible party's complete address available through league channels.
 
 ## Testing
 
@@ -513,6 +527,23 @@ Player rows link to public profiles; CURP and credentials are never selected.
 Assigned representatives and league administrators may add or replace a
 player photo after manual or CSV/XLSX roster creation. The write verifies both
 team-management permission and the player's membership in that exact roster.
+
+The representative dashboard derives its summary cards only from this already
+scoped read model. It must never fetch the public, unscoped team directory to
+calculate private representative totals.
+
+The referee dashboard uses `/api/games/mine/referee`, whose repository query
+starts from `game_referees.user_id`. The browser separates pending and completed
+assignments and derives summary cards from that scoped list. League
+administrators retain the schedule-image review controls on the same page, but
+ordinary referees cannot see those controls or call their write endpoints.
+
+The public `/privacy` page describes the actual data handled by the schema:
+identity and contact data, CURP, age, public profile fields, photos,
+memberships, statistics, roles, assignments, sessions, and technical request
+data. Public APIs must continue to omit CURP, email, password hashes, and
+session identifiers. Representatives loading rosters for minors are expected
+to hold the appropriate authorization.
 
 ## Passing Leaderboard
 

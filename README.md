@@ -51,6 +51,14 @@ Example team:
 Representatives have a private dashboard at `/representative-dashboard`. It
 shows only assigned teams and combines roster size, standing, record, points
 for/against, team totals, passing percentage, and per-player season totals.
+Its summary exposes team count, active roster count, combined record, total
+points, and best current standing without expanding access beyond the teams
+linked through `team_representatives`.
+
+Referees have a private dashboard at `/referee/games`. It separates pending
+assignments from completed games and summarizes assignment count, next week,
+and most frequent official position. Every game links to its detail page while
+the API continues to return only assignments for the authenticated referee.
 
 ---
 
@@ -786,6 +794,8 @@ Completed foundation:
 ✅ Referee schedule image review and per-game official assignments
 ✅ Role-scoped game details and per-game statistics
 ✅ Administrator replacement of last-minute officiating assignments
+✅ Representative and referee role dashboards
+✅ Public integral privacy notice
 ```
 
 Current focus:

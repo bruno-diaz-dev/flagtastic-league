@@ -30,7 +30,9 @@ loginForm.addEventListener("submit", async (event) => {
             ? "/dashboard"
             : roles.includes("team_representative")
                 ? "/representative-dashboard"
-                : "/teams";
+                : roles.includes("referee")
+                    ? "/referee/games"
+                    : "/teams";
         window.location.assign(destination);
     } catch (error) {
         loginMessage.textContent = "No se pudo conectar con el servidor.";

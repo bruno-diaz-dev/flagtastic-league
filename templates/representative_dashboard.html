@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section>
+<section class="role-dashboard-page">
     <header class="section-header">
         <div>
-            <h2>Dashboard de representante</h2>
-            <p>Posición, resultados y estadísticas de tus equipos.</p>
+            <h2>Mi dashboard de representante</h2>
+            <p>El estado deportivo y operativo de tus equipos en un solo lugar.</p>
+        </div>
+    </header>
+    <div id="representative-summary" class="stat-grid dashboard-summary-grid" aria-live="polite"></div>
+    <nav class="dashboard-quick-links" aria-label="Accesos del representante">
+        <a href="/teams">Directorio de equipos</a>
+        <a href="/games">Consultar partidos</a>
+        <a href="/standings">Consultar tabla</a>
+        <a href="/statistics">Líderes individuales</a>
+    </nav>
+    <header class="dashboard-section-heading">
+        <div>
+            <h3>Mis equipos</h3>
+            <p>Las cifras corresponden a la temporada registrada.</p>
         </div>
     </header>
     <div id="representative-teams" class="representative-teams" aria-live="polite"></div>
@@ -14,5 +27,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260926-2"></script>
-<script src="/static/representative_dashboard.js?v=20260926-1"></script>
+<script src="/static/representative_dashboard.js?v=20260927-1"></script>
 {% endblock %}
