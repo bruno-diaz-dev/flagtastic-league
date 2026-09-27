@@ -3,10 +3,10 @@
 from repositories.users import (
     get_user_credentials_by_email,
     verify_password,
-    get_user_by_id
+    get_user_by_session_hash
 )
 
-from repositories.sessions import get_active_session
+from repositories.sessions import hash_session_token
 
 def authenticate_user(email, password):
     """Authenticate active credentials without exposing the password hash."""
@@ -40,19 +40,4 @@ def authenticate_user(email, password):
 
 def get_authenticated_user(token):
     """Resolve an active public user from a valid session token."""
-    session = get_active_session(token)
-
-    if session is None:
-        return None
-    
-    user = get_user_by_id(
-        session["user_id"]
-    )
-
-    if user is None:
-        return None
-
-    if user["status"] != "active":
-        return None
-
-    return user
+    return get_user_by_session_hash(hash_session_token(token))

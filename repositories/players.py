@@ -213,6 +213,115 @@ def get_players_by_team(team_id):
     return[dict(row) for row in rows]
 
 
+def search_registered_players(team, query, limit=20):
+    """Find eligible active player accounts without exposing private fields."""
+    connection = get_connection()
+    pattern = f"%{query.strip()}%"
+    rows = connection.execute(
+        """
+        SELECT players.id, players.name, players.aka, players.age,
+               CASE WHEN players.profile_photo_path IS NULL THEN NULL
+                    ELSE '/media/profiles/' || players.profile_photo_path
+               END AS profile_photo_url
+        FROM players
+        WHERE EXISTS (
+            SELECT 1 FROM users
+            WHERE users.player_id = players.id
+              AND users.status = 'active'
+              AND (
+                  users.role = 'player'
+                  OR EXISTS (
+                      SELECT 1 FROM user_roles
+                      WHERE user_roles.user_id = users.id
+                        AND user_roles.role = 'player'
+                  )
+              )
+        )
+          AND (
+              players.name ILIKE %s
+              OR COALESCE(players.aka, '') ILIKE %s
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM team_players
+              JOIN teams ON teams.id = team_players.team_id
+              WHERE team_players.player_id = players.id
+                AND team_players.active
+                AND teams.branch = %s
+                AND teams.category = %s
+          )
+        ORDER BY COALESCE(NULLIF(players.aka, ''), players.name), players.name
+        LIMIT %s
+        """,
+        (pattern, pattern, team["branch"], team["category"], limit)
+    ).fetchall()
+    connection.close()
+    return [dict(row) for row in rows]
+
+
+def join_registered_player(player_id, team, jersey_number):
+    """Attach an active player account to a managed team atomically."""
+    connection = get_connection()
+    try:
+        registered = connection.execute(
+            """
+            SELECT players.id
+            FROM players
+            WHERE players.id = %s
+              AND EXISTS (
+                  SELECT 1 FROM users
+                  WHERE users.player_id = players.id
+                    AND users.status = 'active'
+                    AND (
+                        users.role = 'player'
+                        OR EXISTS (
+                            SELECT 1 FROM user_roles
+                            WHERE user_roles.user_id = users.id
+                              AND user_roles.role = 'player'
+                        )
+                    )
+              )
+            FOR UPDATE OF players
+            """,
+            (player_id,)
+        ).fetchone()
+        if registered is None:
+            return None
+
+        conflict = connection.execute(
+            """
+            SELECT 1
+            FROM team_players
+            JOIN teams ON teams.id = team_players.team_id
+            WHERE team_players.player_id = %s
+              AND teams.branch = %s
+              AND teams.category = %s
+              AND team_players.active
+            """,
+            (player_id, team["branch"], team["category"])
+        ).fetchone()
+        if conflict is not None:
+            raise PlayerAlreadyRegisteredInDivision()
+
+        membership = connection.execute(
+            """
+            INSERT INTO team_players (team_id, player_id, jersey_number)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (team_id, player_id) DO UPDATE
+            SET jersey_number = EXCLUDED.jersey_number, active = TRUE
+            RETURNING team_id, player_id, jersey_number
+            """,
+            (team["id"], player_id, jersey_number)
+        ).fetchone()
+        connection.commit()
+        return dict(membership)
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def get_managed_roster_player(team_id, player_id):
     """Return private edit fields only for an active team membership."""
     connection = get_connection()

@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from psycopg.errors import UniqueViolation
 
-from repositories.players import get_players_by_team
 from models import TeamCreate, TeamNameUpdate, TeamStaffUpdate, TeamStatusUpdate
 from repositories.teams import (
     assign_team_representative,
@@ -12,6 +11,7 @@ from repositories.teams import (
     get_all_teams,
     get_team_representative_assignments,
     get_team_by_id,
+    get_team_roster_detail,
     get_team_logo,
     remove_team_representative,
     update_team_logo,
@@ -26,7 +26,6 @@ from dependencies.auth import (
     require_team_manager,
     user_has_role
 )
-from repositories.users import user_represents_team
 from services.profile_photos import save_team_logo
 
 router = APIRouter(
@@ -70,41 +69,19 @@ def get_team_details(
     user=Depends(optional_authenticated_user)
 ):
     """Return a team and its public roster, or a 404 response."""
-    team = get_team_by_id(team_id)
-
+    is_admin = user is not None and user_has_role(user, "league_admin")
+    team = get_team_roster_detail(
+        team_id,
+        user_id=user["id"] if user is not None else None,
+        is_admin=is_admin
+    )
     if team is None:
         raise HTTPException(
             status_code=404,
             detail="Team not found"
         )
 
-    players = get_players_by_team(team_id)
-    can_manage = user is not None and (
-        user_has_role(user, "league_admin")
-        or (
-            user_has_role(user, "team_representative")
-            and user_represents_team(user["id"], team_id)
-        )
-    )
-
-    return {
-        **team,
-        # Public data stays visible, but roster controls require this exact
-        # team assignment (or league-wide administrator access).
-        "can_manage": can_manage,
-        "players": [
-            {
-                "id": player["id"],
-                "name": player["name"],
-                "aka": player["aka"],
-                "age": player["age"],
-                "profile_photo_url": player["profile_photo_url"],
-                "jersey_number": player["jersey_number"]
-            }
-
-            for player in players
-        ]
-    }
+    return team
 
 
 @router.put("/{team_id}/logo", status_code=204)

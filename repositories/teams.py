@@ -131,6 +131,56 @@ def get_team_by_id(team_id):
     return _public_team(row)
 
 
+def get_team_roster_detail(team_id, user_id=None, is_admin=False):
+    """Load roster metadata and team-scoped permission on one connection."""
+    connection = get_connection()
+    team_row = connection.execute(
+        """
+        SELECT id, name, branch, category, status,
+               head_coach, coach, manager,
+               logo_data IS NOT NULL AS has_logo,
+               md5(logo_data) AS logo_version
+        FROM teams
+        WHERE id = %s
+        """,
+        (team_id,)
+    ).fetchone()
+    if team_row is None:
+        connection.close()
+        return None
+
+    players = connection.execute(
+        """
+        SELECT players.id, players.name, players.aka, players.age,
+               CASE WHEN players.profile_photo_path IS NULL THEN NULL
+                    ELSE '/media/profiles/' || players.profile_photo_path
+               END AS profile_photo_url,
+               team_players.jersey_number
+        FROM team_players
+        JOIN players ON players.id = team_players.player_id
+        WHERE team_players.team_id = %s AND team_players.active
+        ORDER BY team_players.jersey_number, LOWER(players.name)
+        """,
+        (team_id,)
+    ).fetchall()
+    represents_team = False
+    if user_id is not None and not is_admin:
+        represents_team = connection.execute(
+            """
+            SELECT 1 FROM team_representatives
+            WHERE user_id = %s AND team_id = %s
+            """,
+            (user_id, team_id)
+        ).fetchone() is not None
+    connection.close()
+
+    return {
+        **_public_team(team_row),
+        "can_manage": is_admin or represents_team,
+        "players": [dict(player) for player in players]
+    }
+
+
 def _public_team(row):
     """Expose a content-versioned logo URL without returning image bytes."""
     team = dict(row)

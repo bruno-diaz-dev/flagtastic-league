@@ -64,6 +64,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Team logos and Head Coach, Coach, and Manager fields.
 - Roster player create, edit, deactivate, and photo update workflows.
 - CSV/XLSX roster imports plus a downloadable CSV template.
+- Search and assignment of existing active player accounts by legal name or AKA,
+  with division eligibility rechecked at write time.
 - CURP-derived age validation based on age reached during the calendar year.
 
 ### Accounts and authorization
@@ -191,6 +193,9 @@ Scope:
   columns where useful.
 - Ensure cached team logos and player photos refresh consistently on mobile.
 - Reduce unnecessary API calls and avoid duplicate page initialization.
+- Keep authenticated high-traffic reads within a small, measured number of
+  database connections; roster detail currently resolves in one authorization
+  query plus one shared team/players/ownership connection.
 - Add focused browser or DOM-level regression coverage for the shared mobile
   shell and highest-traffic pages.
 

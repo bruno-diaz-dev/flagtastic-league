@@ -376,6 +376,22 @@ It is currently a lightweight server-rendered HTML, CSS, and JavaScript layer. S
 
 The shared shell is mobile-first below `820px`. In that range the sidebar becomes a modal drawer over the page instead of consuming document width. The league logo remains visible in the collapsed header, while the backdrop, Escape key, and navigation links close the expanded drawer. Operational forms and resource grids collapse to one column, controls keep a minimum touch target of `44px`, and dense tables scroll inside their own containers with a sticky first column. This keeps the document itself at viewport width and prevents page-level horizontal scrolling.
 
+### Roster identity lookup and latency
+
+Representatives can search active accounts carrying the `player` role by legal
+name or AKA. Search results expose only public player identity fields and omit
+CURP, email, and account metadata. Candidates already active in a team with the
+same branch and category are excluded. The selected existing `players.id` is
+linked transactionally to `team_players`; the backend rechecks account status,
+role, division eligibility, and jersey uniqueness at write time.
+
+Database connection setup is material on the Vercel-to-Supabase path. Session
+resolution therefore joins `sessions`, `users`, roles, and the optional player
+identity in one query. The roster detail read reuses one connection for team
+metadata, active players, and representative ownership. This preserves live
+authorization checks while avoiding several sequential network handshakes per
+page load.
+
 Responsive behavior belongs in `static/style.css` and `static/layout.js`; page scripts should not calculate viewport dimensions or duplicate drawer state. Any new table must use an existing scroll wrapper such as `.standings-table`, `.users-table-wrapper`, or `.table-scroll`.
 
 ### Privacy notice

@@ -219,6 +219,16 @@ def test_team_representative_can_manage_only_assigned_team():
     )
     assert other_import.status_code == 403
     assert other_template.status_code == 403
+    other_candidate_search = client.get(
+        f"/api/teams/{other_team['id']}/players/candidates",
+        params={"q": "Player"}
+    )
+    other_registered_add = client.post(
+        f"/api/teams/{other_team['id']}/players/registered",
+        json={"player_id": 999999, "jersey_number": 18}
+    )
+    assert other_candidate_search.status_code == 403
+    assert other_registered_add.status_code == 403
 
     player_id = assigned_response.json()["id"]
     assigned_photo = client.put(

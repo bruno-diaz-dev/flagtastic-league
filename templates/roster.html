@@ -45,6 +45,26 @@
         </form>
         <p id="player-form-message" class="form-message" role="status"></p>
 
+        <h3>Agregar jugador registrado</h3>
+        <form id="registered-player-form" class="player-form">
+            <label>
+                Buscar por nombre o AKA
+                <input id="registered-player-search" type="search" minlength="2" autocomplete="off" placeholder="Escribe al menos 2 caracteres">
+            </label>
+            <label>
+                Jugador
+                <select id="registered-player-results" name="player_id" disabled required>
+                    <option value="">Busca un jugador registrado</option>
+                </select>
+            </label>
+            <label>
+                Número
+                <input name="jersey_number" type="number" min="0" required>
+            </label>
+            <button type="submit" disabled>Agregar al roster</button>
+        </form>
+        <p id="registered-player-message" class="form-message" role="status"></p>
+
         <form id="roster-import-form" class="stats-import-form">
             <label>Importar roster (.csv o .xlsx)
                 <input name="file" type="file" accept=".csv,.xlsx" required>
@@ -63,6 +83,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260926-6"></script>
-<script src="/static/roster.js?v=20260926-6"></script>
+<script src="/static/api.js?v=20260927-1"></script>
+<script src="/static/roster.js?v=20260927-1"></script>
 {% endblock %}

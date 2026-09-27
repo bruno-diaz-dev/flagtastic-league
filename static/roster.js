@@ -7,6 +7,10 @@ const rosterSubtitle = document.querySelector("#roster-subtitle");
 const rosterContainer = document.querySelector("#roster");
 const playerForm = document.querySelector("#player-form");
 const playerFormMessage = document.querySelector("#player-form-message");
+const registeredPlayerForm = document.querySelector("#registered-player-form");
+const registeredPlayerSearch = document.querySelector("#registered-player-search");
+const registeredPlayerResults = document.querySelector("#registered-player-results");
+const registeredPlayerMessage = document.querySelector("#registered-player-message");
 const rosterImportForm = document.querySelector("#roster-import-form");
 const rosterImportMessage = document.querySelector("#roster-import-message");
 const teamLogoForm = document.querySelector("#team-logo-form");
@@ -228,6 +232,79 @@ playerForm.addEventListener("submit", async (event) => {
 
 playerForm.elements.curp.addEventListener("input", (event) => {
     playerForm.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
+});
+
+
+let registeredPlayerSearchTimer;
+
+registeredPlayerSearch.addEventListener("input", () => {
+    window.clearTimeout(registeredPlayerSearchTimer);
+    const query = registeredPlayerSearch.value.trim();
+    registeredPlayerResults.disabled = true;
+    registeredPlayerForm.querySelector('button[type="submit"]').disabled = true;
+    if (query.length < 2) {
+        registeredPlayerResults.innerHTML = '<option value="">Busca un jugador registrado</option>';
+        registeredPlayerMessage.textContent = "";
+        return;
+    }
+    registeredPlayerMessage.textContent = "Buscando...";
+    registeredPlayerSearchTimer = window.setTimeout(async () => {
+        try {
+            const response = await searchRegisteredPlayers(teamId, query);
+            const players = await response.json();
+            if (!response.ok) {
+                registeredPlayerMessage.textContent = players.detail || "No se pudo realizar la búsqueda.";
+                return;
+            }
+            if (!players.length) {
+                registeredPlayerResults.innerHTML = '<option value="">Sin jugadores elegibles</option>';
+                registeredPlayerMessage.textContent = "No hay coincidencias elegibles para esta división.";
+                return;
+            }
+            registeredPlayerResults.innerHTML = [
+                '<option value="">Selecciona un jugador</option>',
+                ...players.map((player) => {
+                    const displayName = player.aka
+                        ? `${player.aka} (${player.name})`
+                        : player.name;
+                    return `<option value="${player.id}">${escapeHtml(displayName)}</option>`;
+                })
+            ].join("");
+            registeredPlayerResults.disabled = false;
+            registeredPlayerMessage.textContent = `${players.length} coincidencia(s).`;
+        } catch (error) {
+            registeredPlayerMessage.textContent = "No se pudo conectar con el servidor.";
+        }
+    }, 300);
+});
+
+
+registeredPlayerResults.addEventListener("change", () => {
+    registeredPlayerForm.querySelector('button[type="submit"]').disabled = (
+        !registeredPlayerResults.value
+    );
+});
+
+
+registeredPlayerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const fields = new FormData(registeredPlayerForm);
+    registeredPlayerMessage.textContent = "Agregando al roster...";
+    const response = await addRegisteredPlayer(teamId, {
+        player_id: Number(fields.get("player_id")),
+        jersey_number: Number(fields.get("jersey_number"))
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        registeredPlayerMessage.textContent = body.detail || "No se pudo agregar al jugador.";
+        return;
+    }
+    registeredPlayerForm.reset();
+    registeredPlayerResults.disabled = true;
+    registeredPlayerForm.querySelector('button[type="submit"]').disabled = true;
+    registeredPlayerResults.innerHTML = '<option value="">Busca un jugador registrado</option>';
+    registeredPlayerMessage.textContent = "Jugador agregado correctamente.";
+    await loadRoster();
 });
 
 

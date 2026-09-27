@@ -36,6 +36,8 @@ representatives, referees, and league administrators.
 - Manage only explicitly assigned teams.
 - Update team logos and staff: Head Coach, Coach, and Manager.
 - Add, edit, deactivate, and photograph roster players.
+- Search active player accounts by legal name or AKA and add an eligible
+  existing identity without creating a duplicate player.
 - Import rosters from CSV or XLSX and download the CSV template.
 - View team standings, records, roster totals, and player statistics.
 
@@ -106,6 +108,11 @@ Browser (Jinja, CSS, vanilla JavaScript)
 Profile photos and team logos are stored in PostgreSQL so they remain available
 across stateless Vercel deployments. The ignored local `uploads/` directory is
 legacy/test output, not the production media store.
+
+Authenticated roster reads resolve the session identity in one query and load
+team metadata, players, and team-scoped permission through one database
+connection. This avoids repeated Supabase connection setup on the highest-use
+team detail flow.
 
 See [`docs/architecture.md`](docs/architecture.md) for data ownership,
 authorization boundaries, and detailed flows.
