@@ -22,7 +22,7 @@ def login(email, password="supersecret"):
     )
 
 
-def test_admin_player_referee_keeps_each_permission():
+def test_admin_player_referee_keeps_each_permission(monkeypatch):
     """Granting administrative duties must not hide player capabilities."""
     app.dependency_overrides.clear()
     suffix = uuid4().hex[:10]
@@ -64,6 +64,34 @@ def test_admin_player_referee_keeps_each_permission():
     assert client.get("/api/me/dashboard").status_code == 200
     assert client.get("/api/admin/users").status_code == 200
     assert client.get("/api/games/mine/referee").status_code == 200
+
+    # Referee self-service follows cumulative permissions, not the legacy
+    # primary role, so multi-role officials can maintain AKA and photo.
+    profile = client.get("/api/referees/me")
+    assert profile.status_code == 200
+    aka_update = client.patch("/api/referees/me", json={"aka": "Brucie"})
+    assert aka_update.status_code == 200
+    assert aka_update.json()["display_name"] == "Brucie"
+    photo_update = client.put(
+        "/api/referees/me/photo",
+        files={"file": ("profile.png", PROFILE_PNG, "image/png")}
+    )
+    assert photo_update.status_code == 204
+
+    # OCR matching also includes cumulative referee accounts, even though the
+    # public directory remains limited to primary referee accounts.
+    monkeypatch.setattr(
+        "routes.games.parse_referee_schedule_image",
+        lambda content, games, referees: {
+            "candidate_ids": [referee["id"] for referee in referees]
+        }
+    )
+    analysis = client.post(
+        "/api/games/referee-schedule/analyze",
+        files={"file": ("rol.png", PROFILE_PNG, "image/png")}
+    )
+    assert analysis.status_code == 200
+    assert player["id"] in analysis.json()["candidate_ids"]
     assert admin["id"] != player["id"]
 
 
