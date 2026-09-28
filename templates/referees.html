@@ -11,13 +11,23 @@
 
     <section id="referee-photo-panel" class="form-panel hidden">
         <h3>Completa tu perfil arbitral</h3>
-        <p>Sube una foto clara para aparecer identificado en la plantilla.</p>
+        <p>Agrega el AKA que aparece en el rol de árbitros para que el sistema pueda identificarte al cargar la imagen. La foto es opcional si solo quieres actualizar tu AKA.</p>
         <form id="referee-photo-form" class="filter-form">
             <label>
-                Foto de perfil
-                <input name="file" type="file" accept="image/jpeg,image/png,image/webp" required>
+                AKA
+                <input
+                    name="aka"
+                    type="text"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="Como aparece en el rol de árbitros"
+                >
             </label>
-            <button type="submit">Guardar foto</button>
+            <label>
+                Foto de perfil
+                <input name="file" type="file" accept="image/jpeg,image/png,image/webp">
+            </label>
+            <button type="submit">Guardar perfil</button>
         </form>
         <p id="referee-photo-message" class="form-message" role="status"></p>
     </section>
@@ -28,6 +38,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260928-1"></script>
-<script src="/static/referees.js?v=20260928-1"></script>
+<script src="/static/api.js?v=20260928-2"></script>
+<script src="/static/referees.js?v=20260928-2"></script>
 {% endblock %}

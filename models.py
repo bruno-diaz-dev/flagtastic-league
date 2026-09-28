@@ -282,6 +282,18 @@ class PlayerProfileUpdate(BaseModel):
         return normalized or None
 
 
+class RefereeProfileUpdate(BaseModel):
+    """Validate referee-editable public profile fields."""
+
+    aka: str | None = Field(default=None, max_length=80)
+
+    @field_validator("aka")
+    @classmethod
+    def normalize_aka(cls, aka):
+        normalized = aka.strip() if aka is not None else ""
+        return normalized or None
+
+
 class UserRoleUpdate(BaseModel):
     """Validate a role selected by a league administrator."""
 

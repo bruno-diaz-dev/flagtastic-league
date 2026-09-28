@@ -46,24 +46,40 @@ async function loadMyRefereeProfile() {
     if (!response.ok) return;
     const profile = await response.json();
     photoPanel.classList.remove("hidden");
+    photoPanel.querySelector("[name='aka']").value = profile.aka || "";
     photoPanel.querySelector("h3").textContent = profile.profile_photo_url
-        ? "Actualiza tu foto arbitral"
+        ? "Actualiza tu perfil arbitral"
         : "Completa tu perfil arbitral";
 }
 
 
 photoForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const file = new FormData(photoForm).get("file");
-    photoMessage.textContent = "Guardando foto...";
-    const response = await uploadMyRefereePhoto(file);
-    photoMessage.textContent = response.ok
-        ? "Foto arbitral actualizada correctamente."
-        : ((await response.json()).detail || "No se pudo guardar la foto.");
-    if (response.ok) {
-        photoForm.reset();
-        await Promise.all([loadRefereeRoster(), loadMyRefereeProfile()]);
+    const data = new FormData(photoForm);
+    const file = data.get("file");
+
+    photoMessage.textContent = "Guardando perfil...";
+    const profileResponse = await updateMyRefereeProfile({
+        aka: data.get("aka")
+    });
+    if (!profileResponse.ok) {
+        const body = await profileResponse.json();
+        photoMessage.textContent = body.detail || "No se pudo guardar el AKA.";
+        return;
     }
+
+    if (file instanceof File && file.size > 0) {
+        const photoResponse = await uploadMyRefereePhoto(file);
+        if (!photoResponse.ok) {
+            const body = await photoResponse.json();
+            photoMessage.textContent = body.detail || "El AKA se guardó, pero no se pudo guardar la foto.";
+            return;
+        }
+    }
+
+    photoMessage.textContent = "Perfil arbitral actualizado correctamente.";
+    photoForm.querySelector("[name='file']").value = "";
+    await Promise.all([loadRefereeRoster(), loadMyRefereeProfile()]);
 });
 
 

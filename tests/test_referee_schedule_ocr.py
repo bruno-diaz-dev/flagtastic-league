@@ -36,3 +36,31 @@ def test_schedule_ocr_matches_game_referee_and_field(monkeypatch):
         }],
         "source_text": "Campo 5 Tigres vs Ravens Arbitro Central"
     }]
+
+
+def test_schedule_ocr_matches_referee_by_aka(monkeypatch):
+    image = Image.new("RGB", (40, 40), "white")
+    content = BytesIO()
+    image.save(content, format="PNG")
+    monkeypatch.setattr(
+        "services.referee_schedule_ocr.pytesseract.image_to_string",
+        lambda image, config: "Campo 2 Tigres vs Ravens Central"
+    )
+    games = [{
+        "id": 45,
+        "week": 4,
+        "home_team": {"name": "Tigres"},
+        "away_team": {"name": "Ravens"}
+    }]
+    referees = [{
+        "id": 10,
+        "name": "Nombre Legal",
+        "aka": "Central",
+        "display_name": "Central"
+    }]
+
+    parsed = parse_referee_schedule_image(content.getvalue(), games, referees)
+
+    official = parsed["proposals"][0]["officials"][0]
+    assert official["user_id"] == 10
+    assert official["name"] == "Central"
