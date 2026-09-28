@@ -3,9 +3,11 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from dependencies.auth import require_authenticated_user, require_referee
+from models import RefereeProfileUpdate
 from repositories.referees import (
     get_referee_profile,
     get_referee_roster,
+    update_referee_aka,
     update_referee_photo,
 )
 from services.profile_photos import save_profile_photo
@@ -27,6 +29,17 @@ def my_referee_profile(user=Depends(require_referee)):
     if profile is None:
         raise HTTPException(status_code=404, detail="Arbitro no encontrado")
     return profile
+
+
+@router.patch("/me")
+def update_my_referee_profile(
+    update: RefereeProfileUpdate,
+    user=Depends(require_referee),
+):
+    """Let a referee maintain the AKA used for public display and OCR matching."""
+    if not update_referee_aka(user["id"], update.aka):
+        raise HTTPException(status_code=404, detail="Arbitro no encontrado")
+    return get_referee_profile(user["id"])
 
 
 @router.put("/me/photo", status_code=204)
