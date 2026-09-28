@@ -622,6 +622,9 @@ The first trusted `league_admin` is created from a local terminal. Subsequent
 roles are granted through `/admin/users`; both listing users and changing roles
 are protected by the backend administrator dependency. Responses never include
 password hashes or CURP, and administrators cannot demote themselves.
+The page keeps the authorized user response in memory and filters it locally by
+display name, legal name, or AKA. Search normalization ignores case and accents,
+so filtering does not add API traffic or expose additional identity fields.
 
 Administrators may also delete another account from this page, but cannot delete
 their own active account. Account deletion revokes access by cascading sessions,

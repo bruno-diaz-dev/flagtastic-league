@@ -4,6 +4,10 @@ const usersBody = document.querySelector("#admin-users-body");
 const usersMessage = document.querySelector("#admin-users-message");
 const staffForm = document.querySelector("#staff-account-form");
 const staffMessage = document.querySelector("#staff-account-message");
+const userNameFilter = document.querySelector("#admin-user-name-filter");
+const usersCount = document.querySelector("#admin-users-count");
+
+let usersState = [];
 
 const roleLabels = {
     player: "Jugador",
@@ -24,15 +28,30 @@ function roleChoices(selectedRoles) {
 }
 
 
-async function loadUsers() {
-    const response = await getAdminUsers();
-    if (response.status === 401) return window.location.assign("/login");
-    if (response.status === 403) return window.location.assign("/teams");
-    if (!response.ok) {
-        usersMessage.textContent = "No se pudieron cargar los usuarios.";
+function normalizedSearchText(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("es-MX")
+        .trim();
+}
+
+
+function renderUsers() {
+    const query = normalizedSearchText(userNameFilter.value);
+    const users = usersState.filter((user) => {
+        const names = [user.display_name, user.name, user.aka]
+            .map(normalizedSearchText);
+        return query === "" || names.some((name) => name.includes(query));
+    });
+    usersCount.textContent = `${users.length} usuario${users.length === 1 ? "" : "s"}`;
+    if (users.length === 0) {
+        usersBody.innerHTML = `
+            <tr><td colspan="5" class="table-empty-state">
+                No hay usuarios que coincidan con ese nombre.
+            </td></tr>`;
         return;
     }
-    const users = await response.json();
     usersBody.innerHTML = users.map((user) => `
         <tr data-user-id="${user.id}">
             <td>${user.player_id
@@ -47,6 +66,19 @@ async function loadUsers() {
                 <button class="delete-user-button" type="button">Eliminar</button>
             </td>
         </tr>`).join("");
+}
+
+
+async function loadUsers() {
+    const response = await getAdminUsers();
+    if (response.status === 401) return window.location.assign("/login");
+    if (response.status === 403) return window.location.assign("/teams");
+    if (!response.ok) {
+        usersMessage.textContent = "No se pudieron cargar los usuarios.";
+        return;
+    }
+    usersState = await response.json();
+    renderUsers();
 }
 
 
@@ -111,6 +143,9 @@ staffForm.addEventListener("submit", async (event) => {
         await loadUsers();
     }
 });
+
+
+userNameFilter.addEventListener("input", renderUsers);
 
 
 loadUsers().catch(() => {
