@@ -1,8 +1,14 @@
 """HTTP endpoints for creating and revoking authenticated sessions."""
 
-from fastapi import APIRouter, Cookie, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    APIRouter, BackgroundTasks, Cookie, File, Form, HTTPException, Response,
+    UploadFile,
+)
 
-from models import LoginRequest, PasswordChange, PlayerAccountCreate
+from models import (
+    LoginRequest, PasswordChange, PasswordResetConfirmation,
+    PasswordResetRequest, PlayerAccountCreate,
+)
 from psycopg.errors import UniqueViolation
 from repositories.users import (
     PlayerIdentityConflict,
@@ -13,12 +19,18 @@ from repositories.sessions import (
     create_session,
     revoke_session
 )
+from repositories.password_resets import (
+    consume_password_reset,
+    create_password_reset,
+)
 from services.auth import (
     authenticate_user,
     get_authenticated_user
 )
 from services.profile_photos import remove_profile_photo, save_profile_photo
+from services.email import send_password_reset_email
 from settings import (
+    PUBLIC_BASE_URL,
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
     session_cookie_is_secure
@@ -147,6 +159,42 @@ def change_password(
     )
     if not changed:
         raise HTTPException(status_code=400, detail="La contraseña actual no coincide")
+
+
+@router.post("/forgot-password", status_code=202)
+def forgot_password(
+    reset_request: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+):
+    """Send a reset link while returning the same response for every email."""
+    reset = create_password_reset(reset_request.email)
+    if reset is not None:
+        reset_url = f"{PUBLIC_BASE_URL}/reset-password?token={reset['token']}"
+        background_tasks.add_task(
+            send_password_reset_email,
+            reset["email"],
+            reset_url,
+        )
+    return {
+        "message": (
+            "Si existe una cuenta con ese correo, recibirás un enlace para "
+            "restablecer tu contraseña."
+        )
+    }
+
+
+@router.post("/reset-password", status_code=204)
+def reset_password(confirmation: PasswordResetConfirmation):
+    """Replace a password using a valid single-use token."""
+    changed = consume_password_reset(
+        confirmation.token,
+        confirmation.new_password.get_secret_value(),
+    )
+    if not changed:
+        raise HTTPException(
+            status_code=400,
+            detail="El enlace es inválido o ya venció",
+        )
 
 @router.post("/logout", status_code=204)
 def logout(

@@ -52,8 +52,26 @@ def test_login_page_renders_protected_password_form():
     assert 'name="password"' in response.text
     assert 'type="password"' in response.text
     assert 'src="/static/login.js' in response.text
+    assert 'href="/forgot-password"' in response.text
     assert 'roles.includes("referee")' in script.text
     assert '"/referee/games"' in script.text
+
+
+def test_password_reset_pages_are_available():
+    request_page = client.get("/forgot-password")
+    reset_page = client.get("/reset-password?token=test-token")
+    request_script = client.get("/static/forgot_password.js")
+    reset_script = client.get("/static/reset_password.js")
+
+    assert request_page.status_code == 200
+    assert 'id="forgot-password-form"' in request_page.text
+    assert 'name="email"' in request_page.text
+    assert "requestPasswordReset" in request_script.text
+    assert reset_page.status_code == 200
+    assert 'id="reset-password-form"' in reset_page.text
+    assert 'autocomplete="new-password"' in reset_page.text
+    assert "URLSearchParams" in reset_script.text
+    assert "resetPassword" in reset_script.text
 
 
 def test_statistics_page_renders_division_filters():

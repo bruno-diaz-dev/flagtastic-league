@@ -1,6 +1,7 @@
 """Tests for authentication HTTP endpoints"""
 
 import os
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -234,3 +235,71 @@ def test_staff_must_change_initial_password_before_authorized_access():
         "/api/auth/login",
         json={"email": "president@flagtastic.com", "password": "replacementsecret"}
     ).status_code == 200
+
+
+def test_password_reset_is_private_single_use_and_revokes_sessions(monkeypatch):
+    create_user(UserCreate(
+        email="player@flagtastic.com",
+        name="Reset Player",
+        password="oldsecret",
+        role="player",
+    ))
+    assert client.post(
+        "/api/auth/login",
+        json={"email": "player@flagtastic.com", "password": "oldsecret"},
+    ).status_code == 200
+
+    delivered = {}
+    monkeypatch.setattr(
+        "routes.auth.send_password_reset_email",
+        lambda email, url: delivered.update(email=email, url=url),
+    )
+    response = client.post(
+        "/api/auth/forgot-password",
+        json={"email": "PLAYER@FLAGTASTIC.COM"},
+    )
+    assert response.status_code == 202
+    assert "player@flagtastic.com" not in response.text
+    assert delivered["email"] == "player@flagtastic.com"
+    token = parse_qs(urlparse(delivered["url"]).query)["token"][0]
+
+    connection = get_connection()
+    stored = connection.execute(
+        "SELECT token_hash FROM password_reset_tokens"
+    ).fetchone()
+    connection.close()
+    assert stored["token_hash"] != token
+
+    changed = client.post(
+        "/api/auth/reset-password",
+        json={"token": token, "new_password": "newsecret"},
+    )
+    assert changed.status_code == 204
+    assert client.get("/api/auth/me").status_code == 401
+    assert client.post(
+        "/api/auth/reset-password",
+        json={"token": token, "new_password": "othersecret"},
+    ).status_code == 400
+    assert client.post(
+        "/api/auth/login",
+        json={"email": "player@flagtastic.com", "password": "oldsecret"},
+    ).status_code == 401
+    assert client.post(
+        "/api/auth/login",
+        json={"email": "player@flagtastic.com", "password": "newsecret"},
+    ).status_code == 200
+
+
+def test_password_reset_request_does_not_reveal_unknown_email(monkeypatch):
+    delivered = []
+    monkeypatch.setattr(
+        "routes.auth.send_password_reset_email",
+        lambda *_args: delivered.append(True),
+    )
+    response = client.post(
+        "/api/auth/forgot-password",
+        json={"email": "missing@flagtastic.com"},
+    )
+    assert response.status_code == 202
+    assert "missing@flagtastic.com" not in response.text
+    assert delivered == []

@@ -296,6 +296,8 @@ Rules that need league context, such as preventing a player from registering twi
 |---|---|---|
 | `GET` | `/live` | Application health check |
 | `POST` | `/api/auth/login` | Authenticates credentials and creates a session cookie |
+| `POST` | `/api/auth/forgot-password` | Returns an account-neutral response and emails a short-lived reset link when eligible |
+| `POST` | `/api/auth/reset-password` | Consumes a single-use token, replaces the password, and revokes existing sessions |
 | `GET` | `/api/auth/me` | Returns the user associated with an active session |
 | `POST` | `/api/auth/logout` | Revokes the current session and removes its cookie |
 | `POST` | `/api/teams` | Creates a team |

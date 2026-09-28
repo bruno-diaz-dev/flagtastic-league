@@ -393,3 +393,19 @@ async function uploadMyRefereePhoto(file) {
     formData.append("file", file);
     return fetch("/api/referees/me/photo", {method: "PUT", body: formData});
 }
+
+async function requestPasswordReset(email) {
+    return fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email})
+    });
+}
+
+async function resetPassword(token, newPassword) {
+    return fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({token, new_password: newPassword})
+    });
+}
