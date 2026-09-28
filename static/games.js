@@ -357,14 +357,58 @@ assignedReferees.addEventListener("click", async (event) => {
 });
 
 
+function parseTesseractTsv(tsv) {
+    return String(tsv || "")
+        .split("\n")
+        .slice(1)
+        .map((line) => line.split("\t"))
+        .filter((columns) => columns.length >= 12 && columns[0] === "5")
+        .map((columns) => ({
+            text: columns.slice(11).join("\t").trim(),
+            left: Number(columns[6]),
+            top: Number(columns[7]),
+            width: Number(columns[8]),
+            height: Number(columns[9])
+        }))
+        .filter((word) => word.text);
+}
+
+
+async function getImageDimensions(file) {
+    if ("createImageBitmap" in window) {
+        const bitmap = await createImageBitmap(file);
+        try {
+            return {width: bitmap.width, height: bitmap.height};
+        } finally {
+            bitmap.close();
+        }
+    }
+
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+            resolve({width: image.naturalWidth, height: image.naturalHeight});
+            URL.revokeObjectURL(url);
+        };
+        image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("No se pudo leer la imagen."));
+        };
+        image.src = url;
+    });
+}
+
+
 async function analyzeScheduleImageInBrowser(file) {
     if (!window.Tesseract) {
         throw new Error("El lector OCR del navegador no está disponible.");
     }
 
-    const bitmap = await createImageBitmap(file);
+    const dimensions = await getImageDimensions(file);
+    let worker = null;
     try {
-        const result = await window.Tesseract.recognize(file, "spa", {
+        worker = await window.Tesseract.createWorker("spa", 1, {
             logger: (progress) => {
                 if (progress.status !== "recognizing text") return;
                 const percent = Math.round((progress.progress || 0) * 100);
@@ -372,31 +416,22 @@ async function analyzeScheduleImageInBrowser(file) {
             }
         });
 
-        const words = (result.data.words || [])
-            .filter((word) => String(word.text || "").trim())
-            .map((word) => ({
-                text: String(word.text).trim(),
-                left: Math.max(0, Math.round(word.bbox.x0)),
-                top: Math.max(0, Math.round(word.bbox.y0)),
-                width: Math.max(0, Math.round(word.bbox.x1 - word.bbox.x0)),
-                height: Math.max(0, Math.round(word.bbox.y1 - word.bbox.y0))
-            }));
-
+        const result = await worker.recognize(file, {}, {tsv: true});
+        const words = parseTesseractTsv(result.data.tsv);
         if (!words.length) {
             throw new Error("No se reconoció texto en la imagen.");
         }
 
         scheduleImportMessage.textContent = "Relacionando equipos reconocidos...";
         return analyzeGameScheduleOcr({
-            image_width: bitmap.width,
-            image_height: bitmap.height,
+            image_width: dimensions.width,
+            image_height: dimensions.height,
             words
         });
     } finally {
-        bitmap.close();
+        if (worker) await worker.terminate();
     }
 }
-
 
 function renderGameScheduleReview(result) {
     scheduleImportState = result;
