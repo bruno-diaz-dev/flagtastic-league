@@ -8,6 +8,10 @@ import re
 import unicodedata
 
 from openpyxl import load_workbook
+from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
+import pytesseract
+
+from services.referee_schedule_ocr import _configure_windows_tesseract
 
 
 class GameScheduleImportError(Exception):
@@ -47,6 +51,90 @@ def parse_game_schedule_file(filename, content, teams):
         "matched": sum(proposal["ready"] for proposal in proposals),
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
     }
+
+
+def parse_game_schedule_image(content, teams):
+    """Read the league's visual game grid into reviewable game proposals."""
+    _configure_windows_tesseract()
+    try:
+        image = Image.open(BytesIO(content))
+        image.verify()
+        image = Image.open(BytesIO(content)).convert("L")
+    except (UnidentifiedImageError, OSError) as error:
+        raise GameScheduleImportError("La imagen no es valida") from error
+
+    image = ImageOps.autocontrast(image.resize((image.width * 2, image.height * 2)))
+    image = ImageEnhance.Contrast(image).enhance(1.5)
+    try:
+        raw_text = pytesseract.image_to_string(image, config="--psm 6")
+        data = pytesseract.image_to_data(
+            image, config="--psm 6", output_type=pytesseract.Output.DICT
+        )
+    except pytesseract.TesseractNotFoundError as error:
+        raise GameScheduleImportError(
+            "El servidor no tiene instalado el lector OCR"
+        ) from error
+
+    week = _week(raw_text)
+    field_numbers = {
+        int(number) for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
+    }
+    if week is None or not field_numbers:
+        raise GameScheduleImportError(
+            "No se reconocieron la jornada y los encabezados de campo"
+        )
+    field_count = max(field_numbers)
+    time_rows = []
+    for index, value in enumerate(data["text"]):
+        parsed_time = _time_value(value)
+        if parsed_time is None:
+            continue
+        center_y = data["top"][index] + data["height"][index] / 2
+        if not any(abs(center_y - existing[0]) < image.height * 0.015 for existing in time_rows):
+            time_rows.append((center_y, parsed_time))
+    time_rows.sort(key=lambda item: item[0])
+    if not time_rows:
+        raise GameScheduleImportError("No se reconocieron horarios en la imagen")
+
+    time_column_width = image.width * 0.027
+    field_width = (image.width - time_column_width) / field_count
+    proposals = []
+    for row_index, (center_y, scheduled_time) in enumerate(time_rows):
+        previous_y = time_rows[row_index - 1][0] if row_index else center_y - image.height * 0.04
+        next_y = time_rows[row_index + 1][0] if row_index + 1 < len(time_rows) else center_y + image.height * 0.04
+        top = max(0, round((previous_y + center_y) / 2))
+        bottom = min(image.height, round((center_y + next_y) / 2))
+        for field_index in range(field_count):
+            left = time_column_width + field_index * field_width
+            middle = left + field_width / 2
+            right = left + field_width
+            home_text = _ocr_team_cell(image, left, middle, top, bottom)
+            away_text = _ocr_team_cell(image, middle, right, top, bottom)
+            if not home_text or not away_text:
+                continue
+            proposals.append(_match_row({
+                "source_row": f"Imagen, fila {row_index + 1}",
+                "week": week,
+                "field_number": field_index + 1,
+                "start_time": scheduled_time,
+                "home_team": home_text,
+                "away_team": away_text,
+            }, teams))
+
+    if not proposals:
+        raise GameScheduleImportError("No se reconocieron partidos en la imagen")
+    return {
+        "kind": "games",
+        "proposals": proposals,
+        "matched": sum(proposal["ready"] for proposal in proposals),
+        "unmatched": sum(not proposal["ready"] for proposal in proposals),
+        "raw_text": raw_text.strip(),
+    }
+
+
+def _ocr_team_cell(image, left, right, top, bottom):
+    crop = ImageOps.autocontrast(image.crop((round(left), top, round(right), bottom)))
+    return pytesseract.image_to_string(crop, config="--psm 6").strip().replace("\n", " ")
 
 
 def _read_calendar_workbook(content):

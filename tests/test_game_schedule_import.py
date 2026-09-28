@@ -3,8 +3,12 @@
 from io import BytesIO
 
 from openpyxl import Workbook
+from PIL import Image
 
-from services.game_schedule_import import parse_game_schedule_file
+from services.game_schedule_import import (
+    parse_game_schedule_file,
+    parse_game_schedule_image,
+)
 
 
 TEAMS = [
@@ -64,3 +68,33 @@ def test_csv_schedule_accepts_spanish_headers_and_marks_unknown_teams():
     assert result["proposals"][0]["home_team_id"] == 3
     assert result["proposals"][0]["away_team_id"] is None
     assert result["proposals"][0]["ready"] is False
+
+
+def test_image_schedule_is_read_as_games_not_referee_assignments(monkeypatch):
+    image = Image.new("RGB", (1000, 500), "white")
+    content = BytesIO()
+    image.save(content, format="PNG")
+    recognized_cells = iter([
+        "Semana 5 Campo 1 12:00",
+        "Nomadas U8",
+        "Rancheras Flag U8",
+    ])
+    monkeypatch.setattr(
+        "services.game_schedule_import.pytesseract.image_to_string",
+        lambda *_args, **_kwargs: next(recognized_cells),
+    )
+    monkeypatch.setattr(
+        "services.game_schedule_import.pytesseract.image_to_data",
+        lambda *_args, **_kwargs: {
+            "text": ["12:00"], "left": [5], "width": [40],
+            "top": [300], "height": [20],
+        },
+    )
+
+    result = parse_game_schedule_image(content.getvalue(), TEAMS)
+
+    assert result["kind"] == "games"
+    assert result["matched"] == 1
+    assert result["proposals"][0]["week"] == 5
+    assert result["proposals"][0]["home_team_id"] == 1
+    assert "officials" not in result["proposals"][0]

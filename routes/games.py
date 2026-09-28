@@ -36,6 +36,7 @@ from services.referee_schedule_ocr import (
 from services.game_schedule_import import (
     GameScheduleImportError,
     parse_game_schedule_file,
+    parse_game_schedule_image,
 )
 
 router = APIRouter(
@@ -87,14 +88,9 @@ async def analyze_game_schedule(
         raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
     filename = file.filename or ""
     if file.content_type in {"image/jpeg", "image/png", "image/webp"}:
-        referees = [
-            user for user in get_all_users()
-            if user["status"] == "active" and user_has_role(user, "referee")
-        ]
         try:
-            result = parse_referee_schedule_image(content, get_games(), referees)
-            return {"kind": "official_assignments", **result}
-        except RefereeScheduleImageError as error:
+            return parse_game_schedule_image(content, get_all_teams())
+        except GameScheduleImportError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
     try:
         return parse_game_schedule_file(filename, content, get_all_teams())

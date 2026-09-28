@@ -677,10 +677,11 @@ selected fields and replaces referee links only for those selected games. This
 two-step boundary prevents uncertain OCR output from silently becoming an
 official assignment.
 
-The unified `POST /api/games/schedule/analyze` endpoint dispatches spreadsheet
-files to the deterministic calendar parser and images to the same OCR service.
-This keeps one upload entry point in Partidos while preserving separate confirm
-contracts for new games and official assignments.
+The unified `POST /api/games/schedule/analyze` endpoint reads every accepted
+format as a game calendar. Images are split by recognized jornada, time row,
+field, and local/visitor half-cell before matching teams. Referee-role OCR stays
+under `/api/games/referee-schedule/*` and the referee dashboard; importing a
+game image never changes official assignments.
 
 The current grid format prints four names in this order: Referee, Down Judge,
 Field Judge, Statistician. A five-name finals row inserts Side Judge before the
