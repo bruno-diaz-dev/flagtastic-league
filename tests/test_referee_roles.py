@@ -237,3 +237,70 @@ def test_authenticated_users_see_referee_roster_and_referee_uploads_photo():
     profile = client.get("/api/referees/me").json()
     assert profile["profile_photo_url"].startswith("/media/profiles/")
     assert client.get(profile["profile_photo_url"]).content == PROFILE_PNG
+
+
+def test_referee_can_set_aka_used_by_directory():
+    """A referee AKA becomes the public display name used for schedule matching."""
+    app.dependency_overrides.clear()
+    suffix = uuid4().hex[:10]
+    referee_email = f"aka-referee-{suffix}@example.test"
+    referee = create_user(UserCreate(
+        email=referee_email,
+        name="Legal Referee Name",
+        password="supersecret",
+        role="referee"
+    ))
+
+    assert login(referee_email).status_code == 200
+    update = client.patch("/api/referees/me", json={"aka": "Central"})
+    assert update.status_code == 200
+    assert update.json()["aka"] == "Central"
+    assert update.json()["display_name"] == "Central"
+
+    roster = client.get("/api/referees")
+    assert roster.status_code == 200
+    listed = next(item for item in roster.json() if item["id"] == referee["id"])
+    assert listed["aka"] == "Central"
+    assert listed["display_name"] == "Central"
+    assert listed["name"] == "Legal Referee Name"
+
+
+def test_referee_directory_excludes_secondary_referee_role():
+    """The public referee roster contains primary referee accounts only."""
+    app.dependency_overrides.clear()
+    suffix = uuid4().hex[:10]
+    admin_email = f"directory-admin-{suffix}@example.test"
+    player_email = f"directory-player-{suffix}@example.test"
+
+    admin = create_user(UserCreate(
+        email=admin_email,
+        name="Directory Admin",
+        password="supersecret",
+        role="league_admin"
+    ))
+    registration = client.post(
+        "/api/auth/register/player",
+        data={
+            "email": player_email,
+            "password": "supersecret",
+            "name": "Secondary Referee Player",
+            "curp": f"SEC{suffix.upper()}00000"[:18],
+            "age": "28"
+        },
+        files={"photo": ("profile.png", PROFILE_PNG, "image/png")}
+    )
+    assert registration.status_code == 201
+    player = registration.json()
+
+    assert login(admin_email).status_code == 200
+    role_update = client.put(
+        f"/api/admin/users/{player['id']}/roles",
+        json={"roles": ["player", "referee"]}
+    )
+    assert role_update.status_code == 200
+    assert role_update.json()["role"] == "player"
+
+    roster = client.get("/api/referees")
+    assert roster.status_code == 200
+    assert player["id"] not in {item["id"] for item in roster.json()}
+    assert admin["id"] not in {item["id"] for item in roster.json()}
