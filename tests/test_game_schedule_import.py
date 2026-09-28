@@ -244,3 +244,26 @@ def test_browser_ocr_uses_selected_week_when_header_is_unreadable():
 
     assert result["matched"] == 1
     assert result["proposals"][0]["week"] == 4
+
+
+def test_browser_ocr_uses_fixed_six_field_layout_without_field_headers():
+    words = [
+        {"text": "11:00", "left": 4, "top": 110, "width": 35, "height": 20},
+        {"text": "Nomadas", "left": 75, "top": 110, "width": 70, "height": 20},
+        {"text": "U8", "left": 150, "top": 110, "width": 25, "height": 20},
+        {"text": "Rancheras", "left": 205, "top": 110, "width": 80, "height": 20},
+        {"text": "Flag", "left": 290, "top": 110, "width": 35, "height": 20},
+        {"text": "U8", "left": 330, "top": 110, "width": 25, "height": 20},
+    ]
+
+    result = parse_game_schedule_ocr_words(
+        1000,
+        500,
+        words,
+        TEAMS,
+        recognized_text="texto sin encabezados de campo",
+        week_override=1,
+    )
+
+    assert result["proposals"]
+    assert all(1 <= proposal["field_number"] <= 6 for proposal in result["proposals"])
