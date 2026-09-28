@@ -196,6 +196,8 @@ Scope:
 - Keep authenticated high-traffic reads within a small, measured number of
   database connections; roster detail currently resolves in one authorization
   query plus one shared team/players/ownership connection.
+- Serve versioned logos and generated profile media through immutable browser
+  and Vercel CDN caching, and lazy-load images outside the initial viewport.
 - Add focused browser or DOM-level regression coverage for the shared mobile
   shell and highest-traffic pages.
 

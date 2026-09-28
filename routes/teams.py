@@ -176,7 +176,12 @@ def read_team_logo(team_id: int):
     return Response(
         content=logo["logo_data"],
         media_type=logo["logo_type"],
-        headers={"Cache-Control": "public, max-age=3600"}
+        headers={
+            # `logo_url` includes a content hash, so each URL is immutable.
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "CDN-Cache-Control": "public, max-age=31536000",
+            "Vercel-CDN-Cache-Control": "public, max-age=31536000"
+        }
     )
 
 

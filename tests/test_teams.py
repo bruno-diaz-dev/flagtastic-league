@@ -443,6 +443,9 @@ def test_team_manager_can_upload_and_read_team_logo():
     logo = client.get(f"/api/teams/{team_id}/logo")
     assert logo.status_code == 200
     assert logo.headers["content-type"] == "image/png"
+    assert logo.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert logo.headers["cdn-cache-control"] == "public, max-age=31536000"
+    assert logo.headers["vercel-cdn-cache-control"] == "public, max-age=31536000"
     assert logo.content == png
 
     replacement = b"\x89PNG\r\n\x1a\nreplacement-logo"

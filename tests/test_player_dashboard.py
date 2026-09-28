@@ -83,6 +83,9 @@ def test_player_registers_joins_team_and_reads_dashboard():
     assert body["player"]["aka"] == "El Muro"
     assert body["player"]["profile_photo_url"].startswith("/media/profiles/")
     photo = client.get(body["player"]["profile_photo_url"])
+    assert photo.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert photo.headers["cdn-cache-control"] == "public, max-age=31536000"
+    assert photo.headers["vercel-cdn-cache-control"] == "public, max-age=31536000"
     assert photo.status_code == 200
     assert photo.content == PROFILE_PNG
     assert body["teams"][0]["team_name"] == "Tigres"

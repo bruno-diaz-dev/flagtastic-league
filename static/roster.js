@@ -27,7 +27,7 @@ function initials(name) {
 
 function playerPhoto(player) {
     if (player.profile_photo_url) {
-        return `<img class="roster-player-photo" src="${player.profile_photo_url}" alt="Foto de ${escapeHtml(player.aka || player.name)}">`;
+        return `<img class="roster-player-photo" src="${player.profile_photo_url}" alt="Foto de ${escapeHtml(player.aka || player.name)}" loading="lazy" decoding="async">`;
     }
     return `<span class="roster-player-photo profile-placeholder" aria-hidden="true">${escapeHtml(initials(player.name))}</span>`;
 }
