@@ -308,7 +308,7 @@ Rules that need league context, such as preventing a player from registering twi
 | `DELETE` | `/api/teams/{team_id}/representatives/{user_id}` | Removes one incorrect team assignment without deleting the account; league administrators only |
 | `GET` | `/api/teams/representative-assignments` | Lists current team ownership for verification in the league administration UI |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
-| `GET` | `/api/games/mine/referee` | Returns only games assigned to the authenticated referee |
+| `GET` | `/api/games/mine/referee` | Returns only games assigned to the authenticated referee, including each game's complete officiating crew |
 | `GET` | `/api/referees` | Lists active referee names and photos for authenticated users only |
 | `GET` | `/api/referees/me` | Returns the signed-in referee's effective directory profile |
 | `PUT` | `/api/referees/me/photo` | Lets a referee upload or replace their own profile photo |
@@ -665,6 +665,10 @@ referees plus a statistician for normal games, and a fourth referee for finals.
 One account and one position can appear only once per game. A referee can read
 only their own assignments and position through `GET /api/games/mine/referee`;
 referee access does not grant score editing or league administration.
+Each visible assignment includes its complete ordered officiating crew so the
+referee knows who will work that game and in which position. This does not
+broaden game visibility: a referee still receives no games to which they are
+not personally assigned, and crew entries omit email and account metadata.
 
 The authenticated referee directory exposes only account id, legal/display
 name, AKA, and effective photo. It never returns email, roles, or credential

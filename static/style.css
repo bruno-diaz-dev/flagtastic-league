@@ -1205,6 +1205,25 @@ body.can-manage-team .roster-player-actions.team-scope-manager-only {
 .referee-roster-card h3,
 .referee-roster-card p { margin: 0; }
 .referee-roster-card p { margin-top: 4px; color: var(--color-muted); }
+
+.game-crew { margin-top: 14px; }
+.game-crew > strong { color: var(--color-gold); font-size: 0.9rem; }
+.game-crew ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+.game-crew li {
+    display: grid;
+    gap: 2px;
+    border-left: 2px solid var(--color-gold);
+    padding-left: 8px;
+}
+.game-crew li span { color: var(--color-muted); font-size: 0.8rem; }
+.game-crew li b { font-size: 0.95rem; }
 .schedule-referees { display: grid; gap: 10px; min-width: 240px; }
 .schedule-official-slot { display: grid; gap: 4px; font-size: 0.875rem; }
 .schedule-official-slot select { width: 100%; }
