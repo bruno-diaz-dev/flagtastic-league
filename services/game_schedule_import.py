@@ -197,9 +197,15 @@ def parse_game_schedule_ocr_words(
     if not time_rows:
         raise GameScheduleImportError("No se reconocieron horarios en la imagen")
 
-    # The league currently operates six fixed fields. Do not make image
-    # imports depend on OCR recognizing the "Campo" headers.
-    field_count = MAX_SCHEDULE_FIELDS
+    field_count = _infer_field_count_from_team_matches(
+        normalized_words,
+        image_width,
+        image_height,
+        time_rows,
+        teams,
+    )
+    if field_count is None:
+        field_count = MAX_SCHEDULE_FIELDS
 
     time_column_width = image_width * 0.027
     field_width = (image_width - time_column_width) / field_count
