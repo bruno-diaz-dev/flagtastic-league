@@ -402,7 +402,7 @@ class RefereeScheduleAssignment(BaseModel):
     """Validate one administrator-reviewed row from schedule OCR."""
 
     game_id: int = Field(gt=0)
-    field_number: int = Field(ge=1, le=8)
+    field_number: int = Field(ge=1, le=6)
     scheduled_time: time | None = None
     officials: list[GameOfficialAssignment] = Field(default_factory=list)
 
