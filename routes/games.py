@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from models import (
     GameCreate,
     GameScheduleImportConfirmation,
+    GameScheduleOcrCellsPayload,
     GameScheduleOcrPayload,
     GameScoreUpdate,
     OfficialPositionUpdate,
@@ -39,6 +40,7 @@ from services.game_schedule_import import (
     GameScheduleImportError,
     parse_game_schedule_file,
     parse_game_schedule_image,
+    parse_game_schedule_ocr_cells,
     parse_game_schedule_ocr_words,
 )
 
@@ -97,6 +99,21 @@ async def analyze_game_schedule(
             raise HTTPException(status_code=422, detail=str(error)) from error
     try:
         return parse_game_schedule_file(filename, content, get_all_teams())
+    except GameScheduleImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/schedule/analyze-cells")
+def analyze_game_schedule_cells(
+    payload: GameScheduleOcrCellsPayload,
+    _admin=Depends(require_league_admin),
+):
+    try:
+        return parse_game_schedule_ocr_cells(
+            payload.week,
+            [row.model_dump() for row in payload.rows],
+            get_all_teams(),
+        )
     except GameScheduleImportError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
