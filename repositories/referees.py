@@ -8,8 +8,13 @@ def get_referee_roster():
     connection = get_connection()
     rows = connection.execute(
         """
-        SELECT users.id, users.name, players.aka,
-               COALESCE(NULLIF(players.aka, ''), users.name) AS display_name,
+        SELECT users.id, users.name,
+               COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, '')) AS aka,
+               COALESCE(
+                   NULLIF(users.aka, ''),
+                   NULLIF(players.aka, ''),
+                   users.name
+               ) AS display_name,
                CASE
                    WHEN players.profile_photo_path IS NOT NULL
                        THEN '/media/profiles/' || players.profile_photo_path
@@ -20,12 +25,12 @@ def get_referee_roster():
         FROM users
         LEFT JOIN players ON players.id = users.player_id
         WHERE users.status = 'active'
-          AND EXISTS (
-              SELECT 1 FROM user_roles
-              WHERE user_roles.user_id = users.id
-                AND user_roles.role = 'referee'
-          )
-        ORDER BY COALESCE(NULLIF(players.aka, ''), users.name), users.id
+          AND users.role = 'referee'
+        ORDER BY COALESCE(
+            NULLIF(users.aka, ''),
+            NULLIF(players.aka, ''),
+            users.name
+        ), users.id
         """
     ).fetchall()
     connection.close()
@@ -37,8 +42,13 @@ def get_referee_profile(user_id):
     connection = get_connection()
     row = connection.execute(
         """
-        SELECT users.id, users.name, users.player_id, players.aka,
-               COALESCE(NULLIF(players.aka, ''), users.name) AS display_name,
+        SELECT users.id, users.name, users.player_id,
+               COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, '')) AS aka,
+               COALESCE(
+                   NULLIF(users.aka, ''),
+                   NULLIF(players.aka, ''),
+                   users.name
+               ) AS display_name,
                CASE
                    WHEN players.profile_photo_path IS NOT NULL
                        THEN '/media/profiles/' || players.profile_photo_path
@@ -49,16 +59,34 @@ def get_referee_profile(user_id):
         FROM users
         LEFT JOIN players ON players.id = users.player_id
         WHERE users.id = %s
-          AND EXISTS (
-              SELECT 1 FROM user_roles
-              WHERE user_roles.user_id = users.id
-                AND user_roles.role = 'referee'
-          )
+          AND users.role = 'referee'
         """,
         (user_id,)
     ).fetchone()
     connection.close()
     return dict(row) if row is not None else None
+
+
+def update_referee_aka(user_id, aka):
+    """Store the referee's public AKA used by the directory and OCR matching."""
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            """
+            UPDATE users
+            SET aka = %s
+            WHERE id = %s AND role = 'referee'
+            RETURNING id
+            """,
+            (aka, user_id)
+        ).fetchone()
+        connection.commit()
+        return row is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def update_referee_photo(user_id, photo):
@@ -70,11 +98,7 @@ def update_referee_photo(user_id, photo):
             SELECT users.player_id
             FROM users
             WHERE users.id = %s
-              AND EXISTS (
-                  SELECT 1 FROM user_roles
-                  WHERE user_roles.user_id = users.id
-                    AND user_roles.role = 'referee'
-              )
+              AND users.role = 'referee'
             FOR UPDATE
             """,
             (user_id,)
