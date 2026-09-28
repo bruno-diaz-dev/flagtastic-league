@@ -37,6 +37,38 @@ def get_referee_roster():
     return [dict(row) for row in rows]
 
 
+def get_referee_match_candidates():
+    """Return active accounts allowed to officiate, including multi-role users."""
+    connection = get_connection()
+    rows = connection.execute(
+        """
+        SELECT users.id, users.name,
+               COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, '')) AS aka,
+               COALESCE(
+                   NULLIF(users.aka, ''),
+                   NULLIF(players.aka, ''),
+                   users.name
+               ) AS display_name
+        FROM users
+        LEFT JOIN players ON players.id = users.player_id
+        WHERE users.status = 'active'
+          AND EXISTS (
+              SELECT 1
+              FROM user_roles
+              WHERE user_roles.user_id = users.id
+                AND user_roles.role = 'referee'
+          )
+        ORDER BY COALESCE(
+            NULLIF(users.aka, ''),
+            NULLIF(players.aka, ''),
+            users.name
+        ), users.id
+        """
+    ).fetchall()
+    connection.close()
+    return [dict(row) for row in rows]
+
+
 def get_referee_profile(user_id):
     """Return the effective referee photo and whether this account may upload it."""
     connection = get_connection()
@@ -59,7 +91,12 @@ def get_referee_profile(user_id):
         FROM users
         LEFT JOIN players ON players.id = users.player_id
         WHERE users.id = %s
-          AND users.role = 'referee'
+          AND EXISTS (
+              SELECT 1
+              FROM user_roles
+              WHERE user_roles.user_id = users.id
+                AND user_roles.role = 'referee'
+          )
         """,
         (user_id,)
     ).fetchone()
@@ -75,7 +112,13 @@ def update_referee_aka(user_id, aka):
             """
             UPDATE users
             SET aka = %s
-            WHERE id = %s AND role = 'referee'
+            WHERE id = %s
+              AND EXISTS (
+                  SELECT 1
+                  FROM user_roles
+                  WHERE user_roles.user_id = users.id
+                    AND user_roles.role = 'referee'
+              )
             RETURNING id
             """,
             (aka, user_id)
@@ -98,7 +141,12 @@ def update_referee_photo(user_id, photo):
             SELECT users.player_id
             FROM users
             WHERE users.id = %s
-              AND users.role = 'referee'
+              AND EXISTS (
+                  SELECT 1
+                  FROM user_roles
+                  WHERE user_roles.user_id = users.id
+                    AND user_roles.role = 'referee'
+              )
             FOR UPDATE
             """,
             (user_id,)
