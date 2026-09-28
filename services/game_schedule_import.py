@@ -132,6 +132,110 @@ def parse_game_schedule_image(content, teams):
     }
 
 
+def parse_game_schedule_ocr_words(image_width, image_height, words, teams):
+    """Build schedule proposals from browser-side OCR words and coordinates."""
+    normalized_words = [
+        {
+            "text": _text(word["text"]),
+            "left": int(word["left"]),
+            "top": int(word["top"]),
+            "width": int(word["width"]),
+            "height": int(word["height"]),
+        }
+        for word in words
+        if _text(word.get("text"))
+    ]
+    raw_text = " ".join(word["text"] for word in normalized_words)
+    week = _week(raw_text)
+    field_numbers = {
+        int(number)
+        for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
+    }
+    if week is None or not field_numbers:
+        raise GameScheduleImportError(
+            "No se reconocieron la jornada y los encabezados de campo"
+        )
+
+    field_count = max(field_numbers)
+    time_rows = []
+    for word in normalized_words:
+        parsed_time = _time_value(word["text"])
+        if parsed_time is None:
+            continue
+        center_y = word["top"] + word["height"] / 2
+        if not any(
+            abs(center_y - existing[0]) < image_height * 0.015
+            for existing in time_rows
+        ):
+            time_rows.append((center_y, parsed_time))
+    time_rows.sort(key=lambda item: item[0])
+    if not time_rows:
+        raise GameScheduleImportError("No se reconocieron horarios en la imagen")
+
+    time_column_width = image_width * 0.027
+    field_width = (image_width - time_column_width) / field_count
+    proposals = []
+    for row_index, (center_y, scheduled_time) in enumerate(time_rows):
+        previous_y = (
+            time_rows[row_index - 1][0]
+            if row_index
+            else center_y - image_height * 0.04
+        )
+        next_y = (
+            time_rows[row_index + 1][0]
+            if row_index + 1 < len(time_rows)
+            else center_y + image_height * 0.04
+        )
+        top = max(0, (previous_y + center_y) / 2)
+        bottom = min(image_height, (center_y + next_y) / 2)
+
+        for field_index in range(field_count):
+            left = time_column_width + field_index * field_width
+            middle = left + field_width / 2
+            right = left + field_width
+            home_text = _words_in_cell(
+                normalized_words, left, middle, top, bottom
+            )
+            away_text = _words_in_cell(
+                normalized_words, middle, right, top, bottom
+            )
+            if not home_text or not away_text:
+                continue
+            proposals.append(_match_row({
+                "source_row": f"Imagen, fila {row_index + 1}",
+                "week": week,
+                "field_number": field_index + 1,
+                "start_time": scheduled_time,
+                "home_team": home_text,
+                "away_team": away_text,
+            }, teams))
+
+    if not proposals:
+        raise GameScheduleImportError("No se reconocieron partidos en la imagen")
+    if len(proposals) > MAX_SCHEDULE_GAMES:
+        raise GameScheduleImportError(
+            f"La imagen no puede contener mas de {MAX_SCHEDULE_GAMES} partidos"
+        )
+    return {
+        "kind": "games",
+        "proposals": proposals,
+        "matched": sum(proposal["ready"] for proposal in proposals),
+        "unmatched": sum(not proposal["ready"] for proposal in proposals),
+        "raw_text": raw_text.strip(),
+    }
+
+
+def _words_in_cell(words, left, right, top, bottom):
+    selected = []
+    for word in words:
+        center_x = word["left"] + word["width"] / 2
+        center_y = word["top"] + word["height"] / 2
+        if left <= center_x < right and top <= center_y < bottom:
+            selected.append(word)
+    selected.sort(key=lambda word: (word["top"], word["left"]))
+    return " ".join(word["text"] for word in selected).strip()
+
+
 def _ocr_team_cell(image, left, right, top, bottom):
     crop = ImageOps.autocontrast(image.crop((round(left), top, round(right), bottom)))
     return pytesseract.image_to_string(crop, config="--psm 6").strip().replace("\n", " ")
