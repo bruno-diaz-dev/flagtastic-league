@@ -78,8 +78,7 @@ def test_admin_player_referee_keeps_each_permission(monkeypatch):
     )
     assert photo_update.status_code == 204
 
-    # OCR matching also includes cumulative referee accounts, even though the
-    # public directory remains limited to primary referee accounts.
+    # OCR matching and the referee directory both follow cumulative roles.
     monkeypatch.setattr(
         "routes.games.parse_referee_schedule_image",
         lambda content, games, referees: {
@@ -293,8 +292,8 @@ def test_referee_can_set_aka_used_by_directory():
     assert listed["name"] == "Legal Referee Name"
 
 
-def test_referee_directory_excludes_secondary_referee_role():
-    """The public referee roster contains primary referee accounts only."""
+def test_referee_directory_includes_secondary_referee_role():
+    """The referee roster includes active users with referee among their roles."""
     app.dependency_overrides.clear()
     suffix = uuid4().hex[:10]
     admin_email = f"directory-admin-{suffix}@example.test"
@@ -330,5 +329,6 @@ def test_referee_directory_excludes_secondary_referee_role():
 
     roster = client.get("/api/referees")
     assert roster.status_code == 200
-    assert player["id"] not in {item["id"] for item in roster.json()}
-    assert admin["id"] not in {item["id"] for item in roster.json()}
+    roster_ids = {item["id"] for item in roster.json()}
+    assert player["id"] in roster_ids
+    assert admin["id"] not in roster_ids
