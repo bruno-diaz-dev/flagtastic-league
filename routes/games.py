@@ -114,6 +114,7 @@ def analyze_game_schedule_ocr(
             [word.model_dump() for word in payload.words],
             get_all_teams(),
             recognized_text=payload.recognized_text,
+            week_override=payload.week_override,
         )
     except GameScheduleImportError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
