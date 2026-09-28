@@ -314,6 +314,8 @@ Rules that need league context, such as preventing a player from registering twi
 | `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
 | `POST` | `/api/games` | Creates a game |
 | `GET` | `/api/games` | Lists games |
+| `POST` | `/api/games/schedule/analyze` | Parses an image, XLSX, or CSV role into reviewable proposals without writing data |
+| `POST` | `/api/games/schedule/confirm` | Atomically creates the selected matched games and omits exact duplicates |
 | `PATCH` | `/api/games/{game_id}/score` | Updates a game's score |
 | `GET` | `/api/standings` | Lists standings by branch and category |
 | `POST` | `/api/weeks/{week}/player-stats/import` | Atomically replaces a complete jornada from `.xlsx` |
@@ -330,6 +332,16 @@ The games client keeps one API snapshot and filters it locally by `week` and by
 the branch/category exposed in each nested team summary. Development standings
 can be exercised with `scripts.balance_mock_games`: it fills only per-division
 game-count deficits, produces no tied scores, and is safe to rerun once balanced.
+
+The Partidos page accepts the league's matrix-style XLSX calendar, a normalized
+CSV, or a role image. XLSX blocks are read by jornada; each `Campo N` header owns
+the adjacent local/visitor pair and each valid `Hora` row becomes a proposal.
+CSV files require jornada, campo, hora, local, and visitante (English aliases
+are also accepted). Team labels are normalized for accents and common branch
+abbreviations, then matched against existing teams. Ambiguous or missing teams
+remain visible in the review but cannot be selected for import. Confirmation is
+transactional and skips a game already present with the same jornada and ordered
+participants, making a repeated upload safe.
 
 ## Current Web Pages
 
@@ -664,6 +676,11 @@ the table, `POST /api/games/referee-schedule/confirm` atomically updates the
 selected fields and replaces referee links only for those selected games. This
 two-step boundary prevents uncertain OCR output from silently becoming an
 official assignment.
+
+The unified `POST /api/games/schedule/analyze` endpoint dispatches spreadsheet
+files to the deterministic calendar parser and images to the same OCR service.
+This keeps one upload entry point in Partidos while preserving separate confirm
+contracts for new games and official assignments.
 
 The current grid format prints four names in this order: Referee, Down Judge,
 Field Judge, Statistician. A five-name finals row inserts Side Judge before the

@@ -378,3 +378,13 @@ class RefereeScheduleConfirmation(BaseModel):
     """Validate the complete set of reviewed schedule assignments."""
 
     assignments: list[RefereeScheduleAssignment] = Field(min_length=1)
+
+
+class GameScheduleImportRow(GameCreate):
+    """Validate one administrator-reviewed game from a schedule file."""
+
+
+class GameScheduleImportConfirmation(BaseModel):
+    """Validate a reviewed batch before it is persisted atomically."""
+
+    games: list[GameScheduleImportRow] = Field(min_length=1, max_length=500)

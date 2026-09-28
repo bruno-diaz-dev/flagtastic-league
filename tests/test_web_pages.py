@@ -257,3 +257,17 @@ def test_referee_page_has_reviewed_image_import():
     assert "Asignaciones pendientes" in script.text
     assert "Historial de arbitrajes" in script.text
     assert 'href="/games/${game.id}"' in script.text
+
+
+def test_games_page_accepts_image_xlsx_and_csv_schedule_imports():
+    response = client.get("/games")
+
+    assert response.status_code == 200
+    assert 'id="game-schedule-import-form"' in response.text
+    assert 'accept="image/jpeg,image/png,image/webp,.xlsx,.csv"' in response.text
+    assert 'id="game-schedule-review-body"' in response.text
+    assert 'id="confirm-game-schedule"' in response.text
+
+    script = client.get("/static/games.js")
+    assert "analyzeGameSchedule" in script.text
+    assert "confirmGameSchedule" in script.text

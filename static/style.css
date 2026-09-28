@@ -1150,6 +1150,16 @@ body.can-manage-team .roster-player-actions.team-scope-manager-only {
 .assigned-referee button { min-height: 28px; padding: 0 8px; }
 
 .schedule-review { margin-top: 20px; }
+
+.schedule-import-table td,
+.schedule-import-table th {
+    white-space: nowrap;
+}
+
+.schedule-row-warning td {
+    color: var(--color-muted);
+    background: rgba(245, 196, 66, 0.07);
+}
 .schedule-referees { display: grid; gap: 10px; min-width: 240px; }
 .schedule-official-slot { display: grid; gap: 4px; font-size: 0.875rem; }
 .schedule-official-slot select { width: 100%; }

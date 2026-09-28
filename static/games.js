@@ -14,8 +14,15 @@ const gamesCount = document.querySelector("#games-count");
 const refereeAssignmentForm = document.querySelector("#referee-assignment-form");
 const refereeAssignmentMessage = document.querySelector("#referee-assignment-message");
 const assignedReferees = document.querySelector("#assigned-referees");
+const scheduleImportForm = document.querySelector("#game-schedule-import-form");
+const scheduleImportMessage = document.querySelector("#game-schedule-import-message");
+const scheduleReview = document.querySelector("#game-schedule-review");
+const scheduleReviewHead = document.querySelector("#game-schedule-review-head");
+const scheduleReviewBody = document.querySelector("#game-schedule-review-body");
+const confirmScheduleButton = document.querySelector("#confirm-game-schedule");
 
 let gamesState = [];
+let scheduleImportState = null;
 const officialPositionLabels = {
     referee: "Referee",
     down_judge: "Down Judge",
@@ -347,4 +354,115 @@ assignedReferees.addEventListener("click", async (event) => {
     const gameId = refereeAssignmentForm.elements.game_id.value;
     const response = await removeGameReferee(gameId, refereeId);
     if (response.ok) await renderAssignedReferees();
+});
+
+
+function renderGameScheduleReview(result) {
+    scheduleImportState = result;
+    scheduleReview.classList.remove("hidden");
+    if (result.kind === "official_assignments") {
+        scheduleReviewHead.innerHTML = `
+            <tr><th>Partido</th><th>Campo</th><th>Hora</th><th>Oficiales</th></tr>`;
+        scheduleReviewBody.innerHTML = result.proposals.map((proposal) => `
+            <tr>
+                <td>${escapeHtml(proposal.game_label)}</td>
+                <td>Campo ${proposal.field_number}</td>
+                <td>${escapeHtml(proposal.scheduled_time || "Por asignar")}</td>
+                <td>${(proposal.officials || []).map((official) =>
+                    `${escapeHtml(officialPositionLabels[official.position] || official.position)}: ${escapeHtml(official.name)}`
+                ).join("<br>") || "Sin coincidencias"}</td>
+            </tr>`).join("");
+        confirmScheduleButton.disabled = result.proposals.length === 0;
+        scheduleImportMessage.textContent = result.proposals.length
+            ? `${result.proposals.length} partido(s) reconocido(s). Revisa las asignaciones.`
+            : "No se encontraron partidos registrados que coincidan con la imagen.";
+        return;
+    }
+
+    scheduleReviewHead.innerHTML = `
+        <tr><th>Importar</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Local</th><th>Visitante</th><th>Estado</th></tr>`;
+    scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
+        <tr class="${proposal.ready ? "" : "schedule-row-warning"}">
+            <td><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"}></td>
+            <td>${proposal.week}</td>
+            <td>${proposal.field_number}</td>
+            <td>${escapeHtml(proposal.start_time)}</td>
+            <td>${escapeHtml(proposal.home_match || proposal.home_team)}</td>
+            <td>${escapeHtml(proposal.away_match || proposal.away_team)}</td>
+            <td>${proposal.ready ? "Listo" : `Sin coincidencia (${escapeHtml(proposal.source_row)})`}</td>
+        </tr>`).join("");
+    confirmScheduleButton.disabled = result.matched === 0;
+    scheduleImportMessage.textContent = (
+        `${result.matched} partido(s) listos y ${result.unmatched} fila(s) por corregir.`
+    );
+}
+
+
+scheduleImportForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const file = new FormData(scheduleImportForm).get("file");
+    scheduleReview.classList.add("hidden");
+    scheduleImportMessage.textContent = "Analizando archivo...";
+    const response = await analyzeGameSchedule(file);
+    const body = await response.json();
+    if (!response.ok) {
+        scheduleImportMessage.textContent = body.detail || "No se pudo analizar el rol.";
+        return;
+    }
+    renderGameScheduleReview(body);
+});
+
+
+confirmScheduleButton?.addEventListener("click", async () => {
+    if (!scheduleImportState) return;
+    confirmScheduleButton.disabled = true;
+    let response;
+    if (scheduleImportState.kind === "official_assignments") {
+        const assignments = scheduleImportState.proposals
+            .filter((proposal) => {
+                const positions = new Set(proposal.officials.map((official) => official.position));
+                return positions.has("referee") && positions.has("down_judge");
+            })
+            .map((proposal) => ({
+                game_id: proposal.game_id,
+                field_number: proposal.field_number,
+                scheduled_time: proposal.scheduled_time || null,
+                officials: proposal.officials.map((official) => ({
+                    user_id: official.user_id,
+                    position: official.position
+                }))
+            }));
+        if (!assignments.length) {
+            scheduleImportMessage.textContent = "La imagen debe reconocer al Referee y Down Judge.";
+            confirmScheduleButton.disabled = false;
+            return;
+        }
+        response = await confirmRefereeSchedule(assignments);
+    } else {
+        const selected = [...scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked")]
+            .map((checkbox) => scheduleImportState.proposals[Number(checkbox.dataset.scheduleRow)])
+            .map((proposal) => ({
+                home_team_id: proposal.home_team_id,
+                away_team_id: proposal.away_team_id,
+                week: proposal.week,
+                field_number: proposal.field_number,
+                start_time: proposal.start_time
+            }));
+        if (!selected.length) {
+            scheduleImportMessage.textContent = "Selecciona al menos un partido listo.";
+            confirmScheduleButton.disabled = false;
+            return;
+        }
+        response = await confirmGameSchedule(selected);
+    }
+    const body = await response.json();
+    scheduleImportMessage.textContent = response.ok
+        ? (scheduleImportState.kind === "games"
+            ? `${body.created} partido(s) creados; ${body.skipped} duplicado(s) omitidos.`
+            : "Asignaciones guardadas correctamente.")
+        : (body.detail || "No se pudo guardar el rol.");
+    confirmScheduleButton.disabled = !response.ok;
+    if (response.ok) {
+        await loadGames();
+    }
 });
