@@ -576,7 +576,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
     const response = await confirmGameSchedule(selected);
     const body = await response.json();
     scheduleImportMessage.textContent = response.ok
-        ? `${body.created} partido(s) creados; ${body.skipped} duplicado(s) omitidos.`
+        ? `${body.created} partido(s) creados; ${body.updated || 0} corregido(s); ${body.skipped} sin cambios.`
         : (body.detail || "No se pudo guardar el rol.");
     confirmScheduleButton.disabled = !response.ok;
     if (response.ok) {
