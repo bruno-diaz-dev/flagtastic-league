@@ -27,7 +27,7 @@ from dependencies.auth import (
     user_has_role
 )
 from repositories.referees import get_referee_roster
-from repositories.users import get_all_users, get_user_by_id
+from repositories.users import get_user_by_id
 from repositories.statistics import get_game_statistics
 from repositories.teams import get_represented_team_ids
 from services.referee_schedule_ocr import (
