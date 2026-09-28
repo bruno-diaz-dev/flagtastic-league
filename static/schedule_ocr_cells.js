@@ -276,8 +276,16 @@ function regularScheduleTimes(values) {
     }
     const step = scheduleMedian(slopes);
     if (step === null) return values;
-    const anchor = scheduleMedian(valid.map((item) => item.value - item.index * step));
-    return values.map((_value, index) => Math.round(anchor + index * step));
+    let anchor = scheduleMedian(valid.map((item) => item.value - item.index * step));
+
+    const roundedStep = Math.round(step / 5) * 5;
+    if (Math.abs(step - 60) <= 10) {
+        const roundedHour = Math.round(anchor / 60) * 60;
+        if (Math.abs(anchor - roundedHour) <= 10) anchor = roundedHour;
+        return values.map((_value, index) => Math.round(anchor + index * 60));
+    }
+
+    return values.map((_value, index) => Math.round(anchor + index * roundedStep));
 }
 
 function scheduleTimeText(minutes) {
