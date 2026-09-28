@@ -300,6 +300,11 @@ Production runs on Vercel with PostgreSQL supplied by Supabase. The production
 database must be upgraded to the repository's Alembic head before code that
 depends on a new schema is promoted. Secure session cookies remain enabled.
 
+Password recovery uses Resend and requires `PUBLIC_BASE_URL`, `RESEND_API_KEY`,
+and `PASSWORD_RESET_FROM_EMAIL` in Vercel. The sender must belong to a verified
+Resend domain. Reset links expire after 30 minutes, work once, and revoke every
+existing session after the password changes.
+
 - `GET /live` verifies the FastAPI process.
 - `GET /ready` verifies PostgreSQL and returns `503` without database details
   when the application is not ready.
@@ -315,6 +320,8 @@ safeguards, and incident response.
 - Authentication uses random database sessions. Only a SHA-256 token hash is
   stored; the raw token uses an `HttpOnly`, `SameSite=Lax`, production `Secure`
   cookie.
+- Password reset tokens are also stored only as SHA-256 hashes, expire after
+  30 minutes, and never disclose whether a submitted email exists.
 - Roles are cumulative; `user_roles` is the authorization source of truth.
 - Representatives are scoped to explicitly linked teams.
 - Operational staff must replace their initial password before protected work.

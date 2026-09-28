@@ -217,6 +217,27 @@ class PasswordChange(BaseModel):
     new_password: SecretStr = Field(min_length=8)
 
 
+class PasswordResetRequest(BaseModel):
+    """Validate a public password reset request without account disclosure."""
+
+    email: str = Field(min_length=3)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, email):
+        normalized = email.strip().lower()
+        if "@" not in normalized or "." not in normalized:
+            raise ValueError("Invalid email")
+        return normalized
+
+
+class PasswordResetConfirmation(BaseModel):
+    """Validate a one-time reset token and replacement password."""
+
+    token: str = Field(min_length=32, max_length=200)
+    new_password: SecretStr = Field(min_length=8)
+
+
 class PlayerAccountCreate(BaseModel):
     """Validate a self-service player account registration."""
 

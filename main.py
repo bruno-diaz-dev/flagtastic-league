@@ -178,6 +178,18 @@ def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html")
 
 
+@app.get("/forgot-password")
+def forgot_password_page(request: Request):
+    """Render the public password reset request form."""
+    return templates.TemplateResponse(request, "forgot_password.html")
+
+
+@app.get("/reset-password")
+def reset_password_page(request: Request):
+    """Render the one-time password replacement form."""
+    return templates.TemplateResponse(request, "reset_password.html")
+
+
 @app.get("/register")
 def register_page(request: Request):
     """Render player self-registration."""
