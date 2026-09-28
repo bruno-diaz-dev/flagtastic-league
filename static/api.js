@@ -364,6 +364,14 @@ async function analyzeGameSchedule(file) {
     });
 }
 
+async function analyzeGameScheduleOcr(payload) {
+    return fetch("/api/games/schedule/analyze-ocr", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
 async function confirmGameSchedule(games) {
     return fetch("/api/games/schedule/confirm", {
         method: "POST",
