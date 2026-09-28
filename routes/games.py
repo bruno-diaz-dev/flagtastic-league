@@ -26,6 +26,7 @@ from dependencies.auth import (
     require_referee,
     user_has_role
 )
+from repositories.referees import get_referee_roster
 from repositories.users import get_all_users, get_user_by_id
 from repositories.statistics import get_game_statistics
 from repositories.teams import get_represented_team_ids
@@ -164,10 +165,7 @@ async def analyze_referee_schedule(
     content = await file.read(MAX_REFEREE_SCHEDULE_BYTES + 1)
     if len(content) > MAX_REFEREE_SCHEDULE_BYTES:
         raise HTTPException(status_code=413, detail="La imagen excede 10 MB")
-    referees = [
-        user for user in get_all_users()
-        if user["status"] == "active" and user_has_role(user, "referee")
-    ]
+    referees = get_referee_roster()
     try:
         return parse_referee_schedule_image(content, get_games(), referees)
     except RefereeScheduleImageError as error:
@@ -180,7 +178,7 @@ def confirm_referee_schedule(
     admin=Depends(require_league_admin)
 ):
     """Persist only the assignments an administrator reviewed in the UI."""
-    referees = {user["id"]: user for user in get_all_users()}
+    referees = {user["id"]: user for user in get_referee_roster()}
     for assignment in confirmation.assignments:
         positions = [official.position for official in assignment.officials]
         official_ids = [official.user_id for official in assignment.officials]
@@ -196,7 +194,6 @@ def confirm_referee_schedule(
             )
         if any(
             official.user_id not in referees
-            or not user_has_role(referees[official.user_id], "referee")
             for official in assignment.officials
         ):
             raise HTTPException(status_code=409, detail="El usuario no es arbitro")
@@ -222,7 +219,7 @@ def add_game_referee(
     referee = get_user_by_id(user_id)
     if referee is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if not user_has_role(referee, "referee"):
+    if referee.get("role") != "referee":
         raise HTTPException(status_code=409, detail="El usuario no es arbitro")
     if not any(game["id"] == game_id for game in get_games()):
         raise HTTPException(status_code=404, detail="Partido no encontrado")
