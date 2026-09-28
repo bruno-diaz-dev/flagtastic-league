@@ -221,6 +221,12 @@ def test_referee_sees_only_assigned_games(monkeypatch):
     replacement_schedule = client.get("/api/games/mine/referee")
     assert [item["id"] for item in replacement_schedule.json()] == [game["id"]]
     assert replacement_schedule.json()[0]["field_number"] == 6
+    crew = replacement_schedule.json()[0]["officials"]
+    assert [(official["position"], official["display_name"]) for official in crew] == [
+        ("referee", "Replacement Referee"),
+        ("down_judge", "Assigned Down Judge"),
+    ]
+    assert all("email" not in official for official in crew)
     assert client.get(f"/api/games/{game['id']}/referees").status_code == 403
 
     assert login(other_email).status_code == 200

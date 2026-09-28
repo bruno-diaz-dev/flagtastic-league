@@ -65,6 +65,16 @@ function refereeGameCard(game) {
                 <h4>${escapeHtml(game.home_team.name)} vs ${escapeHtml(game.away_team.name)}</h4>
                 <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
                 <p>${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
+                <div class="game-crew" aria-label="Planilla arbitral del partido">
+                    <strong>Planilla arbitral</strong>
+                    <ul>
+                        ${(game.officials || []).length ? game.officials.map((official) => `
+                            <li>
+                                <span>${escapeHtml(officialPositionLabel(official.position))}</span>
+                                <b>${escapeHtml(official.display_name)}</b>
+                            </li>`).join("") : "<li><span>Sin asignaciones adicionales</span></li>"}
+                    </ul>
+                </div>
             </div>
             <div class="referee-game-result">
                 <strong>${isPending ? "Por jugar" : `${game.home_score} - ${game.away_score}`}</strong>

@@ -262,6 +262,7 @@ def test_referee_page_has_reviewed_image_import():
     assert "renderRefereeSummary" in script.text
     assert "Asignaciones pendientes" in script.text
     assert "Historial de arbitrajes" in script.text
+    assert "Planilla arbitral" in script.text
     assert 'href="/games/${game.id}"' in script.text
     assert "requestMissingRefereePhoto" in script.text
 
@@ -270,7 +271,7 @@ def test_registered_user_referee_roster_page_is_available():
     response = client.get("/referees")
 
     assert response.status_code == 200
-    assert "Plantilla de árbitros" in response.text
+    assert "Planilla de árbitros" in response.text
     assert 'id="referee-roster"' in response.text
     assert 'id="referee-photo-form"' in response.text
     assert 'src="/static/referees.js' in response.text

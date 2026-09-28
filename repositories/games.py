@@ -275,7 +275,7 @@ def get_game_referees(game_id):
 
 
 def get_games_for_referee(user_id):
-    """Return only games assigned to the authenticated referee."""
+    """Return assigned games with the complete crew for each visible game."""
     connection = get_connection()
     rows = connection.execute(
         """
@@ -306,6 +306,44 @@ def get_games_for_referee(user_id):
         """,
         (user_id,)
     ).fetchall()
+    game_ids = [row["id"] for row in rows]
+    crew_by_game = {game_id: [] for game_id in game_ids}
+    if game_ids:
+        crew_rows = connection.execute(
+            """
+            SELECT game_referees.game_id, game_referees.position,
+                   users.id AS user_id,
+                   COALESCE(NULLIF(players.aka, ''), users.name) AS display_name,
+                   CASE
+                       WHEN players.profile_photo_path IS NOT NULL
+                           THEN '/media/profiles/' || players.profile_photo_path
+                       WHEN users.profile_photo_path IS NOT NULL
+                           THEN '/media/profiles/' || users.profile_photo_path
+                       ELSE NULL
+                   END AS profile_photo_url
+            FROM game_referees
+            JOIN users ON users.id = game_referees.user_id
+            LEFT JOIN players ON players.id = users.player_id
+            WHERE game_referees.game_id = ANY(%s)
+            ORDER BY game_referees.game_id,
+                CASE game_referees.position
+                    WHEN 'referee' THEN 1
+                    WHEN 'down_judge' THEN 2
+                    WHEN 'field_judge' THEN 3
+                    WHEN 'side_judge' THEN 4
+                    WHEN 'statistician' THEN 5
+                    ELSE 6
+                END
+            """,
+            (game_ids,)
+        ).fetchall()
+        for official in crew_rows:
+            crew_by_game[official["game_id"]].append({
+                "user_id": official["user_id"],
+                "display_name": official["display_name"],
+                "position": official["position"],
+                "profile_photo_url": official["profile_photo_url"],
+            })
     connection.close()
     return [
         {
@@ -335,7 +373,8 @@ def get_games_for_referee(user_id):
             "week": row["week"],
             "field_number": row["field_number"],
             "start_time": row["start_time"],
-            "official_position": row["official_position"]
+            "official_position": row["official_position"],
+            "officials": crew_by_game[row["id"]]
         }
         for row in rows
     ]
