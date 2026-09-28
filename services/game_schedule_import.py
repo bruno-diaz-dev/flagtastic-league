@@ -77,7 +77,7 @@ def parse_game_schedule_image(content, teams):
 
     week = _week(raw_text)
     field_numbers = {
-        int(number) for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
+        int(number) for number in re.findall(rf"campo\s*([1-{MAX_SCHEDULE_FIELDS}])", _normalize(raw_text))
     }
     if week is None or not field_numbers:
         raise GameScheduleImportError(
@@ -160,24 +160,17 @@ def parse_game_schedule_ocr_words(
     if week is None:
         raise GameScheduleImportError("No se reconoció la jornada en la imagen")
 
-    time_rows = []
-    for word in normalized_words:
-        parsed_time = _time_value(word["text"])
-        if parsed_time is None:
-            continue
-        center_y = word["top"] + word["height"] / 2
-        if not any(
-            abs(center_y - existing[0]) < image_height * 0.015
-            for existing in time_rows
-        ):
-            time_rows.append((center_y, parsed_time))
-    time_rows.sort(key=lambda item: item[0])
+    time_rows = _ocr_time_rows_from_words(
+        normalized_words,
+        image_width,
+        image_height,
+    )
     if not time_rows:
         raise GameScheduleImportError("No se reconocieron horarios en la imagen")
 
     field_numbers = {
         int(number)
-        for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
+        for number in re.findall(rf"campo\s*([1-{MAX_SCHEDULE_FIELDS}])", _normalize(raw_text))
     }
     if field_numbers:
         field_count = max(field_numbers)
@@ -241,6 +234,92 @@ def parse_game_schedule_ocr_words(
     }
 
 
+def _ocr_time_value(value):
+    """Parse common OCR variants of HH:MM."""
+    text = _text(value).strip()
+    if not text:
+        return None
+
+    cleaned = (
+        text.upper()
+        .replace("O", "0")
+        .replace("I", "1")
+        .replace("L", "1")
+        .replace(".", ":")
+        .replace(";", ":")
+        .replace(",", ":")
+    )
+    cleaned = re.sub(r"\s+", "", cleaned)
+
+    match = re.fullmatch(r"(\d{1,2}):?(\d{2})", cleaned)
+    if match:
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return time(hour, minute)
+    return None
+
+
+def _ocr_time_rows_from_words(words, image_width, image_height):
+    """Recover schedule times from the narrow left-hand time column."""
+    time_column_limit = image_width * 0.055
+    candidates = [
+        word for word in words
+        if word["left"] + word["width"] / 2 <= time_column_limit
+    ]
+    candidates.sort(key=lambda word: (word["top"], word["left"]))
+
+    tolerance = max(3, image_height * 0.012)
+    bands = []
+    for word in candidates:
+        center_y = word["top"] + word["height"] / 2
+        band = next(
+            (
+                existing for existing in bands
+                if abs(existing["center_y"] - center_y) <= tolerance
+            ),
+            None,
+        )
+        if band is None:
+            bands.append({"center_y": center_y, "words": [word]})
+        else:
+            band["words"].append(word)
+            centers = [
+                item["top"] + item["height"] / 2
+                for item in band["words"]
+            ]
+            band["center_y"] = sum(centers) / len(centers)
+
+    rows = []
+    for band in bands:
+        ordered = sorted(band["words"], key=lambda word: word["left"])
+        variants = [
+            "".join(word["text"] for word in ordered),
+            " ".join(word["text"] for word in ordered),
+            *[word["text"] for word in ordered],
+        ]
+        parsed = next(
+            (_ocr_time_value(value) for value in variants if _ocr_time_value(value)),
+            None,
+        )
+        if parsed is not None:
+            rows.append((band["center_y"], parsed))
+
+    # Some OCR engines position the time slightly outside the narrow column.
+    # Fall back to any standalone OCR token only when the column yielded none.
+    if not rows:
+        for word in words:
+            parsed = _ocr_time_value(word["text"])
+            if parsed is None:
+                continue
+            center_y = word["top"] + word["height"] / 2
+            if not any(abs(center_y - existing[0]) < tolerance for existing in rows):
+                rows.append((center_y, parsed))
+
+    rows.sort(key=lambda item: item[0])
+    return rows
+
+
 def _ocr_row_bounds(time_rows, row_index, image_height):
     center_y = time_rows[row_index][0]
     previous_y = (
@@ -270,7 +349,7 @@ def _infer_field_count_from_team_matches(
     time_column_width = image_width * 0.027
     best = None
 
-    for field_count in range(1, 9):
+    for field_count in range(1, MAX_SCHEDULE_FIELDS + 1):
         field_width = (image_width - time_column_width) / field_count
         ready_games = 0
         matched_sides = 0
@@ -333,7 +412,7 @@ def _ocr_field_count_from_words(words, image_width, image_height):
         if (
             not (top <= center_y <= bottom)
             or center_x < image_width * 0.04
-            or not re.fullmatch(r"[1-8]", normalized)
+            or not re.fullmatch(rf"[1-{MAX_SCHEDULE_FIELDS}]", normalized)
         ):
             continue
         numbered.append((center_y, center_x, int(normalized)))
@@ -408,7 +487,7 @@ def _read_calendar_workbook(content):
                     hour_column = detected_hour_column
                     field_columns = {}
                     for index, value in enumerate(texts):
-                        match = re.fullmatch(r"campo\s*([1-8])", _normalize(value))
+                        match = re.fullmatch(rf"campo\s*([1-{MAX_SCHEDULE_FIELDS}])", _normalize(value))
                         if match and index + 1 < len(cells):
                             field_columns[index] = int(match.group(1))
                     continue
