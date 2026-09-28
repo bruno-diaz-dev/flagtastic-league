@@ -47,22 +47,50 @@ def create_game(game):
 
 
 def import_game_schedule(games):
-    """Insert reviewed schedule rows atomically and ignore exact duplicates."""
+    """Upsert reviewed schedule rows by their week, field, and start time."""
     connection = get_connection()
     created = 0
+    updated = 0
     skipped = 0
     try:
         for game in games:
             existing = connection.execute(
                 """
-                SELECT id FROM games
-                WHERE week = %s AND home_team_id = %s AND away_team_id = %s
+                SELECT id, home_team_id, away_team_id
+                FROM games
+                WHERE week = %s
+                  AND field_number = %s
+                  AND start_time = %s
+                ORDER BY id
+                LIMIT 1
                 """,
-                (game.week, game.home_team_id, game.away_team_id),
+                (game.week, game.field_number, game.start_time),
             ).fetchone()
+
             if existing is not None:
-                skipped += 1
+                if (
+                    existing["home_team_id"] == game.home_team_id
+                    and existing["away_team_id"] == game.away_team_id
+                ):
+                    skipped += 1
+                    continue
+
+                connection.execute(
+                    """
+                    UPDATE games
+                    SET home_team_id = %s,
+                        away_team_id = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        game.home_team_id,
+                        game.away_team_id,
+                        existing["id"],
+                    ),
+                )
+                updated += 1
                 continue
+
             connection.execute(
                 """
                 INSERT INTO games
@@ -79,7 +107,11 @@ def import_game_schedule(games):
             )
             created += 1
         connection.commit()
-        return {"created": created, "skipped": skipped}
+        return {
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+        }
     except Exception:
         connection.rollback()
         raise
