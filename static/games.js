@@ -426,6 +426,7 @@ async function analyzeScheduleImageInBrowser(file) {
         return analyzeGameScheduleOcr({
             image_width: dimensions.width,
             image_height: dimensions.height,
+            recognized_text: result.data.text || "",
             words
         });
     } finally {
