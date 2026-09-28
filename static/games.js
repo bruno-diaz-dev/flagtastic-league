@@ -401,40 +401,48 @@ async function getImageDimensions(file) {
 
 
 async function buildScheduleTimeCrop(file, dimensions) {
-    const bitmap = await createImageBitmap(file);
+    const sourceWidth = Math.max(1, Math.round(dimensions.width * 0.028));
+    const scale = 5;
+    const canvas = document.createElement("canvas");
+    canvas.width = sourceWidth * scale;
+    canvas.height = dimensions.height * scale;
+    const context = canvas.getContext("2d", {willReadFrequently: true});
+    context.imageSmoothingEnabled = false;
+
+    const url = URL.createObjectURL(file);
     try {
-        const sourceWidth = Math.max(1, Math.round(dimensions.width * 0.028));
-        const scale = 5;
-        const canvas = document.createElement("canvas");
-        canvas.width = sourceWidth * scale;
-        canvas.height = dimensions.height * scale;
-        const context = canvas.getContext("2d", {willReadFrequently: true});
-        context.imageSmoothingEnabled = false;
+        const image = await new Promise((resolve, reject) => {
+            const element = new Image();
+            element.onload = () => resolve(element);
+            element.onerror = () => reject(new Error("No se pudo preparar la columna de horarios."));
+            element.src = url;
+        });
+
         context.drawImage(
-            bitmap,
+            image,
             0, 0, sourceWidth, dimensions.height,
             0, 0, canvas.width, canvas.height
         );
-
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        const pixels = imageData.data;
-        for (let index = 0; index < pixels.length; index += 4) {
-            const gray = Math.round(
-                pixels[index] * 0.299
-                + pixels[index + 1] * 0.587
-                + pixels[index + 2] * 0.114
-            );
-            const value = gray > 175 ? 255 : 0;
-            pixels[index] = value;
-            pixels[index + 1] = value;
-            pixels[index + 2] = value;
-        }
-        context.putImageData(imageData, 0, 0);
-
-        return {canvas, scale};
     } finally {
-        bitmap.close();
+        URL.revokeObjectURL(url);
     }
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    for (let index = 0; index < pixels.length; index += 4) {
+        const gray = Math.round(
+            pixels[index] * 0.299
+            + pixels[index + 1] * 0.587
+            + pixels[index + 2] * 0.114
+        );
+        const value = gray > 175 ? 255 : 0;
+        pixels[index] = value;
+        pixels[index + 1] = value;
+        pixels[index + 2] = value;
+    }
+    context.putImageData(imageData, 0, 0);
+
+    return {canvas, scale};
 }
 
 
