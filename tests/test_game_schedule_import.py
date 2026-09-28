@@ -172,3 +172,52 @@ def test_browser_ocr_infers_field_count_from_team_matches_without_headers():
 
     assert result["matched"] == 1
     assert result["proposals"][0]["field_number"] == 1
+
+
+def test_browser_ocr_recovers_split_and_misread_times():
+    words = [
+        {"text": "Semana", "left": 700, "top": 5, "width": 80, "height": 20},
+        {"text": "1", "left": 790, "top": 5, "width": 10, "height": 20},
+        {"text": "Campo", "left": 120, "top": 40, "width": 60, "height": 20},
+        {"text": "1", "left": 185, "top": 40, "width": 10, "height": 20},
+        {"text": "11", "left": 2, "top": 110, "width": 12, "height": 20},
+        {"text": ".", "left": 15, "top": 110, "width": 4, "height": 20},
+        {"text": "00", "left": 20, "top": 110, "width": 12, "height": 20},
+        {"text": "Nomadas", "left": 75, "top": 110, "width": 70, "height": 20},
+        {"text": "U8", "left": 150, "top": 110, "width": 25, "height": 20},
+        {"text": "Rancheras", "left": 205, "top": 110, "width": 80, "height": 20},
+        {"text": "Flag", "left": 290, "top": 110, "width": 35, "height": 20},
+        {"text": "U8", "left": 330, "top": 110, "width": 25, "height": 20},
+    ]
+
+    result = parse_game_schedule_ocr_words(1000, 500, words, TEAMS)
+
+    assert result["matched"] == 1
+    assert result["proposals"][0]["start_time"] == "11:00"
+
+
+def test_browser_ocr_ignores_field_numbers_above_six():
+    words = [
+        {"text": "Semana", "left": 700, "top": 5, "width": 80, "height": 20},
+        {"text": "1", "left": 790, "top": 5, "width": 10, "height": 20},
+        {"text": "Campo", "left": 120, "top": 40, "width": 60, "height": 20},
+        {"text": "6", "left": 185, "top": 40, "width": 10, "height": 20},
+        {"text": "Campo", "left": 380, "top": 40, "width": 60, "height": 20},
+        {"text": "7", "left": 445, "top": 40, "width": 10, "height": 20},
+        {"text": "12:00", "left": 4, "top": 110, "width": 35, "height": 20},
+        {"text": "Nomadas", "left": 75, "top": 110, "width": 70, "height": 20},
+        {"text": "U8", "left": 150, "top": 110, "width": 25, "height": 20},
+        {"text": "Rancheras", "left": 205, "top": 110, "width": 80, "height": 20},
+        {"text": "Flag", "left": 290, "top": 110, "width": 35, "height": 20},
+        {"text": "U8", "left": 330, "top": 110, "width": 25, "height": 20},
+    ]
+
+    result = parse_game_schedule_ocr_words(
+        1000,
+        500,
+        words,
+        TEAMS,
+        recognized_text="Semana 1 Campo 6 Campo 7",
+    )
+
+    assert all(proposal["field_number"] <= 6 for proposal in result["proposals"])
