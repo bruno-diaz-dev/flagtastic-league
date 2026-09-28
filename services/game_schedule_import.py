@@ -577,8 +577,11 @@ def _read_csv(content):
 
 
 def _match_row(row, teams):
-    home = _match_team(row["home_team"], teams)
-    away = _match_team(row["away_team"], teams)
+    home, away = _match_team_pair(
+        row["home_team"],
+        row["away_team"],
+        teams,
+    )
     ready = home is not None and away is not None and home["id"] != away["id"]
     return {
         **row,
@@ -591,19 +594,122 @@ def _match_row(row, teams):
     }
 
 
-def _match_team(label, teams):
+def _ocr_category_hint(label):
     target = _normalize(label)
-    candidates = []
-    for team in teams:
-        score = max(
-            SequenceMatcher(None, target, alias).ratio()
-            for alias in _team_aliases(team)
-        )
-        candidates.append((score, team))
+    if "libre" in target or "l1bre" in target:
+        return "libre"
+
+    compact = target.replace(" ", "")
+    if re.search(r"u(?:8|s|b)(?:$|[^0-9])", compact):
+        return "u8"
+
+    known = ("8", "10", "12", "14", "16", "18")
+    best = None
+    for token in target.split():
+        digits = "".join(character for character in token if character.isdigit())
+        if not digits:
+            continue
+        for value in known:
+            score = SequenceMatcher(None, digits, value).ratio()
+            candidate = (score, value)
+            if best is None or candidate > best:
+                best = candidate
+    if best is not None and best[0] >= 0.66:
+        return f"u{best[1]}"
+    return None
+
+
+def _ocr_branch_hint(label):
+    target = _normalize(label)
+    if re.search(r"\bfem", target):
+        return "femenil"
+    if re.search(r"\bvar", target):
+        return "varonil"
+    if re.search(r"\bmix", target):
+        return "mixto"
+    return None
+
+
+def _name_token_score(label, team):
+    target_tokens = _normalize(label).split()
+    name_tokens = _normalize(team["name"]).split()
+    if not target_tokens or not name_tokens:
+        return 0.0
+    scores = []
+    for name_token in name_tokens:
+        scores.append(max(
+            SequenceMatcher(None, name_token, target_token).ratio()
+            for target_token in target_tokens
+        ))
+    return sum(scores) / len(scores)
+
+
+def _team_candidate_score(label, team):
+    target = _normalize(label)
+    alias_score = max(
+        SequenceMatcher(None, target, alias).ratio()
+        for alias in _team_aliases(team)
+    )
+    token_score = _name_token_score(label, team)
+    score = max(alias_score, token_score * 0.92)
+
+    category_hint = _ocr_category_hint(label)
+    if category_hint:
+        score += 0.14 if _normalize(team["category"]) == category_hint else -0.08
+
+    branch_hint = _ocr_branch_hint(label)
+    if branch_hint:
+        score += 0.10 if _normalize(team["branch"]) == branch_hint else -0.06
+
+    return score
+
+
+def _rank_team_candidates(label, teams):
+    candidates = [
+        (_team_candidate_score(label, team), team)
+        for team in teams
+    ]
     candidates.sort(key=lambda item: item[0], reverse=True)
-    if not candidates or candidates[0][0] < 0.88:
+    return candidates
+
+
+def _match_team_pair(home_label, away_label, teams):
+    home_candidates = _rank_team_candidates(home_label, teams)[:8]
+    away_candidates = _rank_team_candidates(away_label, teams)[:8]
+    pairs = []
+
+    for home_score, home in home_candidates:
+        for away_score, away in away_candidates:
+            if home["id"] == away["id"]:
+                continue
+            same_division = (
+                _normalize(home["branch"]) == _normalize(away["branch"])
+                and _normalize(home["category"]) == _normalize(away["category"])
+            )
+            score = home_score + away_score + (0.30 if same_division else 0.0)
+            pairs.append((score, home_score, away_score, same_division, home, away))
+
+    pairs.sort(key=lambda item: item[0], reverse=True)
+    if pairs:
+        best = pairs[0]
+        margin = best[0] - pairs[1][0] if len(pairs) > 1 else best[0]
+        if (
+            best[3]
+            and best[1] >= 0.52
+            and best[2] >= 0.52
+            and best[0] >= 1.62
+            and margin >= 0.025
+        ):
+            return best[4], best[5]
+
+    return _match_team(home_label, teams), _match_team(away_label, teams)
+
+
+def _match_team(label, teams):
+    candidates = _rank_team_candidates(label, teams)
+    if not candidates or candidates[0][0] < 0.76:
         return None
-    if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.025:
+    if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.06:
         return None
     return candidates[0][1]
 
