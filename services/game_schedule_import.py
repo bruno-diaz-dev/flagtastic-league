@@ -139,6 +139,7 @@ def parse_game_schedule_ocr_words(
     words,
     teams,
     recognized_text=None,
+    week_override=None,
 ):
     """Build schedule proposals from browser-side OCR words and coordinates."""
     normalized_words = [
@@ -154,7 +155,7 @@ def parse_game_schedule_ocr_words(
     ]
     word_text = " ".join(word["text"] for word in normalized_words)
     raw_text = _text(recognized_text) or word_text
-    week = _week(raw_text) or _ocr_week_from_words(
+    week = week_override or _week(raw_text) or _ocr_week_from_words(
         normalized_words,
         image_height,
     )
