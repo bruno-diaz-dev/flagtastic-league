@@ -309,6 +309,9 @@ Rules that need league context, such as preventing a player from registering twi
 | `GET` | `/api/teams/representative-assignments` | Lists current team ownership for verification in the league administration UI |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
 | `GET` | `/api/games/mine/referee` | Returns only games assigned to the authenticated referee |
+| `GET` | `/api/referees` | Lists active referee names and photos for authenticated users only |
+| `GET` | `/api/referees/me` | Returns the signed-in referee's effective directory profile |
+| `PUT` | `/api/referees/me/photo` | Lets a referee upload or replace their own profile photo |
 | `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
 | `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
 | `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
@@ -357,6 +360,7 @@ participants, making a repeated upload safe.
 | `GET` | `/dashboard` | Private player dashboard |
 | `GET` | `/representative-dashboard` | Private representative dashboard scoped to assigned teams |
 | `GET` | `/referee/games` | Private referee dashboard and administrator schedule import |
+| `GET` | `/referees` | Referee roster available to authenticated league users |
 | `GET` | `/privacy` | Public integral privacy notice |
 
 ## Frontend
@@ -661,6 +665,13 @@ referees plus a statistician for normal games, and a fourth referee for finals.
 One account and one position can appear only once per game. A referee can read
 only their own assignments and position through `GET /api/games/mine/referee`;
 referee access does not grant score editing or league administration.
+
+The authenticated referee directory exposes only account id, legal/display
+name, AKA, and effective photo. It never returns email, roles, or credential
+material. A referee linked to a player identity reuses the player's canonical
+photo; a referee-only operational account stores its image on `users`. The
+referee dashboard requests a photo until an effective image exists, and the
+self-service write endpoint can modify only the current referee's image.
 
 `games.field_number` stores a field from 1 through 8. It is nullable only for
 historical imports whose source did not contain venue assignments; manually

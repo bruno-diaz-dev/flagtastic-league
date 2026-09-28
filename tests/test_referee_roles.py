@@ -198,3 +198,42 @@ def test_referee_sees_only_assigned_games(monkeypatch):
 
     assert login(other_email).status_code == 200
     assert client.get("/api/games/mine/referee").status_code == 403
+
+
+def test_authenticated_users_see_referee_roster_and_referee_uploads_photo():
+    app.dependency_overrides.clear()
+    suffix = uuid4().hex[:10]
+    referee_email = f"roster-referee-{suffix}@example.test"
+    viewer_email = f"roster-viewer-{suffix}@example.test"
+    referee = create_user(UserCreate(
+        email=referee_email, name="Roster Referee", password="supersecret",
+        role="referee"
+    ))
+    create_user(UserCreate(
+        email=viewer_email, name="Registered Viewer", password="supersecret",
+        role="team_representative"
+    ))
+
+    client.cookies.clear()
+    assert client.get("/api/referees").status_code == 401
+    assert login(viewer_email).status_code == 200
+    before = client.get("/api/referees")
+    assert before.status_code == 200
+    listed = next(item for item in before.json() if item["id"] == referee["id"])
+    assert listed["profile_photo_url"] is None
+    assert "email" not in listed
+    assert client.put(
+        "/api/referees/me/photo",
+        files={"file": ("profile.png", PROFILE_PNG, "image/png")}
+    ).status_code == 403
+
+    assert login(referee_email).status_code == 200
+    assert client.get("/api/referees/me").json()["profile_photo_url"] is None
+    upload = client.put(
+        "/api/referees/me/photo",
+        files={"file": ("profile.png", PROFILE_PNG, "image/png")}
+    )
+    assert upload.status_code == 204
+    profile = client.get("/api/referees/me").json()
+    assert profile["profile_photo_url"].startswith("/media/profiles/")
+    assert client.get(profile["profile_photo_url"]).content == PROFILE_PNG

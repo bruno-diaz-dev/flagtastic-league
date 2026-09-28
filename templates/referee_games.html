@@ -9,9 +9,22 @@
     <div id="referee-summary" class="stat-grid dashboard-summary-grid" aria-live="polite"></div>
     <nav class="dashboard-quick-links" aria-label="Accesos del árbitro">
         <a href="/games">Todos los partidos</a>
+        <a href="/referees">Plantilla de árbitros</a>
         <a href="/standings">Tabla de posiciones</a>
         <a href="/privacy">Aviso de privacidad</a>
     </nav>
+    <section id="referee-dashboard-photo-panel" class="form-panel hidden">
+        <h3>Agrega tu foto a la plantilla</h3>
+        <p>Tu cuenta arbitral todavía no tiene una foto pública.</p>
+        <form id="referee-dashboard-photo-form" class="filter-form">
+            <label>
+                Foto de perfil
+                <input name="file" type="file" accept="image/jpeg,image/png,image/webp" required>
+            </label>
+            <button type="submit">Subir foto</button>
+        </form>
+        <p id="referee-dashboard-photo-message" class="form-message" role="status"></p>
+    </section>
     <p id="referee-games-message" class="form-message" role="status"></p>
     <div id="referee-games" class="referee-dashboard-games" aria-live="polite"></div>
     <section class="form-panel admin-only">
@@ -40,6 +53,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260925-5"></script>
-<script src="/static/referee_games.js?v=20260927-1"></script>
+<script src="/static/api.js?v=20260928-1"></script>
+<script src="/static/referee_games.js?v=20260928-1"></script>
 {% endblock %}
