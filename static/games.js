@@ -400,7 +400,7 @@ async function getImageDimensions(file) {
 }
 
 
-async function analyzeScheduleImageInBrowser(file) {
+async function analyzeScheduleImageInBrowser(file, weekOverride) {
     if (!window.Tesseract) {
         throw new Error("El lector OCR del navegador no está disponible.");
     }
@@ -427,6 +427,7 @@ async function analyzeScheduleImageInBrowser(file) {
             image_width: dimensions.width,
             image_height: dimensions.height,
             recognized_text: result.data.text || "",
+            week_override: Number(weekOverride),
             words
         });
     } finally {
@@ -458,14 +459,16 @@ function renderGameScheduleReview(result) {
 
 scheduleImportForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const file = new FormData(scheduleImportForm).get("file");
+    const scheduleFields = new FormData(scheduleImportForm);
+    const file = scheduleFields.get("file");
+    const weekOverride = scheduleFields.get("week_override");
     scheduleReview.classList.add("hidden");
     scheduleImportMessage.textContent = "Analizando archivo...";
 
     try {
         const isImage = file instanceof File && file.type.startsWith("image/");
         const response = isImage
-            ? await analyzeScheduleImageInBrowser(file)
+            ? await analyzeScheduleImageInBrowser(file, weekOverride)
             : await analyzeGameSchedule(file);
         const body = await response.json();
         if (!response.ok) {
