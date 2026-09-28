@@ -225,11 +225,15 @@ def test_user_administration_page_is_available():
 
     assert response.status_code == 200
     assert "Usuarios y roles" in response.text
+    assert 'id="admin-user-name-filter"' in response.text
+    assert 'id="admin-users-count"' in response.text
     assert 'src="/static/admin_users.js' in response.text
 
     script = client.get("/static/admin_users.js")
     assert "delete-user-button" in script.text
     assert "deleteAdminUser" in script.text
+    assert "normalizedSearchText" in script.text
+    assert "user.display_name, user.name, user.aka" in script.text
 
 
 def test_public_player_links_are_rendered_by_roster_and_leaderboards():

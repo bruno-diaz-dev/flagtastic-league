@@ -22,6 +22,18 @@
         </form>
         <p id="staff-account-message" class="form-message" role="status"></p>
     </section>
+    <section class="filters-panel admin-users-filters" aria-label="Filtros de usuarios">
+        <label>
+            Buscar por nombre
+            <input
+                id="admin-user-name-filter"
+                type="search"
+                placeholder="Nombre, AKA o nombre legal"
+                autocomplete="off"
+            >
+        </label>
+        <p id="admin-users-count" class="results-count" aria-live="polite"></p>
+    </section>
     <div id="admin-users-message" class="form-message" role="status"></div>
     <div class="users-table-wrapper">
         <table class="users-table">
@@ -34,5 +46,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260926-2"></script>
-<script src="/static/admin_users.js?v=20260926-1"></script>
+<script src="/static/admin_users.js?v=20260927-2"></script>
 {% endblock %}

@@ -1118,6 +1118,12 @@ body.can-manage-team .roster-player-actions.team-scope-manager-only {
 }
 .users-table th { background: var(--color-navy); }
 .users-table select { min-width: 190px; }
+.admin-users-filters {
+    grid-template-columns: minmax(240px, 440px) auto;
+    align-items: end;
+}
+.admin-users-filters .results-count { margin: 0 0 14px; }
+.table-empty-state { color: var(--color-muted); text-align: center !important; }
 .save-role-button { min-height: 42px; padding: 0 18px; }
 .user-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .delete-user-button {
