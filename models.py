@@ -413,6 +413,24 @@ class RefereeScheduleConfirmation(BaseModel):
     assignments: list[RefereeScheduleAssignment] = Field(min_length=1)
 
 
+class GameScheduleOcrWord(BaseModel):
+    """One OCR word and its bounding box from browser-side recognition."""
+
+    text: str = Field(min_length=1, max_length=120)
+    left: int = Field(ge=0)
+    top: int = Field(ge=0)
+    width: int = Field(ge=0)
+    height: int = Field(ge=0)
+
+
+class GameScheduleOcrPayload(BaseModel):
+    """Validate browser OCR output before matching it to league teams."""
+
+    image_width: int = Field(gt=0, le=20000)
+    image_height: int = Field(gt=0, le=20000)
+    words: list[GameScheduleOcrWord] = Field(min_length=1, max_length=10000)
+
+
 class GameScheduleImportRow(GameCreate):
     """Validate one administrator-reviewed game from a schedule file."""
 
