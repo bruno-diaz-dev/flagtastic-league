@@ -133,6 +133,33 @@ def parse_game_schedule_image(content, teams):
     }
 
 
+def parse_game_schedule_ocr_cells(week, rows, teams):
+    proposals = []
+    for index, row in enumerate(rows):
+        proposals.append(_match_row({
+            "source_row": f"Imagen, fila {index + 1}",
+            "week": week,
+            "field_number": row["field_number"],
+            "start_time": row["start_time"],
+            "home_team": row["home_team"],
+            "away_team": row["away_team"],
+        }, teams))
+
+    if not proposals:
+        raise GameScheduleImportError("No se reconocieron partidos en la imagen")
+    if len(proposals) > MAX_SCHEDULE_GAMES:
+        raise GameScheduleImportError(
+            f"La imagen no puede contener mas de {MAX_SCHEDULE_GAMES} partidos"
+        )
+    return {
+        "kind": "games",
+        "proposals": proposals,
+        "matched": sum(proposal["ready"] for proposal in proposals),
+        "unmatched": sum(not proposal["ready"] for proposal in proposals),
+        "raw_text": "",
+    }
+
+
 def parse_game_schedule_ocr_words(
     image_width,
     image_height,
