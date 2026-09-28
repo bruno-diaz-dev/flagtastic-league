@@ -19,6 +19,7 @@ class GameScheduleImportError(Exception):
 
 
 MAX_SCHEDULE_GAMES = 500
+MAX_SCHEDULE_FIELDS = 6
 CSV_HEADERS = {
     "week": {"week", "jornada", "semana"},
     "field_number": {"field", "field_number", "campo", "cancha"},
