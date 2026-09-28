@@ -322,6 +322,41 @@ def test_reviewed_csv_schedule_creates_games_and_skips_repeat_uploads():
     first = client.post("/api/games/schedule/confirm", json=payload)
     repeated = client.post("/api/games/schedule/confirm", json=payload)
 
-    assert first.json() == {"created": 1, "skipped": 0}
-    assert repeated.json() == {"created": 0, "skipped": 1}
+    assert first.json() == {"created": 1, "updated": 0, "skipped": 0}
+    assert repeated.json() == {"created": 0, "updated": 0, "skipped": 1}
 """API tests for game scheduling, listing, and score updates."""
+
+
+def test_reviewed_schedule_reimport_corrects_existing_slot():
+    tigres_id = create_test_team(name="Tigres")
+    ravens_id = create_test_team(name="Ravens")
+    lobos_id = create_test_team(name="Lobos")
+
+    first = client.post(
+        "/api/games/schedule/confirm",
+        json={"games": [{
+            "home_team_id": tigres_id,
+            "away_team_id": ravens_id,
+            "week": 1,
+            "field_number": 2,
+            "start_time": "12:00",
+        }]},
+    )
+    corrected = client.post(
+        "/api/games/schedule/confirm",
+        json={"games": [{
+            "home_team_id": tigres_id,
+            "away_team_id": lobos_id,
+            "week": 1,
+            "field_number": 2,
+            "start_time": "12:00",
+        }]},
+    )
+
+    assert first.json() == {"created": 1, "updated": 0, "skipped": 0}
+    assert corrected.json() == {"created": 0, "updated": 1, "skipped": 0}
+
+    games = client.get("/api/games").json()
+    assert len(games) == 1
+    assert games[0]["home_team"]["id"] == tigres_id
+    assert games[0]["away_team"]["id"] == lobos_id
