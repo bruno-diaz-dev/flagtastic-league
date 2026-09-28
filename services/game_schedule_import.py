@@ -157,25 +157,9 @@ def parse_game_schedule_ocr_words(
         normalized_words,
         image_height,
     )
-    field_numbers = {
-        int(number)
-        for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
-    }
-    if field_numbers:
-        field_count = max(field_numbers)
-    else:
-        field_count = _ocr_field_count_from_words(
-            normalized_words,
-            image_width,
-            image_height,
-        )
-
     if week is None:
         raise GameScheduleImportError("No se reconoció la jornada en la imagen")
-    if field_count is None:
-        raise GameScheduleImportError(
-            "No se reconocieron los encabezados de campo en la imagen"
-        )
+
     time_rows = []
     for word in normalized_words:
         parsed_time = _time_value(word["text"])
@@ -191,23 +175,36 @@ def parse_game_schedule_ocr_words(
     if not time_rows:
         raise GameScheduleImportError("No se reconocieron horarios en la imagen")
 
+    field_numbers = {
+        int(number)
+        for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
+    }
+    if field_numbers:
+        field_count = max(field_numbers)
+    else:
+        field_count = _ocr_field_count_from_words(
+            normalized_words,
+            image_width,
+            image_height,
+        )
+    if field_count is None:
+        field_count = _infer_field_count_from_team_matches(
+            normalized_words,
+            image_width,
+            image_height,
+            time_rows,
+            teams,
+        )
+    if field_count is None:
+        raise GameScheduleImportError(
+            "No se pudo determinar la cantidad de campos en la imagen"
+        )
+
     time_column_width = image_width * 0.027
     field_width = (image_width - time_column_width) / field_count
     proposals = []
-    for row_index, (center_y, scheduled_time) in enumerate(time_rows):
-        previous_y = (
-            time_rows[row_index - 1][0]
-            if row_index
-            else center_y - image_height * 0.04
-        )
-        next_y = (
-            time_rows[row_index + 1][0]
-            if row_index + 1 < len(time_rows)
-            else center_y + image_height * 0.04
-        )
-        top = max(0, (previous_y + center_y) / 2)
-        bottom = min(image_height, (center_y + next_y) / 2)
-
+    for row_index, (_center_y, scheduled_time) in enumerate(time_rows):
+        top, bottom = _ocr_row_bounds(time_rows, row_index, image_height)
         for field_index in range(field_count):
             left = time_column_width + field_index * field_width
             middle = left + field_width / 2
@@ -242,6 +239,68 @@ def parse_game_schedule_ocr_words(
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
         "raw_text": raw_text.strip(),
     }
+
+
+def _ocr_row_bounds(time_rows, row_index, image_height):
+    center_y = time_rows[row_index][0]
+    previous_y = (
+        time_rows[row_index - 1][0]
+        if row_index
+        else center_y - image_height * 0.04
+    )
+    next_y = (
+        time_rows[row_index + 1][0]
+        if row_index + 1 < len(time_rows)
+        else center_y + image_height * 0.04
+    )
+    return (
+        max(0, (previous_y + center_y) / 2),
+        min(image_height, (center_y + next_y) / 2),
+    )
+
+
+def _infer_field_count_from_team_matches(
+    words,
+    image_width,
+    image_height,
+    time_rows,
+    teams,
+):
+    """Infer the grid width by choosing the layout that matches most teams."""
+    time_column_width = image_width * 0.027
+    best = None
+
+    for field_count in range(1, 9):
+        field_width = (image_width - time_column_width) / field_count
+        ready_games = 0
+        matched_sides = 0
+        populated_cells = 0
+
+        for row_index, _row in enumerate(time_rows):
+            top, bottom = _ocr_row_bounds(time_rows, row_index, image_height)
+            for field_index in range(field_count):
+                left = time_column_width + field_index * field_width
+                middle = left + field_width / 2
+                right = left + field_width
+                home_text = _words_in_cell(words, left, middle, top, bottom)
+                away_text = _words_in_cell(words, middle, right, top, bottom)
+                if not home_text or not away_text:
+                    continue
+
+                populated_cells += 1
+                home = _match_team(home_text, teams)
+                away = _match_team(away_text, teams)
+                matched_sides += int(home is not None) + int(away is not None)
+                if home is not None and away is not None and home["id"] != away["id"]:
+                    ready_games += 1
+
+        candidate = (ready_games, matched_sides, -populated_cells, field_count)
+        if best is None or candidate > best:
+            best = candidate
+
+    if best is None or best[0] == 0:
+        return None
+    return best[3]
 
 
 def _ocr_week_from_words(words, image_height):
