@@ -400,6 +400,55 @@ async function getImageDimensions(file) {
 }
 
 
+async function buildScheduleTimeCrop(file, dimensions) {
+    const bitmap = await createImageBitmap(file);
+    try {
+        const sourceWidth = Math.max(1, Math.round(dimensions.width * 0.028));
+        const scale = 5;
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceWidth * scale;
+        canvas.height = dimensions.height * scale;
+        const context = canvas.getContext("2d", {willReadFrequently: true});
+        context.imageSmoothingEnabled = false;
+        context.drawImage(
+            bitmap,
+            0, 0, sourceWidth, dimensions.height,
+            0, 0, canvas.width, canvas.height
+        );
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels = imageData.data;
+        for (let index = 0; index < pixels.length; index += 4) {
+            const gray = Math.round(
+                pixels[index] * 0.299
+                + pixels[index + 1] * 0.587
+                + pixels[index + 2] * 0.114
+            );
+            const value = gray > 175 ? 255 : 0;
+            pixels[index] = value;
+            pixels[index + 1] = value;
+            pixels[index + 2] = value;
+        }
+        context.putImageData(imageData, 0, 0);
+
+        return {canvas, scale};
+    } finally {
+        bitmap.close();
+    }
+}
+
+
+function mapTimeCropWords(tsv, scale) {
+    return parseTesseractTsv(tsv).map((word) => ({
+        ...word,
+        left: Math.round(word.left / scale),
+        top: Math.round(word.top / scale),
+        width: Math.max(1, Math.round(word.width / scale)),
+        height: Math.max(1, Math.round(word.height / scale))
+    }));
+}
+
+
 async function analyzeScheduleImageInBrowser(file, weekOverride) {
     if (!window.Tesseract) {
         throw new Error("El lector OCR del navegador no está disponible.");
@@ -422,13 +471,26 @@ async function analyzeScheduleImageInBrowser(file, weekOverride) {
             throw new Error("No se reconoció texto en la imagen.");
         }
 
+        scheduleImportMessage.textContent = "Leyendo horarios...";
+        const timeCrop = await buildScheduleTimeCrop(file, dimensions);
+        await worker.setParameters({
+            tessedit_char_whitelist: "0123456789:",
+            tessedit_pageseg_mode: "6"
+        });
+        const timeResult = await worker.recognize(
+            timeCrop.canvas,
+            {},
+            {tsv: true}
+        );
+        const timeWords = mapTimeCropWords(timeResult.data.tsv, timeCrop.scale);
+
         scheduleImportMessage.textContent = "Relacionando equipos reconocidos...";
         return analyzeGameScheduleOcr({
             image_width: dimensions.width,
             image_height: dimensions.height,
             recognized_text: result.data.text || "",
             week_override: Number(weekOverride),
-            words
+            words: [...words, ...timeWords]
         });
     } finally {
         if (worker) await worker.terminate();
