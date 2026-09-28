@@ -8,6 +8,7 @@ from PIL import Image
 from services.game_schedule_import import (
     parse_game_schedule_file,
     parse_game_schedule_image,
+    parse_game_schedule_ocr_words,
 )
 
 
@@ -98,3 +99,32 @@ def test_image_schedule_is_read_as_games_not_referee_assignments(monkeypatch):
     assert result["proposals"][0]["week"] == 5
     assert result["proposals"][0]["home_team_id"] == 1
     assert "officials" not in result["proposals"][0]
+
+
+def test_browser_ocr_words_are_grouped_into_schedule_cells():
+    words = [
+        {"text": "Semana", "left": 700, "top": 5, "width": 80, "height": 20},
+        {"text": "1", "left": 790, "top": 5, "width": 10, "height": 20},
+        {"text": "Campo", "left": 120, "top": 40, "width": 60, "height": 20},
+        {"text": "1", "left": 185, "top": 40, "width": 10, "height": 20},
+        {"text": "Campo", "left": 380, "top": 40, "width": 60, "height": 20},
+        {"text": "2", "left": 445, "top": 40, "width": 10, "height": 20},
+        {"text": "12:00", "left": 4, "top": 110, "width": 35, "height": 20},
+        {"text": "Nomadas", "left": 75, "top": 110, "width": 70, "height": 20},
+        {"text": "U8", "left": 150, "top": 110, "width": 25, "height": 20},
+        {"text": "Rancheras", "left": 205, "top": 110, "width": 80, "height": 20},
+        {"text": "Flag", "left": 290, "top": 110, "width": 35, "height": 20},
+        {"text": "U8", "left": 330, "top": 110, "width": 25, "height": 20},
+    ]
+
+    result = parse_game_schedule_ocr_words(1000, 500, words, TEAMS)
+
+    assert result["kind"] == "games"
+    assert result["matched"] == 1
+    assert result["unmatched"] == 0
+    proposal = result["proposals"][0]
+    assert proposal["week"] == 1
+    assert proposal["field_number"] == 1
+    assert proposal["start_time"] == "12:00"
+    assert proposal["home_team_id"] == 1
+    assert proposal["away_team_id"] == 2
