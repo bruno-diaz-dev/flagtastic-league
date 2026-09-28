@@ -148,3 +148,27 @@ def test_browser_ocr_recovers_week_and_field_count_when_labels_are_missed():
     assert result["matched"] == 1
     assert result["proposals"][0]["week"] == 1
     assert result["proposals"][0]["field_number"] == 1
+
+
+def test_browser_ocr_infers_field_count_from_team_matches_without_headers():
+    words = [
+        {"text": "Semana", "left": 700, "top": 5, "width": 80, "height": 20},
+        {"text": "1", "left": 790, "top": 5, "width": 10, "height": 20},
+        {"text": "12:00", "left": 4, "top": 110, "width": 35, "height": 20},
+        {"text": "Nomadas", "left": 75, "top": 110, "width": 70, "height": 20},
+        {"text": "U8", "left": 150, "top": 110, "width": 25, "height": 20},
+        {"text": "Rancheras", "left": 205, "top": 110, "width": 80, "height": 20},
+        {"text": "Flag", "left": 290, "top": 110, "width": 35, "height": 20},
+        {"text": "U8", "left": 330, "top": 110, "width": 25, "height": 20},
+    ]
+
+    result = parse_game_schedule_ocr_words(
+        1000,
+        500,
+        words,
+        TEAMS,
+        recognized_text="Semana 1",
+    )
+
+    assert result["matched"] == 1
+    assert result["proposals"][0]["field_number"] == 1
