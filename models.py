@@ -423,6 +423,18 @@ class GameScheduleOcrWord(BaseModel):
     height: int = Field(ge=0)
 
 
+class GameScheduleOcrCellRow(BaseModel):
+    field_number: int = Field(ge=1, le=6)
+    start_time: time
+    home_team: str = Field(min_length=1, max_length=160)
+    away_team: str = Field(min_length=1, max_length=160)
+
+
+class GameScheduleOcrCellsPayload(BaseModel):
+    week: int = Field(gt=0, le=99)
+    rows: list[GameScheduleOcrCellRow] = Field(min_length=1, max_length=500)
+
+
 class GameScheduleOcrPayload(BaseModel):
     """Validate browser OCR output before matching it to league teams."""
 
