@@ -21,7 +21,7 @@ const leaderboardDefinitions = {
 function leaderboardIdentity(leader) {
     const displayName = leader.player_aka || leader.player_name;
     const photo = leader.profile_photo_url
-        ? `<img class="leaderboard-photo" src="${escapeHtml(leader.profile_photo_url)}" alt="Foto de ${escapeHtml(displayName)}">`
+        ? `<img class="leaderboard-photo" src="${escapeHtml(leader.profile_photo_url)}" alt="Foto de ${escapeHtml(displayName)}" loading="lazy" decoding="async">`
         : `<span class="leaderboard-photo profile-placeholder" aria-hidden="true">${escapeHtml(leader.player_name.charAt(0))}</span>`;
     const legalName = leader.player_aka
         ? `<small>${escapeHtml(leader.player_name)}</small>`

@@ -392,6 +392,13 @@ metadata, active players, and representative ownership. This preserves live
 authorization checks while avoiding several sequential network handshakes per
 page load.
 
+Team logo URLs contain an MD5 content version and player-photo filenames are
+regenerated on replacement. Both media routes can therefore send one-year,
+immutable browser and Vercel CDN cache headers. Images rendered in collection
+views use lazy loading and asynchronous decoding. This prevents the team
+directory from opening one PostgreSQL-backed request for every off-screen logo
+and makes warm requests independent of database latency.
+
 Responsive behavior belongs in `static/style.css` and `static/layout.js`; page scripts should not calculate viewport dimensions or duplicate drawer state. Any new table must use an existing scroll wrapper such as `.standings-table`, `.users-table-wrapper`, or `.table-scroll`.
 
 ### Privacy notice

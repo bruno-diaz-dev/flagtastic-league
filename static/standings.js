@@ -59,7 +59,7 @@ function renderStandings(standings) {
                         <tr>
                             <td>
                                 <span class="standings-team">
-                                    ${team.team_logo_url ? `<img class="team-logo team-logo-small" src="${team.team_logo_url}" alt="">` : ""}
+                                    ${team.team_logo_url ? `<img class="team-logo team-logo-small" src="${team.team_logo_url}" alt="" loading="lazy" decoding="async">` : ""}
                                     ${escapeHtml(team.team_name)}
                                 </span>
                             </td>

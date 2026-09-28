@@ -56,7 +56,7 @@ function renderTeams(teams) {
             <article class="team-card">
                 <button class="team-card-main" type="button" data-team-id="${team.id}">
                     ${team.logo_url
-                        ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}">`
+                        ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}" loading="lazy" decoding="async">`
                         : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
                     <div>
                         <h3>${escapeHtml(team.name)}</h3>

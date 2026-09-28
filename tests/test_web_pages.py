@@ -182,6 +182,19 @@ def test_team_roster_has_a_dedicated_page():
     assert "deactivateRosterPlayer" in script.text
 
 
+def test_collection_images_are_loaded_lazily():
+    scripts = [
+        client.get("/static/teams.js").text,
+        client.get("/static/games.js").text,
+        client.get("/static/standings.js").text,
+        client.get("/static/statistics.js").text,
+        client.get("/static/representative_dashboard.js").text,
+        client.get("/static/roster.js").text
+    ]
+    assert all('loading="lazy"' in script for script in scripts)
+    assert all('decoding="async"' in script for script in scripts)
+
+
 def test_team_change_center_has_a_dedicated_page():
     response = client.get("/teams/123/manage")
     directory_script = client.get("/static/teams.js")

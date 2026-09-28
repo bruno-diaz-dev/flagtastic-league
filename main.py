@@ -57,7 +57,13 @@ def profile_photo(filename: str):
         return Response(status_code=404)
     return Response(
         content=bytes(row["profile_photo_data"]),
-        media_type=row["profile_photo_type"] or "application/octet-stream"
+        media_type=row["profile_photo_type"] or "application/octet-stream",
+        headers={
+            # Generated filenames change whenever a photo is replaced.
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "CDN-Cache-Control": "public, max-age=31536000",
+            "Vercel-CDN-Cache-Control": "public, max-age=31536000"
+        }
     )
 
 @app.get("/")

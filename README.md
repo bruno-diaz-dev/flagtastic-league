@@ -109,6 +109,11 @@ Profile photos and team logos are stored in PostgreSQL so they remain available
 across stateless Vercel deployments. The ignored local `uploads/` directory is
 legacy/test output, not the production media store.
 
+Versioned logos and generated profile-photo URLs are cached immutably by the
+browser and Vercel CDN. Collection views lazy-load and asynchronously decode
+their images so large leagues do not issue one database request per off-screen
+team or player during initial rendering.
+
 Authenticated roster reads resolve the session identity in one query and load
 team metadata, players, and team-scoped permission through one database
 connection. This avoids repeated Supabase connection setup on the highest-use
