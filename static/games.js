@@ -538,7 +538,11 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
     try {
         const isImage = file instanceof File && file.type.startsWith("image/");
         const response = isImage
-            ? await analyzeScheduleImageInBrowser(file, weekOverride)
+            ? await window.analyzeScheduleImageCells(
+                file,
+                weekOverride,
+                (message) => { scheduleImportMessage.textContent = message; }
+            )
             : await analyzeGameSchedule(file);
         const body = await response.json();
         if (!response.ok) {
