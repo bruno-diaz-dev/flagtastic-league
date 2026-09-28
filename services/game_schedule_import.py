@@ -146,17 +146,29 @@ def parse_game_schedule_ocr_words(image_width, image_height, words, teams):
         if _text(word.get("text"))
     ]
     raw_text = " ".join(word["text"] for word in normalized_words)
-    week = _week(raw_text)
+    week = _week(raw_text) or _ocr_week_from_words(
+        normalized_words,
+        image_height,
+    )
     field_numbers = {
         int(number)
         for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
     }
-    if week is None or not field_numbers:
-        raise GameScheduleImportError(
-            "No se reconocieron la jornada y los encabezados de campo"
+    if field_numbers:
+        field_count = max(field_numbers)
+    else:
+        field_count = _ocr_field_count_from_words(
+            normalized_words,
+            image_width,
+            image_height,
         )
 
-    field_count = max(field_numbers)
+    if week is None:
+        raise GameScheduleImportError("No se reconoció la jornada en la imagen")
+    if field_count is None:
+        raise GameScheduleImportError(
+            "No se reconocieron los encabezados de campo en la imagen"
+        )
     time_rows = []
     for word in normalized_words:
         parsed_time = _time_value(word["text"])
@@ -223,6 +235,65 @@ def parse_game_schedule_ocr_words(image_width, image_height, words, teams):
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
         "raw_text": raw_text.strip(),
     }
+
+
+def _ocr_week_from_words(words, image_height):
+    """Recover the week number when OCR misses the 'Semana' label."""
+    top_limit = image_height * 0.10
+    numeric_words = []
+    for word in words:
+        center_y = word["top"] + word["height"] / 2
+        normalized = _normalize(word["text"])
+        if center_y > top_limit or not re.fullmatch(r"\d{1,2}", normalized):
+            continue
+        value = int(normalized)
+        if 1 <= value <= 30:
+            numeric_words.append((center_y, word["left"], value))
+    if not numeric_words:
+        return None
+    numeric_words.sort()
+    return numeric_words[0][2]
+
+
+def _ocr_field_count_from_words(words, image_width, image_height):
+    """Recover field count from the numbered header row without its labels."""
+    top = image_height * 0.08
+    bottom = image_height * 0.28
+    numbered = []
+    for word in words:
+        center_x = word["left"] + word["width"] / 2
+        center_y = word["top"] + word["height"] / 2
+        normalized = _normalize(word["text"])
+        if (
+            not (top <= center_y <= bottom)
+            or center_x < image_width * 0.04
+            or not re.fullmatch(r"[1-8]", normalized)
+        ):
+            continue
+        numbered.append((center_y, center_x, int(normalized)))
+
+    if not numbered:
+        return None
+
+    # Header numbers share nearly the same baseline. Pick the densest band so
+    # unrelated numbers elsewhere in the top area do not become field labels.
+    tolerance = max(4, image_height * 0.025)
+    best_band = []
+    for anchor_y, _x, _value in numbered:
+        band = [
+            candidate for candidate in numbered
+            if abs(candidate[0] - anchor_y) <= tolerance
+        ]
+        if len(band) > len(best_band):
+            best_band = band
+
+    values = sorted({value for _y, _x, value in best_band})
+    if len(values) < 2 or values[0] != 1:
+        return None
+
+    maximum = values[-1]
+    expected = list(range(1, maximum + 1))
+    return maximum if values == expected else None
 
 
 def _words_in_cell(words, left, right, top, bottom):
