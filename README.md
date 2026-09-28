@@ -56,7 +56,8 @@ representatives, referees, and league administrators.
 - Schedule games, record scores, and manage official assignments.
 - Import a complete game role from its operational XLSX layout or a CSV, with
   team matching and administrator review before any game is created.
-- Upload a role image for OCR-assisted game and official assignment review.
+- Upload a game-role image for OCR-assisted matchup review. Referee-role image
+  imports remain a separate workflow on the referee dashboard.
 - Import jornada statistics and inspect both teams in game-level statistics.
 
 ## Domain Rules
