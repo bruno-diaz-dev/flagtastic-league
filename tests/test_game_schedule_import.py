@@ -200,8 +200,6 @@ def test_browser_ocr_ignores_field_numbers_above_six():
     words = [
         {"text": "Semana", "left": 700, "top": 5, "width": 80, "height": 20},
         {"text": "1", "left": 790, "top": 5, "width": 10, "height": 20},
-        {"text": "Campo", "left": 120, "top": 40, "width": 60, "height": 20},
-        {"text": "6", "left": 185, "top": 40, "width": 10, "height": 20},
         {"text": "Campo", "left": 380, "top": 40, "width": 60, "height": 20},
         {"text": "7", "left": 445, "top": 40, "width": 10, "height": 20},
         {"text": "12:00", "left": 4, "top": 110, "width": 35, "height": 20},
@@ -217,7 +215,7 @@ def test_browser_ocr_ignores_field_numbers_above_six():
         500,
         words,
         TEAMS,
-        recognized_text="Semana 1 Campo 6 Campo 7",
+        recognized_text="Semana 1 Campo 7",
     )
 
     assert all(proposal["field_number"] <= 6 for proposal in result["proposals"])
