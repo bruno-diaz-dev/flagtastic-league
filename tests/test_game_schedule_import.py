@@ -9,6 +9,7 @@ from services.game_schedule_import import (
     parse_game_schedule_file,
     parse_game_schedule_image,
     parse_game_schedule_ocr_words,
+    parse_game_schedule_ocr_cells,
 )
 
 
@@ -267,3 +268,41 @@ def test_browser_ocr_uses_fixed_six_field_layout_without_field_headers():
 
     assert result["proposals"]
     assert all(1 <= proposal["field_number"] <= 6 for proposal in result["proposals"])
+
+
+def test_segmented_ocr_recovers_common_team_misreads():
+    from datetime import time
+
+    teams = [
+        {"id": 1, "name": "Ducks", "branch": "femenil", "category": "u12"},
+        {"id": 2, "name": "BlackMambas", "branch": "femenil", "category": "u12"},
+        {"id": 3, "name": "Ducks", "branch": "femenil", "category": "u14"},
+        {"id": 4, "name": "BlackMambas", "branch": "femenil", "category": "u14"},
+        {"id": 5, "name": "Diablos", "branch": "mixto", "category": "u12"},
+        {"id": 6, "name": "Rancheros", "branch": "mixto", "category": "u12"},
+    ]
+
+    result = parse_game_schedule_ocr_cells(
+        1,
+        [
+            {
+                "field_number": 1,
+                "start_time": time(12, 0),
+                "home_team": "Ducks L132 Fem",
+                "away_team": "BlackMambas W12 Fem",
+            },
+            {
+                "field_number": 2,
+                "start_time": time(12, 0),
+                "home_team": "Chablos W12",
+                "away_team": "Rancheros U12",
+            },
+        ],
+        teams,
+    )
+
+    assert result["matched"] == 2
+    assert result["unmatched"] == 0
+    assert result["proposals"][0]["home_team_id"] == 1
+    assert result["proposals"][0]["away_team_id"] == 2
+    assert result["proposals"][1]["home_team_id"] == 5
