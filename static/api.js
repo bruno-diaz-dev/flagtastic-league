@@ -369,6 +369,14 @@ async function getMyRefereeProfile() {
     return fetch("/api/referees/me");
 }
 
+async function updateMyRefereeProfile(payload) {
+    return fetch("/api/referees/me", {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+}
+
 async function uploadMyRefereePhoto(file) {
     const formData = new FormData();
     formData.append("file", file);
