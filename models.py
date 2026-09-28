@@ -158,7 +158,7 @@ class GameCreate(BaseModel):
     home_team_id: int = Field(gt=0)
     away_team_id: int = Field(gt=0)
     week: int = Field(default=1, gt=0)
-    field_number: int = Field(ge=1, le=8)
+    field_number: int = Field(ge=1, le=6)
     start_time: time | None = None
 
 class GameScoreUpdate(BaseModel):
@@ -429,6 +429,7 @@ class GameScheduleOcrPayload(BaseModel):
     image_width: int = Field(gt=0, le=20000)
     image_height: int = Field(gt=0, le=20000)
     recognized_text: str | None = Field(default=None, max_length=50000)
+    week_override: int | None = Field(default=None, gt=0, le=99)
     words: list[GameScheduleOcrWord] = Field(min_length=1, max_length=10000)
 
 
