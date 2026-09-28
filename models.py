@@ -428,6 +428,7 @@ class GameScheduleOcrPayload(BaseModel):
 
     image_width: int = Field(gt=0, le=20000)
     image_height: int = Field(gt=0, le=20000)
+    recognized_text: str | None = Field(default=None, max_length=50000)
     words: list[GameScheduleOcrWord] = Field(min_length=1, max_length=10000)
 
 
