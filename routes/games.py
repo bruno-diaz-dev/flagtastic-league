@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from models import (
     GameCreate,
     GameScheduleImportConfirmation,
+    GameScheduleOcrPayload,
     GameScoreUpdate,
     OfficialPositionUpdate,
     RefereeScheduleConfirmation
@@ -38,6 +39,7 @@ from services.game_schedule_import import (
     GameScheduleImportError,
     parse_game_schedule_file,
     parse_game_schedule_image,
+    parse_game_schedule_ocr_words,
 )
 
 router = APIRouter(
@@ -95,6 +97,23 @@ async def analyze_game_schedule(
             raise HTTPException(status_code=422, detail=str(error)) from error
     try:
         return parse_game_schedule_file(filename, content, get_all_teams())
+    except GameScheduleImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/schedule/analyze-ocr")
+def analyze_game_schedule_ocr(
+    payload: GameScheduleOcrPayload,
+    _admin=Depends(require_league_admin),
+):
+    """Match browser-side OCR words against registered league teams."""
+    try:
+        return parse_game_schedule_ocr_words(
+            payload.image_width,
+            payload.image_height,
+            [word.model_dump() for word in payload.words],
+            get_all_teams(),
+        )
     except GameScheduleImportError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
