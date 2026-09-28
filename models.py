@@ -140,8 +140,8 @@ class PlayerCreate(BaseModel):
         return curp.strip().upper()
 
     @model_validator(mode="after")
-    def derive_calendar_age(self):
-        """Prefer CURP-derived calendar age while accepting legacy test data."""
+    def derive_completed_age(self):
+        """Prefer CURP-derived completed age while accepting legacy test data."""
         try:
             self.age = calendar_age_from_curp(self.curp)
         except InvalidCurpBirthDate:
@@ -247,8 +247,8 @@ class PlayerAccountCreate(BaseModel):
         return normalized or None
 
     @model_validator(mode="after")
-    def derive_calendar_age(self):
-        """Use the age reached during the current year for account matching."""
+    def derive_completed_age(self):
+        """Use completed years of age from the CURP for account matching."""
         try:
             self.age = calendar_age_from_curp(self.curp)
         except InvalidCurpBirthDate:
