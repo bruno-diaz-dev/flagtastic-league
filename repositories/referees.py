@@ -4,7 +4,7 @@ from database import get_connection
 
 
 def get_referee_roster():
-    """Return active referees without exposing account contact information."""
+    """Return active users who have the cumulative referee role."""
     connection = get_connection()
     rows = connection.execute(
         """
@@ -25,7 +25,12 @@ def get_referee_roster():
         FROM users
         LEFT JOIN players ON players.id = users.player_id
         WHERE users.status = 'active'
-          AND users.role = 'referee'
+          AND EXISTS (
+              SELECT 1
+              FROM user_roles
+              WHERE user_roles.user_id = users.id
+                AND user_roles.role = 'referee'
+          )
         ORDER BY COALESCE(
             NULLIF(users.aka, ''),
             NULLIF(players.aka, ''),
