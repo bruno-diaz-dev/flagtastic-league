@@ -330,10 +330,11 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
             .filter((value) => value !== null);
         if (!valid.length) throw new Error("No se reconocieron horarios en la imagen.");
 
-        const first = valid[0];
-        const last = valid[valid.length - 1];
-        const dataRows = rows.slice(first, last + 1);
-        const times = regularScheduleTimes(parsed.slice(first, last + 1));
+        // Keep every detected grid row. OCR often misses the first and last
+        // time labels even when their row boundaries are clear. The regular
+        // sequence below can safely extrapolate those edge hours.
+        const dataRows = rows;
+        const times = regularScheduleTimes(parsed);
         const subcolumnWidth = (
             canvas.width - timeWidth
         ) / (ACTIVE_SCHEDULE_FIELDS * 2);
