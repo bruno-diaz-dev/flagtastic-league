@@ -7,6 +7,7 @@ from openpyxl import Workbook
 from repositories import players
 from models import UserCreate
 from repositories.users import create_user
+from services.curp import calendar_age_from_curp
 
 os.environ.setdefault(
     "DATABASE_URL",
@@ -98,7 +99,7 @@ def test_register_player():
 
     assert data["team_id"] == team_id
     assert data["name"] == "Bruno Diaz"
-    assert data["age"] == 30
+    assert data["age"] == calendar_age_from_curp(player["curp"])
     assert data["jersey_number"] == 83
     assert "id" in data
 
@@ -514,7 +515,7 @@ def test_import_roster_from_csv():
     assert [player["jersey_number"] for player in roster] == [12, 83]
 
 
-def test_import_roster_derives_calendar_age_from_curp_without_age_column():
+def test_import_roster_derives_completed_age_from_curp_without_age_column():
     team_id = create_test_team()
     content = (
         "nombre,curp,numero\n"
@@ -528,7 +529,7 @@ def test_import_roster_derives_calendar_age_from_curp_without_age_column():
 
     assert response.status_code == 201
     roster = client.get(f"/api/teams/{team_id}/players").json()
-    assert roster[0]["age"] == 30
+    assert roster[0]["age"] == calendar_age_from_curp("DIBB961215HASXXX00")
 
 
 def test_team_manager_can_edit_and_deactivate_roster_player():
@@ -551,7 +552,7 @@ def test_team_manager_can_edit_and_deactivate_roster_player():
         }
     )
     assert updated.status_code == 200
-    assert updated.json()["age"] == 30
+    assert updated.json()["age"] == calendar_age_from_curp("DIBB961215HASXXX00")
     assert updated.json()["jersey_number"] == 10
 
     removal = client.delete(
