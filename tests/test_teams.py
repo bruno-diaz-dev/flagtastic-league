@@ -15,6 +15,7 @@ from database import get_connection
 from main import app
 from models import UserCreate
 from repositories.users import create_user
+from services.curp import calendar_age_from_curp
 
 client = TestClient(app)
 
@@ -306,7 +307,7 @@ def test_get_team_detail_with_roster():
     assert player["name"] == "Bruno Diaz"
     assert player["aka"] is None
     assert player["profile_photo_url"] is None
-    assert player["age"] == 30
+    assert player["age"] == calendar_age_from_curp("DIBB961215HASXXX00")
     assert player["jersey_number"] == 83
     assert "id" in player
     assert "team_id" not in player

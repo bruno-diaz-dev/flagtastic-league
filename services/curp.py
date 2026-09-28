@@ -34,7 +34,14 @@ def birth_date_from_curp(curp: str) -> date:
     return birth_date
 
 
-def calendar_age_from_curp(curp: str, year: int | None = None) -> int:
-    """Return the age the person turns during the selected calendar year."""
+def calendar_age_from_curp(curp: str, as_of: date | None = None) -> int:
+    """Return completed years of age as of the selected date."""
     birth_date = birth_date_from_curp(curp)
-    return (year or date.today().year) - birth_date.year
+    reference_date = as_of or date.today()
+    if birth_date > reference_date:
+        raise InvalidCurpBirthDate("La fecha de nacimiento no puede ser futura")
+    return (
+        reference_date.year
+        - birth_date.year
+        - ((reference_date.month, reference_date.day) < (birth_date.month, birth_date.day))
+    )
