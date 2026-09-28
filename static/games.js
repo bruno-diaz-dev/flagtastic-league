@@ -357,6 +357,47 @@ assignedReferees.addEventListener("click", async (event) => {
 });
 
 
+async function analyzeScheduleImageInBrowser(file) {
+    if (!window.Tesseract) {
+        throw new Error("El lector OCR del navegador no está disponible.");
+    }
+
+    const bitmap = await createImageBitmap(file);
+    try {
+        const result = await window.Tesseract.recognize(file, "spa", {
+            logger: (progress) => {
+                if (progress.status !== "recognizing text") return;
+                const percent = Math.round((progress.progress || 0) * 100);
+                scheduleImportMessage.textContent = `Leyendo imagen... ${percent}%`;
+            }
+        });
+
+        const words = (result.data.words || [])
+            .filter((word) => String(word.text || "").trim())
+            .map((word) => ({
+                text: String(word.text).trim(),
+                left: Math.max(0, Math.round(word.bbox.x0)),
+                top: Math.max(0, Math.round(word.bbox.y0)),
+                width: Math.max(0, Math.round(word.bbox.x1 - word.bbox.x0)),
+                height: Math.max(0, Math.round(word.bbox.y1 - word.bbox.y0))
+            }));
+
+        if (!words.length) {
+            throw new Error("No se reconoció texto en la imagen.");
+        }
+
+        scheduleImportMessage.textContent = "Relacionando equipos reconocidos...";
+        return analyzeGameScheduleOcr({
+            image_width: bitmap.width,
+            image_height: bitmap.height,
+            words
+        });
+    } finally {
+        bitmap.close();
+    }
+}
+
+
 function renderGameScheduleReview(result) {
     scheduleImportState = result;
     scheduleReview.classList.remove("hidden");
@@ -384,13 +425,21 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
     const file = new FormData(scheduleImportForm).get("file");
     scheduleReview.classList.add("hidden");
     scheduleImportMessage.textContent = "Analizando archivo...";
-    const response = await analyzeGameSchedule(file);
-    const body = await response.json();
-    if (!response.ok) {
-        scheduleImportMessage.textContent = body.detail || "No se pudo analizar el rol.";
-        return;
+
+    try {
+        const isImage = file instanceof File && file.type.startsWith("image/");
+        const response = isImage
+            ? await analyzeScheduleImageInBrowser(file)
+            : await analyzeGameSchedule(file);
+        const body = await response.json();
+        if (!response.ok) {
+            scheduleImportMessage.textContent = body.detail || "No se pudo analizar el rol.";
+            return;
+        }
+        renderGameScheduleReview(body);
+    } catch (error) {
+        scheduleImportMessage.textContent = error.message || "No se pudo analizar el rol.";
     }
-    renderGameScheduleReview(body);
 });
 
 
