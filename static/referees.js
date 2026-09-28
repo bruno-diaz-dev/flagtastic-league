@@ -27,7 +27,7 @@ async function loadRefereeRoster() {
     const response = await getRefereeRoster();
     if (response.status === 401) return window.location.assign("/login");
     if (!response.ok) {
-        rosterMessage.textContent = "No se pudo cargar la plantilla de árbitros.";
+        rosterMessage.textContent = "No se pudo cargar la planilla de árbitros.";
         return;
     }
     const referees = await response.json();
