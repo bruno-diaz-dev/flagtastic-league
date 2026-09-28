@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from models import (
     GameCreate,
+    GameScheduleImportConfirmation,
     GameScoreUpdate,
     OfficialPositionUpdate,
     RefereeScheduleConfirmation
@@ -14,10 +15,11 @@ from repositories.games import (
     get_game_referees,
     get_games_for_referee,
     get_games,
+    import_game_schedule,
     remove_referee,
     update_game_score
     )
-from repositories.teams import get_team_by_id
+from repositories.teams import get_all_teams, get_team_by_id
 from dependencies.auth import (
     optional_authenticated_user,
     require_league_admin,
@@ -31,12 +33,17 @@ from services.referee_schedule_ocr import (
     RefereeScheduleImageError,
     parse_referee_schedule_image
 )
+from services.game_schedule_import import (
+    GameScheduleImportError,
+    parse_game_schedule_file,
+)
 
 router = APIRouter(
     prefix="/api/games",
     tags=["games"]
 )
 MAX_REFEREE_SCHEDULE_BYTES = 10 * 1024 * 1024
+MAX_GAME_SCHEDULE_BYTES = 15 * 1024 * 1024
 
 @router.post("", status_code=201)
 def create_game(
@@ -67,6 +74,44 @@ def create_game(
 def list_games():
     """Return all scheduled games and their current scores."""
     return get_games()
+
+
+@router.post("/schedule/analyze")
+async def analyze_game_schedule(
+    file: UploadFile = File(...),
+    _admin=Depends(require_league_admin),
+):
+    """Parse an image or spreadsheet into an administrator review."""
+    content = await file.read(MAX_GAME_SCHEDULE_BYTES + 1)
+    if len(content) > MAX_GAME_SCHEDULE_BYTES:
+        raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
+    filename = file.filename or ""
+    if file.content_type in {"image/jpeg", "image/png", "image/webp"}:
+        referees = [
+            user for user in get_all_users()
+            if user["status"] == "active" and user_has_role(user, "referee")
+        ]
+        try:
+            result = parse_referee_schedule_image(content, get_games(), referees)
+            return {"kind": "official_assignments", **result}
+        except RefereeScheduleImageError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+    try:
+        return parse_game_schedule_file(filename, content, get_all_teams())
+    except GameScheduleImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/schedule/confirm")
+def confirm_game_schedule(
+    confirmation: GameScheduleImportConfirmation,
+    _admin=Depends(require_league_admin),
+):
+    """Persist only game rows that an administrator reviewed."""
+    for game in confirmation.games:
+        if game.home_team_id == game.away_team_id:
+            raise HTTPException(status_code=409, detail="Un equipo no puede jugar contra si mismo")
+    return import_game_schedule(confirmation.games)
 
 
 @router.get("/{game_id}/details")

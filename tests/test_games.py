@@ -295,4 +295,33 @@ def test_game_score_cannot_be_tied():
     assert response.json() == {
         "detail": "A game cannot end in a tie"
     }
+
+
+def test_reviewed_csv_schedule_creates_games_and_skips_repeat_uploads():
+    tigres_id = create_test_team(name="Tigres")
+    ravens_id = create_test_team(name="Ravens")
+    content = b"jornada,campo,hora,local,visitante\n2,4,18:00,Tigres Var Libre,Ravens Var Libre\n"
+
+    analysis = client.post(
+        "/api/games/schedule/analyze",
+        files={"file": ("rol.csv", content, "text/csv")},
+    )
+
+    assert analysis.status_code == 200
+    proposal = analysis.json()["proposals"][0]
+    assert proposal["home_team_id"] == tigres_id
+    assert proposal["away_team_id"] == ravens_id
+    payload = {"games": [{
+        "home_team_id": proposal["home_team_id"],
+        "away_team_id": proposal["away_team_id"],
+        "week": proposal["week"],
+        "field_number": proposal["field_number"],
+        "start_time": proposal["start_time"],
+    }]}
+
+    first = client.post("/api/games/schedule/confirm", json=payload)
+    repeated = client.post("/api/games/schedule/confirm", json=payload)
+
+    assert first.json() == {"created": 1, "skipped": 0}
+    assert repeated.json() == {"created": 0, "skipped": 1}
 """API tests for game scheduling, listing, and score updates."""

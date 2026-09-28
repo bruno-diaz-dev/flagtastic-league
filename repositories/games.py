@@ -45,6 +45,47 @@ def create_game(game):
     finally:
         connection.close()
 
+
+def import_game_schedule(games):
+    """Insert reviewed schedule rows atomically and ignore exact duplicates."""
+    connection = get_connection()
+    created = 0
+    skipped = 0
+    try:
+        for game in games:
+            existing = connection.execute(
+                """
+                SELECT id FROM games
+                WHERE week = %s AND home_team_id = %s AND away_team_id = %s
+                """,
+                (game.week, game.home_team_id, game.away_team_id),
+            ).fetchone()
+            if existing is not None:
+                skipped += 1
+                continue
+            connection.execute(
+                """
+                INSERT INTO games
+                    (home_team_id, away_team_id, week, field_number, start_time)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    game.home_team_id,
+                    game.away_team_id,
+                    game.week,
+                    game.field_number,
+                    game.start_time,
+                ),
+            )
+            created += 1
+        connection.commit()
+        return {"created": created, "skipped": skipped}
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
 def get_games():
     """Return games with nested public summaries for both teams."""
     connection = get_connection()

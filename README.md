@@ -54,7 +54,9 @@ representatives, referees, and league administrators.
 - Create staff accounts, grant cumulative roles, and delete login accounts
   while preserving historical sports data.
 - Schedule games, record scores, and manage official assignments.
-- Upload an official schedule image for OCR-assisted assignment review.
+- Import a complete game role from its operational XLSX layout or a CSV, with
+  team matching and administrator review before any game is created.
+- Upload a role image for OCR-assisted game and official assignment review.
 - Import jornada statistics and inspect both teams in game-level statistics.
 
 ## Domain Rules

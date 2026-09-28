@@ -343,3 +343,20 @@ async function confirmRefereeSchedule(assignments) {
         body: JSON.stringify({assignments})
     });
 }
+
+async function analyzeGameSchedule(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch("/api/games/schedule/analyze", {
+        method: "POST",
+        body: formData
+    });
+}
+
+async function confirmGameSchedule(games) {
+    return fetch("/api/games/schedule/confirm", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({games})
+    });
+}
