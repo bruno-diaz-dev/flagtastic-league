@@ -125,13 +125,24 @@ function calendarAgeFromCurp(value) {
     const month = Number(curp.slice(6, 8));
     const day = Number(curp.slice(8, 10));
     const birthDate = new Date(Date.UTC(year, month - 1, day));
+    const today = new Date();
     if (
         birthDate.getUTCFullYear() !== year
         || birthDate.getUTCMonth() !== month - 1
         || birthDate.getUTCDate() !== day
-        || birthDate > new Date()
+        || birthDate > today
     ) return null;
-    return new Date().getFullYear() - year;
+
+    let age = today.getFullYear() - year;
+    const birthdayHasPassed = (
+        today.getMonth() + 1 > month
+        || (
+            today.getMonth() + 1 === month
+            && today.getDate() >= day
+        )
+    );
+    if (!birthdayHasPassed) age -= 1;
+    return age;
 }
 
 async function uploadRosterPlayerPhoto(teamId, playerId, file) {

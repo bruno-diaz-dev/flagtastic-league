@@ -39,7 +39,7 @@
         <form id="player-form" class="player-form">
             <label>Nombre<input name="name" autocomplete="off" required></label>
             <label>CURP<input name="curp" autocomplete="off" minlength="18" maxlength="18" required></label>
-            <label>Edad calendario<input name="age" type="number" readonly tabindex="-1"></label>
+            <label>Edad cumplida<input name="age" type="number" readonly tabindex="-1"></label>
             <label>Número<input name="jersey_number" type="number" min="0" required></label>
             <button type="submit">Registrar jugador</button>
         </form>
@@ -83,6 +83,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260927-1"></script>
+<script src="/static/api.js?v=20260928-3"></script>
 <script src="/static/roster.js?v=20260927-2"></script>
 {% endblock %}

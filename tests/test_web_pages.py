@@ -173,7 +173,7 @@ def test_team_roster_has_a_dedicated_page():
     assert 'id="registered-player-results"' in response.text
     assert "searchRegisteredPlayers" in script.text
     assert "addRegisteredPlayer" in script.text
-    assert "Edad calendario" in response.text
+    assert "Edad cumplida" in response.text
 
     assert "roster-photo-form team-scope-manager-only" in script.text
     assert "uploadRosterPlayerPhoto" in script.text
