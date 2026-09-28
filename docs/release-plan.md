@@ -96,6 +96,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - OCR-assisted official schedule review with explicit administrator
   confirmation before data changes.
 - Private referee assignments and administrator replacement of officials.
+- Authenticated referee roster with self-service photos for referee-only
+  accounts and shared player photos for multi-role accounts.
 
 ### Delivery and operations
 

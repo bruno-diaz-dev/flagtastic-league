@@ -63,6 +63,7 @@ const dashboardLink = document.querySelector("#dashboard-link");
 const representativeDashboardLink = document.querySelector("#representative-dashboard-link");
 const adminUsersLink = document.querySelector("#admin-users-link");
 const refereeGamesLink = document.querySelector("#referee-games-link");
+const refereeRosterLink = document.querySelector("#referee-roster-link");
 
 
 async function loadSessionIdentity() {
@@ -78,6 +79,7 @@ async function loadSessionIdentity() {
         sessionUser.textContent = user.display_name || user.name;
         loginLink.classList.add("hidden");
         logoutButton.classList.remove("hidden");
+        refereeRosterLink?.classList.remove("hidden");
         if (roles.includes("player") && dashboardLink) {
             dashboardLink.classList.remove("hidden");
         }

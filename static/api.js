@@ -360,3 +360,17 @@ async function confirmGameSchedule(games) {
         body: JSON.stringify({games})
     });
 }
+
+async function getRefereeRoster() {
+    return fetch("/api/referees");
+}
+
+async function getMyRefereeProfile() {
+    return fetch("/api/referees/me");
+}
+
+async function uploadMyRefereePhoto(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch("/api/referees/me/photo", {method: "PUT", body: formData});
+}

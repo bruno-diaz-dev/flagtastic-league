@@ -9,6 +9,9 @@ const scheduleReview = document.querySelector("#schedule-review");
 const scheduleReviewBody = document.querySelector("#schedule-review-body");
 const scheduleRawText = document.querySelector("#schedule-raw-text");
 const confirmScheduleButton = document.querySelector("#confirm-schedule");
+const dashboardPhotoPanel = document.querySelector("#referee-dashboard-photo-panel");
+const dashboardPhotoForm = document.querySelector("#referee-dashboard-photo-form");
+const dashboardPhotoMessage = document.querySelector("#referee-dashboard-photo-message");
 
 let availableReferees = [];
 const officialPositions = [
@@ -168,6 +171,26 @@ async function loadAvailableReferees() {
 }
 
 
+async function requestMissingRefereePhoto() {
+    const response = await getMyRefereeProfile();
+    if (!response.ok) return;
+    const profile = await response.json();
+    dashboardPhotoPanel.classList.toggle("hidden", Boolean(profile.profile_photo_url));
+}
+
+
+dashboardPhotoForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const file = new FormData(dashboardPhotoForm).get("file");
+    dashboardPhotoMessage.textContent = "Guardando foto...";
+    const response = await uploadMyRefereePhoto(file);
+    dashboardPhotoMessage.textContent = response.ok
+        ? "Foto arbitral actualizada correctamente."
+        : ((await response.json()).detail || "No se pudo guardar la foto.");
+    if (response.ok) dashboardPhotoPanel.classList.add("hidden");
+});
+
+
 scheduleForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const file = new FormData(scheduleForm).get("file");
@@ -208,6 +231,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
 
 
 loadAvailableReferees();
+requestMissingRefereePhoto();
 loadRefereeGames().catch(() => {
     refereeSummary.innerHTML = "";
     refereeGamesMessage.textContent = "No se pudo conectar con el servidor.";

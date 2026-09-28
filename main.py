@@ -15,6 +15,7 @@ from routes.auth import router as auth_router
 from routes.statistics import router as statistics_router
 from routes.dashboard import router as dashboard_router
 from routes.admin import router as admin_router
+from routes.referees import router as referees_router
 
 logger = configure_observability()
 
@@ -39,6 +40,7 @@ app.include_router(auth_router)
 app.include_router(statistics_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
+app.include_router(referees_router)
 
 
 @app.get("/media/profiles/{filename}")
@@ -49,8 +51,12 @@ def profile_photo(filename: str):
         """
         SELECT profile_photo_data, profile_photo_type
         FROM players WHERE profile_photo_path = %s
+        UNION ALL
+        SELECT profile_photo_data, profile_photo_type
+        FROM users WHERE profile_photo_path = %s
+        LIMIT 1
         """,
-        (filename,)
+        (filename, filename)
     ).fetchone()
     connection.close()
     if row is None or row["profile_photo_data"] is None:
@@ -222,3 +228,9 @@ def user_administration_page(request: Request):
 def referee_games_page(request: Request):
     """Render the private schedule shell; its API enforces referee access."""
     return templates.TemplateResponse(request, "referee_games.html")
+
+
+@app.get("/referees")
+def referee_roster_page(request: Request):
+    """Render the authenticated league referee directory shell."""
+    return templates.TemplateResponse(request, "referees.html")

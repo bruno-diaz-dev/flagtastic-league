@@ -251,12 +251,28 @@ def test_referee_page_has_reviewed_image_import():
     assert 'accept="image/jpeg,image/png,image/webp"' in response.text
     assert 'id="schedule-review-body"' in response.text
     assert 'id="confirm-schedule"' in response.text
+    assert 'id="referee-dashboard-photo-panel"' in response.text
+    assert 'href="/referees"' in response.text
 
     script = client.get("/static/referee_games.js")
     assert "renderRefereeSummary" in script.text
     assert "Asignaciones pendientes" in script.text
     assert "Historial de arbitrajes" in script.text
     assert 'href="/games/${game.id}"' in script.text
+    assert "requestMissingRefereePhoto" in script.text
+
+
+def test_registered_user_referee_roster_page_is_available():
+    response = client.get("/referees")
+
+    assert response.status_code == 200
+    assert "Plantilla de árbitros" in response.text
+    assert 'id="referee-roster"' in response.text
+    assert 'id="referee-photo-form"' in response.text
+    assert 'src="/static/referees.js' in response.text
+
+    layout = client.get("/static/layout.js")
+    assert "refereeRosterLink" in layout.text
 
 
 def test_games_page_accepts_image_xlsx_and_csv_schedule_imports():
