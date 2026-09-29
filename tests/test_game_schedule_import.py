@@ -50,8 +50,12 @@ def test_xlsx_calendar_layout_is_parsed_by_week_field_and_team_pair():
         "away_team": "Rancheras Flag U8",
         "home_team_id": 1,
         "home_match": "Nomadas",
+        "home_match_branch": "mixto",
+        "home_match_category": "u8",
         "away_team_id": 2,
         "away_match": "Rancheras Flag",
+        "away_match_branch": "mixto",
+        "away_match_category": "u8",
         "ready": True,
     }
     assert result["proposals"][1]["field_number"] == 2
