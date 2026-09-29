@@ -588,8 +588,12 @@ def _match_row(row, teams):
         "start_time": row["start_time"].strftime("%H:%M"),
         "home_team_id": home["id"] if home else None,
         "home_match": home["name"] if home else None,
+        "home_match_branch": home["branch"] if home else None,
+        "home_match_category": home["category"] if home else None,
         "away_team_id": away["id"] if away else None,
         "away_match": away["name"] if away else None,
+        "away_match_branch": away["branch"] if away else None,
+        "away_match_category": away["category"] if away else None,
         "ready": ready,
     }
 
@@ -599,11 +603,45 @@ def _ocr_category_hint(label):
     if "libre" in target or "l1bre" in target:
         return "libre"
 
-    compact = target.replace(" ", "")
-    if re.search(r"u(?:8|s|b)(?:$|[^0-9])", compact):
-        return "u8"
-
     known = ("8", "10", "12", "14", "16", "18")
+    substitutions = str.maketrans({
+        "b": "8",
+        "e": "8",
+        "s": "8",
+        "o": "0",
+        "q": "0",
+        "d": "0",
+        "i": "1",
+        "l": "1",
+        "z": "2",
+        "a": "4",
+        "g": "6",
+    })
+
+    for raw_token in target.split():
+        token = raw_token
+        if token.startswith(("u", "l", "i", "1", "w")):
+            token = "u" + token[1:]
+        if not token.startswith("u"):
+            continue
+
+        suffix = token[1:].translate(substitutions)
+        if suffix in known:
+            return f"u{suffix}"
+
+        # OCR can insert a stray character in a short category token (e.g.
+        # U12 -> L132). Compare the cleaned suffix against known categories.
+        best = max(
+            (
+                SequenceMatcher(None, suffix, value).ratio(),
+                value,
+            )
+            for value in known
+        )
+        if best[0] >= 0.72:
+            return f"u{best[1]}"
+
+    # Last-resort numeric hint for strings where the leading U was lost.
     best = None
     for token in target.split():
         digits = "".join(character for character in token if character.isdigit())
@@ -614,7 +652,7 @@ def _ocr_category_hint(label):
             candidate = (score, value)
             if best is None or candidate > best:
                 best = candidate
-    if best is not None and best[0] >= 0.66:
+    if best is not None and best[0] >= 0.72:
         return f"u{best[1]}"
     return None
 
