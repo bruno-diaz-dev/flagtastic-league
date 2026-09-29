@@ -200,6 +200,16 @@ def test_team_roster_has_a_dedicated_page():
     assert "deactivateRosterPlayer" in script.text
 
 
+def test_roster_editor_stays_hidden_until_requested_and_uses_shared_controls():
+    script = client.get("/static/roster.js").text
+    stylesheet = client.get("/static/style.css").text
+
+    assert 'roster-edit-form team-scope-manager-only hidden' in script
+    assert 'body.can-manage-team form.team-scope-manager-only.hidden' in stylesheet
+    assert 'grid-template-columns: repeat(2, minmax(0, 1fr))' in stylesheet
+    assert 'input[type="file"]::file-selector-button' in stylesheet
+
+
 def test_collection_images_are_loaded_lazily():
     scripts = [
         client.get("/static/teams.js").text,
