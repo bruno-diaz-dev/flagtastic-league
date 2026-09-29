@@ -573,13 +573,20 @@ confirmScheduleButton?.addEventListener("click", async () => {
         confirmScheduleButton.disabled = false;
         return;
     }
-    const response = await confirmGameSchedule(selected);
-    const body = await response.json();
-    scheduleImportMessage.textContent = response.ok
-        ? `${body.created} partido(s) creados; ${body.updated || 0} corregido(s); ${body.skipped} sin cambios.`
-        : (body.detail || "No se pudo guardar el rol.");
-    confirmScheduleButton.disabled = !response.ok;
-    if (response.ok) {
-        await loadGames();
+    try {
+        const response = await confirmGameSchedule(selected);
+        const body = await response.json();
+        scheduleImportMessage.textContent = response.ok
+            ? `${body.created} partido(s) creados; ${body.updated || 0} corregido(s); ${body.skipped} sin cambios.`
+            : (body.detail || "No se pudo guardar el rol.");
+        if (response.ok) {
+            scheduleImportState = null;
+            scheduleReview.classList.add("hidden");
+            await loadGames();
+        }
+    } catch (error) {
+        scheduleImportMessage.textContent = "No se pudo guardar el rol. Reintenta la confirmacion.";
+    } finally {
+        confirmScheduleButton.disabled = !scheduleImportState;
     }
 });

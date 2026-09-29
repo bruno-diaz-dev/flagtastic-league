@@ -501,7 +501,7 @@ def _read_calendar_workbook(content):
                     hour_column = detected_hour_column
                     field_columns = {}
                     for index, value in enumerate(texts):
-                        match = re.fullmatch(rf"campo\s*([1-{MAX_SCHEDULE_FIELDS}])", _normalize(value))
+                        match = re.fullmatch(r"campo\s*([1-8])", _normalize(value))
                         if match and index + 1 < len(cells):
                             field_columns[index] = int(match.group(1))
                     continue

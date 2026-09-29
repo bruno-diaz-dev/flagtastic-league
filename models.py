@@ -158,7 +158,7 @@ class GameCreate(BaseModel):
     home_team_id: int = Field(gt=0)
     away_team_id: int = Field(gt=0)
     week: int = Field(default=1, gt=0)
-    field_number: int = Field(ge=1, le=6)
+    field_number: int = Field(ge=1, le=8)
     start_time: time | None = None
 
 class GameScoreUpdate(BaseModel):
@@ -402,7 +402,7 @@ class RefereeScheduleAssignment(BaseModel):
     """Validate one administrator-reviewed row from schedule OCR."""
 
     game_id: int = Field(gt=0)
-    field_number: int = Field(ge=1, le=6)
+    field_number: int = Field(ge=1, le=8)
     scheduled_time: time | None = None
     officials: list[GameOfficialAssignment] = Field(default_factory=list)
 

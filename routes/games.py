@@ -11,6 +11,7 @@ from models import (
     RefereeScheduleConfirmation
 )
 from repositories.games import (
+    ScheduleConflictError,
     assign_referee,
     apply_referee_schedule,
     create_game as create_game_repository,
@@ -143,10 +144,18 @@ def confirm_game_schedule(
     _admin=Depends(require_league_admin),
 ):
     """Persist only game rows that an administrator reviewed."""
+    slots = set()
     for game in confirmation.games:
         if game.home_team_id == game.away_team_id:
             raise HTTPException(status_code=409, detail="Un equipo no puede jugar contra si mismo")
-    return import_game_schedule(confirmation.games)
+        slot = (game.week, game.field_number, game.start_time)
+        if slot in slots:
+            raise HTTPException(status_code=409, detail="El rol contiene dos partidos en el mismo horario y campo")
+        slots.add(slot)
+    try:
+        return import_game_schedule(confirmation.games)
+    except ScheduleConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.get("/{game_id}/details")

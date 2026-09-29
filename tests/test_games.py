@@ -360,3 +360,65 @@ def test_reviewed_schedule_reimport_corrects_existing_slot():
     assert len(games) == 1
     assert games[0]["home_team"]["id"] == tigres_id
     assert games[0]["away_team"]["id"] == lobos_id
+
+
+def test_schedule_cannot_replace_scored_game_and_rolls_back_batch():
+    home = create_test_team(name="Home")
+    away = create_test_team(name="Away")
+    other = create_test_team(name="Other")
+    row = dict(home_team_id=home, away_team_id=away, week=1,
+               field_number=1, start_time="12:00")
+    client.post("/api/games/schedule/confirm", json={"games": [row]})
+    game_id = client.get("/api/games").json()[0]["id"]
+    client.patch(f"/api/games/{game_id}/score", json={"home_score": 20, "away_score": 6})
+    response = client.post("/api/games/schedule/confirm", json={"games": [
+        {**row, "start_time": "13:00"}, {**row, "away_team_id": other}
+    ]})
+    assert response.status_code == 409
+    games = client.get("/api/games").json()
+    assert len(games) == 1
+    assert games[0]["away_team"]["id"] == away
+    assert games[0]["home_score"] == 20
+
+
+def test_schedule_rejects_duplicate_slots():
+    home = create_test_team(name="Home")
+    away = create_test_team(name="Away")
+    row = dict(home_team_id=home, away_team_id=away, field_number=1, start_time="12:00")
+    response = client.post("/api/games/schedule/confirm", json={"games": [row, row]})
+    assert response.status_code == 409
+    assert client.get("/api/games").json() == []
+
+
+def test_schedule_cannot_replace_game_with_linked_statistics():
+    home = create_test_team(name="Home")
+    away = create_test_team(name="Away")
+    other = create_test_team(name="Other")
+    row = dict(home_team_id=home, away_team_id=away, field_number=1, start_time="12:00")
+    client.post("/api/games/schedule/confirm", json={"games": [row]})
+    game_id = client.get("/api/games").json()[0]["id"]
+    connection = get_connection()
+    player_id = connection.execute(
+        "INSERT INTO players (name, curp, age) VALUES ('Test', 'TEST000000HTEST00', 20) RETURNING id"
+    ).fetchone()["id"]
+    connection.execute(
+        "INSERT INTO player_week_stats (week, player_id, team_id, game_id) VALUES (1, %s, %s, %s)",
+        (player_id, home, game_id),
+    )
+    connection.commit()
+    connection.close()
+    response = client.post("/api/games/schedule/confirm", json={"games": [{**row, "away_team_id": other}]})
+    assert response.status_code == 409
+    assert client.get("/api/games").json()[0]["away_team"]["id"] == away
+
+
+@pytest.mark.parametrize("field", [7, 8])
+def test_schedule_supports_fields_seven_and_eight_and_null_time_reimports(field):
+    home = create_test_team(name="Home")
+    away = create_test_team(name="Away")
+    row = dict(home_team_id=home, away_team_id=away, field_number=field)
+    first = client.post("/api/games/schedule/confirm", json={"games": [row]})
+    second = client.post("/api/games/schedule/confirm", json={"games": [row]})
+    assert first.status_code == second.status_code == 200
+    assert second.json()["skipped"] == 1
+    assert len(client.get("/api/games").json()) == 1

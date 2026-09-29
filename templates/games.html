@@ -31,7 +31,7 @@
             <label>
                 Campo
                 <select name="field_number" required>
-                    {% for field_number in range(1, 7) %}
+                    {% for field_number in range(1, 9) %}
                     <option value="{{ field_number }}">Campo {{ field_number }}</option>
                     {% endfor %}
                 </select>
@@ -148,7 +148,7 @@
             Campo
             <select id="game-filter-field">
                 <option value="">Todos los campos</option>
-                {% for field_number in range(1, 7) %}
+                {% for field_number in range(1, 9) %}
                 <option value="{{ field_number }}">Campo {{ field_number }}</option>
                 {% endfor %}
             </select>
@@ -163,6 +163,6 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
 <script src="/static/api.js?v=20260928-4"></script>
-<script src="/static/schedule_ocr_cells.js?v=20260928-3"></script>
-<script src="/static/games.js?v=20260928-8"></script>
+<script src="/static/schedule_ocr_cells.js?v=20260928-4"></script>
+<script src="/static/games.js?v=20260928-9"></script>
 {% endblock %}

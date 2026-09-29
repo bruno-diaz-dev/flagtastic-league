@@ -2,6 +2,10 @@
 
 from database import get_connection
 
+
+class ScheduleConflictError(ValueError):
+    """A schedule replacement would discard or misattribute existing data."""
+
 def create_game(game):
     """Create an unscored game between two validated teams."""
     connection = get_connection()
@@ -53,14 +57,16 @@ def import_game_schedule(games):
     updated = 0
     skipped = 0
     try:
+        # Serialize schedule imports, including empty slots, until commit.
+        connection.execute("LOCK TABLE games IN SHARE ROW EXCLUSIVE MODE")
         for game in games:
             existing = connection.execute(
                 """
-                SELECT id, home_team_id, away_team_id
+                SELECT id, home_team_id, away_team_id, home_score, away_score
                 FROM games
                 WHERE week = %s
                   AND field_number = %s
-                  AND start_time = %s
+                  AND start_time IS NOT DISTINCT FROM %s
                 ORDER BY id
                 LIMIT 1
                 """,
@@ -74,6 +80,22 @@ def import_game_schedule(games):
                 ):
                     skipped += 1
                     continue
+
+                related = connection.execute(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1 FROM player_week_stats WHERE game_id = %s
+                        UNION ALL
+                        SELECT 1 FROM game_referees WHERE game_id = %s
+                    ) AS present
+                    """,
+                    (existing["id"], existing["id"]),
+                ).fetchone()["present"]
+                if existing["home_score"] is not None or existing["away_score"] is not None or related:
+                    raise ScheduleConflictError(
+                        f"El partido {existing['id']} ya tiene resultados, estadisticas "
+                        "o arbitros asignados. No se pueden reemplazar sus equipos."
+                    )
 
                 connection.execute(
                     """

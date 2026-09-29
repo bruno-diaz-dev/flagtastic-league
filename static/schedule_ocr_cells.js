@@ -262,30 +262,11 @@ function scheduleMedian(values) {
 }
 
 function regularScheduleTimes(values) {
-    const valid = values
-        .map((value, index) => ({value, index}))
-        .filter((item) => item.value !== null);
-    if (!valid.length) throw new Error("No se reconocieron horarios en la imagen.");
-
-    const slopes = [];
-    for (let index = 1; index < valid.length; index += 1) {
-        const previous = valid[index - 1];
-        const current = valid[index];
-        const step = (current.value - previous.value) / (current.index - previous.index);
-        if (step >= 15 && step <= 180) slopes.push(step);
+    // A break in the schedule is legitimate; OCR must never regularize it.
+    if (!values.length || values.some((value) => !Number.isInteger(value) || value < 0 || value >= 1440)) {
+        throw new Error("No se reconocieron todos los horarios. Usa una imagen mas clara o un archivo XLSX/CSV.");
     }
-    const step = scheduleMedian(slopes);
-    if (step === null) return values;
-    let anchor = scheduleMedian(valid.map((item) => item.value - item.index * step));
-
-    const roundedStep = Math.round(step / 5) * 5;
-    if (Math.abs(step - 60) <= 10) {
-        const roundedHour = Math.round(anchor / 60) * 60;
-        if (Math.abs(anchor - roundedHour) <= 10) anchor = roundedHour;
-        return values.map((_value, index) => Math.round(anchor + index * 60));
-    }
-
-    return values.map((_value, index) => Math.round(anchor + index * roundedStep));
+    return [...values];
 }
 
 function scheduleTimeText(minutes) {
