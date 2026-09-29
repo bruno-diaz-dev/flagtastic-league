@@ -585,7 +585,7 @@ def _match_row(row, teams):
     ready = home is not None and away is not None and home["id"] != away["id"]
     return {
         **row,
-        "start_time": row["start_time"].strftime("%H:%M"),
+        "start_time": row["start_time"].strftime("%H:%M") if row["start_time"] else None,
         "home_team_id": home["id"] if home else None,
         "home_match": home["name"] if home else None,
         "home_match_branch": home["branch"] if home else None,

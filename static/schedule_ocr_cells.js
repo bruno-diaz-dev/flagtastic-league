@@ -263,13 +263,11 @@ function scheduleMedian(values) {
 
 function regularScheduleTimes(values) {
     // A break in the schedule is legitimate; OCR must never regularize it.
-    if (!values.length || values.some((value) => !Number.isInteger(value) || value < 0 || value >= 1440)) {
-        throw new Error("No se reconocieron todos los horarios. Usa una imagen mas clara o un archivo XLSX/CSV.");
-    }
-    return [...values];
+    return values.map((value) => Number.isInteger(value) && value >= 0 && value < 1440 ? value : null);
 }
 
 function scheduleTimeText(minutes) {
+    if (minutes === null) return null;
     const value = ((minutes % 1440) + 1440) % 1440;
     const hour = Math.floor(value / 60);
     const minute = value % 60;
@@ -306,14 +304,7 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
         const parsed = rows.map((row) =>
             scheduleTimeMinutes(timeLabels.get("time:" + row.index))
         );
-        const valid = parsed
-            .map((value, index) => value === null ? null : index)
-            .filter((value) => value !== null);
-        if (!valid.length) throw new Error("No se reconocieron horarios en la imagen.");
-
-        // Keep every detected grid row. OCR often misses the first and last
-        // time labels even when their row boundaries are clear. The regular
-        // sequence below can safely extrapolate those edge hours.
+        // Preserve unreadable times as null so administrators can correct them.
         const dataRows = rows;
         const times = regularScheduleTimes(parsed);
         const subcolumnWidth = (

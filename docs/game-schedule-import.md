@@ -5,8 +5,9 @@ games before confirming. The browser image reader targets the six-field grid
 used by the league. Manual entry, XLSX and CSV support fields 1 through 8.
 
 Image recognition preserves recognized times, including breaks and irregular
-intervals. It stops when a time is unreadable instead of inventing a time;
-retry with a clearer image or an XLSX/CSV file. Recognition is not a substitute
+intervals. Unreadable times remain empty in the review table. Administrators
+must fill the time for each selected game before confirmation; recognized times
+can also be corrected. Recognition is not a substitute
 for reviewing team matches and times before confirmation.
 
 Confirmation is transactional. Repeated identical slots are skipped. Replacing

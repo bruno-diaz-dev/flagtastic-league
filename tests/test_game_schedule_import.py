@@ -21,6 +21,20 @@ TEAMS = [
 ]
 
 
+def test_unreadable_image_time_preserves_matched_teams_for_review():
+    result = parse_game_schedule_ocr_cells(1, [{
+        "field_number": 1,
+        "start_time": None,
+        "home_team": "Nomadas U8",
+        "away_team": "Rancheras Flag U8",
+    }], TEAMS)
+    proposal = result["proposals"][0]
+    assert proposal["start_time"] is None
+    assert proposal["home_team_id"] == 1
+    assert proposal["away_team_id"] == 2
+    assert proposal["ready"] is True
+
+
 def _calendar_file():
     workbook = Workbook()
     sheet = workbook.active

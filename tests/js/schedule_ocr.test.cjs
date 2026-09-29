@@ -12,8 +12,7 @@ test('OCR preserves real schedule breaks and irregular start times', () => {
     }
 });
 
-test('Unreadable times cannot become invented midnight games', () => {
-    for (const times of [[], [null], [660,null,780], [660,1440]]) {
-        assert.throws(() => context.regularScheduleTimes(times));
-    }
+test('Unreadable times stay empty for administrator correction', () => {
+    assert.equal(JSON.stringify(context.regularScheduleTimes([660,null,780,1440])), '[660,null,780,null]');
+    assert.equal(context.scheduleTimeText(null), null);
 });

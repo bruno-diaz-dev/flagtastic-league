@@ -515,10 +515,10 @@ function renderGameScheduleReview(result) {
             <td><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"}></td>
             <td>${proposal.week}</td>
             <td>${proposal.field_number}</td>
-            <td>${escapeHtml(proposal.start_time)}</td>
+            <td><input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></td>
             <td>${escapeHtml(proposal.home_match || proposal.home_team)}</td>
             <td>${escapeHtml(proposal.away_match || proposal.away_team)}</td>
-            <td>${proposal.ready ? "Listo" : `Sin coincidencia (${escapeHtml(proposal.source_row)})`}</td>
+            <td>${proposal.ready ? (proposal.start_time ? "Listo" : "Completa la hora") : `Sin coincidencia (${escapeHtml(proposal.source_row)})`}</td>
         </tr>`).join("");
     confirmScheduleButton.disabled = result.matched === 0;
     scheduleImportMessage.textContent = (
@@ -533,6 +533,7 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
     const file = scheduleFields.get("file");
     const weekOverride = scheduleFields.get("week_override");
     scheduleReview.classList.add("hidden");
+    scheduleImportState = null;
     scheduleImportMessage.textContent = "Analizando archivo...";
 
     try {
@@ -560,7 +561,10 @@ confirmScheduleButton?.addEventListener("click", async () => {
     if (!scheduleImportState) return;
     confirmScheduleButton.disabled = true;
     const selected = [...scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked")]
-        .map((checkbox) => scheduleImportState.proposals[Number(checkbox.dataset.scheduleRow)])
+        .map((checkbox) => {
+            const index = Number(checkbox.dataset.scheduleRow);
+            return {...scheduleImportState.proposals[index], start_time: scheduleReviewBody.querySelector(`[data-schedule-time="${index}"]`).value};
+        })
         .map((proposal) => ({
             home_team_id: proposal.home_team_id,
             away_team_id: proposal.away_team_id,
@@ -570,6 +574,11 @@ confirmScheduleButton?.addEventListener("click", async () => {
         }));
     if (!selected.length) {
         scheduleImportMessage.textContent = "Selecciona al menos un partido listo.";
+        confirmScheduleButton.disabled = false;
+        return;
+    }
+    if (selected.some((game) => !game.start_time)) {
+        scheduleImportMessage.textContent = "Completa la hora de cada partido seleccionado antes de confirmar.";
         confirmScheduleButton.disabled = false;
         return;
     }

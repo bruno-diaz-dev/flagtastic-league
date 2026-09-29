@@ -425,7 +425,7 @@ class GameScheduleOcrWord(BaseModel):
 
 class GameScheduleOcrCellRow(BaseModel):
     field_number: int = Field(ge=1, le=6)
-    start_time: time
+    start_time: time | None = None
     home_team: str = Field(min_length=1, max_length=160)
     away_team: str = Field(min_length=1, max_length=160)
 
