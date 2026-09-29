@@ -10,6 +10,11 @@ must fill the time for each selected game before confirmation; recognized times
 can also be corrected. Recognition is not a substitute
 for reviewing team matches and times before confirmation.
 
+Failed block-OCR time cells receive a second, individual single-line OCR pass.
+The review displays registered team names with branch/category in a separate
+column. The observed `Pitbulls Ir` glyph error resolves to `Pitbulls Jr` without
+collapsing the distinct `Pitbulls Sr` team.
+
 Confirmation is transactional. Repeated identical slots are skipped. Replacing
 teams in a slot is allowed only when the existing game has no scores, linked
 statistics or assigned officials. Conflicts return HTTP 409 and roll back the

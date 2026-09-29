@@ -21,6 +21,25 @@ TEAMS = [
 ]
 
 
+def test_pitbulls_ir_ocr_matches_jr_without_confusing_sr():
+    teams = [
+        {"id": 1, "name": "Pitbulls Jr", "branch": "mixto", "category": "libre"},
+        {"id": 2, "name": "Pitbulls Sr", "branch": "mixto", "category": "libre"},
+        {"id": 3, "name": "Storms", "branch": "mixto", "category": "libre"},
+    ]
+    from datetime import time
+    for label, expected in [("Pitbulls Ir Mix Libre", 1), ("Pitbulls Sr Mix Libre", 2)]:
+        result = parse_game_schedule_ocr_cells(1, [{
+            "field_number": 1, "start_time": time(21),
+            "home_team": label, "away_team": "Storms Mix Libre",
+        }], teams)
+        row = result["proposals"][0]
+        assert row["home_team_id"] == expected
+        assert row["away_match"] == "Storms"
+        assert row["home_match_category"] == "libre"
+        assert row["home_match_branch"] == "mixto"
+
+
 def test_unreadable_image_time_preserves_matched_teams_for_review():
     result = parse_game_schedule_ocr_cells(1, [{
         "field_number": 1,

@@ -703,6 +703,9 @@ def _team_candidate_score(label, team):
 
 
 def _rank_team_candidates(label, teams):
+    # Correct the observed OCR I/J confusion only in the Pitbulls Jr suffix.
+    # Do not normalize arbitrary team names or collapse Jr and Sr variants.
+    label = re.sub(r"\b(pitbulls)\s+[il]r\b", r"\1 jr", label, flags=re.IGNORECASE)
     candidates = [
         (_team_candidate_score(label, team), team)
         for team in teams

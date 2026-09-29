@@ -6,6 +6,13 @@ const path = require('node:path');
 const context = vm.createContext({window: {}});
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/schedule_ocr_cells.js'), 'utf8'), context);
 
+test('Time OCR accepts separators but never truncates a malformed reading', () => {
+    assert.equal(context.scheduleTimeMinutes(' 21:00\n'), 1260);
+    assert.equal(context.scheduleTimeMinutes('11.00'), 660);
+    assert.equal(context.scheduleTimeMinutes('2100'), 1260);
+    assert.equal(context.scheduleTimeMinutes('12100'), null);
+});
+
 test('OCR preserves real schedule breaks and irregular start times', () => {
     for (const times of [[660,720,780,900,960], [665,730,790], [660]]) {
         assert.equal(JSON.stringify(context.regularScheduleTimes(times)), JSON.stringify(times));

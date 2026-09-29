@@ -244,7 +244,7 @@ function scheduleTimeMinutes(value) {
         .replaceAll("L", "1")
         .replace(/[.;,]/g, ":")
         .replace(/\s+/g, "");
-    const match = cleaned.match(/(\d{1,2}):?(\d{2})/);
+    const match = cleaned.match(/^(\d{1,2}):?(\d{2})$/);
     if (!match) return null;
     const hour = Number(match[1]);
     const minute = Number(match[2]);
@@ -301,6 +301,19 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
         const timeLabels = await recognizeScheduleCells(worker, canvas, timeCells, {
             whitelist: "0123456789:"
         });
+        // Narrow time cells often disappear in block OCR. Retry individually
+        // as a single line, with padding and enlarged glyphs, never inferred hours.
+        for (const cell of timeCells) {
+            if (scheduleTimeMinutes(timeLabels.get(cell.key)) !== null) continue;
+            const {sheet} = scheduleContactSheet(canvas, [cell]);
+            await worker.setParameters({
+                tessedit_char_whitelist: "0123456789:.,",
+                tessedit_pageseg_mode: "7"
+            });
+            const result = await worker.recognize(sheet);
+            const text = result.data.text || "";
+            if (scheduleTimeMinutes(text) !== null) timeLabels.set(cell.key, text);
+        }
         const parsed = rows.map((row) =>
             scheduleTimeMinutes(timeLabels.get("time:" + row.index))
         );

@@ -509,7 +509,7 @@ function renderGameScheduleReview(result) {
     scheduleImportState = result;
     scheduleReview.classList.remove("hidden");
     scheduleReviewHead.innerHTML = `
-        <tr><th>Importar</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Local</th><th>Visitante</th><th>Estado</th></tr>`;
+<tr><th>Importar</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Local</th><th>Visitante</th><th>Rama / Categoría</th><th>Estado</th></tr>`;
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
         <tr class="${proposal.ready ? "" : "schedule-row-warning"}">
             <td><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"}></td>
@@ -518,6 +518,7 @@ function renderGameScheduleReview(result) {
             <td><input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></td>
             <td>${escapeHtml(proposal.home_match || proposal.home_team)}</td>
             <td>${escapeHtml(proposal.away_match || proposal.away_team)}</td>
+            <td>${escapeHtml([proposal.home_match_branch || proposal.away_match_branch, proposal.home_match_category || proposal.away_match_category].filter(Boolean).join(" / "))}</td>
             <td>${proposal.ready ? (proposal.start_time ? "Listo" : "Completa la hora") : `Sin coincidencia (${escapeHtml(proposal.source_row)})`}</td>
         </tr>`).join("");
     confirmScheduleButton.disabled = result.matched === 0;
