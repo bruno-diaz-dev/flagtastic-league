@@ -96,6 +96,7 @@ def get_referee_profile(user_id):
         FROM users
         LEFT JOIN players ON players.id = users.player_id
         WHERE users.id = %s
+          AND users.status = 'active'
           AND EXISTS (
               SELECT 1
               FROM user_roles
@@ -107,6 +108,56 @@ def get_referee_profile(user_id):
     ).fetchone()
     connection.close()
     return dict(row) if row is not None else None
+
+
+def get_public_referee_profile(user_id):
+    """Return a referee identity with non-sensitive assignment aggregates."""
+    profile = get_referee_profile(user_id)
+    if profile is None:
+        return None
+
+    connection = get_connection()
+    summary = connection.execute(
+        """
+        SELECT COUNT(DISTINCT game_referees.game_id)::INTEGER AS games,
+               COUNT(DISTINCT games.week)::INTEGER AS weeks,
+               COUNT(DISTINCT game_referees.game_id)
+                   FILTER (WHERE games.status = 'completed')::INTEGER
+                   AS completed_games
+        FROM game_referees
+        JOIN games ON games.id = game_referees.game_id
+        WHERE game_referees.user_id = %s
+        """,
+        (user_id,)
+    ).fetchone()
+    positions = connection.execute(
+        """
+        SELECT game_referees.position,
+               COUNT(DISTINCT game_referees.game_id)::INTEGER AS games
+        FROM game_referees
+        WHERE game_referees.user_id = %s
+        GROUP BY game_referees.position
+        ORDER BY CASE game_referees.position
+            WHEN 'referee' THEN 1
+            WHEN 'down_judge' THEN 2
+            WHEN 'field_judge' THEN 3
+            WHEN 'side_judge' THEN 4
+            WHEN 'statistician' THEN 5
+            ELSE 6
+        END
+        """,
+        (user_id,)
+    ).fetchall()
+    connection.close()
+
+    profile.pop("player_id", None)
+    profile["statistics"] = {
+        "games": summary["games"],
+        "completed_games": summary["completed_games"],
+        "weeks": summary["weeks"],
+        "positions": [dict(position) for position in positions],
+    }
+    return profile
 
 
 def update_referee_aka(user_id, aka):

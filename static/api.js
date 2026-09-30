@@ -416,6 +416,10 @@ async function getRefereeRoster() {
     return fetch("/api/referees");
 }
 
+async function getPublicRefereeProfile(userId) {
+    return fetch(`/api/referees/${userId}`);
+}
+
 async function getMyRefereeProfile() {
     return fetch("/api/referees/me");
 }

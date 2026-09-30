@@ -112,6 +112,9 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Private referee assignments and administrator replacement of officials.
 - Authenticated referee roster with self-service photos for referee-only
   accounts and shared player photos for multi-role accounts.
+- Authenticated referee profiles with non-sensitive totals and position
+  experience; individual game assignments remain restricted to officials and
+  league administrators.
 
 ### Delivery and operations
 

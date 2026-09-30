@@ -62,7 +62,7 @@ function renderUsers() {
             <td><div class="role-choices">${roleChoices(user.roles || [user.role])}</div></td>
             <td>${(user.roles || [user.role]).includes("referee") ? `
                 <div class="official-aka-editor">
-                    <input class="official-aka-input" value="${escapeHtml(user.aka || "")}" maxlength="80" aria-label="AKA de ${escapeHtml(user.name)}">
+                    <input class="official-aka-input" value="${escapeHtml(user.aka || "")}" maxlength="80" placeholder="Alias en la liga" aria-label="AKA de ${escapeHtml(user.name)}">
                     <button class="save-aka-button" type="button">Guardar AKA</button>
                 </div>` : '<span class="not-applicable">No aplica</span>'}</td>
             <td>${user.status === "active" ? "Activo" : "Inactivo"}</td>

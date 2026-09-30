@@ -286,6 +286,85 @@ def test_authenticated_users_see_referee_roster_and_referee_uploads_photo():
     assert client.get(profile["profile_photo_url"]).content == PROFILE_PNG
 
 
+def test_authenticated_user_sees_public_referee_experience_without_private_data():
+    """Public referee profiles expose aggregates but not assignments or email."""
+    app.dependency_overrides.clear()
+    suffix = uuid4().hex[:10]
+    admin_email = f"profile-admin-{suffix}@example.test"
+    referee_email = f"profile-referee-{suffix}@example.test"
+    viewer_email = f"profile-viewer-{suffix}@example.test"
+
+    admin = create_user(UserCreate(
+        email=admin_email, name="Profile Admin", password="supersecret",
+        role="league_admin"
+    ))
+    referee = create_user(UserCreate(
+        email=referee_email, name="Profile Referee", password="supersecret",
+        role="referee"
+    ))
+    create_user(UserCreate(
+        email=viewer_email, name="Profile Viewer", password="supersecret",
+        role="team_representative"
+    ))
+
+    assert login(admin_email).status_code == 200
+    home = client.post(
+        "/api/teams",
+        json={"name": f"Profile Home {suffix}", "branch": "mixto", "category": "libre"}
+    ).json()
+    away = client.post(
+        "/api/teams",
+        json={"name": f"Profile Away {suffix}", "branch": "mixto", "category": "libre"}
+    ).json()
+    game = client.post(
+        "/api/games",
+        json={
+            "home_team_id": home["id"], "away_team_id": away["id"],
+            "week": 3, "field_number": 2
+        }
+    ).json()
+    assignment = client.put(
+        f"/api/games/{game['id']}/referees/{referee['id']}",
+        json={"position": "referee"}
+    )
+    assert assignment.status_code == 201
+    connection = get_connection()
+    connection.execute(
+        "UPDATE games SET status = 'completed' WHERE id = %s",
+        (game["id"],)
+    )
+    connection.commit()
+    connection.close()
+
+    client.cookies.clear()
+    assert client.get(f"/api/referees/{referee['id']}").status_code == 401
+    assert login(viewer_email).status_code == 200
+    response = client.get(f"/api/referees/{referee['id']}")
+
+    assert response.status_code == 200
+    profile = response.json()
+    assert profile["display_name"] == "Profile Referee"
+    assert profile["statistics"] == {
+        "games": 1,
+        "completed_games": 1,
+        "weeks": 1,
+        "positions": [{"position": "referee", "games": 1}],
+    }
+    assert "email" not in profile
+    assert "assignments" not in profile
+    assert "player_id" not in profile
+    assert admin["id"] != referee["id"]
+
+    connection = get_connection()
+    connection.execute(
+        "UPDATE users SET status = 'inactive' WHERE id = %s",
+        (referee["id"],)
+    )
+    connection.commit()
+    connection.close()
+    assert client.get(f"/api/referees/{referee['id']}").status_code == 404
+
+
 def test_referee_can_set_aka_used_by_directory():
     """A referee AKA becomes the public display name used for schedule matching."""
     app.dependency_overrides.clear()

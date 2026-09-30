@@ -338,6 +338,24 @@ def test_registered_user_referee_roster_page_is_available():
     layout = client.get("/static/layout.js")
     assert "refereeRosterLink" in layout.text
 
+    directory_script = client.get("/static/referees.js")
+    assert 'href="/referees/${referee.id}"' in directory_script.text
+
+
+def test_public_referee_profile_page_has_experience_sections():
+    response = client.get("/referees/42")
+
+    assert response.status_code == 200
+    assert 'data-user-id="42"' in response.text
+    assert 'id="referee-profile-stats"' in response.text
+    assert 'id="referee-profile-positions"' in response.text
+    assert 'src="/static/referee_profile.js' in response.text
+
+    script = client.get("/static/referee_profile.js")
+    assert "getPublicRefereeProfile" in script.text
+    assert "Partidos registrados" in script.text
+    assert "Posiciones desempeñadas" not in script.text
+
 
 def test_games_page_accepts_image_xlsx_and_csv_schedule_imports():
     response = client.get("/games")
