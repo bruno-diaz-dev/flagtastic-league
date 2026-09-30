@@ -27,14 +27,19 @@ function leaderboardIdentity(leader) {
         ? `<small>${escapeHtml(leader.player_name)}</small>`
         : "";
     return `
-        <a class="leaderboard-player player-profile-link" href="/players/${leader.player_id}">
-            ${photo}
-            <div>
-                <strong>${escapeHtml(displayName)}</strong>
-                ${legalName}
-                <span>#${leader.jersey_number} · ${escapeHtml(leader.team_name)}</span>
-            </div>
-        </a>`;
+        <div class="leaderboard-identity">
+            <a class="leaderboard-player player-profile-link" href="/players/${leader.player_id}">
+                ${photo}
+                <div>
+                    <strong>${escapeHtml(displayName)}</strong>
+                    ${legalName}
+                </div>
+            </a>
+            <span class="leaderboard-team">
+                #${leader.jersey_number} ·
+                <a class="team-roster-link" href="/teams/${leader.team_id}/roster">${escapeHtml(leader.team_name)}</a>
+            </span>
+        </div>`;
 }
 
 
@@ -98,7 +103,10 @@ async function loadLeaderboards(event) {
 
     try {
         const response = await getLeaderboards(
-            formData.get("branch"),
+            canonicalBranch(
+                leaderboardForm.elements.branch.value,
+                formData.get("category")
+            ),
             formData.get("category")
         );
         if (!response.ok) throw new Error("Request failed");
@@ -110,6 +118,10 @@ async function loadLeaderboards(event) {
 
 
 leaderboardForm.addEventListener("submit", loadLeaderboards);
+bindU12MixedBranch(
+    leaderboardForm.elements.branch,
+    leaderboardForm.elements.category
+);
 if (statisticsImportForm) {
     statisticsImportForm.addEventListener("submit", submitStatisticsImport);
 }

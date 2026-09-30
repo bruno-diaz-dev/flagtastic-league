@@ -75,7 +75,9 @@ function gameTeamRow(team, side, score) {
         <div class="game-team-row">
             <span class="game-team-side">${side}</span>
             ${logo}
-            <strong class="game-team-name">${escapeHtml(team.name)}</strong>
+            <a class="game-team-name team-roster-link" href="/teams/${team.id}/roster">
+                ${escapeHtml(team.name)}
+            </a>
             <span class="game-team-score" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "-"}</span>
         </div>
     `;
@@ -468,6 +470,11 @@ if (gameForm !== null) {
 [manualGameBranch, manualGameCategory].forEach((filter) => {
     filter.addEventListener("change", renderManualTeamOptions);
 });
+bindU12MixedBranch(
+    manualGameBranch,
+    manualGameCategory,
+    renderManualTeamOptions
+);
 manualHomeTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
 });
@@ -478,6 +485,7 @@ manualAwayTeamSearch.addEventListener("input", () => {
 [gameFilterWeek, gameFilterBranch, gameFilterCategory, gameFilterField].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);
 });
+bindU12MixedBranch(gameFilterBranch, gameFilterCategory, renderFilteredGames);
 gameFilterTeam.addEventListener("input", renderFilteredGames);
 
 deleteGamesWeekButton.addEventListener("click", async () => {

@@ -50,6 +50,7 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Multipage server-rendered interface with responsive navigation.
 - Team directory with branch/category filters and deterministic ordering.
 - Dedicated roster and public player-profile pages.
+- Canonical roster links from team names across all public and role dashboards.
 - Chronological game agenda with team-name, jornada, branch, category, and
   field filters, plus scores and game details.
 - Division standings with team logos.
@@ -61,6 +62,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Authenticated team creation with automatic creator assignment.
 - Team lifecycle: `pending`, `active`, and `inactive`.
 - Case-insensitive team identity within each branch/category division.
+- Canonical mixed classification for all U12 teams and ambiguity-safe
+  abbreviated-name matching in schedule and statistics imports.
 - Administrator team rename, representative assignment/removal, and deletion.
 - Representative access limited to explicitly assigned teams.
 - Team logos and Head Coach, Coach, and Manager fields.

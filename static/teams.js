@@ -6,6 +6,8 @@ const teamsContainer = document.querySelector("#teams");
 
 const teamFilterBranch = document.querySelector("#team-filter-branch");
 const teamFilterCategory = document.querySelector("#team-filter-category");
+const teamFormBranch = teamForm.elements.branch;
+const teamFormCategory = teamForm.elements.category;
 
 let teamsState = [];
 
@@ -54,7 +56,7 @@ function renderTeams(teams) {
     teamsContainer.innerHTML = teams
         .map((team) => `
             <article class="team-card">
-                <button class="team-card-main" type="button" data-team-id="${team.id}">
+                <a class="team-card-main" href="/teams/${team.id}/roster">
                     ${team.logo_url
                         ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}" loading="lazy" decoding="async">`
                         : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
@@ -63,7 +65,7 @@ function renderTeams(teams) {
                         <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p>
                     </div>
                     <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
-                </button>
+                </a>
                 <a class="team-manage-link admin-only" href="/teams/${team.id}/manage">Administrar</a>
             </article>
         `)
@@ -132,8 +134,8 @@ async function registerTeam(event) {
 
     const payload = {
         name: formData.get("name"),
-        branch: formData.get("branch"),
-        category: formData.get("category"),
+        branch: canonicalBranch(teamFormBranch.value, teamFormCategory.value),
+        category: teamFormCategory.value,
         head_coach: formData.get("head_coach"),
         coach: formData.get("coach"),
         manager: formData.get("manager")
@@ -165,6 +167,7 @@ async function registerTeam(event) {
         }
 
         teamForm.reset();
+        teamFormCategory.dispatchEvent(new Event("change"));
         formMessage.textContent = "Equipo registrado correctamente.";
 
         await loadTeams();
@@ -173,18 +176,9 @@ async function registerTeam(event) {
     }
 }
 
-teamsContainer.addEventListener("click", async (event) => {
-    const teamCard = event.target.closest("[data-team-id]");
-
-    if (teamCard === null) {
-        return;
-    }
-
-    window.location.assign(`/teams/${teamCard.dataset.teamId}/roster`);
-});
-
 teamFilterBranch.addEventListener("change", renderFilteredTeams);
-teamFilterCategory.addEventListener("change", renderFilteredTeams);
+bindU12MixedBranch(teamFilterBranch, teamFilterCategory, renderFilteredTeams);
+bindU12MixedBranch(teamFormBranch, teamFormCategory);
 teamForm.addEventListener("submit", registerTeam);
 
 async function initializeTeams() {

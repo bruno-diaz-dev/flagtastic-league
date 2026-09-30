@@ -103,6 +103,8 @@ def _division_hints(text):
     category = f"u{category_match.group(1)}" if category_match else None
     if "libre" in normalized:
         category = "libre"
+    if category == "u12":
+        branch = "mixto"
     return branch, category
 
 

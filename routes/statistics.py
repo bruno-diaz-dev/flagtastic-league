@@ -21,6 +21,7 @@ from services.statistics_import import (
     parse_statistics_workbook
 )
 from dependencies.auth import require_league_admin
+from services.divisions import canonicalize_division
 
 
 router = APIRouter(tags=["statistics"])
@@ -151,4 +152,5 @@ def public_player_profile(player_id: int):
 @router.get("/api/statistics/leaderboards")
 def statistics_leaderboards(branch: str, category: str):
     """Return five leaders per statistic for one division."""
+    branch, category = canonicalize_division(branch, category)
     return get_leaderboards(branch, category)

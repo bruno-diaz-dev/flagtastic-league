@@ -471,6 +471,24 @@ select option {
     gap: 10px;
 }
 
+.leaderboard-team {
+    margin-left: 58px;
+    overflow-wrap: anywhere;
+}
+
+.team-roster-link {
+    color: inherit;
+    font-weight: inherit;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.team-roster-link:hover,
+.team-roster-link:focus-visible {
+    color: var(--color-gold);
+    text-decoration: underline;
+}
+
 .leaderboard-player small {
     display: block;
     margin-top: 2px;
@@ -542,6 +560,7 @@ select option {
     text-align: left;
     font: inherit;
     color: var(--color-text) !important;
+    text-decoration: none;
     cursor: pointer;
 }
 
@@ -1141,6 +1160,7 @@ input[type="file"]::file-selector-button:hover {
 .game-team-name {
     min-width: 0;
     flex: 1;
+    font-weight: 700;
     overflow-wrap: anywhere;
 }
 
