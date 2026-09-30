@@ -243,7 +243,7 @@ registeredPlayerSearch.addEventListener("input", () => {
     registeredPlayerResults.disabled = true;
     registeredPlayerForm.querySelector('button[type="submit"]').disabled = true;
     if (query.length < 2) {
-        registeredPlayerResults.innerHTML = '<option value="">Busca un jugador registrado</option>';
+        registeredPlayerResults.innerHTML = '<option value="">Busca un perfil de jugador</option>';
         registeredPlayerMessage.textContent = "";
         return;
     }
@@ -267,7 +267,8 @@ registeredPlayerSearch.addEventListener("input", () => {
                     const displayName = player.aka
                         ? `${player.aka} (${player.name})`
                         : player.name;
-                    return `<option value="${player.id}">${escapeHtml(displayName)}</option>`;
+                    const accountLabel = player.has_account ? "cuenta activa" : "perfil de roster";
+                    return `<option value="${player.id}">${escapeHtml(displayName)} - ${accountLabel}</option>`;
                 })
             ].join("");
             registeredPlayerResults.disabled = false;
@@ -302,7 +303,7 @@ registeredPlayerForm.addEventListener("submit", async (event) => {
     registeredPlayerForm.reset();
     registeredPlayerResults.disabled = true;
     registeredPlayerForm.querySelector('button[type="submit"]').disabled = true;
-    registeredPlayerResults.innerHTML = '<option value="">Busca un jugador registrado</option>';
+    registeredPlayerResults.innerHTML = '<option value="">Busca un perfil de jugador</option>';
     registeredPlayerMessage.textContent = "Jugador agregado correctamente.";
     await loadRoster();
 });

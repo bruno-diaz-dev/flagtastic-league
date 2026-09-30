@@ -132,7 +132,7 @@ def test_player_dashboard_page_is_available():
     assert "profilePhoto.onerror" in script.text
     assert "renderTeamOptions" in script.text
     assert "teamBranchFilter.addEventListener" in script.text
-    assert "bindU12MixedBranch(teamBranchFilter, teamCategoryFilter" in script.text
+    assert "teamCategoryFilter.addEventListener" in script.text
     assert "#profile-form" in stylesheet.text
     assert "grid-template-columns: minmax(0, 1fr)" in stylesheet.text
 

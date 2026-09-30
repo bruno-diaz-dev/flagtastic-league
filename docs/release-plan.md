@@ -62,15 +62,16 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Authenticated team creation with automatic creator assignment.
 - Team lifecycle: `pending`, `active`, and `inactive`.
 - Case-insensitive team identity within each branch/category division.
-- Canonical mixed classification for all U12 teams and ambiguity-safe
-  abbreviated-name matching in schedule and statistics imports.
+- Preserved U12 team branches with cross-branch U12 game compatibility and
+  ambiguity-safe abbreviated-name matching in schedule and statistics imports.
 - Administrator team rename, representative assignment/removal, and deletion.
 - Representative access limited to explicitly assigned teams.
 - Team logos and Head Coach, Coach, and Manager fields.
 - Roster player create, edit, deactivate, and photo update workflows.
 - CSV/XLSX roster imports plus a downloadable CSV template.
-- Search and assignment of existing active player accounts by legal name or AKA,
-  with division eligibility rechecked at write time.
+- Search and assignment of existing player profiles by legal name or AKA,
+  including roster-only minors without login accounts, with division
+  eligibility rechecked at write time.
 - CURP-derived age validation based on age reached during the calendar year.
 
 ### Accounts and authorization

@@ -8,11 +8,8 @@ async function loadStandings(event) {
     event.preventDefault();
 
     const formData = new FormData(standingsForm);
+    const branch = formData.get("branch");
     const category = formData.get("category");
-    const branch = canonicalBranch(
-        standingsForm.elements.branch.value,
-        category
-    );
 
     standingsFormMessage.textContent = "Consultando tabla...";
 
@@ -81,8 +78,4 @@ function renderStandings(standings) {
 
 if (standingsForm !== null) {
     standingsForm.addEventListener("submit", loadStandings);
-    bindU12MixedBranch(
-        standingsForm.elements.branch,
-        standingsForm.elements.category
-    );
 }

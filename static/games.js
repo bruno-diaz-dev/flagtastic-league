@@ -470,11 +470,6 @@ if (gameForm !== null) {
 [manualGameBranch, manualGameCategory].forEach((filter) => {
     filter.addEventListener("change", renderManualTeamOptions);
 });
-bindU12MixedBranch(
-    manualGameBranch,
-    manualGameCategory,
-    renderManualTeamOptions
-);
 manualHomeTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
 });
@@ -485,7 +480,6 @@ manualAwayTeamSearch.addEventListener("input", () => {
 [gameFilterWeek, gameFilterBranch, gameFilterCategory, gameFilterField].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);
 });
-bindU12MixedBranch(gameFilterBranch, gameFilterCategory, renderFilteredGames);
 gameFilterTeam.addEventListener("input", renderFilteredGames);
 
 deleteGamesWeekButton.addEventListener("click", async () => {

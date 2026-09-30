@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 import re
 import unicodedata
 
-from services.divisions import canonicalize_division
+from services.divisions import normalize_division
 
 
 _NAME_STOP_WORDS = {"de", "del", "el", "la", "las", "los", "y"}
@@ -89,17 +89,21 @@ def team_name_match_score(label, registered_name):
 
 def rank_team_matches(label, teams, branch=None, category=None):
     """Rank registered teams, optionally restricting them to one division."""
-    normalized_branch, normalized_category = canonicalize_division(
+    normalized_branch, normalized_category = normalize_division(
         branch, category
     )
     ranked = []
     for team in teams:
-        team_branch, team_category = canonicalize_division(
+        team_branch, team_category = normalize_division(
             team["branch"], team["category"]
         )
         if normalized_category and team_category != normalized_category:
             continue
-        if normalized_branch and team_branch != normalized_branch:
+        if (
+            normalized_branch
+            and normalized_category != "u12"
+            and team_branch != normalized_branch
+        ):
             continue
         ranked.append((team_name_match_score(label, team["name"]), team))
     ranked.sort(key=lambda candidate: candidate[0], reverse=True)

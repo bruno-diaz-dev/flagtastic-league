@@ -38,7 +38,7 @@ def find_registered_player_candidates(
     q: str = Query(min_length=2, max_length=80),
     _user=Depends(require_team_manager)
 ):
-    """Search eligible registered players by legal name or AKA."""
+    """Search eligible player profiles by legal name or AKA."""
     team = get_team_by_id(team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -51,7 +51,7 @@ def register_existing_player(
     membership: RegisteredPlayerMembershipCreate,
     _user=Depends(require_team_manager)
 ):
-    """Add a selected registered player to an eligible managed roster."""
+    """Add a selected existing player profile to an eligible managed roster."""
     team = get_team_by_id(team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -74,7 +74,7 @@ def register_existing_player(
             ) from error
         raise
     if created is None:
-        raise HTTPException(status_code=404, detail="Jugador registrado no encontrado")
+        raise HTTPException(status_code=404, detail="Perfil de jugador no encontrado")
     return created
 
 @router.post("", status_code=201)

@@ -8,7 +8,6 @@ import unicodedata
 from openpyxl import load_workbook
 
 from models import ALLOWED_BRANCHES, ALLOWED_CATEGORIES
-from services.divisions import canonicalize_division
 
 
 class StatisticsFileError(Exception):
@@ -81,7 +80,7 @@ def _division_from_official_category(value, sheet_name, row_number):
         "mixto"
     )
     normalized_category = "libre" if age == "libre" else f"u{age}"
-    return canonicalize_division(branch, normalized_category)
+    return branch, normalized_category
 
 
 def _jersey_numbers(values):
@@ -260,9 +259,8 @@ def _parse_flat_sheet(sheet):
         if all(value is None or str(value).strip() == "" for value in values):
             continue
         data = dict(zip(headers, values))
-        branch, category = canonicalize_division(
-            data["branch"], data["category"]
-        )
+        branch = str(data["branch"] or "").strip().lower()
+        category = str(data["category"] or "").strip().lower()
         team = str(data["team"] or "").strip()
         if branch not in ALLOWED_BRANCHES or category not in ALLOWED_CATEGORIES or not team:
             raise StatisticsFileError(f"Fila {row_number}: division o equipo invalido")

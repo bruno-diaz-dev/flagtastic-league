@@ -6,8 +6,6 @@ const teamsContainer = document.querySelector("#teams");
 
 const teamFilterBranch = document.querySelector("#team-filter-branch");
 const teamFilterCategory = document.querySelector("#team-filter-category");
-const teamFormBranch = teamForm.elements.branch;
-const teamFormCategory = teamForm.elements.category;
 
 let teamsState = [];
 
@@ -134,8 +132,8 @@ async function registerTeam(event) {
 
     const payload = {
         name: formData.get("name"),
-        branch: canonicalBranch(teamFormBranch.value, teamFormCategory.value),
-        category: teamFormCategory.value,
+        branch: formData.get("branch"),
+        category: formData.get("category"),
         head_coach: formData.get("head_coach"),
         coach: formData.get("coach"),
         manager: formData.get("manager")
@@ -167,7 +165,6 @@ async function registerTeam(event) {
         }
 
         teamForm.reset();
-        teamFormCategory.dispatchEvent(new Event("change"));
         formMessage.textContent = "Equipo registrado correctamente.";
 
         await loadTeams();
@@ -177,8 +174,7 @@ async function registerTeam(event) {
 }
 
 teamFilterBranch.addEventListener("change", renderFilteredTeams);
-bindU12MixedBranch(teamFilterBranch, teamFilterCategory, renderFilteredTeams);
-bindU12MixedBranch(teamFormBranch, teamFormCategory);
+teamFilterCategory.addEventListener("change", renderFilteredTeams);
 teamForm.addEventListener("submit", registerTeam);
 
 async function initializeTeams() {

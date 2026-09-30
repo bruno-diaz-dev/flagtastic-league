@@ -12,7 +12,7 @@ from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
-from services.divisions import canonicalize_division, teams_share_game_division
+from services.divisions import teams_share_game_division
 from services.team_matching import team_name_match_score
 
 
@@ -688,13 +688,8 @@ def _team_candidate_score(label, team):
         score += 0.14 if _normalize(team["category"]) == category_hint else -0.08
 
     branch_hint = _ocr_branch_hint(label)
-    if category_hint == "u12":
-        branch_hint = "mixto"
     if branch_hint:
-        team_branch, _team_category = canonicalize_division(
-            team["branch"], team["category"]
-        )
-        score += 0.10 if team_branch == branch_hint else -0.06
+        score += 0.10 if _normalize(team["branch"]) == branch_hint else -0.06
 
     return score
 
@@ -766,8 +761,6 @@ def _team_aliases(team):
         "varonil": ("var", "varonil"),
         "mixto": ("mix", "mixto"),
     }.get(branch, (branch,))
-    if category == "u12":
-        branch_aliases = ("fem", "femenil", "var", "varonil", "mix", "mixto")
     category_aliases = (category, category[1:]) if category.startswith("u") else (category,)
     aliases = {name}
     for category_alias in category_aliases:

@@ -38,8 +38,9 @@ representatives, referees, and league administrators.
 - Manage only explicitly assigned teams.
 - Update team logos and staff: Head Coach, Coach, and Manager.
 - Add, edit, deactivate, and photograph roster players.
-- Search active player accounts by legal name or AKA and add an eligible
-  existing identity without creating a duplicate player.
+- Search all existing player profiles by legal name or AKA, including minors
+  created only through a roster, and add an eligible identity without creating
+  a duplicate player.
 - Import rosters from CSV or XLSX and download the CSV template.
 - View team standings, records, roster totals, and player statistics.
 
@@ -85,9 +86,9 @@ CURP uniquely resolves the person and remains private administrative data.
 Team identity is name + branch + category. Name comparison ignores letter case
 and surrounding whitespace, while the stored display name preserves intentional
 brand capitalization. The same name remains valid in a different division.
-U12 is one mixed division: registrations, filters, and imports normalize every
-U12 team to `mixto`, even when a source file says femenil or varonil.
-Legacy U12 teams may be paired across their stored branches; no other category
+U12 teams retain their registered branch (`femenil`, `varonil`, or `mixto`).
+Only game pairing treats those U12 branches as compatible; filters, standings,
+statistics, and stored team identity remain branch-specific. No other category
 allows cross-branch games.
 
 Statistics are stored per jornada and linked to a game, team, and player. The

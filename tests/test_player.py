@@ -24,6 +24,10 @@ def clean_database():
     connection = get_connection()
 
     connection.execute(
+        "DELETE FROM users"
+    )
+
+    connection.execute(
         "DELETE FROM players"
     )
 
@@ -146,7 +150,7 @@ def test_manager_searches_and_adds_a_registered_player_by_name_or_aka():
     assert no_longer_eligible.json() == []
 
 
-def test_manager_cannot_add_unregistered_identity_or_division_duplicate():
+def test_manager_adds_roster_only_identity_but_not_division_duplicate():
     team_id = create_test_team(name="First Team")
     other_team_id = create_test_team(name="Second Team")
     registered_player_id = create_registered_player("Registered Player")
@@ -170,14 +174,21 @@ def test_manager_cannot_add_unregistered_identity_or_division_duplicate():
     ).fetchone()
     connection.commit()
     connection.close()
-    missing_account = client.post(
+    by_name = client.get(
+        f"/api/teams/{team_id}/players/candidates",
+        params={"q": "Roster Only"}
+    )
+    roster_only = client.post(
         f"/api/teams/{team_id}/players/registered",
         json={"player_id": unregistered["id"], "jersey_number": 9}
     )
 
     assert first.status_code == 201
     assert duplicate.status_code == 409
-    assert missing_account.status_code == 404
+    assert by_name.status_code == 200
+    assert by_name.json()[0]["id"] == unregistered["id"]
+    assert by_name.json()[0]["has_account"] is False
+    assert roster_only.status_code == 201
 
 def test_get_team_roster():
     team_id = create_test_team()
