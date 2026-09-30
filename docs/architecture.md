@@ -249,6 +249,12 @@ This separation allows the same person to play for multiple teams when league el
 
 ### Teams
 
+- Team identity is the normalized name, branch, and category combination.
+- Names preserve display casing but collapse repeated whitespace before writes.
+- PostgreSQL enforces case-insensitive uniqueness with a normalized expression
+  index, so concurrent requests and direct imports cannot create `Ravens` and
+  `RAVENS` in the same division.
+
 - Every team has `name`, `branch`, `category`, and `status`.
 - New teams are created with `status = "pending"`.
 - League administrators transition teams among `pending`, `active`, and

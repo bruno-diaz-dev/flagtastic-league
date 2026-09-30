@@ -122,6 +122,19 @@ def test_team_name_correction_rejects_duplicate_in_same_division():
     assert client.get(f"/api/teams/{team_id}").json()["name"] == "Team To Rename"
 
 
+def test_team_name_correction_rejects_case_insensitive_duplicate():
+    create_test_team(name="Ravens")
+    team_id = create_test_team(name="Team To Rename")
+
+    response = client.patch(
+        f"/api/teams/{team_id}/name",
+        json={"name": "RAVENS"}
+    )
+
+    assert response.status_code == 409
+    assert client.get(f"/api/teams/{team_id}").json()["name"] == "Team To Rename"
+
+
 def test_admin_can_assign_existing_representative_to_historical_team():
     representative = create_user(UserCreate(
         email=f"historical-{uuid4().hex}@example.com",
@@ -339,6 +352,20 @@ def test_team_branch_and_category_normalized():
     assert team["branch"] == "varonil"
     assert team["category"] == "libre"
 
+
+def test_team_name_collapses_repeated_whitespace():
+    response = client.post(
+        "/api/teams",
+        json={
+            "name": "  Eagles   Flag  ",
+            "branch": "mixto",
+            "category": "libre"
+        }
+    )
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "Eagles Flag"
+
 def test_create_team_with_invalid_branch():
     response = client.post(
         "/api/teams",
@@ -388,6 +415,20 @@ def test_cannot_create_duplicated_team_in_same_branch_and_category():
     assert second_response.json() == {
         "detail": "Team already registered in this branch and category"
     }
+
+
+def test_cannot_create_case_insensitive_duplicate_in_same_division():
+    first_response = client.post(
+        "/api/teams",
+        json={"name": "Pitbulls Jr", "branch": "mixto", "category": "libre"}
+    )
+    second_response = client.post(
+        "/api/teams",
+        json={"name": "PITBULLS JR", "branch": "MIXTO", "category": "LIBRE"}
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
 
 def test_same_team_name_can_exist_in_different_category():
     first_response = client.post(
