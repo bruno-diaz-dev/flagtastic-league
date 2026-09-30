@@ -10,6 +10,7 @@ os.environ.setdefault(
 
 from database import get_connection
 from main import app
+from services.divisions import teams_share_game_division
 
 client = TestClient(app)
 
@@ -66,6 +67,31 @@ def test_create_game():
     assert data["home_team_id"] == tigres_id
     assert data["away_team_id"] == ravens_id
     assert data["field_number"] == 1
+
+
+def test_u12_teams_can_play_across_registered_branches():
+    assert teams_share_game_division(
+        {"branch": "femenil", "category": "u12"},
+        {"branch": "varonil", "category": "u12"},
+    )
+    assert teams_share_game_division(
+        {"branch": "mixto", "category": "u12"},
+        {"branch": "femenil", "category": "u12"},
+    )
+
+
+def test_non_u12_teams_cannot_play_across_branches():
+    home_id = create_test_team("Ravens Fem", "femenil", "u14")
+    away_id = create_test_team("Ravens Var", "varonil", "u14")
+
+    response = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    })
+
+    assert response.status_code == 409
+    assert "U12 permite cruces entre ramas" in response.json()["detail"]
 
 
 @pytest.mark.parametrize("field_number", [0, 9])

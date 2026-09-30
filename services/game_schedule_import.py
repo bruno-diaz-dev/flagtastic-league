@@ -12,6 +12,7 @@ from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
+from services.divisions import canonicalize_division, teams_share_game_division
 from services.team_matching import team_name_match_score
 
 
@@ -690,7 +691,10 @@ def _team_candidate_score(label, team):
     if category_hint == "u12":
         branch_hint = "mixto"
     if branch_hint:
-        score += 0.10 if _normalize(team["branch"]) == branch_hint else -0.06
+        team_branch, _team_category = canonicalize_division(
+            team["branch"], team["category"]
+        )
+        score += 0.10 if team_branch == branch_hint else -0.06
 
     return score
 
@@ -724,10 +728,7 @@ def _match_team_pair(home_label, away_label, teams):
         for away_score, away in away_candidates:
             if home["id"] == away["id"]:
                 continue
-            same_division = (
-                _normalize(home["branch"]) == _normalize(away["branch"])
-                and _normalize(home["category"]) == _normalize(away["category"])
-            )
+            same_division = teams_share_game_division(home, away)
             score = home_score + away_score + (0.30 if same_division else 0.0)
             pairs.append((score, home_score, away_score, same_division, home, away))
 
