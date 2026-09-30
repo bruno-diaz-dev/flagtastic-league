@@ -52,7 +52,7 @@ def test_login_page_renders_protected_password_form():
     assert 'name="password"' in response.text
     assert 'type="password"' in response.text
     assert 'src="/static/login.js' in response.text
-    assert 'href="/forgot-password"' in response.text
+    assert 'href="/forgot-password"' not in response.text
     assert 'roles.includes("referee")' in script.text
     assert '"/referee/games"' in script.text
 

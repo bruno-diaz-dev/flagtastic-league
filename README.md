@@ -300,10 +300,18 @@ Production runs on Vercel with PostgreSQL supplied by Supabase. The production
 database must be upgraded to the repository's Alembic head before code that
 depends on a new schema is promoted. Secure session cookies remain enabled.
 
+Vercel Preview deployments use the separate `flagtastic-league-preview`
+Supabase project through a Preview-only `DATABASE_URL`. Preview data is test
+data and may be replaced freely; production data must never be copied into it.
+Every schema migration must be applied and verified in preview before it is
+promoted to production.
+
 Password recovery uses Resend and requires `PUBLIC_BASE_URL`, `RESEND_API_KEY`,
 and `PASSWORD_RESET_FROM_EMAIL` in Vercel. The sender must belong to a verified
 Resend domain. Reset links expire after 30 minutes, work once, and revoke every
-existing session after the password changes.
+existing session after the password changes. The login link is intentionally
+hidden until the league has a verified sending domain; the backend remains
+covered and ready to enable without another schema change.
 
 - `GET /live` verifies the FastAPI process.
 - `GET /ready` verifies PostgreSQL and returns `503` without database details

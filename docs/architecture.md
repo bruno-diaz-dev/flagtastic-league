@@ -298,6 +298,10 @@ Rules that need league context, such as preventing a player from registering twi
 | `POST` | `/api/auth/login` | Authenticates credentials and creates a session cookie |
 | `POST` | `/api/auth/forgot-password` | Returns an account-neutral response and emails a short-lived reset link when eligible |
 | `POST` | `/api/auth/reset-password` | Consumes a single-use token, replaces the password, and revokes existing sessions |
+
+The password recovery endpoints are implemented, but the login entry point is
+hidden until a league-owned sending domain is verified. This prevents exposing
+a recovery flow that Resend's onboarding sender cannot deliver to public users.
 | `GET` | `/api/auth/me` | Returns the user associated with an active session |
 | `POST` | `/api/auth/logout` | Revokes the current session and removes its cookie |
 | `POST` | `/api/teams` | Creates a team |
@@ -452,6 +456,12 @@ Tests clean the database between cases to preserve isolation.
 ## Configuration and Deployment
 
 The application reads the connection string from `DATABASE_URL`. The value is required: the application and Alembic fail explicitly when it is not configured. Local values are documented in `.env.example`; CI and deployed environments provide the value through environment configuration or secrets.
+
+Production and Vercel Preview deployments use separate Supabase projects and
+separate database credentials. The Preview-scoped `DATABASE_URL` points to
+`flagtastic-league-preview`; it contains only synthetic test data and is the
+required environment for validating imports, schedules, statistics, and schema
+migrations before production promotion.
 
 Schema changes are applied before application startup:
 
