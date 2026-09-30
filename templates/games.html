@@ -56,6 +56,10 @@
         </p>
         <form id="game-schedule-import-form" class="filter-form">
             <label>
+                Jornada
+                <input name="week_override" type="number" min="1" max="99" value="1" required>
+            </label>
+            <label>
                 Archivo del rol
                 <input
                     name="file"
@@ -151,12 +155,30 @@
         </label>
     </section>
 
+    <section class="week-admin-actions admin-only" aria-label="Acciones administrativas de jornada">
+        <div>
+            <h3>Acciones de jornada</h3>
+            <p>Selecciona una jornada en los filtros para administrar todos sus partidos.</p>
+        </div>
+        <div class="week-admin-buttons">
+            <button id="toggle-games-week-status" class="secondary-button" type="button" disabled>
+                Posponer jornada
+            </button>
+            <button id="delete-games-week" class="danger-button" type="button" disabled>
+                Eliminar jornada
+            </button>
+        </div>
+        <p id="week-action-message" class="form-message" role="status"></p>
+    </section>
+
     <p id="games-count" class="results-count" aria-live="polite"></p>
     <section id="games" class="games-list" aria-live="polite"></section>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260927-2"></script>
-<script src="/static/games.js?v=20260927-2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
+<script src="/static/api.js?v=20260929-6"></script>
+<script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
+<script src="/static/games.js?v=20260929-14"></script>
 {% endblock %}

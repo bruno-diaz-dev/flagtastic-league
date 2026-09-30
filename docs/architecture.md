@@ -275,6 +275,12 @@ This separation allows the same person to play for multiple teams when league el
 - A team cannot play against itself.
 - Official workbook imports pair consecutive 15-row team blocks within the same division.
 - Imported scores are inferred from touchdowns and conversions; incomplete tied reconstructions use defensive events as a deterministic one-point tiebreak.
+- Games move from `scheduled` to `completed` when a final score is saved. League
+  administrators may mark an unplayed game `postponed` and restore it later;
+  postponed games reject score capture.
+- League administrators may delete one game or all games in a jornada. Referee
+  assignments cascade, while historical weekly statistics are preserved with
+  their nullable game link cleared by the database foreign key.
 
 ## Data Integrity
 
@@ -326,6 +332,10 @@ a recovery flow that Resend's onboarding sender cannot deliver to public users.
 | `POST` | `/api/games/schedule/analyze` | Parses an image, XLSX, or CSV role into reviewable proposals without writing data |
 | `POST` | `/api/games/schedule/confirm` | Atomically creates the selected matched games and omits exact duplicates |
 | `PATCH` | `/api/games/{game_id}/score` | Updates a game's score |
+| `PATCH` | `/api/games/{game_id}/status` | Postpones or restores an unplayed game; league administrators only |
+| `PATCH` | `/api/games/week/{week}/status` | Postpones or restores every unplayed game in a jornada; league administrators only |
+| `DELETE` | `/api/games/{game_id}` | Deletes one game; league administrators only |
+| `DELETE` | `/api/games/week/{week}` | Atomically deletes every game in a jornada; league administrators only |
 | `GET` | `/api/standings` | Lists standings by branch and category |
 | `POST` | `/api/weeks/{week}/player-stats/import` | Atomically replaces a complete jornada from `.xlsx` |
 | `POST` | `/api/statistics/import` | Atomically imports all official `Wk` sheets, statistics, games, and inferred scores |

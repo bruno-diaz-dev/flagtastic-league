@@ -61,6 +61,13 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test browser schedule parsing
+        run: node --test tests/js/*.test.cjs
   
   Docker:
     runs-on: ubuntu-latest

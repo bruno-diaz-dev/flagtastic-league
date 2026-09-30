@@ -82,7 +82,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 
 ### Games, officials, and statistics
 
-- Game scheduling, fields 1-8, scores, and jornada filtering.
+- Game scheduling, fields 1-8, scores, jornada filtering, postponement, and
+  administrator-only deletion of one game or a complete jornada.
 - Reviewed role import from the league XLSX calendar, normalized CSV, or image;
   unresolved teams are blocked and repeated game rows are ignored safely.
 - Game-level player statistics for both participating teams.

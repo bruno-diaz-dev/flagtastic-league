@@ -79,7 +79,7 @@ function renderRoster(team) {
                 </a>
                 <span class="jersey-number">#${player.jersey_number}</span>
                 <form class="roster-photo-form team-scope-manager-only" data-player-id="${player.id}">
-                    <label>
+                    <label class="file-input-label">
                         <span class="sr-only">Foto de ${escapeHtml(displayName)}</span>
                         <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
                     </label>

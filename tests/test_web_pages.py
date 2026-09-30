@@ -200,6 +200,16 @@ def test_team_roster_has_a_dedicated_page():
     assert "deactivateRosterPlayer" in script.text
 
 
+def test_roster_editor_stays_hidden_until_requested_and_uses_shared_controls():
+    script = client.get("/static/roster.js").text
+    stylesheet = client.get("/static/style.css").text
+
+    assert 'roster-edit-form team-scope-manager-only hidden' in script
+    assert 'body.can-manage-team form.team-scope-manager-only.hidden' in stylesheet
+    assert 'grid-template-columns: repeat(2, minmax(0, 1fr))' in stylesheet
+    assert 'input[type="file"]::file-selector-button' in stylesheet
+
+
 def test_collection_images_are_loaded_lazily():
     scripts = [
         client.get("/static/teams.js").text,
@@ -310,3 +320,29 @@ def test_games_page_accepts_image_xlsx_and_csv_schedule_imports():
     script = client.get("/static/games.js")
     assert "analyzeGameSchedule" in script.text
     assert "confirmGameSchedule" in script.text
+
+
+def test_pending_game_score_editor_uses_compact_shared_controls():
+    script = client.get("/static/games.js").text
+    stylesheet = client.get("/static/style.css").text
+
+    assert 'class="score-fields"' in script
+    assert '<span>Local</span>' in script
+    assert '<span>Visitante</span>' in script
+    assert 'class="secondary-link game-details-link"' in script
+    assert '.score-fields input' in stylesheet
+    assert '@media (max-width: 560px)' in stylesheet
+
+
+def test_game_administration_supports_postponing_and_safe_deletion():
+    page = client.get("/games").text
+    script = client.get("/static/games.js").text
+
+    assert 'id="delete-games-week"' in page
+    assert 'id="toggle-games-week-status"' in page
+    assert 'id="week-action-message"' in page
+    assert 'data-game-status="${game.id}"' in script
+    assert 'data-delete-game="${game.id}"' in script
+    assert "ELIMINAR JORNADA" in script
+    assert "deleteGamesByWeek" in script
+    assert "updateGamesStatusByWeek" in script

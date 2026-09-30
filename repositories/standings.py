@@ -61,6 +61,7 @@ def get_standings(branch, category):
             )
             AND games.home_score IS NOT NULL
             AND games.away_score IS NOT NULL
+            AND games.status = 'completed'
         WHERE
             teams.branch = %s
             AND teams.category = %s

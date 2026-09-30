@@ -4,21 +4,30 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from models import (
     GameCreate,
     GameScheduleImportConfirmation,
+    GameScheduleOcrCellsPayload,
+    GameScheduleOcrPayload,
     GameScoreUpdate,
+    GameStatusUpdate,
     OfficialPositionUpdate,
     RefereeScheduleConfirmation
 )
 from repositories.games import (
+    GameStateConflictError,
+    ScheduleConflictError,
     assign_referee,
     apply_referee_schedule,
     create_game as create_game_repository,
+    delete_game as delete_game_repository,
+    delete_games_by_week,
     get_game_referees,
     get_games_for_referee,
     get_games,
     import_game_schedule,
     remove_referee,
-    update_game_score
-    )
+    update_game_score,
+    update_game_status,
+    update_games_status_by_week
+)
 from repositories.teams import get_all_teams, get_team_by_id
 from dependencies.auth import (
     optional_authenticated_user,
@@ -38,6 +47,8 @@ from services.game_schedule_import import (
     GameScheduleImportError,
     parse_game_schedule_file,
     parse_game_schedule_image,
+    parse_game_schedule_ocr_cells,
+    parse_game_schedule_ocr_words,
 )
 
 router = APIRouter(
@@ -99,16 +110,58 @@ async def analyze_game_schedule(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 
+@router.post("/schedule/analyze-cells")
+def analyze_game_schedule_cells(
+    payload: GameScheduleOcrCellsPayload,
+    _admin=Depends(require_league_admin),
+):
+    try:
+        return parse_game_schedule_ocr_cells(
+            payload.week,
+            [row.model_dump() for row in payload.rows],
+            get_all_teams(),
+        )
+    except GameScheduleImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post("/schedule/analyze-ocr")
+def analyze_game_schedule_ocr(
+    payload: GameScheduleOcrPayload,
+    _admin=Depends(require_league_admin),
+):
+    """Match browser-side OCR words against registered league teams."""
+    try:
+        return parse_game_schedule_ocr_words(
+            payload.image_width,
+            payload.image_height,
+            [word.model_dump() for word in payload.words],
+            get_all_teams(),
+            recognized_text=payload.recognized_text,
+            week_override=payload.week_override,
+        )
+    except GameScheduleImportError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
 @router.post("/schedule/confirm")
 def confirm_game_schedule(
     confirmation: GameScheduleImportConfirmation,
     _admin=Depends(require_league_admin),
 ):
     """Persist only game rows that an administrator reviewed."""
+    slots = set()
     for game in confirmation.games:
         if game.home_team_id == game.away_team_id:
             raise HTTPException(status_code=409, detail="Un equipo no puede jugar contra si mismo")
-    return import_game_schedule(confirmation.games)
+        slot = (game.week, game.field_number, game.start_time)
+        if slot in slots:
+            raise HTTPException(status_code=409, detail="El rol contiene dos partidos en el mismo horario y campo")
+        slots.add(slot)
+    try:
+        return import_game_schedule(confirmation.games)
+    except ScheduleConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.get("/{game_id}/details")
@@ -260,7 +313,10 @@ def update_score(
             detail="A game cannot end in a tie"
         )
     
-    game = update_game_score(game_id, score)
+    try:
+        game = update_game_score(game_id, score)
+    except GameStateConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
     if game is None:
         raise HTTPException(
@@ -269,3 +325,57 @@ def update_score(
         )
 
     return game
+
+
+@router.patch("/{game_id}/status")
+def change_game_status(
+    game_id: int,
+    change: GameStatusUpdate,
+    _admin=Depends(require_league_admin),
+):
+    """Postpone or restore an unplayed game."""
+    try:
+        game = update_game_status(game_id, change.status)
+    except GameStateConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return game
+
+
+@router.delete("/week/{week}")
+def delete_week_games(week: int, _admin=Depends(require_league_admin)):
+    """Delete an entire jornada after explicit administrator confirmation."""
+    if week < 1:
+        raise HTTPException(status_code=422, detail="Invalid week")
+    deleted = delete_games_by_week(week)
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="No games found for week")
+    return {"deleted": deleted, "week": week}
+
+
+@router.patch("/week/{week}/status")
+def change_week_games_status(
+    week: int,
+    change: GameStatusUpdate,
+    _admin=Depends(require_league_admin),
+):
+    """Postpone or restore every unplayed game in one jornada."""
+    if week < 1:
+        raise HTTPException(status_code=422, detail="Invalid week")
+    updated = update_games_status_by_week(week, change.status)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="No games found for week")
+    if updated == 0:
+        raise HTTPException(
+            status_code=409,
+            detail="La jornada no tiene partidos pendientes",
+        )
+    return {"updated": updated, "week": week, "status": change.status}
+
+
+@router.delete("/{game_id}", status_code=204)
+def delete_game(game_id: int, _admin=Depends(require_league_admin)):
+    """Delete one game and its dependent operational assignments."""
+    if not delete_game_repository(game_id):
+        raise HTTPException(status_code=404, detail="Game not found")

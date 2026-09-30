@@ -1,6 +1,7 @@
 """Pydantic request contracts and league-wide input constraints."""
 
 from datetime import time
+from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
@@ -165,6 +166,13 @@ class GameScoreUpdate(BaseModel):
     """Validate a non-negative final score update."""
     home_score: int = Field(ge=0)
     away_score: int = Field(ge=0)
+
+
+class GameStatusUpdate(BaseModel):
+    """Administrator-controlled state for an unplayed game."""
+
+    status: Literal["scheduled", "postponed"]
+
 
 class UserCreate(BaseModel):
     """Validate and normalize a new application user."""
@@ -411,6 +419,38 @@ class RefereeScheduleConfirmation(BaseModel):
     """Validate the complete set of reviewed schedule assignments."""
 
     assignments: list[RefereeScheduleAssignment] = Field(min_length=1)
+
+
+class GameScheduleOcrWord(BaseModel):
+    """One OCR word and its bounding box from browser-side recognition."""
+
+    text: str = Field(min_length=1, max_length=120)
+    left: int = Field(ge=0)
+    top: int = Field(ge=0)
+    width: int = Field(ge=0)
+    height: int = Field(ge=0)
+
+
+class GameScheduleOcrCellRow(BaseModel):
+    field_number: int = Field(ge=1, le=6)
+    start_time: time | None = None
+    home_team: str = Field(min_length=1, max_length=160)
+    away_team: str = Field(min_length=1, max_length=160)
+
+
+class GameScheduleOcrCellsPayload(BaseModel):
+    week: int = Field(gt=0, le=99)
+    rows: list[GameScheduleOcrCellRow] = Field(min_length=1, max_length=500)
+
+
+class GameScheduleOcrPayload(BaseModel):
+    """Validate browser OCR output before matching it to league teams."""
+
+    image_width: int = Field(gt=0, le=20000)
+    image_height: int = Field(gt=0, le=20000)
+    recognized_text: str | None = Field(default=None, max_length=50000)
+    week_override: int | None = Field(default=None, gt=0, le=99)
+    words: list[GameScheduleOcrWord] = Field(min_length=1, max_length=10000)
 
 
 class GameScheduleImportRow(GameCreate):

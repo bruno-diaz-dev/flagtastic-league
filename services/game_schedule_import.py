@@ -19,6 +19,7 @@ class GameScheduleImportError(Exception):
 
 
 MAX_SCHEDULE_GAMES = 500
+MAX_SCHEDULE_FIELDS = 6
 CSV_HEADERS = {
     "week": {"week", "jornada", "semana"},
     "field_number": {"field", "field_number", "campo", "cancha"},
@@ -77,7 +78,7 @@ def parse_game_schedule_image(content, teams):
 
     week = _week(raw_text)
     field_numbers = {
-        int(number) for number in re.findall(r"campo\s*([1-8])", _normalize(raw_text))
+        int(number) for number in re.findall(rf"campo\s*([1-{MAX_SCHEDULE_FIELDS}])", _normalize(raw_text))
     }
     if week is None or not field_numbers:
         raise GameScheduleImportError(
@@ -130,6 +131,339 @@ def parse_game_schedule_image(content, teams):
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
         "raw_text": raw_text.strip(),
     }
+
+
+def parse_game_schedule_ocr_cells(week, rows, teams):
+    proposals = []
+    for index, row in enumerate(rows):
+        proposals.append(_match_row({
+            "source_row": f"Imagen, fila {index + 1}",
+            "week": week,
+            "field_number": row["field_number"],
+            "start_time": row["start_time"],
+            "home_team": row["home_team"],
+            "away_team": row["away_team"],
+        }, teams))
+
+    if not proposals:
+        raise GameScheduleImportError("No se reconocieron partidos en la imagen")
+    if len(proposals) > MAX_SCHEDULE_GAMES:
+        raise GameScheduleImportError(
+            f"La imagen no puede contener mas de {MAX_SCHEDULE_GAMES} partidos"
+        )
+    return {
+        "kind": "games",
+        "proposals": proposals,
+        "matched": sum(proposal["ready"] for proposal in proposals),
+        "unmatched": sum(not proposal["ready"] for proposal in proposals),
+        "raw_text": "",
+    }
+
+
+def parse_game_schedule_ocr_words(
+    image_width,
+    image_height,
+    words,
+    teams,
+    recognized_text=None,
+    week_override=None,
+):
+    """Build schedule proposals from browser-side OCR words and coordinates."""
+    normalized_words = [
+        {
+            "text": _text(word["text"]),
+            "left": int(word["left"]),
+            "top": int(word["top"]),
+            "width": int(word["width"]),
+            "height": int(word["height"]),
+        }
+        for word in words
+        if _text(word.get("text"))
+    ]
+    word_text = " ".join(word["text"] for word in normalized_words)
+    raw_text = _text(recognized_text) or word_text
+    week = week_override or _week(raw_text) or _ocr_week_from_words(
+        normalized_words,
+        image_height,
+    )
+    if week is None:
+        raise GameScheduleImportError("No se reconoció la jornada en la imagen")
+
+    time_rows = _ocr_time_rows_from_words(
+        normalized_words,
+        image_width,
+        image_height,
+    )
+    if not time_rows:
+        raise GameScheduleImportError("No se reconocieron horarios en la imagen")
+
+    field_count = _infer_field_count_from_team_matches(
+        normalized_words,
+        image_width,
+        image_height,
+        time_rows,
+        teams,
+    )
+    if field_count is None:
+        field_count = MAX_SCHEDULE_FIELDS
+
+    time_column_width = image_width * 0.027
+    field_width = (image_width - time_column_width) / field_count
+    proposals = []
+    for row_index, (_center_y, scheduled_time) in enumerate(time_rows):
+        top, bottom = _ocr_row_bounds(time_rows, row_index, image_height)
+        for field_index in range(field_count):
+            left = time_column_width + field_index * field_width
+            middle = left + field_width / 2
+            right = left + field_width
+            home_text = _words_in_cell(
+                normalized_words, left, middle, top, bottom
+            )
+            away_text = _words_in_cell(
+                normalized_words, middle, right, top, bottom
+            )
+            if not home_text or not away_text:
+                continue
+            proposals.append(_match_row({
+                "source_row": f"Imagen, fila {row_index + 1}",
+                "week": week,
+                "field_number": field_index + 1,
+                "start_time": scheduled_time,
+                "home_team": home_text,
+                "away_team": away_text,
+            }, teams))
+
+    if not proposals:
+        raise GameScheduleImportError("No se reconocieron partidos en la imagen")
+    if len(proposals) > MAX_SCHEDULE_GAMES:
+        raise GameScheduleImportError(
+            f"La imagen no puede contener mas de {MAX_SCHEDULE_GAMES} partidos"
+        )
+    return {
+        "kind": "games",
+        "proposals": proposals,
+        "matched": sum(proposal["ready"] for proposal in proposals),
+        "unmatched": sum(not proposal["ready"] for proposal in proposals),
+        "raw_text": raw_text.strip(),
+    }
+
+
+def _ocr_time_value(value):
+    """Parse common OCR variants of HH:MM."""
+    text = _text(value).strip()
+    if not text:
+        return None
+
+    cleaned = (
+        text.upper()
+        .replace("O", "0")
+        .replace("I", "1")
+        .replace("L", "1")
+        .replace(".", ":")
+        .replace(";", ":")
+        .replace(",", ":")
+    )
+    cleaned = re.sub(r"\s+", "", cleaned)
+
+    match = re.fullmatch(r"(\d{1,2}):?(\d{2})", cleaned)
+    if match:
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return time(hour, minute)
+    return None
+
+
+def _ocr_time_rows_from_words(words, image_width, image_height):
+    """Recover schedule times from the narrow left-hand time column."""
+    time_column_limit = image_width * 0.055
+    candidates = [
+        word for word in words
+        if word["left"] + word["width"] / 2 <= time_column_limit
+    ]
+    candidates.sort(key=lambda word: (word["top"], word["left"]))
+
+    tolerance = max(3, image_height * 0.012)
+    bands = []
+    for word in candidates:
+        center_y = word["top"] + word["height"] / 2
+        band = next(
+            (
+                existing for existing in bands
+                if abs(existing["center_y"] - center_y) <= tolerance
+            ),
+            None,
+        )
+        if band is None:
+            bands.append({"center_y": center_y, "words": [word]})
+        else:
+            band["words"].append(word)
+            centers = [
+                item["top"] + item["height"] / 2
+                for item in band["words"]
+            ]
+            band["center_y"] = sum(centers) / len(centers)
+
+    rows = []
+    for band in bands:
+        ordered = sorted(band["words"], key=lambda word: word["left"])
+        variants = [
+            "".join(word["text"] for word in ordered),
+            " ".join(word["text"] for word in ordered),
+            *[word["text"] for word in ordered],
+        ]
+        parsed = next(
+            (_ocr_time_value(value) for value in variants if _ocr_time_value(value)),
+            None,
+        )
+        if parsed is not None:
+            rows.append((band["center_y"], parsed))
+
+    # Some OCR engines position the time slightly outside the narrow column.
+    # Fall back to any standalone OCR token only when the column yielded none.
+    if not rows:
+        for word in words:
+            parsed = _ocr_time_value(word["text"])
+            if parsed is None:
+                continue
+            center_y = word["top"] + word["height"] / 2
+            if not any(abs(center_y - existing[0]) < tolerance for existing in rows):
+                rows.append((center_y, parsed))
+
+    rows.sort(key=lambda item: item[0])
+    return rows
+
+
+def _ocr_row_bounds(time_rows, row_index, image_height):
+    center_y = time_rows[row_index][0]
+    previous_y = (
+        time_rows[row_index - 1][0]
+        if row_index
+        else center_y - image_height * 0.04
+    )
+    next_y = (
+        time_rows[row_index + 1][0]
+        if row_index + 1 < len(time_rows)
+        else center_y + image_height * 0.04
+    )
+    return (
+        max(0, (previous_y + center_y) / 2),
+        min(image_height, (center_y + next_y) / 2),
+    )
+
+
+def _infer_field_count_from_team_matches(
+    words,
+    image_width,
+    image_height,
+    time_rows,
+    teams,
+):
+    """Infer the grid width by choosing the layout that matches most teams."""
+    time_column_width = image_width * 0.027
+    best = None
+
+    for field_count in range(1, MAX_SCHEDULE_FIELDS + 1):
+        field_width = (image_width - time_column_width) / field_count
+        ready_games = 0
+        matched_sides = 0
+        populated_cells = 0
+
+        for row_index, _row in enumerate(time_rows):
+            top, bottom = _ocr_row_bounds(time_rows, row_index, image_height)
+            for field_index in range(field_count):
+                left = time_column_width + field_index * field_width
+                middle = left + field_width / 2
+                right = left + field_width
+                home_text = _words_in_cell(words, left, middle, top, bottom)
+                away_text = _words_in_cell(words, middle, right, top, bottom)
+                if not home_text or not away_text:
+                    continue
+
+                populated_cells += 1
+                home = _match_team(home_text, teams)
+                away = _match_team(away_text, teams)
+                matched_sides += int(home is not None) + int(away is not None)
+                if home is not None and away is not None and home["id"] != away["id"]:
+                    ready_games += 1
+
+        candidate = (ready_games, matched_sides, -populated_cells, field_count)
+        if best is None or candidate > best:
+            best = candidate
+
+    if best is None or best[0] == 0:
+        return None
+    return best[3]
+
+
+def _ocr_week_from_words(words, image_height):
+    """Recover the week number when OCR misses the 'Semana' label."""
+    top_limit = image_height * 0.10
+    numeric_words = []
+    for word in words:
+        center_y = word["top"] + word["height"] / 2
+        normalized = _normalize(word["text"])
+        if center_y > top_limit or not re.fullmatch(r"\d{1,2}", normalized):
+            continue
+        value = int(normalized)
+        if 1 <= value <= 30:
+            numeric_words.append((center_y, word["left"], value))
+    if not numeric_words:
+        return None
+    numeric_words.sort()
+    return numeric_words[0][2]
+
+
+def _ocr_field_count_from_words(words, image_width, image_height):
+    """Recover field count from the numbered header row without its labels."""
+    top = image_height * 0.08
+    bottom = image_height * 0.28
+    numbered = []
+    for word in words:
+        center_x = word["left"] + word["width"] / 2
+        center_y = word["top"] + word["height"] / 2
+        normalized = _normalize(word["text"])
+        if (
+            not (top <= center_y <= bottom)
+            or center_x < image_width * 0.04
+            or not re.fullmatch(rf"[1-{MAX_SCHEDULE_FIELDS}]", normalized)
+        ):
+            continue
+        numbered.append((center_y, center_x, int(normalized)))
+
+    if not numbered:
+        return None
+
+    # Header numbers share nearly the same baseline. Pick the densest band so
+    # unrelated numbers elsewhere in the top area do not become field labels.
+    tolerance = max(4, image_height * 0.025)
+    best_band = []
+    for anchor_y, _x, _value in numbered:
+        band = [
+            candidate for candidate in numbered
+            if abs(candidate[0] - anchor_y) <= tolerance
+        ]
+        if len(band) > len(best_band):
+            best_band = band
+
+    values = sorted({value for _y, _x, value in best_band})
+    if len(values) < 2 or values[0] != 1:
+        return None
+
+    maximum = values[-1]
+    expected = list(range(1, maximum + 1))
+    return maximum if values == expected else None
+
+
+def _words_in_cell(words, left, right, top, bottom):
+    selected = []
+    for word in words:
+        center_x = word["left"] + word["width"] / 2
+        center_y = word["top"] + word["height"] / 2
+        if left <= center_x < right and top <= center_y < bottom:
+            selected.append(word)
+    selected.sort(key=lambda word: (word["top"], word["left"]))
+    return " ".join(word["text"] for word in selected).strip()
 
 
 def _ocr_team_cell(image, left, right, top, bottom):
@@ -243,33 +577,188 @@ def _read_csv(content):
 
 
 def _match_row(row, teams):
-    home = _match_team(row["home_team"], teams)
-    away = _match_team(row["away_team"], teams)
+    home, away = _match_team_pair(
+        row["home_team"],
+        row["away_team"],
+        teams,
+    )
     ready = home is not None and away is not None and home["id"] != away["id"]
     return {
         **row,
-        "start_time": row["start_time"].strftime("%H:%M"),
+        "start_time": row["start_time"].strftime("%H:%M") if row["start_time"] else None,
         "home_team_id": home["id"] if home else None,
         "home_match": home["name"] if home else None,
+        "home_match_branch": home["branch"] if home else None,
+        "home_match_category": home["category"] if home else None,
         "away_team_id": away["id"] if away else None,
         "away_match": away["name"] if away else None,
+        "away_match_branch": away["branch"] if away else None,
+        "away_match_category": away["category"] if away else None,
         "ready": ready,
     }
 
 
-def _match_team(label, teams):
+def _ocr_category_hint(label):
     target = _normalize(label)
-    candidates = []
-    for team in teams:
-        score = max(
-            SequenceMatcher(None, target, alias).ratio()
-            for alias in _team_aliases(team)
+    if "libre" in target or "l1bre" in target:
+        return "libre"
+
+    known = ("8", "10", "12", "14", "16", "18")
+    substitutions = str.maketrans({
+        "b": "8",
+        "e": "8",
+        "s": "8",
+        "o": "0",
+        "q": "0",
+        "d": "0",
+        "i": "1",
+        "l": "1",
+        "z": "2",
+        "a": "4",
+        "g": "6",
+    })
+
+    for raw_token in target.split():
+        token = raw_token
+        if token.startswith(("u", "l", "i", "1", "w")):
+            token = "u" + token[1:]
+        if not token.startswith("u"):
+            continue
+
+        suffix = token[1:].translate(substitutions)
+        if suffix in known:
+            return f"u{suffix}"
+
+        # OCR can insert a stray character in a short category token (e.g.
+        # U12 -> L132). Compare the cleaned suffix against known categories.
+        best = max(
+            (
+                SequenceMatcher(None, suffix, value).ratio(),
+                value,
+            )
+            for value in known
         )
-        candidates.append((score, team))
+        if best[0] >= 0.72:
+            return f"u{best[1]}"
+
+    # Last-resort numeric hint for strings where the leading U was lost.
+    best = None
+    for token in target.split():
+        digits = "".join(character for character in token if character.isdigit())
+        if not digits:
+            continue
+        for value in known:
+            score = SequenceMatcher(None, digits, value).ratio()
+            candidate = (score, value)
+            if best is None or candidate > best:
+                best = candidate
+    if best is not None and best[0] >= 0.72:
+        return f"u{best[1]}"
+    return None
+
+
+def _ocr_branch_hint(label):
+    target = _normalize(label)
+    if re.search(r"\bfem", target):
+        return "femenil"
+    if re.search(r"\bvar", target):
+        return "varonil"
+    if re.search(r"\bmix", target):
+        return "mixto"
+    return None
+
+
+def _name_token_score(label, team):
+    target_tokens = _normalize(label).split()
+    name_tokens = _normalize(team["name"]).split()
+    if not target_tokens or not name_tokens:
+        return 0.0
+    scores = []
+    for name_token in name_tokens:
+        scores.append(max(
+            SequenceMatcher(None, name_token, target_token).ratio()
+            for target_token in target_tokens
+        ))
+    return sum(scores) / len(scores)
+
+
+def _team_candidate_score(label, team):
+    target = _normalize(label)
+    alias_score = max(
+        SequenceMatcher(None, target, alias).ratio()
+        for alias in _team_aliases(team)
+    )
+    token_score = _name_token_score(label, team)
+    score = max(alias_score, token_score * 0.92)
+
+    category_hint = _ocr_category_hint(label)
+    if category_hint:
+        score += 0.14 if _normalize(team["category"]) == category_hint else -0.08
+
+    branch_hint = _ocr_branch_hint(label)
+    if branch_hint:
+        score += 0.10 if _normalize(team["branch"]) == branch_hint else -0.06
+
+    return score
+
+
+def _rank_team_candidates(label, teams):
+    # Correct the observed OCR I/J confusion only when the preceding token is
+    # recognizably Pitbulls. The team name and the Jr suffix can both be noisy.
+    normalized = _normalize(label)
+    tokens = normalized.split()
+    looks_like_pitbulls = any(
+        SequenceMatcher(None, token, "pitbulls").ratio() >= 0.55
+        for token in tokens
+    )
+    if looks_like_pitbulls:
+        normalized = re.sub(r"\b(?:i|l|1)r\b", "jr", normalized)
+    label = normalized
+    candidates = [
+        (_team_candidate_score(label, team), team)
+        for team in teams
+    ]
     candidates.sort(key=lambda item: item[0], reverse=True)
-    if not candidates or candidates[0][0] < 0.88:
+    return candidates
+
+
+def _match_team_pair(home_label, away_label, teams):
+    home_candidates = _rank_team_candidates(home_label, teams)[:8]
+    away_candidates = _rank_team_candidates(away_label, teams)[:8]
+    pairs = []
+
+    for home_score, home in home_candidates:
+        for away_score, away in away_candidates:
+            if home["id"] == away["id"]:
+                continue
+            same_division = (
+                _normalize(home["branch"]) == _normalize(away["branch"])
+                and _normalize(home["category"]) == _normalize(away["category"])
+            )
+            score = home_score + away_score + (0.30 if same_division else 0.0)
+            pairs.append((score, home_score, away_score, same_division, home, away))
+
+    pairs.sort(key=lambda item: item[0], reverse=True)
+    if pairs:
+        best = pairs[0]
+        margin = best[0] - pairs[1][0] if len(pairs) > 1 else best[0]
+        if (
+            best[3]
+            and best[1] >= 0.52
+            and best[2] >= 0.52
+            and best[0] >= 1.62
+            and margin >= 0.025
+        ):
+            return best[4], best[5]
+
+    return _match_team(home_label, teams), _match_team(away_label, teams)
+
+
+def _match_team(label, teams):
+    candidates = _rank_team_candidates(label, teams)
+    if not candidates or candidates[0][0] < 0.76:
         return None
-    if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.025:
+    if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.06:
         return None
     return candidates[0][1]
 
