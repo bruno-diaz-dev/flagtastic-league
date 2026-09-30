@@ -418,6 +418,10 @@ and division filters locally, then sorts by jornada, time, and field. Public
 cards show local and visitor teams as separate rows. Administrator score,
 postponement, and deletion controls remain inside a collapsed per-game panel so
 the public schedule keeps the same visual hierarchy for every role.
+Every team name rendered as navigational content links to its canonical
+`/teams/{team_id}/roster` page. This applies to directories, dashboards,
+standings, leaderboards, game cards, game details, and referee assignments;
+team names inside form controls and import review tables remain controls.
 Manual game creation reuses the teams snapshot. A shared branch/category filter
 narrows the division, while independent accent-insensitive searches narrow the
 local and visitor selectors without requiring additional API requests.

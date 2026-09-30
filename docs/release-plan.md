@@ -50,6 +50,7 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Multipage server-rendered interface with responsive navigation.
 - Team directory with branch/category filters and deterministic ordering.
 - Dedicated roster and public player-profile pages.
+- Canonical roster links from team names across all public and role dashboards.
 - Chronological game agenda with team-name, jornada, branch, category, and
   field filters, plus scores and game details.
 - Division standings with team logos.

@@ -53,9 +53,18 @@ async function loadGameDetail() {
     }
     const detail = await response.json();
     const game = detail.game;
-    document.querySelector("#game-detail-title").textContent = `${game.home_team.name} vs ${game.away_team.name}`;
+    document.querySelector("#game-detail-title").innerHTML = `
+        <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
+        <span class="matchup-versus">vs</span>
+        <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
+    `;
     document.querySelector("#game-detail-meta").textContent = `Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}`;
-    document.querySelector("#game-score").innerHTML = `<div class="game-detail-score"><span>${escapeHtml(game.home_team.name)}</span><strong>${game.home_score ?? "-"} · ${game.away_score ?? "-"}</strong><span>${escapeHtml(game.away_team.name)}</span></div>`;
+    document.querySelector("#game-score").innerHTML = `
+        <div class="game-detail-score">
+            <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
+            <strong>${game.home_score ?? "-"} · ${game.away_score ?? "-"}</strong>
+            <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
+        </div>`;
 
     if (Object.hasOwn(detail, "my_statistics")) {
         document.querySelector("#my-game-statistics").classList.remove("hidden");

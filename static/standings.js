@@ -58,10 +58,10 @@ function renderStandings(standings) {
                     .map((team) => `
                         <tr>
                             <td>
-                                <span class="standings-team">
+                                <a class="standings-team team-roster-link" href="/teams/${team.team_id}/roster">
                                     ${team.team_logo_url ? `<img class="team-logo team-logo-small" src="${team.team_logo_url}" alt="" loading="lazy" decoding="async">` : ""}
                                     ${escapeHtml(team.team_name)}
-                                </span>
+                                </a>
                             </td>
                             <td>${team.wins}</td>
                             <td>${team.losses}</td>

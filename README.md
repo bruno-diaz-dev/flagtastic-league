@@ -15,7 +15,8 @@ representatives, referees, and league administrators.
 
 ### Public
 
-- Browse teams by branch and category and open dedicated roster pages.
+- Browse teams by branch and category and open dedicated roster pages from any
+  displayed team name across schedules, standings, statistics, and dashboards.
 - View player photos, AKA, legal roster names, numbers, ages, and team staff.
 - Open public player profiles without exposing CURP, email, roles, or credentials.
 - Filter games by team name, jornada, branch, category, or field; browse the

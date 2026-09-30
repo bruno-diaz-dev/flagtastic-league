@@ -121,7 +121,7 @@ async function loadDashboard() {
     teamsContainer.innerHTML = dashboard.teams.length
         ? dashboard.teams.map((team) => `
             <article class="team-card">
-                <div><h4>${escapeHtml(team.team_name)}</h4>
+                <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(team.team_name)}</a></h4>
                 <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
                 <strong>${team.standing_position || "-"} / ${team.division_team_count}</strong>
             </article>`).join("")

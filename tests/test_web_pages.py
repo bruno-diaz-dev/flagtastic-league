@@ -272,6 +272,35 @@ def test_public_player_links_are_rendered_by_roster_and_leaderboards():
     assert 'href="/players/${leader.player_id}"' in statistics_script.text
 
 
+def test_visible_team_names_link_to_their_canonical_rosters():
+    scripts = {
+        "directory": client.get("/static/teams.js").text,
+        "games": client.get("/static/games.js").text,
+        "game_detail": client.get("/static/game_detail.js").text,
+        "standings": client.get("/static/standings.js").text,
+        "statistics": client.get("/static/statistics.js").text,
+        "player_dashboard": client.get("/static/dashboard.js").text,
+        "player_profile": client.get("/static/player_profile.js").text,
+        "representative": client.get("/static/representative_dashboard.js").text,
+        "referee": client.get("/static/referee_games.js").text,
+    }
+
+    assert 'href="/teams/${team.id}/roster"' in scripts["directory"]
+    assert 'href="/teams/${team.id}/roster"' in scripts["games"]
+    assert 'href="/teams/${game.home_team.id}/roster"' in scripts["game_detail"]
+    assert 'href="/teams/${game.away_team.id}/roster"' in scripts["game_detail"]
+    assert 'href="/teams/${team.team_id}/roster"' in scripts["standings"]
+    assert 'href="/teams/${leader.team_id}/roster"' in scripts["statistics"]
+    assert 'href="/teams/${team.team_id}/roster"' in scripts["player_dashboard"]
+    assert 'href="/teams/${team.team_id}/roster"' in scripts["player_profile"]
+    assert 'href="/teams/${team.id}/roster"' in scripts["representative"]
+    assert 'href="/teams/${game.home_team.id}/roster"' in scripts["referee"]
+
+    stylesheet = client.get("/static/style.css").text
+    assert ".team-roster-link" in stylesheet
+    assert ".team-roster-link:focus-visible" in stylesheet
+
+
 def test_referee_page_has_reviewed_image_import():
     response = client.get("/referee/games")
 

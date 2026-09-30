@@ -62,7 +62,11 @@ function refereeGameCard(game) {
         <article class="game-card referee-game-card">
             <div class="referee-game-copy">
                 <span class="game-state ${isPending ? "game-state-pending" : "game-state-complete"}">${isPending ? "Pendiente" : "Finalizado"}</span>
-                <h4>${escapeHtml(game.home_team.name)} vs ${escapeHtml(game.away_team.name)}</h4>
+                <h4>
+                    <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
+                    <span class="matchup-versus">vs</span>
+                    <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
+                </h4>
                 <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
                 <p>${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
                 <div class="game-crew" aria-label="Planilla arbitral del partido">
