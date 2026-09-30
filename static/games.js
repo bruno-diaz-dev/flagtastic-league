@@ -20,6 +20,9 @@ const scheduleReview = document.querySelector("#game-schedule-review");
 const scheduleReviewHead = document.querySelector("#game-schedule-review-head");
 const scheduleReviewBody = document.querySelector("#game-schedule-review-body");
 const confirmScheduleButton = document.querySelector("#confirm-game-schedule");
+const deleteGamesWeekButton = document.querySelector("#delete-games-week");
+const toggleGamesWeekStatusButton = document.querySelector("#toggle-games-week-status");
+const weekActionMessage = document.querySelector("#week-action-message");
 
 let gamesState = [];
 let scheduleImportState = null;
@@ -100,13 +103,30 @@ function renderGames(games) {
     gamesContainer.innerHTML = games
         .map((game) => {
             const hasScore = game.home_score !== null && game.away_score !== null;
-            const score = hasScore
-                ? `${game.home_score} - ${game.away_score}`
-                : "Pendiente";
+            const isPostponed = game.status === "postponed";
+            const gameState = hasScore
+                ? `<strong class="game-score">${game.home_score} - ${game.away_score}</strong>`
+                : isPostponed
+                    ? `<span class="game-status game-status-postponed">Pospuesto</span>`
+                    : `
+                        <form class="score-form admin-only" data-game-id="${game.id}">
+                            <div class="score-fields">
+                                <label>
+                                    <span>Local</span>
+                                    <input type="number" name="home_score" min="0" inputmode="numeric" aria-label="Puntos de ${escapeHtml(game.home_team.name)}" required>
+                                </label>
+                                <span class="score-separator" aria-hidden="true">-</span>
+                                <label>
+                                    <span>Visitante</span>
+                                    <input type="number" name="away_score" min="0" inputmode="numeric" aria-label="Puntos de ${escapeHtml(game.away_team.name)}" required>
+                                </label>
+                            </div>
+                            <button type="submit">Guardar</button>
+                        </form>`;
 
             return `
                 <article class="game-card">
-                    <div>
+                    <div class="game-card-summary">
                         <h3 class="game-matchup">
                             ${game.home_team.logo_url ? `<img class="team-logo team-logo-small" src="${game.home_team.logo_url}" alt="" loading="lazy" decoding="async">` : ""}
                             <span>${escapeHtml(game.home_team.name)}</span>
@@ -117,36 +137,21 @@ function renderGames(games) {
                         <p>Jornada ${game.week} · ${gameTime(game)} · ${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
                     </div>
                    
-                    ${
-                        hasScore
-                        ? `<strong>${score}</strong>`
-                        : `
-                            <form class="score-form admin-only" data-game-id="${game.id}">
-                                <label>
-                                    ${escapeHtml(game.home_team.name)}
-                                    <input
-                                        type="number"
-                                        name="home_score"
-                                        min="0"
-                                        required
-                                    >
-                                </label>
-
-                                <label>
-                                    ${escapeHtml(game.away_team.name)}
-                                    <input
-                                        type="number"
-                                        name="away_score"
-                                        min="0"
-                                        required
-                                    >
-                                </label>
-
-                                <button type="submit">Guardar marcador</button>
-                            </form>
-                        `
-                    }
-                    <a class="secondary-link" href="/games/${game.id}">Ver detalles</a>
+                    ${gameState}
+                    <div class="game-card-actions">
+                        <a class="secondary-link game-details-link" href="/games/${game.id}">Ver detalles</a>
+                        ${!hasScore ? `
+                            <button
+                                class="secondary-button admin-only game-status-button"
+                                type="button"
+                                data-game-status="${game.id}"
+                                data-next-status="${isPostponed ? "scheduled" : "postponed"}"
+                            >${isPostponed ? "Restaurar" : "Posponer"}</button>
+                        ` : ""}
+                        <button class="danger-button admin-only" type="button" data-delete-game="${game.id}">
+                            Eliminar
+                        </button>
+                    </div>
                 </article>
             `;
         })
@@ -166,6 +171,22 @@ function populateWeekFilter(games) {
 }
 
 function renderFilteredGames() {
+    const selectedWeek = gameFilterWeek.value;
+    deleteGamesWeekButton.disabled = selectedWeek === "";
+    toggleGamesWeekStatusButton.disabled = selectedWeek === "";
+    const selectedWeekGames = gamesState.filter(
+        (game) => String(game.week) === selectedWeek && game.status !== "completed"
+    );
+    const selectedWeekIsPostponed = (
+        selectedWeekGames.length > 0
+        && selectedWeekGames.every((game) => game.status === "postponed")
+    );
+    toggleGamesWeekStatusButton.dataset.nextStatus = (
+        selectedWeekIsPostponed ? "scheduled" : "postponed"
+    );
+    toggleGamesWeekStatusButton.textContent = (
+        selectedWeekIsPostponed ? "Restaurar jornada" : "Posponer jornada"
+    );
     const filteredGames = gamesState.filter((game) => {
         const matchesWeek = (
             gameFilterWeek.value === ""
@@ -317,6 +338,28 @@ gamesContainer.addEventListener("submit", (event) => {
     }
 });
 
+gamesContainer.addEventListener("click", async (event) => {
+    const statusButton = event.target.closest("[data-game-status]");
+    if (statusButton) {
+        statusButton.disabled = true;
+        const response = await updateGameStatus(
+            statusButton.dataset.gameStatus,
+            statusButton.dataset.nextStatus
+        );
+        if (response.ok) await loadGames();
+        else statusButton.disabled = false;
+        return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-game]");
+    if (!deleteButton) return;
+    if (!window.confirm("¿Eliminar este partido? Esta acción no se puede deshacer.")) return;
+    deleteButton.disabled = true;
+    const response = await deleteGame(deleteButton.dataset.deleteGame);
+    if (response.ok) await loadGames();
+    else deleteButton.disabled = false;
+});
+
 
 if (gameForm !== null) {
     gameForm.addEventListener("submit", registerGame);
@@ -324,6 +367,50 @@ if (gameForm !== null) {
 
 [gameFilterWeek, gameFilterBranch, gameFilterCategory, gameFilterField].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);
+});
+
+deleteGamesWeekButton.addEventListener("click", async () => {
+    const week = gameFilterWeek.value;
+    if (!week) return;
+    const confirmation = window.prompt(
+        `Esta acción eliminará todos los partidos de la jornada ${week}. Escribe ELIMINAR JORNADA ${week} para continuar.`
+    );
+    if (confirmation !== `ELIMINAR JORNADA ${week}`) {
+        weekActionMessage.textContent = "No se eliminó ningún partido.";
+        return;
+    }
+    deleteGamesWeekButton.disabled = true;
+    weekActionMessage.textContent = "Eliminando jornada...";
+    const response = await deleteGamesByWeek(week);
+    if (!response.ok) {
+        weekActionMessage.textContent = "No se pudo eliminar la jornada.";
+        deleteGamesWeekButton.disabled = false;
+        return;
+    }
+    const result = await response.json();
+    weekActionMessage.textContent = `Se eliminaron ${result.deleted} partidos de la jornada ${week}.`;
+    gameFilterWeek.value = "";
+    await loadGames();
+});
+
+toggleGamesWeekStatusButton.addEventListener("click", async () => {
+    const week = gameFilterWeek.value;
+    const status = toggleGamesWeekStatusButton.dataset.nextStatus;
+    if (!week || !status) return;
+    const action = status === "postponed" ? "posponer" : "restaurar";
+    if (!window.confirm(`¿Deseas ${action} los partidos pendientes de la jornada ${week}?`)) return;
+
+    toggleGamesWeekStatusButton.disabled = true;
+    weekActionMessage.textContent = "Actualizando jornada...";
+    const response = await updateGamesStatusByWeek(week, status);
+    const body = await response.json();
+    if (!response.ok) {
+        weekActionMessage.textContent = body.detail || "No se pudo actualizar la jornada.";
+        toggleGamesWeekStatusButton.disabled = false;
+        return;
+    }
+    weekActionMessage.textContent = `Se actualizaron ${body.updated} partidos de la jornada ${week}.`;
+    await loadGames();
 });
 
 

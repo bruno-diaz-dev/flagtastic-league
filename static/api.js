@@ -56,6 +56,30 @@ async function updateGamesScore(gameId, payload) {
     return response;
 }
 
+async function updateGameStatus(gameId, status) {
+    return fetch(`/api/games/${gameId}/status`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({status})
+    });
+}
+
+async function deleteGame(gameId) {
+    return fetch(`/api/games/${gameId}`, {method: "DELETE"});
+}
+
+async function deleteGamesByWeek(week) {
+    return fetch(`/api/games/week/${week}`, {method: "DELETE"});
+}
+
+async function updateGamesStatusByWeek(week, status) {
+    return fetch(`/api/games/week/${week}/status`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({status})
+    });
+}
+
 async function getStandings(branch, category) {
     const response = await fetch(
         `/api/standings?branch=${encodeURIComponent(branch)}&category=${encodeURIComponent(category)}`

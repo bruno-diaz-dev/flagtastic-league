@@ -108,8 +108,9 @@ def import_statistics_workbook(weeks, games=None):
                 saved_game = connection.execute(
                     """
                     INSERT INTO games (
-                        home_team_id, away_team_id, home_score, away_score, week
-                    ) VALUES (%s, %s, %s, %s, %s)
+                        home_team_id, away_team_id, home_score, away_score,
+                        week, status
+                    ) VALUES (%s, %s, %s, %s, %s, 'completed')
                     RETURNING id
                     """,
                     (home_team_id, away_team_id, game["home_score"],
@@ -118,7 +119,8 @@ def import_statistics_workbook(weeks, games=None):
             else:
                 saved_game = connection.execute(
                     """
-                    UPDATE games SET home_score = %s, away_score = %s
+                    UPDATE games
+                    SET home_score = %s, away_score = %s, status = 'completed'
                     WHERE id = %s RETURNING id
                     """,
                     (game["home_score"], game["away_score"], existing["id"])

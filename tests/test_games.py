@@ -297,6 +297,142 @@ def test_game_score_cannot_be_tied():
     }
 
 
+def test_admin_can_postpone_and_restore_unplayed_game():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    game_id = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    }).json()["id"]
+
+    postponed = client.patch(
+        f"/api/games/{game_id}/status", json={"status": "postponed"}
+    )
+    assert postponed.status_code == 200
+    assert postponed.json() == {"id": game_id, "status": "postponed"}
+    assert client.get("/api/games").json()[0]["status"] == "postponed"
+
+    blocked_score = client.patch(
+        f"/api/games/{game_id}/score",
+        json={"home_score": 20, "away_score": 12},
+    )
+    assert blocked_score.status_code == 409
+
+    restored = client.patch(
+        f"/api/games/{game_id}/status", json={"status": "scheduled"}
+    )
+    assert restored.json() == {"id": game_id, "status": "scheduled"}
+
+
+def test_scored_game_is_completed_and_cannot_be_postponed():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    game_id = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    }).json()["id"]
+
+    client.patch(
+        f"/api/games/{game_id}/score",
+        json={"home_score": 14, "away_score": 6},
+    )
+    assert client.get("/api/games").json()[0]["status"] == "completed"
+
+    response = client.patch(
+        f"/api/games/{game_id}/status", json={"status": "postponed"}
+    )
+    assert response.status_code == 409
+
+
+def test_admin_can_delete_one_game():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    game_id = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    }).json()["id"]
+
+    assert client.delete(f"/api/games/{game_id}").status_code == 204
+    assert client.get("/api/games").json() == []
+    assert client.delete(f"/api/games/{game_id}").status_code == 404
+
+
+def test_admin_can_delete_only_one_complete_week():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    for week in (2, 2, 3):
+        client.post("/api/games", json={
+            "home_team_id": home_id,
+            "away_team_id": away_id,
+            "week": week,
+            "field_number": 1,
+        })
+
+    response = client.delete("/api/games/week/2")
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2, "week": 2}
+    remaining = client.get("/api/games").json()
+    assert [game["week"] for game in remaining] == [3]
+
+
+def test_delete_week_requires_existing_positive_week():
+    assert client.delete("/api/games/week/0").status_code == 422
+    assert client.delete("/api/games/week/99").status_code == 404
+
+
+def test_admin_can_postpone_and_restore_all_unplayed_games_in_week():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    for field in (1, 2):
+        client.post("/api/games", json={
+            "home_team_id": home_id,
+            "away_team_id": away_id,
+            "week": 4,
+            "field_number": field,
+        })
+
+    postponed = client.patch(
+        "/api/games/week/4/status", json={"status": "postponed"}
+    )
+    assert postponed.json() == {"updated": 2, "week": 4, "status": "postponed"}
+    assert {game["status"] for game in client.get("/api/games").json()} == {"postponed"}
+
+    restored = client.patch(
+        "/api/games/week/4/status", json={"status": "scheduled"}
+    )
+    assert restored.json() == {"updated": 2, "week": 4, "status": "scheduled"}
+
+
+def test_week_status_change_leaves_completed_games_unchanged():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    completed_id = client.post("/api/games", json={
+        "home_team_id": home_id, "away_team_id": away_id,
+        "week": 5, "field_number": 1,
+    }).json()["id"]
+    client.post("/api/games", json={
+        "home_team_id": home_id, "away_team_id": away_id,
+        "week": 5, "field_number": 2,
+    })
+    client.patch(
+        f"/api/games/{completed_id}/score",
+        json={"home_score": 21, "away_score": 7},
+    )
+
+    response = client.patch(
+        "/api/games/week/5/status", json={"status": "postponed"}
+    )
+
+    assert response.json()["updated"] == 1
+    statuses = {game["id"]: game["status"] for game in client.get("/api/games").json()}
+    assert statuses[completed_id] == "completed"
+    assert set(statuses.values()) == {"completed", "postponed"}
+
+
 def test_reviewed_csv_schedule_creates_games_and_skips_repeat_uploads():
     tigres_id = create_test_team(name="Tigres")
     ravens_id = create_test_team(name="Ravens")

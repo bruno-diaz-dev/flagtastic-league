@@ -56,7 +56,8 @@ representatives, referees, and league administrators.
   erroneous teams.
 - Create staff accounts, grant cumulative roles, and delete login accounts
   while preserving historical sports data.
-- Schedule games, record scores, and manage official assignments.
+- Schedule, postpone, or delete games, record scores, and manage official assignments.
+- Remove an entire jornada only through an explicit destructive confirmation.
 - Import a complete game role from its operational XLSX layout or a CSV, with
   team matching and administrator review before any game is created.
 - Upload a game-role image for OCR-assisted matchup review. Referee-role image

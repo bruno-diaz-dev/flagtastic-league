@@ -6,6 +6,11 @@ from database import get_connection
 class ScheduleConflictError(ValueError):
     """A schedule replacement would discard or misattribute existing data."""
 
+
+class GameStateConflictError(ValueError):
+    """The requested transition conflicts with the current game state."""
+
+
 def create_game(game):
     """Create an unscored game between two validated teams."""
     connection = get_connection()
@@ -27,7 +32,8 @@ def create_game(game):
                 away_team_id,
                 week,
                 field_number,
-                start_time
+                start_time,
+                status
             """,
             (
                 game.home_team_id,
@@ -153,6 +159,7 @@ def get_games():
             games.week,
             games.field_number,
             games.start_time,
+            games.status,
             home_team.id AS "home_team_id",
             home_team.name AS "home_team_name",
             home_team.branch AS "home_team_branch",
@@ -202,14 +209,15 @@ def get_games():
             "away_score": row["away_score"],
             "week": row["week"],
             "field_number": row["field_number"],
-            "start_time": row["start_time"]
+            "start_time": row["start_time"],
+            "status": row["status"]
         }
         for row in rows
     ]
 
 
 def update_game_score(game_id, score):
-    """Store a final score and return the game, or None when missing."""
+    """Store a final score unless the game is currently postponed."""
     connection = get_connection()
 
     try:
@@ -218,8 +226,10 @@ def update_game_score(game_id, score):
             UPDATE games
             SET
                 home_score = %s,
-                away_score = %s
+                away_score = %s,
+                status = 'completed'
             WHERE id = %s
+              AND status <> 'postponed'
             RETURNING
                 id,
                 home_team_id,
@@ -234,6 +244,16 @@ def update_game_score(game_id, score):
             )
         ).fetchone()
 
+        if updated_game is None:
+            existing = connection.execute(
+                "SELECT status FROM games WHERE id = %s",
+                (game_id,),
+            ).fetchone()
+            if existing is not None and existing["status"] == "postponed":
+                raise GameStateConflictError(
+                    "Un partido pospuesto no puede recibir marcador"
+                )
+
         connection.commit()
 
         return (
@@ -247,6 +267,104 @@ def update_game_score(game_id, score):
         raise
 
 
+    finally:
+        connection.close()
+
+
+def update_game_status(game_id, status):
+    """Postpone or restore an unscored game and return its new state."""
+    connection = get_connection()
+    try:
+        game = connection.execute(
+            """
+            SELECT id, home_score, away_score
+            FROM games
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (game_id,),
+        ).fetchone()
+        if game is None:
+            return None
+        if game["home_score"] is not None or game["away_score"] is not None:
+            raise GameStateConflictError(
+                "Un partido finalizado no puede cambiar de estado"
+            )
+
+        updated = connection.execute(
+            "UPDATE games SET status = %s WHERE id = %s RETURNING id, status",
+            (status, game_id),
+        ).fetchone()
+        connection.commit()
+        return dict(updated)
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def delete_game(game_id):
+    """Delete one game; database rules clean or detach dependent records."""
+    connection = get_connection()
+    try:
+        deleted = connection.execute(
+            "DELETE FROM games WHERE id = %s RETURNING id",
+            (game_id,),
+        ).fetchone()
+        connection.commit()
+        return deleted is not None
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def delete_games_by_week(week):
+    """Delete every game in one jornada as one atomic operation."""
+    connection = get_connection()
+    try:
+        deleted = connection.execute(
+            "DELETE FROM games WHERE week = %s RETURNING id",
+            (week,),
+        ).fetchall()
+        connection.commit()
+        return len(deleted)
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def update_games_status_by_week(week, status):
+    """Change every unplayed game in a jornada without altering final results."""
+    connection = get_connection()
+    try:
+        existing = connection.execute(
+            "SELECT COUNT(*) AS total FROM games WHERE week = %s",
+            (week,),
+        ).fetchone()["total"]
+        if existing == 0:
+            return None
+
+        updated = connection.execute(
+            """
+            UPDATE games
+            SET status = %s
+            WHERE week = %s
+              AND home_score IS NULL
+              AND away_score IS NULL
+            RETURNING id
+            """,
+            (status, week),
+        ).fetchall()
+        connection.commit()
+        return len(updated)
+    except Exception:
+        connection.rollback()
+        raise
     finally:
         connection.close()
 
@@ -340,6 +458,7 @@ def get_games_for_referee(user_id):
             games.week,
             games.field_number,
             games.start_time,
+            games.status,
             game_referees.position AS official_position,
             home_team.id AS home_team_id,
             home_team.name AS home_team_name,
@@ -427,6 +546,7 @@ def get_games_for_referee(user_id):
             "week": row["week"],
             "field_number": row["field_number"],
             "start_time": row["start_time"],
+            "status": row["status"],
             "official_position": row["official_position"],
             "officials": crew_by_game[row["id"]]
         }

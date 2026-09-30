@@ -1,6 +1,7 @@
 """Pydantic request contracts and league-wide input constraints."""
 
 from datetime import time
+from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
@@ -165,6 +166,13 @@ class GameScoreUpdate(BaseModel):
     """Validate a non-negative final score update."""
     home_score: int = Field(ge=0)
     away_score: int = Field(ge=0)
+
+
+class GameStatusUpdate(BaseModel):
+    """Administrator-controlled state for an unplayed game."""
+
+    status: Literal["scheduled", "postponed"]
+
 
 class UserCreate(BaseModel):
     """Validate and normalize a new application user."""

@@ -7,21 +7,27 @@ from models import (
     GameScheduleOcrCellsPayload,
     GameScheduleOcrPayload,
     GameScoreUpdate,
+    GameStatusUpdate,
     OfficialPositionUpdate,
     RefereeScheduleConfirmation
 )
 from repositories.games import (
+    GameStateConflictError,
     ScheduleConflictError,
     assign_referee,
     apply_referee_schedule,
     create_game as create_game_repository,
+    delete_game as delete_game_repository,
+    delete_games_by_week,
     get_game_referees,
     get_games_for_referee,
     get_games,
     import_game_schedule,
     remove_referee,
-    update_game_score
-    )
+    update_game_score,
+    update_game_status,
+    update_games_status_by_week
+)
 from repositories.teams import get_all_teams, get_team_by_id
 from dependencies.auth import (
     optional_authenticated_user,
@@ -307,7 +313,10 @@ def update_score(
             detail="A game cannot end in a tie"
         )
     
-    game = update_game_score(game_id, score)
+    try:
+        game = update_game_score(game_id, score)
+    except GameStateConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
     if game is None:
         raise HTTPException(
@@ -316,3 +325,57 @@ def update_score(
         )
 
     return game
+
+
+@router.patch("/{game_id}/status")
+def change_game_status(
+    game_id: int,
+    change: GameStatusUpdate,
+    _admin=Depends(require_league_admin),
+):
+    """Postpone or restore an unplayed game."""
+    try:
+        game = update_game_status(game_id, change.status)
+    except GameStateConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return game
+
+
+@router.delete("/week/{week}")
+def delete_week_games(week: int, _admin=Depends(require_league_admin)):
+    """Delete an entire jornada after explicit administrator confirmation."""
+    if week < 1:
+        raise HTTPException(status_code=422, detail="Invalid week")
+    deleted = delete_games_by_week(week)
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="No games found for week")
+    return {"deleted": deleted, "week": week}
+
+
+@router.patch("/week/{week}/status")
+def change_week_games_status(
+    week: int,
+    change: GameStatusUpdate,
+    _admin=Depends(require_league_admin),
+):
+    """Postpone or restore every unplayed game in one jornada."""
+    if week < 1:
+        raise HTTPException(status_code=422, detail="Invalid week")
+    updated = update_games_status_by_week(week, change.status)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="No games found for week")
+    if updated == 0:
+        raise HTTPException(
+            status_code=409,
+            detail="La jornada no tiene partidos pendientes",
+        )
+    return {"updated": updated, "week": week, "status": change.status}
+
+
+@router.delete("/{game_id}", status_code=204)
+def delete_game(game_id: int, _admin=Depends(require_league_admin)):
+    """Delete one game and its dependent operational assignments."""
+    if not delete_game_repository(game_id):
+        raise HTTPException(status_code=404, detail="Game not found")

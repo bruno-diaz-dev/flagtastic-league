@@ -49,6 +49,19 @@ def test_anonymous_user_cannot_create_team():
     assert response.status_code == 401
 
 
+def test_anonymous_user_cannot_manage_game_state_or_delete_games():
+    disable_test_authorization_override()
+
+    responses = (
+        client.patch("/api/games/999999/status", json={"status": "postponed"}),
+        client.patch("/api/games/week/1/status", json={"status": "postponed"}),
+        client.delete("/api/games/999999"),
+        client.delete("/api/games/week/1"),
+    )
+
+    assert all(response.status_code == 401 for response in responses)
+
+
 def test_player_cannot_create_team():
     disable_test_authorization_override()
     team_name, email = unique_identity("player")

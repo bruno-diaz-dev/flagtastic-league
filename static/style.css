@@ -1022,10 +1022,14 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .game-card {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 24px;
+}
+
+.game-card-summary {
+    min-width: 0;
 }
 
 .game-card h3 {
@@ -1034,6 +1038,219 @@ input[type="file"]::file-selector-button:hover {
 
 .game-card strong {
     white-space: nowrap;
+}
+
+.game-score {
+    min-width: 84px;
+    color: var(--color-gold);
+    font-size: 20px;
+    text-align: center;
+}
+
+.score-form {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: end;
+    gap: 10px;
+}
+
+.score-fields {
+    display: grid;
+    grid-template-columns: 64px 14px 64px;
+    align-items: end;
+    gap: 6px;
+}
+
+.score-fields label {
+    display: grid;
+    gap: 4px;
+    color: var(--color-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.score-fields input {
+    width: 64px;
+    min-height: 44px;
+    border: 1px solid rgba(184, 195, 217, 0.35);
+    border-radius: 6px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.score-separator {
+    padding-bottom: 12px;
+    color: var(--color-muted);
+    font-weight: 700;
+    text-align: center;
+}
+
+.score-form button {
+    min-height: 44px;
+    border: 0;
+    border-radius: 6px;
+    padding: 9px 14px;
+    background: var(--color-gold);
+    color: var(--color-navy-dark);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.game-details-link {
+    white-space: nowrap;
+}
+
+.game-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.game-card-actions .secondary-button,
+.game-card-actions .danger-button {
+    min-height: 40px;
+    white-space: nowrap;
+}
+
+.game-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    border: 1px solid rgba(244, 197, 66, 0.45);
+    border-radius: 999px;
+    padding: 7px 12px;
+    color: var(--color-gold);
+    font-weight: 700;
+}
+
+.game-status-postponed {
+    border-color: rgba(232, 153, 73, 0.55);
+    background: rgba(167, 84, 32, 0.16);
+    color: #ffd2a1;
+}
+
+.week-admin-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px 20px;
+    margin-top: 12px;
+    border: 1px solid rgba(220, 85, 85, 0.32);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: rgba(160, 35, 35, 0.08);
+}
+
+body.role-league_admin .week-admin-actions.admin-only {
+    display: grid !important;
+}
+
+.week-admin-actions h3,
+.week-admin-actions p {
+    margin: 0;
+}
+
+.week-admin-actions p {
+    margin-top: 3px;
+    color: var(--color-muted);
+}
+
+.week-admin-actions .form-message {
+    grid-column: 1 / -1;
+}
+
+.week-admin-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.week-admin-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .game-card {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .score-form,
+    .game-score {
+        justify-self: start;
+    }
+
+    .game-card-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 560px) {
+    .game-card {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .score-form {
+        width: 100%;
+        grid-template-columns: 1fr;
+    }
+
+    .score-fields {
+        grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr);
+    }
+
+    .score-fields input {
+        width: 100%;
+    }
+
+    .score-form button {
+        width: 100%;
+    }
+
+    .game-details-link {
+        justify-self: start;
+    }
+
+    .game-card-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .game-card-actions .game-details-link {
+        grid-column: 1 / -1;
+    }
+
+    .game-card-actions .secondary-button,
+    .game-card-actions .danger-button {
+        width: 100%;
+    }
+
+    .week-admin-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .week-admin-actions .danger-button {
+        width: 100%;
+    }
+
+    .week-admin-buttons {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .week-admin-buttons button {
+        width: 100%;
+    }
 }
 
 .team-division {
