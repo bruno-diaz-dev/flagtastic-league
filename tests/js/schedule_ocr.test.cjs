@@ -23,3 +23,15 @@ test('Unreadable times stay empty for administrator correction', () => {
     assert.equal(JSON.stringify(context.regularScheduleTimes([660,null,780,1440])), '[660,null,780,null]');
     assert.equal(context.scheduleTimeText(null), null);
 });
+
+test('Grid detection keeps a lightly colored boundary and the full schedule', () => {
+    const ratios = new Array(531).fill(0);
+    ratios[26] = 1;
+    for (const y of [77, 118, 159, 200, 241, 283, 324, 365, 406, 448, 489, 530]) {
+        ratios[y] = y === 241 ? 0.486 : 0.68;
+    }
+    assert.equal(
+        JSON.stringify(context.scheduleGridLineCenters(ratios, 531)),
+        JSON.stringify([77, 118, 159, 200, 241, 283, 324, 365, 406, 448, 489, 530])
+    );
+});

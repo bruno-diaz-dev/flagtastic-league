@@ -703,9 +703,17 @@ def _team_candidate_score(label, team):
 
 
 def _rank_team_candidates(label, teams):
-    # Correct the observed OCR I/J confusion only in the Pitbulls Jr suffix.
-    # Do not normalize arbitrary team names or collapse Jr and Sr variants.
-    label = re.sub(r"\b(pitbulls)\s+[il]r\b", r"\1 jr", label, flags=re.IGNORECASE)
+    # Correct the observed OCR I/J confusion only when the preceding token is
+    # recognizably Pitbulls. The team name and the Jr suffix can both be noisy.
+    normalized = _normalize(label)
+    tokens = normalized.split()
+    looks_like_pitbulls = any(
+        SequenceMatcher(None, token, "pitbulls").ratio() >= 0.55
+        for token in tokens
+    )
+    if looks_like_pitbulls:
+        normalized = re.sub(r"\b(?:i|l|1)r\b", "jr", normalized)
+    label = normalized
     candidates = [
         (_team_candidate_score(label, team), team)
         for team in teams

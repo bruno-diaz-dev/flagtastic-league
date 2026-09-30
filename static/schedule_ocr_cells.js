@@ -1,6 +1,7 @@
 const ACTIVE_SCHEDULE_FIELDS = 6;
 const TIME_COLUMN_RATIO = 0.027;
 const OCR_BATCH_SIZE = 20;
+const GRID_LINE_DARK_RATIO = 0.45;
 
 function parseScheduleTsv(tsv) {
     return String(tsv || "")
@@ -37,26 +38,10 @@ async function scheduleSourceCanvas(file) {
     }
 }
 
-function scheduleGridLines(canvas) {
-    const context = canvas.getContext("2d", {willReadFrequently: true});
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const sampleStep = Math.max(1, Math.floor(canvas.width / 800));
+function scheduleGridLineCenters(darkRatios, height) {
     const candidates = [];
-
-    for (let y = 0; y < canvas.height; y += 1) {
-        let dark = 0;
-        let total = 0;
-        for (let x = 0; x < canvas.width; x += sampleStep) {
-            const offset = (y * canvas.width + x) * 4;
-            const gray = (
-                pixels[offset] * 0.299
-                + pixels[offset + 1] * 0.587
-                + pixels[offset + 2] * 0.114
-            );
-            if (gray < 115) dark += 1;
-            total += 1;
-        }
-        if (dark / total >= 0.52) candidates.push(y);
+    for (let y = 0; y < darkRatios.length; y += 1) {
+        if (darkRatios[y] >= GRID_LINE_DARK_RATIO) candidates.push(y);
     }
 
     const groups = [];
@@ -69,9 +54,9 @@ function scheduleGridLines(canvas) {
         group.reduce((sum, value) => sum + value, 0) / group.length
     ));
 
-    const minGap = canvas.height * 0.04;
-    const maxGap = canvas.height * 0.10;
-    const tolerance = canvas.height * 0.018;
+    const minGap = height * 0.04;
+    const maxGap = height * 0.10;
+    const tolerance = height * 0.018;
     let best = [];
     for (let start = 0; start < centers.length; start += 1) {
         const sequence = [centers[start]];
@@ -88,6 +73,30 @@ function scheduleGridLines(canvas) {
     }
     if (best.length < 4) throw new Error("No se pudo detectar la cuadrícula del rol.");
     return best;
+}
+
+function scheduleGridLines(canvas) {
+    const context = canvas.getContext("2d", {willReadFrequently: true});
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const sampleStep = Math.max(1, Math.floor(canvas.width / 800));
+    const darkRatios = [];
+
+    for (let y = 0; y < canvas.height; y += 1) {
+        let dark = 0;
+        let total = 0;
+        for (let x = 0; x < canvas.width; x += sampleStep) {
+            const offset = (y * canvas.width + x) * 4;
+            const gray = (
+                pixels[offset] * 0.299
+                + pixels[offset + 1] * 0.587
+                + pixels[offset + 2] * 0.114
+            );
+            if (gray < 115) dark += 1;
+            total += 1;
+        }
+        darkRatios.push(dark / total);
+    }
+    return scheduleGridLineCenters(darkRatios, canvas.height);
 }
 
 function cellSource(canvas, cell) {

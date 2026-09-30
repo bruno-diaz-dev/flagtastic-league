@@ -28,7 +28,11 @@ def test_pitbulls_ir_ocr_matches_jr_without_confusing_sr():
         {"id": 3, "name": "Storms", "branch": "mixto", "category": "libre"},
     ]
     from datetime import time
-    for label, expected in [("Pitbulls Ir Mix Libre", 1), ("Pitbulls Sr Mix Libre", 2)]:
+    for label, expected in [
+        ("Pitbulls Ir Mix Libre", 1),
+        ("Prlulls Ir Mix Libre", 1),
+        ("Pitbulls Sr Mix Libre", 2),
+    ]:
         result = parse_game_schedule_ocr_cells(1, [{
             "field_number": 1, "start_time": time(21),
             "home_team": label, "away_team": "Storms Mix Libre",
