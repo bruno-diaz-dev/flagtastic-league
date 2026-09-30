@@ -1,0 +1,10 @@
+-r requirements.txt
+
+alembic==1.20.0
+greenlet==3.5.6
+iniconfig==2.3.0
+Mako==1.4.1
+pluggy==1.6.0
+Pygments==2.21.0
+pytest==9.1.1
+SQLAlchemy==2.0.54
