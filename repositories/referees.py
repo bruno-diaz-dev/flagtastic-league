@@ -110,26 +110,42 @@ def get_referee_profile(user_id):
 
 
 def update_referee_aka(user_id, aka):
-    """Store the referee's public AKA used by the directory and OCR matching."""
+    """Store one effective referee AKA on the linked identity when available."""
     connection = get_connection()
     try:
-        row = connection.execute(
+        user = connection.execute(
             """
-            UPDATE users
-            SET aka = %s
-            WHERE id = %s
+            SELECT users.player_id
+            FROM users
+            WHERE users.id = %s
               AND EXISTS (
                   SELECT 1
                   FROM user_roles
                   WHERE user_roles.user_id = users.id
                     AND user_roles.role = 'referee'
               )
-            RETURNING id
+            FOR UPDATE
             """,
-            (aka, user_id)
+            (user_id,)
         ).fetchone()
+        if user is None:
+            return False
+        if user["player_id"] is not None:
+            connection.execute(
+                "UPDATE players SET aka = %s WHERE id = %s",
+                (aka, user["player_id"])
+            )
+            connection.execute(
+                "UPDATE users SET aka = NULL WHERE id = %s",
+                (user_id,)
+            )
+        else:
+            connection.execute(
+                "UPDATE users SET aka = %s WHERE id = %s",
+                (aka, user_id)
+            )
         connection.commit()
-        return row is not None
+        return True
     except Exception:
         connection.rollback()
         raise

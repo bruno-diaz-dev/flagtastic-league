@@ -260,6 +260,8 @@ def test_user_administration_page_is_available():
     script = client.get("/static/admin_users.js")
     assert "delete-user-button" in script.text
     assert "deleteAdminUser" in script.text
+    assert "updateAdminRefereeAka" in script.text
+    assert "save-aka-button" in script.text
     assert "normalizedSearchText" in script.text
     assert "user.display_name, user.name, user.aka" in script.text
 

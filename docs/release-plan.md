@@ -83,6 +83,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
   roles.
 - Forced initial-password replacement for administrator-created staff.
 - Administrator user and role management.
+- Administrator maintenance of official AKA values with shared player identity
+  for officials who also play.
 - Public, player, representative, referee, and administrator data scopes
   enforced by FastAPI dependencies rather than UI visibility alone.
 

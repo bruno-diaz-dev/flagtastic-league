@@ -353,6 +353,7 @@ a recovery flow that Resend's onboarding sender cannot deliver to public users.
 | `GET` | `/api/players/{player_id}/profile` | Returns a public profile with identity, teams, standings and statistics |
 | `GET` | `/api/statistics/leaderboards` | Returns five leaders per metric and division |
 | `DELETE` | `/api/admin/users/{user_id}` | Deletes another user's login account while preserving player history |
+| `PATCH` | `/api/admin/users/{user_id}/referee-aka` | Updates an official's effective AKA; league administrators only |
 
 The weekly spreadsheet uses `rama`, `categoria`, `equipo`, and `numero` to resolve a roster membership. Player names shown publicly always come from `players.name`, never from imported text. Only the 50 source-event columns are read; formula-helper columns are deliberately excluded to prevent double counting. Completed passes count as both a completion and an attempt, while `Intentos Pase` supplies incomplete attempts.
 
@@ -679,6 +680,10 @@ password hashes or CURP, and administrators cannot demote themselves.
 The page keeps the authorized user response in memory and filters it locally by
 display name, legal name, or AKA. Search normalization ignores case and accents,
 so filtering does not add API traffic or expose additional identity fields.
+League administrators can also maintain the AKA of accounts carrying the
+`referee` role. Referee-only accounts store it on `users`; multi-role officials
+linked to a player store it on the canonical `players` identity, keeping the
+directory, assignments, OCR matching, roster, and player profile consistent.
 
 Administrators may also delete another account from this page, but cannot delete
 their own active account. Account deletion revokes access by cascading sessions,

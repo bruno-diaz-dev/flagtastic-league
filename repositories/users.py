@@ -14,7 +14,10 @@ def _public_user(row):
     """Add a public display name while preserving the account's legal name."""
     user = dict(row)
     user["roles"] = list(user.get("roles") or [user["role"]])
-    aka = user.pop("player_aka", None)
+    player_aka = user.pop("player_aka", None)
+    referee_aka = user.pop("referee_aka", None)
+    aka = referee_aka if "referee" in user["roles"] else None
+    aka = aka or player_aka
     user["aka"] = aka
     user["display_name"] = aka or user["name"]
     if user.get("player_id") is None:
@@ -241,6 +244,7 @@ def get_user_by_email(email):
             users.id, users.email, users.name, users.role, users.status,
             users.player_id, users.must_change_password,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
+            users.aka AS referee_aka,
             players.aka AS player_aka
         FROM users
         LEFT JOIN players ON players.id = users.player_id
@@ -267,6 +271,7 @@ def get_user_credentials_by_email(email):
             users.role, users.status, users.player_id,
             users.must_change_password,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
+            users.aka AS referee_aka,
             players.aka AS player_aka
         FROM users
         LEFT JOIN players ON players.id = users.player_id
@@ -292,6 +297,7 @@ def get_user_by_id(user_id):
             users.id, users.email, users.name, users.role, users.status,
             users.player_id, users.must_change_password,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles,
+            users.aka AS referee_aka,
             players.aka AS player_aka
         FROM users
         LEFT JOIN players ON players.id = users.player_id
@@ -320,6 +326,7 @@ def get_user_by_session_hash(token_hash):
                 SELECT role FROM user_roles
                 WHERE user_id = users.id ORDER BY role
             ) AS roles,
+            users.aka AS referee_aka,
             players.aka AS player_aka
         FROM sessions
         JOIN users ON users.id = sessions.user_id
@@ -357,11 +364,14 @@ def get_all_users():
         """
         SELECT users.id, users.email, users.name, users.role, users.status,
             users.player_id, users.must_change_password,
+            users.aka AS referee_aka,
             players.aka AS player_aka,
             ARRAY(SELECT role FROM user_roles WHERE user_id = users.id ORDER BY role) AS roles
         FROM users
         LEFT JOIN players ON players.id = users.player_id
-        ORDER BY COALESCE(NULLIF(players.aka, ''), users.name), users.email
+        ORDER BY COALESCE(
+            NULLIF(users.aka, ''), NULLIF(players.aka, ''), users.name
+        ), users.email
         """
     ).fetchall()
     connection.close()

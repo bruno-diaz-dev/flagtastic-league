@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from database import get_connection
 from main import app
 from models import UserCreate
 from repositories.users import create_user
@@ -72,6 +73,19 @@ def test_admin_player_referee_keeps_each_permission(monkeypatch):
     aka_update = client.patch("/api/referees/me", json={"aka": "Brucie"})
     assert aka_update.status_code == 200
     assert aka_update.json()["display_name"] == "Brucie"
+    connection = get_connection()
+    stored_aka = connection.execute(
+        """
+        SELECT players.aka AS player_aka, users.aka AS referee_aka
+        FROM users
+        JOIN players ON players.id = users.player_id
+        WHERE users.id = %s
+        """,
+        (player["id"],)
+    ).fetchone()
+    connection.close()
+    assert stored_aka["player_aka"] == "Brucie"
+    assert stored_aka["referee_aka"] is None
     photo_update = client.put(
         "/api/referees/me/photo",
         files={"file": ("profile.png", PROFILE_PNG, "image/png")}

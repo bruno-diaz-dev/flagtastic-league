@@ -47,7 +47,7 @@ function renderUsers() {
     usersCount.textContent = `${users.length} usuario${users.length === 1 ? "" : "s"}`;
     if (users.length === 0) {
         usersBody.innerHTML = `
-            <tr><td colspan="5" class="table-empty-state">
+            <tr><td colspan="6" class="table-empty-state">
                 No hay usuarios que coincidan con ese nombre.
             </td></tr>`;
         return;
@@ -60,6 +60,11 @@ function renderUsers() {
             }${user.aka ? `<small>Nombre legal: ${escapeHtml(user.name)}</small>` : ""}</td>
             <td>${escapeHtml(user.email)}</td>
             <td><div class="role-choices">${roleChoices(user.roles || [user.role])}</div></td>
+            <td>${(user.roles || [user.role]).includes("referee") ? `
+                <div class="official-aka-editor">
+                    <input class="official-aka-input" value="${escapeHtml(user.aka || "")}" maxlength="80" aria-label="AKA de ${escapeHtml(user.name)}">
+                    <button class="save-aka-button" type="button">Guardar AKA</button>
+                </div>` : '<span class="not-applicable">No aplica</span>'}</td>
             <td>${user.status === "active" ? "Activo" : "Inactivo"}</td>
             <td class="user-actions">
                 <button class="save-role-button" type="button">Guardar</button>
@@ -97,6 +102,21 @@ usersBody.addEventListener("click", async (event) => {
         const body = await response.json();
         usersMessage.textContent = body.detail || "No se pudo eliminar la cuenta.";
         event.target.disabled = false;
+        return;
+    }
+    if (event.target.classList.contains("save-aka-button")) {
+        const input = row.querySelector(".official-aka-input");
+        event.target.disabled = true;
+        const response = await updateAdminRefereeAka(
+            row.dataset.userId,
+            input.value.trim()
+        );
+        const body = await response.json();
+        usersMessage.textContent = response.ok
+            ? `AKA de ${body.name} actualizado.`
+            : (body.detail || "No se pudo actualizar el AKA.");
+        event.target.disabled = false;
+        if (response.ok) await loadUsers();
         return;
     }
     if (!event.target.classList.contains("save-role-button")) return;

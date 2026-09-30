@@ -314,6 +314,14 @@ async function updateAdminUserRoles(userId, roles) {
     });
 }
 
+async function updateAdminRefereeAka(userId, aka) {
+    return fetch(`/api/admin/users/${userId}/referee-aka`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({aka: aka || null})
+    });
+}
+
 async function updateTeamStaff(teamId, payload) {
     return fetch(`/api/teams/${teamId}/staff`, {
         method: "PATCH",
