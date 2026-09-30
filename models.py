@@ -6,7 +6,6 @@ from typing import Literal
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 from services.curp import InvalidCurpBirthDate, calendar_age_from_curp
-from services.divisions import canonicalize_division
 
 ALLOWED_BRANCHES = {
     "varonil",
@@ -86,15 +85,6 @@ class TeamCreate(BaseModel):
             raise ValueError("Invalid category")
 
         return normalized_category
-
-    @model_validator(mode="after")
-    def enforce_category_branch(self):
-        """Treat every U12 team as mixed regardless of submitted branch."""
-        self.branch, self.category = canonicalize_division(
-            self.branch, self.category
-        )
-        return self
-
 
 class TeamStaffUpdate(BaseModel):
     """Validate the staff names displayed on a public roster."""

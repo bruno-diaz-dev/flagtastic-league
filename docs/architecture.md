@@ -256,10 +256,9 @@ This separation allows the same person to play for multiple teams when league el
   `RAVENS` in the same division.
 
 - Every team has `name`, `branch`, `category`, and `status`.
-- `u12` is canonicalized to `mixto` during validation, imports, queries, and
-  database writes; all other categories retain their submitted branch.
-- Game validation treats legacy `femenil`, `varonil`, and `mixto` U12 records
-  as one compatible division. Cross-branch games remain invalid elsewhere.
+- U12 teams retain their registered branch in storage, filters, standings, and
+  statistics. Game validation alone treats `femenil`, `varonil`, and `mixto`
+  U12 records as compatible. Cross-branch games remain invalid elsewhere.
 - New teams are created with `status = "pending"`.
 - League administrators transition teams among `pending`, `active`, and
   `inactive`; the status is operational state, not free-form display text.
@@ -826,6 +825,12 @@ Database writes share one transaction; identity, division, or jersey conflicts
 roll back the complete upload instead of leaving a partial roster. Imported
 players remain ordinary global identities and can later claim their account
 through the CURP-backed registration flow described above.
+
+The roster candidate search operates on global `players` identities rather
+than requiring a linked `users` account. This lets representatives reuse a
+minor's profile in another eligible branch/category while preserving one CURP,
+one public profile, and the existing one-team-per-division rule. Responses
+indicate whether an active account exists but never expose CURP or login data.
 
 Roster management is scoped by assignment, not merely by possession of the
 `team_representative` role. Representatives can see and use roster forms,

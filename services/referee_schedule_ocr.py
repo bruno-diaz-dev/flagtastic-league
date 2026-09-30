@@ -10,7 +10,6 @@ import unicodedata
 from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 import pytesseract
 
-from services.divisions import canonicalize_division
 
 
 POSITION_ALIASES = {
@@ -105,8 +104,6 @@ def _division_hints(text):
     category = f"u{category_match.group(1)}" if category_match else None
     if "libre" in normalized:
         category = "libre"
-    if category == "u12":
-        branch = "mixto"
     return branch, category
 
 
@@ -122,17 +119,12 @@ def _game_match_score(text, game):
         None, away_name, normalized
     ).ratio()
     branch, category = _division_hints(text)
-    if branch:
-        game_branch, game_category = canonicalize_division(
-            game["home_team"]["branch"], game["home_team"]["category"]
-        )
-        hinted_branch, hinted_category = canonicalize_division(
-            branch, category or game_category
-        )
-        if game_branch != hinted_branch or (
-            category and game_category != hinted_category
-        ):
-            return 0
+    if (
+        branch
+        and category != "u12"
+        and game["home_team"]["branch"] != branch
+    ):
+        return 0
     if category and game["home_team"]["category"] != category:
         return 0
     return home_score + away_score

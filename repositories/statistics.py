@@ -1,7 +1,7 @@
 """Persistence and aggregate queries for weekly player statistics."""
 
 from database import get_connection
-from services.divisions import canonicalize_division
+from services.divisions import normalize_division
 from services.team_matching import match_team_name, normalize_team_text
 
 
@@ -17,18 +17,21 @@ def import_statistics_workbook(weeks, games=None):
             "SELECT id, name, branch, category FROM teams"
         ).fetchall()
         teams_by_identity = {
-            (*canonicalize_division(team["branch"], team["category"]),
+            (*normalize_division(team["branch"], team["category"]),
              normalize_team_text(team["name"])): team
             for team in teams
         }
 
         def resolve_team(label, branch, category):
-            division = canonicalize_division(branch, category)
+            division = normalize_division(branch, category)
             exact = teams_by_identity.get(
                 (*division, normalize_team_text(label))
             )
             return exact or match_team_name(
-                label, teams, branch=division[0], category=division[1]
+                label,
+                teams,
+                branch=None if division[1] == "u12" else division[0],
+                category=division[1]
             )
         resolved_weeks = {}
         for week, rows in weeks.items():

@@ -103,10 +103,7 @@ async function loadLeaderboards(event) {
 
     try {
         const response = await getLeaderboards(
-            canonicalBranch(
-                leaderboardForm.elements.branch.value,
-                formData.get("category")
-            ),
+            formData.get("branch"),
             formData.get("category")
         );
         if (!response.ok) throw new Error("Request failed");
@@ -118,10 +115,6 @@ async function loadLeaderboards(event) {
 
 
 leaderboardForm.addEventListener("submit", loadLeaderboards);
-bindU12MixedBranch(
-    leaderboardForm.elements.branch,
-    leaderboardForm.elements.category
-);
 if (statisticsImportForm) {
     statisticsImportForm.addEventListener("submit", submitStatisticsImport);
 }

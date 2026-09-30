@@ -6,29 +6,6 @@ function escapeHtml(value) {
     return element.innerHTML;
 }
 
-function canonicalBranch(branch, category) {
-    return category === "u12" ? "mixto" : branch;
-}
-
-function bindU12MixedBranch(branchSelect, categorySelect, onChange = () => {}) {
-    function synchronize() {
-        if (categorySelect.value === "u12") {
-            if (!branchSelect.disabled) {
-                branchSelect.dataset.previousBranch = branchSelect.value;
-            }
-            branchSelect.value = "mixto";
-            branchSelect.disabled = true;
-        } else if (branchSelect.disabled) {
-            branchSelect.disabled = false;
-            branchSelect.value = branchSelect.dataset.previousBranch || "";
-        }
-        onChange();
-    }
-
-    categorySelect.addEventListener("change", synchronize);
-    synchronize();
-}
-
 async function getTeams() {
     const response = await fetch("/api/teams");
     return response;

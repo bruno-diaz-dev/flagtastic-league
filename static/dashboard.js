@@ -139,7 +139,7 @@ async function loadTeams() {
 }
 
 teamBranchFilter.addEventListener("change", renderTeamOptions);
-bindU12MixedBranch(teamBranchFilter, teamCategoryFilter, renderTeamOptions);
+teamCategoryFilter.addEventListener("change", renderTeamOptions);
 
 joinForm.addEventListener("submit", async (event) => {
     event.preventDefault();

@@ -168,7 +168,7 @@ def test_statistics_import_resolves_u12_abbreviated_team_names():
     ]])
 
     assert response.status_code == 200
-    assert response.json()["rows"][0]["branch"] == "mixto"
+    assert response.json()["rows"][0]["branch"] == "femenil"
     totals = client.get(f"/api/players/{player}/stats").json()
     assert totals["points"] == 6
 

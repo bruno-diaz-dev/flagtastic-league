@@ -3,7 +3,6 @@
 from fastapi import APIRouter
 
 from repositories.standings import get_standings
-from services.divisions import canonicalize_division
 
 router = APIRouter(
     prefix="/api/standings",
@@ -16,5 +15,4 @@ def list_standings(
     category: str
 ):
     """Return calculated standings for a branch and category."""
-    branch, category = canonicalize_division(branch, category)
     return get_standings(branch, category)

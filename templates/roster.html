@@ -45,7 +45,7 @@
         </form>
         <p id="player-form-message" class="form-message" role="status"></p>
 
-        <h3>Agregar jugador registrado</h3>
+        <h3>Agregar jugador existente</h3>
         <form id="registered-player-form" class="player-form">
             <label>
                 Buscar por nombre o AKA
@@ -54,7 +54,7 @@
             <label>
                 Jugador
                 <select id="registered-player-results" name="player_id" disabled required>
-                    <option value="">Busca un jugador registrado</option>
+                    <option value="">Busca un perfil de jugador</option>
                 </select>
             </label>
             <label>
@@ -83,6 +83,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260928-3"></script>
-<script src="/static/roster.js?v=20260929-1"></script>
+<script src="/static/api.js?v=20260930-2"></script>
+<script src="/static/roster.js?v=20260930-2"></script>
 {% endblock %}

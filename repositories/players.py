@@ -214,7 +214,7 @@ def get_players_by_team(team_id):
 
 
 def search_registered_players(team, query, limit=20):
-    """Find eligible active player accounts without exposing private fields."""
+    """Find eligible player identities without exposing private fields."""
     connection = get_connection()
     pattern = f"%{query.strip()}%"
     rows = connection.execute(
@@ -222,22 +222,14 @@ def search_registered_players(team, query, limit=20):
         SELECT players.id, players.name, players.aka, players.age,
                CASE WHEN players.profile_photo_path IS NULL THEN NULL
                     ELSE '/media/profiles/' || players.profile_photo_path
-               END AS profile_photo_url
+               END AS profile_photo_url,
+               EXISTS (
+                   SELECT 1 FROM users
+                   WHERE users.player_id = players.id
+                     AND users.status = 'active'
+               ) AS has_account
         FROM players
-        WHERE EXISTS (
-            SELECT 1 FROM users
-            WHERE users.player_id = players.id
-              AND users.status = 'active'
-              AND (
-                  users.role = 'player'
-                  OR EXISTS (
-                      SELECT 1 FROM user_roles
-                      WHERE user_roles.user_id = users.id
-                        AND user_roles.role = 'player'
-                  )
-              )
-        )
-          AND (
+        WHERE (
               players.name ILIKE %s
               OR COALESCE(players.aka, '') ILIKE %s
           )
@@ -260,32 +252,19 @@ def search_registered_players(team, query, limit=20):
 
 
 def join_registered_player(player_id, team, jersey_number):
-    """Attach an active player account to a managed team atomically."""
+    """Attach an existing player identity to a managed team atomically."""
     connection = get_connection()
     try:
-        registered = connection.execute(
+        existing_player = connection.execute(
             """
             SELECT players.id
             FROM players
             WHERE players.id = %s
-              AND EXISTS (
-                  SELECT 1 FROM users
-                  WHERE users.player_id = players.id
-                    AND users.status = 'active'
-                    AND (
-                        users.role = 'player'
-                        OR EXISTS (
-                            SELECT 1 FROM user_roles
-                            WHERE user_roles.user_id = users.id
-                              AND user_roles.role = 'player'
-                        )
-                    )
-              )
             FOR UPDATE OF players
             """,
             (player_id,)
         ).fetchone()
-        if registered is None:
+        if existing_player is None:
             return None
 
         conflict = connection.execute(
