@@ -18,7 +18,8 @@ representatives, referees, and league administrators.
 - Browse teams by branch and category and open dedicated roster pages.
 - View player photos, AKA, legal roster names, numbers, ages, and team staff.
 - Open public player profiles without exposing CURP, email, roles, or credentials.
-- Filter games by jornada, branch, and category and inspect game details.
+- Filter games by team name, jornada, branch, category, or field; browse the
+  resulting schedule grouped chronologically by jornada and time.
 - Consult division standings with team logos and calculated records.
 - View top-five individual leaderboards by branch and category.
 - Read the integral privacy notice at `/privacy`.

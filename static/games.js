@@ -7,6 +7,7 @@ const gamesContainer = document.querySelector("#games");
 const homeTeamSelect = document.querySelector("[name='home_team_id']");
 const awayTeamSelect = document.querySelector("[name='away_team_id']");
 const gameFilterWeek = document.querySelector("#game-filter-week");
+const gameFilterTeam = document.querySelector("#game-filter-team");
 const gameFilterBranch = document.querySelector("#game-filter-branch");
 const gameFilterCategory = document.querySelector("#game-filter-category");
 const gameFilterField = document.querySelector("#game-filter-field");
@@ -41,6 +42,38 @@ function gameLabel(game) {
 
 function gameTime(game) {
     return game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar";
+}
+
+function normalizeSearchText(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("es-MX")
+        .trim();
+}
+
+function compareGames(first, second) {
+    return (
+        first.week - second.week
+        || gameTime(first).localeCompare(gameTime(second), "es-MX")
+        || (first.field_number || 99) - (second.field_number || 99)
+        || first.home_team.name.localeCompare(second.home_team.name, "es-MX")
+    );
+}
+
+function gameTeamRow(team, side, score) {
+    const logo = team.logo_url
+        ? `<img class="team-logo game-team-logo" src="${team.logo_url}" alt="" loading="lazy" decoding="async">`
+        : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.slice(0, 1))}</span>`;
+
+    return `
+        <div class="game-team-row">
+            <span class="game-team-side">${side}</span>
+            ${logo}
+            <strong class="game-team-name">${escapeHtml(team.name)}</strong>
+            <span class="game-team-score" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "-"}</span>
+        </div>
+    `;
 }
 
 
@@ -100,15 +133,33 @@ function renderGames(games) {
         return;
     }
 
-    gamesContainer.innerHTML = games
-        .map((game) => {
+    const groups = new Map();
+    [...games].sort(compareGames).forEach((game) => {
+        const key = `${game.week}|${gameTime(game)}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(game);
+    });
+
+    gamesContainer.innerHTML = [...groups.values()]
+        .map((groupGames) => {
+            const firstGame = groupGames[0];
+            return `
+                <section class="game-time-group" aria-labelledby="game-group-${firstGame.week}-${firstGame.id}">
+                    <header class="game-time-heading">
+                        <h3 id="game-group-${firstGame.week}-${firstGame.id}">Jornada ${firstGame.week}</h3>
+                        <time>${gameTime(firstGame)}</time>
+                    </header>
+                    <div class="game-time-grid">
+                        ${groupGames.map((game) => {
             const hasScore = game.home_score !== null && game.away_score !== null;
             const isPostponed = game.status === "postponed";
-            const gameState = hasScore
-                ? `<strong class="game-score">${game.home_score} - ${game.away_score}</strong>`
+            const status = hasScore
+                ? `<span class="game-status game-status-completed">Finalizado</span>`
                 : isPostponed
                     ? `<span class="game-status game-status-postponed">Pospuesto</span>`
-                    : `
+                    : `<span class="game-status game-status-scheduled">Programado</span>`;
+            const scoreEditor = !hasScore && !isPostponed
+                ? `
                         <form class="score-form admin-only" data-game-id="${game.id}">
                             <div class="score-fields">
                                 <label>
@@ -121,26 +172,29 @@ function renderGames(games) {
                                     <input type="number" name="away_score" min="0" inputmode="numeric" aria-label="Puntos de ${escapeHtml(game.away_team.name)}" required>
                                 </label>
                             </div>
-                            <button type="submit">Guardar</button>
-                        </form>`;
+                            <button type="submit">Guardar marcador</button>
+                        </form>`
+                : "";
 
             return `
                 <article class="game-card">
-                    <div class="game-card-summary">
-                        <h3 class="game-matchup">
-                            ${game.home_team.logo_url ? `<img class="team-logo team-logo-small" src="${game.home_team.logo_url}" alt="" loading="lazy" decoding="async">` : ""}
-                            <span>${escapeHtml(game.home_team.name)}</span>
-                            <span class="matchup-versus">vs</span>
-                            ${game.away_team.logo_url ? `<img class="team-logo team-logo-small" src="${game.away_team.logo_url}" alt="" loading="lazy" decoding="async">` : ""}
-                            <span>${escapeHtml(game.away_team.name)}</span>
-                        </h3>
-                        <p>Jornada ${game.week} · ${gameTime(game)} · ${escapeHtml(game.home_team.branch)} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
+                    <header class="game-card-header">
+                        <span class="game-field">${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</span>
+                        ${status}
+                    </header>
+                    <div class="game-teams">
+                        ${gameTeamRow(game.home_team, "Local", game.home_score)}
+                        ${gameTeamRow(game.away_team, "Visitante", game.away_score)}
                     </div>
-                   
-                    ${gameState}
-                    <div class="game-card-actions">
+                    <footer class="game-card-footer">
+                        <span>${escapeHtml(game.home_team.branch)} · ${escapeHtml(game.home_team.category)}</span>
                         <a class="secondary-link game-details-link" href="/games/${game.id}">Ver detalles</a>
-                        ${!hasScore ? `
+                    </footer>
+                    <details class="game-admin-panel admin-only">
+                        <summary>Administrar partido</summary>
+                        <div class="game-admin-controls">
+                            ${scoreEditor}
+                            ${!hasScore ? `
                             <button
                                 class="secondary-button admin-only game-status-button"
                                 type="button"
@@ -148,11 +202,16 @@ function renderGames(games) {
                                 data-next-status="${isPostponed ? "scheduled" : "postponed"}"
                             >${isPostponed ? "Restaurar" : "Posponer"}</button>
                         ` : ""}
-                        <button class="danger-button admin-only" type="button" data-delete-game="${game.id}">
+                            <button class="danger-button admin-only" type="button" data-delete-game="${game.id}">
                             Eliminar
-                        </button>
-                    </div>
+                            </button>
+                        </div>
+                    </details>
                 </article>
+            `;
+                        }).join("")}
+                    </div>
+                </section>
             `;
         })
         .join("");
@@ -188,6 +247,12 @@ function renderFilteredGames() {
         selectedWeekIsPostponed ? "Restaurar jornada" : "Posponer jornada"
     );
     const filteredGames = gamesState.filter((game) => {
+        const teamSearch = normalizeSearchText(gameFilterTeam.value);
+        const matchesTeam = (
+            teamSearch === ""
+            || normalizeSearchText(game.home_team.name).includes(teamSearch)
+            || normalizeSearchText(game.away_team.name).includes(teamSearch)
+        );
         const matchesWeek = (
             gameFilterWeek.value === ""
             || String(game.week) === gameFilterWeek.value
@@ -204,7 +269,7 @@ function renderFilteredGames() {
             gameFilterField.value === ""
             || String(game.field_number) === gameFilterField.value
         );
-        return matchesWeek && matchesBranch && matchesCategory && matchesField;
+        return matchesTeam && matchesWeek && matchesBranch && matchesCategory && matchesField;
     });
 
     renderGames(filteredGames);
@@ -368,6 +433,7 @@ if (gameForm !== null) {
 [gameFilterWeek, gameFilterBranch, gameFilterCategory, gameFilterField].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);
 });
+gameFilterTeam.addEventListener("input", renderFilteredGames);
 
 deleteGamesWeekButton.addEventListener("click", async () => {
     const week = gameFilterWeek.value;

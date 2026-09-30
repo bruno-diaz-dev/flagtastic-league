@@ -112,6 +112,16 @@
     </section>
 
     <section class="filters-panel games-filters" aria-label="Filtros de partidos">
+        <label class="games-team-search">
+            Equipo
+            <input
+                id="game-filter-team"
+                type="search"
+                placeholder="Buscar por nombre"
+                autocomplete="off"
+            >
+        </label>
+
         <label>
             Jornada
             <select id="game-filter-week">
@@ -180,5 +190,5 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
 <script src="/static/api.js?v=20260929-6"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20260929-14"></script>
+<script src="/static/games.js?v=20260930-1"></script>
 {% endblock %}

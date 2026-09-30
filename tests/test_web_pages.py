@@ -322,14 +322,23 @@ def test_games_page_accepts_image_xlsx_and_csv_schedule_imports():
     assert "confirmGameSchedule" in script.text
 
 
-def test_pending_game_score_editor_uses_compact_shared_controls():
+def test_games_are_rendered_as_a_grouped_schedule_with_compact_admin_controls():
+    page = client.get("/games").text
     script = client.get("/static/games.js").text
     stylesheet = client.get("/static/style.css").text
 
+    assert 'id="game-filter-team"' in page
+    assert 'class="game-time-group"' in script
+    assert 'class="game-team-row"' in script
+    assert 'class="game-admin-panel admin-only"' in script
+    assert "[...games].sort(compareGames)" in script
+    assert "normalizeSearchText(gameFilterTeam.value)" in script
     assert 'class="score-fields"' in script
     assert '<span>Local</span>' in script
     assert '<span>Visitante</span>' in script
     assert 'class="secondary-link game-details-link"' in script
+    assert '.game-time-grid' in stylesheet
+    assert '.game-team-row' in stylesheet
     assert '.score-fields input' in stylesheet
     assert '@media (max-width: 560px)' in stylesheet
 

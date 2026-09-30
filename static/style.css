@@ -1022,29 +1022,128 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .game-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 24px;
-}
-
-.game-card-summary {
+    display: flex;
     min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
 }
 
-.game-card h3 {
-    margin-bottom: 6px;
+.game-time-group {
+    display: grid;
+    gap: 12px;
 }
 
-.game-card strong {
-    white-space: nowrap;
+.game-time-group + .game-time-group {
+    margin-top: 12px;
 }
 
-.game-score {
-    min-width: 84px;
+.game-time-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    border-bottom: 1px solid var(--color-border);
+    padding: 6px 2px 10px;
+}
+
+.game-time-heading h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.game-time-heading time {
     color: var(--color-gold);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.game-time-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.game-card-header,
+.game-card-footer,
+.game-team-row {
+    display: flex;
+    align-items: center;
+}
+
+.game-card-header {
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.game-field {
+    color: var(--color-muted);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.game-teams {
+    display: grid;
+    gap: 6px;
+}
+
+.game-team-row {
+    min-width: 0;
+    gap: 10px;
+    border-radius: 6px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.game-team-side {
+    width: 54px;
+    flex: 0 0 54px;
+    color: var(--color-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.game-team-logo {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: 6px;
+}
+
+.game-team-logo-placeholder {
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--color-border);
+    background: var(--color-navy);
+    color: var(--color-gold);
+    font-weight: 700;
+}
+
+.game-team-name {
+    min-width: 0;
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.game-team-score {
+    min-width: 32px;
+    color: var(--color-text);
     font-size: 20px;
-    text-align: center;
+    font-weight: 700;
+    text-align: right;
+}
+
+.game-card-footer {
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.game-details-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .score-form {
@@ -1104,19 +1203,28 @@ input[type="file"]::file-selector-button:hover {
     cursor: pointer;
 }
 
-.game-details-link {
-    white-space: nowrap;
+.game-admin-panel {
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
 }
 
-.game-card-actions {
+.game-admin-panel summary {
+    width: fit-content;
+    color: var(--color-gold);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.game-admin-controls {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    gap: 10px;
+    padding-top: 12px;
 }
 
-.game-card-actions .secondary-button,
-.game-card-actions .danger-button {
+.game-admin-controls .secondary-button,
+.game-admin-controls .danger-button {
     min-height: 40px;
     white-space: nowrap;
 }
@@ -1137,6 +1245,18 @@ input[type="file"]::file-selector-button:hover {
     border-color: rgba(232, 153, 73, 0.55);
     background: rgba(167, 84, 32, 0.16);
     color: #ffd2a1;
+}
+
+.game-status-scheduled {
+    border-color: rgba(169, 182, 207, 0.3);
+    background: rgba(169, 182, 207, 0.08);
+    color: var(--color-muted);
+}
+
+.game-status-completed {
+    border-color: rgba(74, 222, 128, 0.4);
+    background: rgba(34, 197, 94, 0.12);
+    color: #86efac;
 }
 
 .week-admin-actions {
@@ -1179,25 +1299,43 @@ body.role-league_admin .week-admin-actions.admin-only {
 }
 
 @media (max-width: 900px) {
-    .game-card {
+    .game-time-grid {
         grid-template-columns: minmax(0, 1fr);
-        gap: 16px;
     }
 
-    .score-form,
-    .game-score {
-        justify-self: start;
-    }
-
-    .game-card-actions {
-        width: 100%;
-        justify-content: flex-start;
+    .score-form {
+        align-items: end;
     }
 }
 
 @media (max-width: 560px) {
-    .game-card {
-        grid-template-columns: minmax(0, 1fr);
+    .game-time-heading time {
+        font-size: 20px;
+    }
+
+    .game-card-header {
+        align-items: flex-start;
+    }
+
+    .game-team-row {
+        gap: 8px;
+        padding-inline: 6px;
+    }
+
+    .game-team-side {
+        width: 46px;
+        flex-basis: 46px;
+    }
+
+    .game-team-logo {
+        width: 32px;
+        height: 32px;
+        flex-basis: 32px;
+    }
+
+    .game-card-footer {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .score-form {
@@ -1217,21 +1355,18 @@ body.role-league_admin .week-admin-actions.admin-only {
         width: 100%;
     }
 
-    .game-details-link {
-        justify-self: start;
-    }
-
-    .game-card-actions {
+    .game-admin-controls {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        width: 100%;
     }
 
-    .game-card-actions .game-details-link {
+    .game-admin-controls .score-form {
         grid-column: 1 / -1;
     }
 
-    .game-card-actions .secondary-button,
-    .game-card-actions .danger-button {
+    .game-admin-controls .secondary-button,
+    .game-admin-controls .danger-button {
         width: 100%;
     }
 
@@ -1277,7 +1412,8 @@ body.role-league_admin .week-admin-actions.admin-only {
     font-weight: 600;
 }
 
-.filters-panel select {
+.filters-panel select,
+.filters-panel input {
     width: 100%;
     min-height: 48px;
     border: 1px solid var(--color-border);
@@ -1290,6 +1426,10 @@ body.role-league_admin .week-admin-actions.admin-only {
 
 .games-filters {
     grid-template-columns: repeat(3, minmax(180px, 260px));
+}
+
+.games-team-search {
+    grid-column: span 2;
 }
 
 .results-count {
@@ -1684,10 +1824,18 @@ body.role-league_admin .week-admin-actions.admin-only {
         grid-template-columns: 1fr;
     }
 
-    .game-card,
     .team-card {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .game-card {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .games-team-search {
+        grid-column: auto;
     }
 
     .teams-grid,

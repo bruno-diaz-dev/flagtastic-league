@@ -372,7 +372,7 @@ administrators cannot create the same slot concurrently.
 | `GET` | `/` | Redirects to `/teams` |
 | `GET` | `/teams` | Filterable team directory |
 | `GET` | `/teams/{team_id}/roster` | Dedicated team roster and authorized roster management |
-| `GET` | `/games` | Games and scores page |
+| `GET` | `/games` | Chronological game agenda with team, jornada, division, and field filters |
 | `GET` | `/standings` | Standings page |
 | `GET` | `/statistics` | Public individual leaderboards |
 | `GET` | `/login` | Operational user login |
@@ -406,6 +406,12 @@ The frontend foundation lives in:
 - `static/dashboard.js`
 
 It is currently a lightweight server-rendered HTML, CSS, and JavaScript layer. Shared layout concerns live in `base.html` and `layout.js`. Page-specific behavior lives in the JavaScript file for that page. The teams page is only a directory: selecting a team navigates to its dedicated roster route, keeping directory filtering and roster management as separate responsibilities. The backend remains API-first, so the frontend can evolve without coupling directly to persistence.
+
+The games client keeps one API snapshot, applies accent-insensitive team-name
+and division filters locally, then sorts by jornada, time, and field. Public
+cards show local and visitor teams as separate rows. Administrator score,
+postponement, and deletion controls remain inside a collapsed per-game panel so
+the public schedule keeps the same visual hierarchy for every role.
 
 ### Responsive layout
 
