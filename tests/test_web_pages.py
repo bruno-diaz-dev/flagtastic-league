@@ -343,6 +343,22 @@ def test_games_are_rendered_as_a_grouped_schedule_with_compact_admin_controls():
     assert '@media (max-width: 560px)' in stylesheet
 
 
+def test_manual_game_registration_has_independent_searchable_team_filters():
+    page = client.get("/games").text
+    script = client.get("/static/games.js").text
+    stylesheet = client.get("/static/style.css").text
+
+    assert 'id="manual-game-branch"' in page
+    assert 'id="manual-game-category"' in page
+    assert 'id="manual-home-team-search"' in page
+    assert 'id="manual-away-team-search"' in page
+    assert "function renderManualTeamSelect" in script
+    assert "function renderManualTeamOptions" in script
+    assert "normalizeSearchText(team.name).includes(search)" in script
+    assert ".manual-game-division-filters" in stylesheet
+    assert ".manual-team-picker" in stylesheet
+
+
 def test_game_administration_supports_postponing_and_safe_deletion():
     page = client.get("/games").text
     script = client.get("/static/games.js").text

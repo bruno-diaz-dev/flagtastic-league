@@ -226,6 +226,22 @@ body.sidebar-collapsed .nav-short {
     align-items: end;
 }
 
+.manual-game-division-filters {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.manual-team-picker {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 12px;
+}
+
 .team-form label,
 .game-form label,
 .standings-form label,
@@ -238,6 +254,7 @@ body.sidebar-collapsed .nav-short {
 
 .team-form input,
 .team-form select,
+.game-form input,
 .game-form select,
 .standings-form input,
 .standings-form select,
@@ -258,6 +275,7 @@ select option {
 }
 
 .team-form input::placeholder,
+.game-form input::placeholder,
 .standings-form input::placeholder,
 .player-form input::placeholder {
     color: rgba(248, 250, 252, 0.5);
@@ -1821,6 +1839,12 @@ body.role-league_admin .week-admin-actions.admin-only {
     .games-filters,
     .dashboard-join-form,
     .staff-account-form {
+        grid-template-columns: 1fr;
+    }
+
+    .manual-game-division-filters,
+    .manual-team-picker {
+        grid-column: auto;
         grid-template-columns: 1fr;
     }
 

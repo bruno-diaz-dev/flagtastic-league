@@ -13,15 +13,64 @@
         <h3>Registrar partido</h3>
 
         <form id="game-form" class="game-form">
-            <label>
-                Equipo local
-                <select name="home_team_id" required></select>
-            </label>
+            <div class="manual-game-division-filters">
+                <label>
+                    Rama
+                    <select id="manual-game-branch">
+                        <option value="">Todas las ramas</option>
+                        <option value="varonil">Varonil</option>
+                        <option value="femenil">Femenil</option>
+                        <option value="mixto">Mixto</option>
+                    </select>
+                </label>
 
-            <label>
-                Equipo visitante
-                <select name="away_team_id" required></select>
-            </label>
+                <label>
+                    Categoría
+                    <select id="manual-game-category">
+                        <option value="">Todas las categorías</option>
+                        <option value="u6">U6</option>
+                        <option value="u8">U8</option>
+                        <option value="u10">U10</option>
+                        <option value="u12">U12</option>
+                        <option value="u14">U14</option>
+                        <option value="u16">U16</option>
+                        <option value="u18">U18</option>
+                        <option value="libre">Libre</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="manual-team-picker">
+                <label>
+                    Buscar equipo local
+                    <input
+                        id="manual-home-team-search"
+                        type="search"
+                        placeholder="Escribe el nombre"
+                        autocomplete="off"
+                    >
+                </label>
+                <label>
+                    Equipo local
+                    <select name="home_team_id" required></select>
+                </label>
+            </div>
+
+            <div class="manual-team-picker">
+                <label>
+                    Buscar equipo visitante
+                    <input
+                        id="manual-away-team-search"
+                        type="search"
+                        placeholder="Escribe el nombre"
+                        autocomplete="off"
+                    >
+                </label>
+                <label>
+                    Equipo visitante
+                    <select name="away_team_id" required></select>
+                </label>
+            </div>
 
             <label>
                 Jornada
@@ -190,5 +239,5 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
 <script src="/static/api.js?v=20260929-6"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20260930-1"></script>
+<script src="/static/games.js?v=20260930-2"></script>
 {% endblock %}
