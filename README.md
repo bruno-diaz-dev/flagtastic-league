@@ -62,7 +62,15 @@ representatives, referees, and league administrators.
   team matching and administrator review before any game is created.
 - Upload a game-role image for OCR-assisted matchup review. Referee-role image
   imports remain a separate workflow on the referee dashboard.
+- Correct recognized times in the review table and import only selected rows
+  whose teams, jornada, field, and time are complete.
 - Import jornada statistics and inspect both teams in game-level statistics.
+
+Schedule image recognition is an administrative aid, not an authoritative data
+source. The current league grid is segmented in the browser by hour, field, and
+home/away cell; every proposal must still be reviewed before confirmation. See
+[`docs/game-schedule-import.md`](docs/game-schedule-import.md) for matching,
+conflict, and verification rules.
 
 ## Domain Rules
 
@@ -300,6 +308,9 @@ python -m scripts.balance_mock_games
 Production runs on Vercel with PostgreSQL supplied by Supabase. The production
 database must be upgraded to the repository's Alembic head before code that
 depends on a new schema is promoted. Secure session cookies remain enabled.
+Deploying application code does not execute Alembic automatically. Apply and
+verify each pending migration independently in Preview and Production before
+promoting code that reads the new schema.
 
 Vercel Preview deployments use the separate `flagtastic-league-preview`
 Supabase project through a Preview-only `DATABASE_URL`. Preview data is test
