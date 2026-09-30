@@ -87,6 +87,8 @@ and surrounding whitespace, while the stored display name preserves intentional
 brand capitalization. The same name remains valid in a different division.
 U12 is one mixed division: registrations, filters, and imports normalize every
 U12 team to `mixto`, even when a source file says femenil or varonil.
+Legacy U12 teams may be paired across their stored branches; no other category
+allows cross-branch games.
 
 Statistics are stored per jornada and linked to a game, team, and player. The
 official workbook resolves players from branch, category, team, and jersey

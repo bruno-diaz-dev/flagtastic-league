@@ -50,6 +50,7 @@ from services.game_schedule_import import (
     parse_game_schedule_ocr_cells,
     parse_game_schedule_ocr_words,
 )
+from services.divisions import teams_share_game_division
 
 router = APIRouter(
     prefix="/api/games",
@@ -79,6 +80,14 @@ def create_game(
             detail="Team not found"
         )
 
+    if not teams_share_game_division(home_team, away_team):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Los equipos deben pertenecer a la misma rama y categoria; "
+                "U12 permite cruces entre ramas"
+            )
+        )
 
     return create_game_repository(game)
 
@@ -151,9 +160,22 @@ def confirm_game_schedule(
 ):
     """Persist only game rows that an administrator reviewed."""
     slots = set()
+    teams_by_id = {team["id"]: team for team in get_all_teams()}
     for game in confirmation.games:
         if game.home_team_id == game.away_team_id:
             raise HTTPException(status_code=409, detail="Un equipo no puede jugar contra si mismo")
+        home_team = teams_by_id.get(game.home_team_id)
+        away_team = teams_by_id.get(game.away_team_id)
+        if home_team is None or away_team is None:
+            raise HTTPException(status_code=404, detail="Equipo no encontrado")
+        if not teams_share_game_division(home_team, away_team):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Los equipos deben pertenecer a la misma rama y categoria; "
+                    "U12 permite cruces entre ramas"
+                )
+            )
         slot = (game.week, game.field_number, game.start_time)
         if slot in slots:
             raise HTTPException(status_code=409, detail="El rol contiene dos partidos en el mismo horario y campo")

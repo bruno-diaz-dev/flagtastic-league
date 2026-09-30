@@ -258,6 +258,8 @@ This separation allows the same person to play for multiple teams when league el
 - Every team has `name`, `branch`, `category`, and `status`.
 - `u12` is canonicalized to `mixto` during validation, imports, queries, and
   database writes; all other categories retain their submitted branch.
+- Game validation treats legacy `femenil`, `varonil`, and `mixto` U12 records
+  as one compatible division. Cross-branch games remain invalid elsewhere.
 - New teams are created with `status = "pending"`.
 - League administrators transition teams among `pending`, `active`, and
   `inactive`; the status is operational state, not free-form display text.
