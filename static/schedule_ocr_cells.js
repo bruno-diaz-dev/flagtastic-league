@@ -271,8 +271,35 @@ function scheduleMedian(values) {
 }
 
 function regularScheduleTimes(values) {
-    // A break in the schedule is legitimate; OCR must never regularize it.
-    return values.map((value) => Number.isInteger(value) && value >= 0 && value < 1440 ? value : null);
+    // Keep genuine irregular schedules intact. Only normalize near-zero minute
+    // noise when the image clearly contains an hourly grid.
+    const cleaned = values.map(
+        (value) => Number.isInteger(value) && value >= 0 && value < 1440 ? value : null
+    );
+    const valid = cleaned.filter((value) => value !== null);
+    const hourlyLike = valid.filter((value) => value % 60 <= 9).length;
+    const normalized = valid.length >= 4 && hourlyLike / valid.length >= 0.75
+        ? cleaned.map((value) => (
+            value !== null && value % 60 <= 9 ? value - value % 60 : value
+        ))
+        : cleaned;
+
+    // Repair a duplicated or out-of-order OCR reading only when its immediate
+    // neighbors prove the missing whole hour. Null values still require review.
+    return normalized.map((value, index) => {
+        if (value === null || index === 0 || index === normalized.length - 1) return value;
+        const previous = normalized[index - 1];
+        const next = normalized[index + 1];
+        if (
+            previous !== null
+            && next !== null
+            && next - previous === 120
+            && (value <= previous || value >= next)
+        ) {
+            return previous + 60;
+        }
+        return value;
+    });
 }
 
 function scheduleTimeText(minutes) {

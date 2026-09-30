@@ -19,6 +19,15 @@ test('OCR preserves real schedule breaks and irregular start times', () => {
     }
 });
 
+test('Hourly schedule corrects OCR minute noise and a duplicated hour', () => {
+    const recognized = [660,720,789,840,900,840,1029,1080,1140,1200,1260];
+    const expected = [660,720,780,840,900,960,1020,1080,1140,1200,1260];
+    assert.equal(
+        JSON.stringify(context.regularScheduleTimes(recognized)),
+        JSON.stringify(expected)
+    );
+});
+
 test('Unreadable times stay empty for administrator correction', () => {
     assert.equal(JSON.stringify(context.regularScheduleTimes([660,null,780,1440])), '[660,null,780,null]');
     assert.equal(context.scheduleTimeText(null), null);

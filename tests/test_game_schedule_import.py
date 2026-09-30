@@ -31,6 +31,7 @@ def test_pitbulls_ir_ocr_matches_jr_without_confusing_sr():
     for label, expected in [
         ("Pitbulls Ir Mix Libre", 1),
         ("Prlulls Ir Mix Libre", 1),
+        ("Priulls Ir Mix Libre", 1),
         ("Pitbulls Sr Mix Libre", 2),
     ]:
         result = parse_game_schedule_ocr_cells(1, [{
