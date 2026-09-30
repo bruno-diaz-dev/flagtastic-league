@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "main": true,
+      "preview": true,
+      "chore/vercel-storage-optimization": true
+    }
+  },
+  "functions": {
+    "main.py": {
+      "excludeFiles": "{tests/**,docs/**,.github/**,migrations/**,scripts/**,README.md,Dockerfile,.dockerignore,alembic.ini,pytest.ini,requirements-dev.txt,.env.example}"
+    }
+  }
+}
