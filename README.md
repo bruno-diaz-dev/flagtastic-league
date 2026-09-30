@@ -80,6 +80,10 @@ multiple teams across different branch/category combinations, but cannot join
 two teams in the same division. Jersey numbers are unique only within a team.
 CURP uniquely resolves the person and remains private administrative data.
 
+Team identity is name + branch + category. Name comparison ignores letter case
+and surrounding whitespace, while the stored display name preserves intentional
+brand capitalization. The same name remains valid in a different division.
+
 Statistics are stored per jornada and linked to a game, team, and player. The
 official workbook resolves players from branch, category, team, and jersey
 number; spreadsheet names are not treated as authoritative identities.

@@ -53,7 +53,9 @@ class TeamCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def normalize_team_name(cls, value):
-        normalized = value.strip()
+        # Preserve intentional brand casing while removing whitespace variants
+        # that must not create a second identity in the same division.
+        normalized = " ".join(value.split())
         if not normalized:
             raise ValueError("Team name is required")
         return normalized
@@ -121,7 +123,7 @@ class TeamNameUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def normalize_name(cls, name):
-        normalized = name.strip()
+        normalized = " ".join(name.split())
         if not normalized:
             raise ValueError("Team name cannot be empty")
         return normalized
