@@ -6,6 +6,10 @@ const gamesContainer = document.querySelector("#games");
 
 const homeTeamSelect = document.querySelector("[name='home_team_id']");
 const awayTeamSelect = document.querySelector("[name='away_team_id']");
+const manualGameBranch = document.querySelector("#manual-game-branch");
+const manualGameCategory = document.querySelector("#manual-game-category");
+const manualHomeTeamSearch = document.querySelector("#manual-home-team-search");
+const manualAwayTeamSearch = document.querySelector("#manual-away-team-search");
 const gameFilterWeek = document.querySelector("#game-filter-week");
 const gameFilterTeam = document.querySelector("#game-filter-team");
 const gameFilterBranch = document.querySelector("#game-filter-branch");
@@ -26,6 +30,7 @@ const toggleGamesWeekStatusButton = document.querySelector("#toggle-games-week-s
 const weekActionMessage = document.querySelector("#week-action-message");
 
 let gamesState = [];
+let gameTeamsState = [];
 let scheduleImportState = null;
 const officialPositionLabels = {
     referee: "Referee",
@@ -108,16 +113,45 @@ async function loadRefereeAssignmentOptions() {
 }
 
 
-function renderGameTeamOption(teams){
-    const options = teams
-        .map((team) => {
-            return `<option value="${team.id}">${team.name} - ${team.branch} / ${team.category}</option>`;
-        })
-        .join("");
+function compareTeams(first, second) {
+    return (
+        first.branch.localeCompare(second.branch, "es-MX")
+        || first.category.localeCompare(second.category, "es-MX", {numeric: true})
+        || first.name.localeCompare(second.name, "es-MX")
+    );
+}
 
-        homeTeamSelect.innerHTML = options;
-        awayTeamSelect.innerHTML = options;
-    
+function renderManualTeamSelect(select, searchInput) {
+    const selectedTeamId = select.value;
+    const search = normalizeSearchText(searchInput.value);
+    const teams = gameTeamsState
+        .filter((team) => (
+            (!manualGameBranch.value || team.branch === manualGameBranch.value)
+            && (!manualGameCategory.value || team.category === manualGameCategory.value)
+            && (!search || normalizeSearchText(team.name).includes(search))
+        ))
+        .sort(compareTeams);
+    const placeholder = teams.length
+        ? "Selecciona un equipo"
+        : "No hay equipos con estos filtros";
+
+    select.innerHTML = `
+        <option value="">${placeholder}</option>
+        ${teams.map((team) => `
+            <option value="${team.id}">
+                ${escapeHtml(team.name)} · ${escapeHtml(team.branch)} / ${escapeHtml(team.category)}
+            </option>
+        `).join("")}
+    `;
+    select.disabled = teams.length === 0;
+    if (teams.some((team) => String(team.id) === selectedTeamId)) {
+        select.value = selectedTeamId;
+    }
+}
+
+function renderManualTeamOptions() {
+    renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
+    renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);
 }
 
 function renderGames(games) {
@@ -284,8 +318,8 @@ async function loadGamesTeams() {
             return;
         }
 
-        const teams = await response.json();
-        renderGameTeamOption(teams);
+        gameTeamsState = await response.json();
+        renderManualTeamOptions();
     } catch (error) {
         gameFormMessage.textContent = "No se pudo conectar al servidor";
     }
@@ -363,6 +397,7 @@ async function registerGame(event) {
         }
 
         gameForm.reset();
+        renderManualTeamOptions();
         gameFormMessage.textContent = "Partido registrado correctamente.";
 
         await loadGames();
@@ -429,6 +464,16 @@ gamesContainer.addEventListener("click", async (event) => {
 if (gameForm !== null) {
     gameForm.addEventListener("submit", registerGame);
 }
+
+[manualGameBranch, manualGameCategory].forEach((filter) => {
+    filter.addEventListener("change", renderManualTeamOptions);
+});
+manualHomeTeamSearch.addEventListener("input", () => {
+    renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
+});
+manualAwayTeamSearch.addEventListener("input", () => {
+    renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);
+});
 
 [gameFilterWeek, gameFilterBranch, gameFilterCategory, gameFilterField].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);

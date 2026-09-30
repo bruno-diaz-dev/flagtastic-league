@@ -86,6 +86,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 
 - Game scheduling, fields 1-8, scores, jornada filtering, postponement, and
   administrator-only deletion of one game or a complete jornada.
+- Manual scheduling with shared division filters and independent local and
+  visitor team-name searches.
 - Reviewed role import from the league XLSX calendar, normalized CSV, or image;
   unresolved teams are blocked, recognized times remain editable, and repeated
   schedule slots are handled safely.

@@ -418,6 +418,9 @@ and division filters locally, then sorts by jornada, time, and field. Public
 cards show local and visitor teams as separate rows. Administrator score,
 postponement, and deletion controls remain inside a collapsed per-game panel so
 the public schedule keeps the same visual hierarchy for every role.
+Manual game creation reuses the teams snapshot. A shared branch/category filter
+narrows the division, while independent accent-insensitive searches narrow the
+local and visitor selectors without requiring additional API requests.
 
 ### Responsive layout
 
