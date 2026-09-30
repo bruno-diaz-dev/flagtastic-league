@@ -12,6 +12,7 @@ from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
+from services.team_matching import team_name_match_score
 
 
 class GameScheduleImportError(Exception):
@@ -669,17 +670,7 @@ def _ocr_branch_hint(label):
 
 
 def _name_token_score(label, team):
-    target_tokens = _normalize(label).split()
-    name_tokens = _normalize(team["name"]).split()
-    if not target_tokens or not name_tokens:
-        return 0.0
-    scores = []
-    for name_token in name_tokens:
-        scores.append(max(
-            SequenceMatcher(None, name_token, target_token).ratio()
-            for target_token in target_tokens
-        ))
-    return sum(scores) / len(scores)
+    return team_name_match_score(label, team["name"])
 
 
 def _team_candidate_score(label, team):
@@ -696,6 +687,8 @@ def _team_candidate_score(label, team):
         score += 0.14 if _normalize(team["category"]) == category_hint else -0.08
 
     branch_hint = _ocr_branch_hint(label)
+    if category_hint == "u12":
+        branch_hint = "mixto"
     if branch_hint:
         score += 0.10 if _normalize(team["branch"]) == branch_hint else -0.06
 
@@ -772,6 +765,8 @@ def _team_aliases(team):
         "varonil": ("var", "varonil"),
         "mixto": ("mix", "mixto"),
     }.get(branch, (branch,))
+    if category == "u12":
+        branch_aliases = ("fem", "femenil", "var", "varonil", "mix", "mixto")
     category_aliases = (category, category[1:]) if category.startswith("u") else (category,)
     aliases = {name}
     for category_alias in category_aliases:

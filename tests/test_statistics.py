@@ -156,6 +156,23 @@ def test_imports_a_complete_week_and_resolves_names_from_rosters():
     assert totals["completion_percentage"] == 75.0
 
 
+def test_statistics_import_resolves_u12_abbreviated_team_names():
+    diablos = create_team("Diablos del Sol Amarillo", "femenil", "u12")
+    player = create_player(
+        diablos, "U12 Player", "U12X010101HASXX004", 4
+    )
+
+    response = upload_week(1, [[
+        "femenil", "u12", "Diablos Ama", 4,
+        6, 1, 0, 0, 2, 3, 5
+    ]])
+
+    assert response.status_code == 200
+    assert response.json()["rows"][0]["branch"] == "mixto"
+    totals = client.get(f"/api/players/{player}/stats").json()
+    assert totals["points"] == 6
+
+
 def test_imports_the_official_horizontal_workbook_format():
     tigres = create_team("Tigres")
     quarterback = create_player(tigres, "Quarterback", "QBXX010101HASXX001", 83)

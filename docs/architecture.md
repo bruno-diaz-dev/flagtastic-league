@@ -256,6 +256,8 @@ This separation allows the same person to play for multiple teams when league el
   `RAVENS` in the same division.
 
 - Every team has `name`, `branch`, `category`, and `status`.
+- `u12` is canonicalized to `mixto` during validation, imports, queries, and
+  database writes; all other categories retain their submitted branch.
 - New teams are created with `status = "pending"`.
 - League administrators transition teams among `pending`, `active`, and
   `inactive`; the status is operational state, not free-form display text.
@@ -422,6 +424,9 @@ Every team name rendered as navigational content links to its canonical
 `/teams/{team_id}/roster` page. This applies to directories, dashboards,
 standings, leaderboards, game cards, game details, and referee assignments;
 team names inside form controls and import review tables remain controls.
+Schedule and statistics imports compare normalized name words and accept unique
+abbreviations or omitted connector words. When the two strongest candidates are
+too close, the row remains unmatched for review instead of choosing a team.
 Manual game creation reuses the teams snapshot. A shared branch/category filter
 narrows the division, while independent accent-insensitive searches narrow the
 local and visitor selectors without requiring additional API requests.

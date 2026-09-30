@@ -1,6 +1,8 @@
 """Persistence and aggregate queries for weekly player statistics."""
 
 from database import get_connection
+from services.divisions import canonicalize_division
+from services.team_matching import match_team_name, normalize_team_text
 
 
 class StatisticsValidationError(Exception):
@@ -15,21 +17,27 @@ def import_statistics_workbook(weeks, games=None):
             "SELECT id, name, branch, category FROM teams"
         ).fetchall()
         teams_by_identity = {
-            (team["branch"].strip().casefold(),
-             team["category"].strip().casefold(),
-             team["name"].strip().casefold()): team
+            (*canonicalize_division(team["branch"], team["category"]),
+             normalize_team_text(team["name"])): team
             for team in teams
         }
+
+        def resolve_team(label, branch, category):
+            division = canonicalize_division(branch, category)
+            exact = teams_by_identity.get(
+                (*division, normalize_team_text(label))
+            )
+            return exact or match_team_name(
+                label, teams, branch=division[0], category=division[1]
+            )
         resolved_weeks = {}
         for week, rows in weeks.items():
             resolved_rows = []
             seen_memberships = set()
             for row_number, row in enumerate(rows, start=2):
-                team = teams_by_identity.get((
-                    row["branch"].strip().casefold(),
-                    row["category"].strip().casefold(),
-                    row["team"].strip().casefold()
-                ))
+                team = resolve_team(
+                    row["team"], row["branch"], row["category"]
+                )
                 if team is None:
                     raise StatisticsValidationError(
                         f"Jornada {week}, fila {row_number}: no existe "
@@ -65,15 +73,11 @@ def import_statistics_workbook(weeks, games=None):
         for week, week_games in (games or {}).items():
             for game_index, game in enumerate(week_games):
                 game = {**game, "game_index": game_index}
-                division = (
-                    game["branch"].strip().casefold(),
-                    game["category"].strip().casefold()
+                home = resolve_team(
+                    game["home_team"], game["branch"], game["category"]
                 )
-                home = teams_by_identity.get(
-                    (*division, game["home_team"].strip().casefold())
-                )
-                away = teams_by_identity.get(
-                    (*division, game["away_team"].strip().casefold())
+                away = resolve_team(
+                    game["away_team"], game["branch"], game["category"]
                 )
                 if home is None or away is None:
                     missing = game["home_team"] if home is None else game["away_team"]

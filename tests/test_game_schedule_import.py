@@ -45,6 +45,60 @@ def test_pitbulls_ir_ocr_matches_jr_without_confusing_sr():
         assert row["home_match_branch"] == "mixto"
 
 
+def test_abbreviated_team_words_match_a_unique_registered_name():
+    from datetime import time
+
+    teams = [
+        {
+            "id": 1, "name": "Diablos del Sol Amarillo",
+            "branch": "mixto", "category": "u12"
+        },
+        {
+            "id": 2, "name": "Rancheros de Aguascalientes",
+            "branch": "mixto", "category": "u12"
+        },
+    ]
+    result = parse_game_schedule_ocr_cells(1, [{
+        "field_number": 1,
+        "start_time": time(12),
+        "home_team": "Diablos Ama Fem U12",
+        "away_team": "Rancheros Ags U12",
+    }], teams)
+
+    proposal = result["proposals"][0]
+    assert proposal["home_team_id"] == 1
+    assert proposal["away_team_id"] == 2
+    assert proposal["home_match_branch"] == "mixto"
+
+
+def test_ambiguous_partial_team_name_requires_review():
+    from datetime import time
+
+    teams = [
+        {
+            "id": 1, "name": "Diablos del Sol Amarillo",
+            "branch": "mixto", "category": "u12"
+        },
+        {
+            "id": 2, "name": "Diablos del Sol Rojo",
+            "branch": "mixto", "category": "u12"
+        },
+        {
+            "id": 3, "name": "Rancheros",
+            "branch": "mixto", "category": "u12"
+        },
+    ]
+    result = parse_game_schedule_ocr_cells(1, [{
+        "field_number": 1,
+        "start_time": time(12),
+        "home_team": "Diablos U12",
+        "away_team": "Rancheros U12",
+    }], teams)
+
+    assert result["proposals"][0]["home_team_id"] is None
+    assert result["proposals"][0]["ready"] is False
+
+
 def test_unreadable_image_time_preserves_matched_teams_for_review():
     result = parse_game_schedule_ocr_cells(1, [{
         "field_number": 1,

@@ -62,6 +62,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Authenticated team creation with automatic creator assignment.
 - Team lifecycle: `pending`, `active`, and `inactive`.
 - Case-insensitive team identity within each branch/category division.
+- Canonical mixed classification for all U12 teams and ambiguity-safe
+  abbreviated-name matching in schedule and statistics imports.
 - Administrator team rename, representative assignment/removal, and deletion.
 - Representative access limited to explicitly assigned teams.
 - Team logos and Head Coach, Coach, and Manager fields.

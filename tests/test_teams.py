@@ -353,6 +353,21 @@ def test_team_branch_and_category_normalized():
     assert team["category"] == "libre"
 
 
+def test_u12_teams_are_always_registered_as_mixed():
+    first = client.post(
+        "/api/teams",
+        json={"name": "Diablos U12", "branch": "femenil", "category": "u12"}
+    )
+    duplicate = client.post(
+        "/api/teams",
+        json={"name": "Diablos U12", "branch": "varonil", "category": "u12"}
+    )
+
+    assert first.status_code == 201
+    assert first.json()["branch"] == "mixto"
+    assert duplicate.status_code == 409
+
+
 def test_team_name_collapses_repeated_whitespace():
     response = client.post(
         "/api/teams",

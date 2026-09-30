@@ -1,14 +1,14 @@
 """Persistence operations for league teams."""
 
 from database import get_connection
+from services.divisions import canonicalize_division
 
 def create_team(team, representative_user_id=None):
     """Create a normalized pending team and return its public fields."""
     connection = get_connection()
 
     name = team.name.strip()
-    branch = team.branch.strip().lower()
-    category = team.category.strip().lower()
+    branch, category = canonicalize_division(team.branch, team.category)
 
     try:
         cursor = connection.execute(

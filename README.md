@@ -85,10 +85,15 @@ CURP uniquely resolves the person and remains private administrative data.
 Team identity is name + branch + category. Name comparison ignores letter case
 and surrounding whitespace, while the stored display name preserves intentional
 brand capitalization. The same name remains valid in a different division.
+U12 is one mixed division: registrations, filters, and imports normalize every
+U12 team to `mixto`, even when a source file says femenil or varonil.
 
 Statistics are stored per jornada and linked to a game, team, and player. The
 official workbook resolves players from branch, category, team, and jersey
 number; spreadsheet names are not treated as authoritative identities.
+Schedule and statistics files may use a unique word-based abbreviation such as
+`Diablos Ama` for `Diablos del Sol Amarillo`. Ambiguous shortened names remain
+unselected for administrator review instead of being guessed.
 
 Passing percentage is completed passes divided by attempted passes. During the
 first three jornadas there is no minimum; after jornada 3, a player needs at
