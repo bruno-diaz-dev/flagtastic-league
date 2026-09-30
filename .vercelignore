@@ -1,0 +1,12 @@
+.github
+docs
+migrations
+scripts
+tests
+README.md
+Dockerfile
+.dockerignore
+alembic.ini
+pytest.ini
+requirements-dev.txt
+.env.example
