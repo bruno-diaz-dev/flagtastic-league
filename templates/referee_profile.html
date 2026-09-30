@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="public-referee-profile" class="dashboard-page" data-user-id="{{ user_id }}">
+    <button id="referee-profile-back" class="back-link link-button" type="button">← Volver a la planilla</button>
+
+    <header class="section-header referee-profile-header">
+        <span id="referee-profile-photo-placeholder" class="profile-photo profile-placeholder" aria-hidden="true"></span>
+        <img id="referee-profile-photo" class="profile-photo hidden" alt="">
+        <div>
+            <p class="eyebrow">Oficial de la liga</p>
+            <h2 id="referee-profile-name">Perfil arbitral</h2>
+            <p id="referee-profile-identity">Cargando experiencia...</p>
+        </div>
+    </header>
+
+    <section aria-labelledby="referee-profile-stats-title">
+        <h3 id="referee-profile-stats-title">Experiencia arbitral</h3>
+        <div id="referee-profile-stats" class="stat-grid" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="referee-profile-positions-title">
+        <h3 id="referee-profile-positions-title">Posiciones desempeñadas</h3>
+        <div id="referee-profile-positions" class="referee-position-grid" aria-live="polite"></div>
+    </section>
+
+    <p id="referee-profile-message" class="form-message" role="status"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20260930-4"></script>
+<script src="/static/referee_profile.js?v=20260930-1"></script>
+{% endblock %}

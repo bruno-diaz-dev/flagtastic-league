@@ -88,6 +88,8 @@ Current routers:
 - `routes/players.py`: player registration and roster listing by team.
 - `routes/games.py`: game creation and listing.
 - `routes/statistics.py`: Excel imports, game statistics, player totals, and leaderboards.
+- `routes/referees.py`: authenticated referee directory, aggregate referee
+  profiles, and referee-owned AKA/photo updates.
 
 ### Dependencies
 
@@ -120,6 +122,7 @@ Current repositories:
 - `repositories/users.py`
 - `repositories/statistics.py`
 - `repositories/representative_dashboard.py`
+- `repositories/referees.py`
 
 ### Services
 

@@ -1611,7 +1611,29 @@ body.role-league_admin .week-admin-actions.admin-only {
 }
 .admin-users-filters .results-count { margin: 0 0 14px; }
 .table-empty-state { color: var(--color-muted); text-align: center !important; }
-.save-role-button { min-height: 42px; padding: 0 18px; }
+.save-role-button,
+.save-aka-button {
+    min-height: 42px;
+    border: 0;
+    border-radius: 6px;
+    padding: 0 18px;
+    background: var(--color-gold);
+    color: var(--color-navy-dark);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.save-role-button:hover,
+.save-aka-button:hover {
+    background: #ffd95a;
+}
+
+.save-role-button:disabled,
+.save-aka-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
 .user-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .official-aka-editor {
     display: grid;
@@ -1619,8 +1641,28 @@ body.role-league_admin .week-admin-actions.admin-only {
     gap: 8px;
     min-width: 180px;
 }
-.official-aka-editor input { min-height: 42px; }
-.save-aka-button { min-height: 42px; white-space: nowrap; }
+.official-aka-editor input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid rgba(184, 195, 217, 0.35);
+    border-radius: 6px;
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text);
+    font: inherit;
+}
+
+.official-aka-editor input::placeholder {
+    color: rgba(248, 250, 252, 0.5);
+}
+
+.official-aka-editor input:focus-visible {
+    border-color: var(--color-gold);
+    outline: 2px solid rgba(244, 197, 66, 0.24);
+    outline-offset: 1px;
+}
+
+.save-aka-button { white-space: nowrap; }
 .not-applicable { color: var(--color-muted); }
 .delete-user-button {
     min-height: 42px;
@@ -1680,6 +1722,23 @@ body.role-league_admin .week-admin-actions.admin-only {
     background: var(--color-surface-raised);
 }
 
+.referee-profile-link {
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.referee-profile-link:hover .referee-roster-card,
+.referee-profile-link:focus-visible .referee-roster-card {
+    border-color: rgba(244, 197, 66, 0.55);
+    background: rgba(19, 43, 87, 0.72);
+}
+
+.referee-profile-link:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+}
+
 .referee-roster-card img,
 .referee-photo-placeholder {
     width: 72px;
@@ -1701,6 +1760,43 @@ body.role-league_admin .week-admin-actions.admin-only {
 .referee-roster-card h3,
 .referee-roster-card p { margin: 0; }
 .referee-roster-card p { margin-top: 4px; color: var(--color-muted); }
+.referee-profile-action {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--color-gold);
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.referee-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.referee-profile-header .eyebrow { margin-bottom: 4px; }
+.referee-profile-header h2 { margin-bottom: 6px; }
+
+.referee-position-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+.referee-position-item {
+    min-height: 112px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 18px;
+    background: rgba(16, 27, 49, 0.86);
+    display: grid;
+    align-content: center;
+    gap: 4px;
+}
+
+.referee-position-item span,
+.referee-position-item small { color: var(--color-muted); }
+.referee-position-item strong { color: var(--color-gold); font-size: 26px; }
 
 .game-crew { margin-top: 14px; }
 .game-crew > strong { color: var(--color-gold); font-size: 0.9rem; }

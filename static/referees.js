@@ -11,6 +11,7 @@ function refereeCard(referee) {
     const initials = referee.display_name
         .split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
     return `
+        <a class="referee-profile-link" href="/referees/${referee.id}" aria-label="Ver perfil de ${escapeHtml(referee.display_name)}">
         <article class="referee-roster-card">
             ${referee.profile_photo_url
                 ? `<img src="${referee.profile_photo_url}" alt="Foto de ${escapeHtml(referee.display_name)}" loading="lazy" decoding="async">`
@@ -18,8 +19,9 @@ function refereeCard(referee) {
             <div>
                 <h3>${escapeHtml(referee.display_name)}</h3>
                 ${referee.aka ? `<p>${escapeHtml(referee.name)}</p>` : ""}
+                <span class="referee-profile-action">Ver perfil</span>
             </div>
-        </article>`;
+        </article></a>`;
 }
 
 

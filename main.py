@@ -246,3 +246,13 @@ def referee_games_page(request: Request):
 def referee_roster_page(request: Request):
     """Render the authenticated league referee directory shell."""
     return templates.TemplateResponse(request, "referees.html")
+
+
+@app.get("/referees/{user_id}")
+def public_referee_profile_page(request: Request, user_id: int):
+    """Render one authenticated, read-only referee profile shell."""
+    return templates.TemplateResponse(
+        request=request,
+        name="referee_profile.html",
+        context={"user_id": user_id},
+    )

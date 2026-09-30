@@ -47,6 +47,8 @@ representatives, referees, and league administrators.
 ### Referees
 
 - Appear in a private referee roster visible to signed-in league users.
+- Have an authenticated profile with aggregate experience by jornada and
+  officiating position, without exposing email or specific assignments.
 - Upload or replace their own roster photo; player-referees reuse their player
   profile photo instead of maintaining a duplicate.
 - View only their own pending and completed assignments.
