@@ -85,7 +85,10 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Game scheduling, fields 1-8, scores, jornada filtering, postponement, and
   administrator-only deletion of one game or a complete jornada.
 - Reviewed role import from the league XLSX calendar, normalized CSV, or image;
-  unresolved teams are blocked and repeated game rows are ignored safely.
+  unresolved teams are blocked, recognized times remain editable, and repeated
+  schedule slots are handled safely.
+- Browser OCR of the operational six-field grid, including complete hourly-row
+  detection and separate `Pitbulls Jr`/`Pitbulls Sr` matching.
 - Game-level player statistics for both participating teams.
 - Complete-jornada workbook imports linked to game, player, team, and division.
 - Aggregated player profiles and named leaderboards.
@@ -148,6 +151,8 @@ Every production release must satisfy all applicable gates.
 - Destructive data changes include an explicit backup or recovery procedure.
 - Production is migrated before application code that requires the schema is
   promoted.
+- Preview and Production migration state is checked independently; a successful
+  Vercel deployment is not evidence that either database was migrated.
 - `alembic stamp` is never used as a substitute for applying missing schema.
 
 ## Sprint 5: Production Stabilization

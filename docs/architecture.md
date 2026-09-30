@@ -359,8 +359,11 @@ CSV files require jornada, campo, hora, local, and visitante (English aliases
 are also accepted). Team labels are normalized for accents and common branch
 abbreviations, then matched against existing teams. Ambiguous or missing teams
 remain visible in the review but cannot be selected for import. Confirmation is
-transactional and skips a game already present with the same jornada and ordered
-participants, making a repeated upload safe.
+transactional. A schedule slot is uniquely identified by jornada, field, and
+start time. Exact repeated slots are skipped; replacing a slot's teams is
+allowed only while the existing game has no score, statistics, or officials.
+Conflicts reject the complete batch, and confirmations are serialized so two
+administrators cannot create the same slot concurrently.
 
 ## Current Web Pages
 
@@ -478,6 +481,10 @@ Schema changes are applied before application startup:
 ```text
 python -m alembic upgrade head
 ```
+
+Vercel deployment does not run this command automatically. Preview and
+Production therefore have separate migration steps and must each be checked at
+the repository Alembic head before code that reads a new column is promoted.
 
 The `Dockerfile` builds an image based on `python:3.14-slim`, installs dependencies from `requirements.txt`, copies the project, and starts Uvicorn on `0.0.0.0:8000`.
 
@@ -722,6 +729,13 @@ format as a game calendar. Images are split by recognized jornada, time row,
 field, and local/visitor half-cell before matching teams. Referee-role OCR stays
 under `/api/games/referee-schedule/*` and the referee dashboard; importing a
 game image never changes official assignments.
+
+Browser OCR derives row boundaries from the complete schedule grid, including
+lightly colored horizontal lines, before recognizing individual cells. Time OCR
+uses a second single-line pass when the block result is unreadable. Whole-hour
+correction is permitted only when the detected schedule is itself an hourly
+sequence; irregular intervals remain unchanged. A failed time remains empty and
+must be corrected by an administrator before that proposal can be selected.
 
 The current grid format prints four names in this order: Referee, Down Judge,
 Field Judge, Statistician. A five-name finals row inserts Side Judge before the
