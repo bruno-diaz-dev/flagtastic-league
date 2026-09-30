@@ -324,6 +324,72 @@ def test_league_admin_can_create_admin_referee_without_player_identity():
     assert client.get("/api/admin/users").status_code == 403
 
 
+def test_league_admin_can_update_referee_aka():
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("aka-admin")
+    create_user(UserCreate(
+        email=admin_email, name="League Admin", password="supersecret",
+        role="league_admin"
+    ))
+    _, referee_email = unique_identity("aka-official")
+    referee = create_user(UserCreate(
+        email=referee_email, name="Official Legal Name",
+        password="supersecret", role="referee"
+    ))
+    assert login(admin_email, "supersecret").status_code == 200
+
+    response = client.patch(
+        f"/api/admin/users/{referee['id']}/referee-aka",
+        json={"aka": "Jimmy"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["aka"] == "Jimmy"
+    assert response.json()["display_name"] == "Jimmy"
+    roster = client.get("/api/referees").json()
+    listed = next(item for item in roster if item["id"] == referee["id"])
+    assert listed["display_name"] == "Jimmy"
+
+
+def test_non_admin_cannot_update_referee_aka():
+    disable_test_authorization_override()
+    _, referee_email = unique_identity("aka-denied")
+    referee = create_user(UserCreate(
+        email=referee_email, name="Referee", password="supersecret",
+        role="referee"
+    ))
+    assert login(referee_email, "supersecret").status_code == 200
+
+    response = client.patch(
+        f"/api/admin/users/{referee['id']}/referee-aka",
+        json={"aka": "Unauthorized"}
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_cannot_assign_referee_aka_without_referee_role():
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("aka-role-admin")
+    create_user(UserCreate(
+        email=admin_email, name="League Admin", password="supersecret",
+        role="league_admin"
+    ))
+    _, representative_email = unique_identity("aka-representative")
+    representative = create_user(UserCreate(
+        email=representative_email, name="Representative",
+        password="supersecret", role="team_representative"
+    ))
+    assert login(admin_email, "supersecret").status_code == 200
+
+    response = client.patch(
+        f"/api/admin/users/{representative['id']}/referee-aka",
+        json={"aka": "Not an official"}
+    )
+
+    assert response.status_code == 409
+
+
 def test_non_admin_cannot_create_staff_account():
     disable_test_authorization_override()
     _, referee_email = unique_identity("staff-denied")

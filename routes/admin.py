@@ -4,12 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg.errors import UniqueViolation
 
 from dependencies.auth import require_league_admin
-from models import StaffAccountCreate, UserRoleUpdate, UserRolesUpdate
+from models import (
+    RefereeProfileUpdate,
+    StaffAccountCreate,
+    UserRoleUpdate,
+    UserRolesUpdate,
+)
+from repositories.referees import update_referee_aka
 from repositories.users import (
     PlayerIdentityConflict,
     create_staff_account,
     delete_user_account,
     get_all_users,
+    get_user_by_id,
     set_user_roles,
     update_user_role
 )
@@ -85,6 +92,29 @@ def replace_user_roles(
     if user is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
+
+
+@router.patch("/{user_id}/referee-aka")
+def change_referee_aka(
+    user_id: int,
+    update: RefereeProfileUpdate,
+    _admin=Depends(require_league_admin),
+):
+    """Let a league administrator maintain an official's public AKA."""
+    user = get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if "referee" not in user["roles"]:
+        raise HTTPException(
+            status_code=409,
+            detail="El usuario no tiene rol de arbitro",
+        )
+    if not update_referee_aka(user_id, update.aka):
+        raise HTTPException(
+            status_code=409,
+            detail="El usuario ya no tiene rol de arbitro",
+        )
+    return get_user_by_id(user_id)
 
 
 @router.delete("/{user_id}", status_code=204)

@@ -59,6 +59,8 @@ representatives, referees, and league administrators.
   erroneous teams.
 - Create staff accounts, grant cumulative roles, and delete login accounts
   while preserving historical sports data.
+- Maintain the public AKA used for each official in referee directories,
+  assignments, and schedule matching.
 - Schedule games manually with division and independent team-name filters, postpone
   or delete games, record scores, and manage official assignments.
 - Remove an entire jornada only through an explicit destructive confirmation.
