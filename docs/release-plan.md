@@ -125,6 +125,8 @@ Every production release must satisfy all applicable gates.
 - Docker image builds.
 - CodeQL reports no blocking finding.
 - Vercel Preview deployment succeeds.
+- Preview connects to the isolated `flagtastic-league-preview` database and
+  never to the production database.
 
 ### Manual gates
 
