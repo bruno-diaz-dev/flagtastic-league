@@ -89,7 +89,7 @@ def create_game(
             status_code=409,
             detail=(
                 "Los equipos deben pertenecer a la misma rama y categoria; "
-                "U12 permite cruces entre ramas"
+                "U8, U10 y U12 permiten cruces entre ramas"
             )
         )
 
@@ -177,7 +177,7 @@ def confirm_game_schedule(
                 status_code=409,
                 detail=(
                     "Los equipos deben pertenecer a la misma rama y categoria; "
-                    "U12 permite cruces entre ramas"
+                    "U8, U10 y U12 permiten cruces entre ramas"
                 )
             )
         slot = (game.week, game.field_number, game.start_time)

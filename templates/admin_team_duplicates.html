@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="team-audit-page">
+    <header class="section-header">
+        <div>
+            <h2>Auditar equipos juveniles</h2>
+            <p>Revisa posibles registros repetidos de U8, U10 y U12 entre distintas ramas.</p>
+        </div>
+    </header>
+
+    <section class="form-panel youth-division-rule">
+        <h3>Divisiones unificadas</h3>
+        <p>
+            En estas categorías todos los equipos pueden enfrentarse y aparecen en
+            una sola tabla. Esta vista solo señala coincidencias; no elimina ni
+            fusiona equipos automáticamente.
+        </p>
+    </section>
+
+    <section class="form-panel audit-filters" aria-label="Filtros de auditoría">
+        <label>
+            Buscar equipo
+            <input id="duplicate-name-filter" type="search" placeholder="Nombre del equipo">
+        </label>
+        <label>
+            Categoría
+            <select id="duplicate-category-filter">
+                <option value="">U8, U10 y U12</option>
+                <option value="u8">U8</option>
+                <option value="u10">U10</option>
+                <option value="u12">U12</option>
+            </select>
+        </label>
+    </section>
+
+    <p id="duplicate-audit-count" class="section-count"></p>
+    <p id="duplicate-audit-message" class="form-message" role="status"></p>
+    <section id="duplicate-audit-results" class="duplicate-audit-results" aria-live="polite"></section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20261001-1"></script>
+<script src="/static/admin_team_duplicates.js?v=20261001-1"></script>
+{% endblock %}

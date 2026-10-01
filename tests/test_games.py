@@ -69,18 +69,24 @@ def test_create_game():
     assert data["field_number"] == 1
 
 
-def test_u12_teams_can_play_across_registered_branches():
+@pytest.mark.parametrize("category", ["u8", "u10", "u12"])
+def test_youth_teams_can_play_across_registered_branches(category):
     assert teams_share_game_division(
-        {"branch": "femenil", "category": "u12"},
-        {"branch": "varonil", "category": "u12"},
-    )
-    assert teams_share_game_division(
-        {"branch": "mixto", "category": "u12"},
-        {"branch": "femenil", "category": "u12"},
+        {"branch": "femenil", "category": category},
+        {"branch": "varonil", "category": category},
     )
 
+    home_id = create_test_team(f"Home {category}", "femenil", category)
+    away_id = create_test_team(f"Away {category}", "varonil", category)
+    response = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    })
+    assert response.status_code == 201
 
-def test_non_u12_teams_cannot_play_across_branches():
+
+def test_older_teams_cannot_play_across_branches():
     home_id = create_test_team("Ravens Fem", "femenil", "u14")
     away_id = create_test_team("Ravens Var", "varonil", "u14")
 
@@ -91,7 +97,7 @@ def test_non_u12_teams_cannot_play_across_branches():
     })
 
     assert response.status_code == 409
-    assert "U12 permite cruces entre ramas" in response.json()["detail"]
+    assert "U8, U10 y U12 permiten cruces entre ramas" in response.json()["detail"]
 
 
 @pytest.mark.parametrize("field_number", [0, 9])

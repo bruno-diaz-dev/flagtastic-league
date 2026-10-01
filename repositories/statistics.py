@@ -1,7 +1,10 @@
 """Persistence and aggregate queries for weekly player statistics."""
 
 from database import get_connection
-from services.divisions import normalize_division
+from services.divisions import (
+    category_allows_cross_branch_games,
+    normalize_division,
+)
 from services.team_matching import match_team_name, normalize_team_text
 
 
@@ -30,7 +33,11 @@ def import_statistics_workbook(weeks, games=None):
             return exact or match_team_name(
                 label,
                 teams,
-                branch=None if division[1] == "u12" else division[0],
+                branch=(
+                    None
+                    if category_allows_cross_branch_games(division[1])
+                    else division[0]
+                ),
                 category=division[1]
             )
         resolved_weeks = {}

@@ -8,6 +8,7 @@ import unicodedata
 from openpyxl import load_workbook
 
 from models import ALLOWED_BRANCHES, ALLOWED_CATEGORIES
+from services.divisions import teams_share_game_division
 
 
 class StatisticsFileError(Exception):
@@ -147,9 +148,7 @@ def _parse_official_games(sheet, week):
     games = []
     for index in range(0, len(blocks), 2):
         home, away = blocks[index:index + 2]
-        if (home["branch"], home["category"]) != (
-            away["branch"], away["category"]
-        ):
+        if not teams_share_game_division(home, away):
             raise StatisticsFileError(
                 f"{sheet.title}: los rivales no pertenecen a la misma division"
             )

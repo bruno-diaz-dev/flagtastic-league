@@ -10,6 +10,7 @@ import unicodedata
 from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 import pytesseract
 
+from services.divisions import category_allows_cross_branch_games
 
 
 POSITION_ALIASES = {
@@ -121,7 +122,7 @@ def _game_match_score(text, game):
     branch, category = _division_hints(text)
     if (
         branch
-        and category != "u12"
+        and not category_allows_cross_branch_games(category)
         and game["home_team"]["branch"] != branch
     ):
         return 0

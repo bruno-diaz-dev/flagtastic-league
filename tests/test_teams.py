@@ -369,6 +369,26 @@ def test_u12_team_registration_preserves_branch():
     assert second.json()["branch"] == "varonil"
 
 
+def test_admin_audit_groups_youth_duplicates_across_branches_only():
+    for payload in [
+        {"name": "Diablos U8", "branch": "femenil", "category": "u8"},
+        {"name": "DIABLOS", "branch": "varonil", "category": "u8"},
+        {"name": "Diablos", "branch": "mixto", "category": "u14"},
+        {"name": "Nomadas", "branch": "mixto", "category": "u10"},
+    ]:
+        assert client.post("/api/teams", json=payload).status_code == 201
+
+    response = client.get("/api/teams/duplicate-candidates")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    group = response.json()[0]
+    assert group["category"] == "u8"
+    assert group["normalized_name"] == "diablos"
+    assert {team["branch"] for team in group["teams"]} == {
+        "femenil", "varonil"
+    }
+
+
 def test_team_name_collapses_repeated_whitespace():
     response = client.post(
         "/api/teams",

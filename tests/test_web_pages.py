@@ -273,6 +273,27 @@ def test_user_administration_page_is_available():
     assert "user.display_name, user.name, user.aka" in script.text
 
 
+def test_youth_duplicate_audit_page_is_available():
+    response = client.get("/admin/team-duplicates")
+    script = client.get("/static/admin_team_duplicates.js")
+
+    assert response.status_code == 200
+    assert "Auditar equipos juveniles" in response.text
+    assert 'id="duplicate-name-filter"' in response.text
+    assert 'id="duplicate-category-filter"' in response.text
+    assert 'id="admin-team-audit-link"' in response.text
+    assert "getYouthDuplicateCandidates" in script.text
+    assert 'href="/teams/${team.id}/manage"' in script.text
+
+
+def test_youth_standings_explain_the_unified_table():
+    response = client.get("/standings")
+    script = client.get("/static/standings.js")
+
+    assert "U8, U10 y U12 usan una sola tabla" in response.text
+    assert 'new Set(["u8", "u10", "u12"])' in script.text
+
+
 def test_public_player_links_are_rendered_by_roster_and_leaderboards():
     roster_script = client.get("/static/roster.js")
     statistics_script = client.get("/static/statistics.js")

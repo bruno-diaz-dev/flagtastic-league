@@ -71,23 +71,24 @@ def test_abbreviated_team_words_match_a_unique_registered_name():
     assert proposal["home_match_branch"] == "mixto"
 
 
-def test_u12_schedule_pair_can_match_teams_from_different_legacy_branches():
+def test_youth_schedule_pairs_match_teams_from_different_legacy_branches():
     from datetime import time
 
-    teams = [
-        {"id": 1, "name": "Ducks", "branch": "femenil", "category": "u12"},
-        {"id": 2, "name": "Vikingos", "branch": "varonil", "category": "u12"},
-    ]
-    result = parse_game_schedule_ocr_cells(1, [{
-        "field_number": 1,
-        "start_time": time(12),
-        "home_team": "Ducks Fem U12",
-        "away_team": "Vikingos Var U12",
-    }], teams)
+    for category in ("u8", "u10", "u12"):
+        teams = [
+            {"id": 1, "name": "Ducks", "branch": "femenil", "category": category},
+            {"id": 2, "name": "Vikingos", "branch": "varonil", "category": category},
+        ]
+        result = parse_game_schedule_ocr_cells(1, [{
+            "field_number": 1,
+            "start_time": time(12),
+            "home_team": f"Ducks Fem {category.upper()}",
+            "away_team": f"Vikingos Var {category.upper()}",
+        }], teams)
 
-    assert result["matched"] == 1
-    assert result["proposals"][0]["home_team_id"] == 1
-    assert result["proposals"][0]["away_team_id"] == 2
+        assert result["matched"] == 1
+        assert result["proposals"][0]["home_team_id"] == 1
+        assert result["proposals"][0]["away_team_id"] == 2
 
 
 def test_ambiguous_partial_team_name_requires_review():

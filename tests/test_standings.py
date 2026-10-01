@@ -107,4 +107,29 @@ def test_get_standings_for_branch_and_category():
             "point_difference": -8
         }
     ]
+
+
+@pytest.mark.parametrize("category", ["u8", "u10", "u12"])
+def test_youth_standings_combine_all_registered_branches(category):
+    home_id = create_test_team("Rancheros", "varonil", category)
+    away_id = create_test_team("Rancheras Flag", "femenil", category)
+    idle_id = create_test_team("Nomadas", "mixto", category)
+
+    game = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    }).json()
+    assert client.patch(f"/api/games/{game['id']}/score", json={
+        "home_score": 20,
+        "away_score": 12,
+    }).status_code == 200
+
+    standings = client.get(
+        f"/api/standings?branch=femenil&category={category}"
+    )
+    assert standings.status_code == 200
+    assert [team["team_id"] for team in standings.json()] == [
+        home_id, idle_id, away_id
+    ]
 """API tests for division standings and ranking rules."""

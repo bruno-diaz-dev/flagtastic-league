@@ -94,10 +94,13 @@ CURP uniquely resolves the person and remains private administrative data.
 Team identity is name + branch + category. Name comparison ignores letter case
 and surrounding whitespace, while the stored display name preserves intentional
 brand capitalization. The same name remains valid in a different division.
-U12 teams retain their registered branch (`femenil`, `varonil`, or `mixto`).
-Only game pairing treats those U12 branches as compatible; filters, standings,
-statistics, and stored team identity remain branch-specific. No other category
-allows cross-branch games.
+U8, U10, and U12 teams retain their registered branch (`femenil`, `varonil`,
+or `mixto`) so historical data does not need rewriting. For competition, each
+of those categories is one unified division: teams may play across branches
+and all branches appear in the same standings table. Stored team identity and
+roster eligibility remain branch-specific. An administrator-only duplicate
+audit highlights equivalent youth team names registered in different branches
+so records can be reviewed without automatic deletion or merging.
 
 Statistics are stored per jornada and linked to a game, team, and player. The
 official workbook resolves players from branch, category, team, and jersey

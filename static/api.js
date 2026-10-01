@@ -11,6 +11,10 @@ async function getTeams() {
     return response;
 }
 
+async function getYouthDuplicateCandidates() {
+    return fetch("/api/teams/duplicate-candidates");
+}
+
 async function createTeam(payload) {
     const response = await fetch("/api/teams", {
         method: "POST",
