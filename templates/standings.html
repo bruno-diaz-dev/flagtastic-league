@@ -13,7 +13,7 @@
         <h3>Consultar tabla</h3>
 
         <form id="standings-form" class="standings-form">
-            <label>
+            <label id="standings-branch-field">
                 Rama
                 <select id="standings-branch" name="branch" required>
                     <option value="">Selecciona una rama</option>
@@ -21,6 +21,11 @@
                     <option value="femenil">Femenil</option>
                     <option value="mixto">Mixto</option>
                 </select>
+            </label>
+
+            <label id="standings-youth-branch" class="hidden">
+                Rama
+                <span class="readonly-control">Infantiles</span>
             </label>
 
             <label>
@@ -53,6 +58,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260930-2"></script>
-<script src="/static/standings.js?v=20261001-1"></script>
+<script src="/static/api.js?v=20261001-2"></script>
+<script src="/static/standings.js?v=20261001-2"></script>
 {% endblock %}

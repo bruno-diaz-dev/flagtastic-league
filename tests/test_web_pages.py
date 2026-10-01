@@ -294,6 +294,27 @@ def test_youth_standings_explain_the_unified_table():
     assert 'new Set(["u8", "u10", "u12"])' in script.text
 
 
+def test_youth_divisions_show_infantiles_without_a_branch_choice():
+    pages = {
+        "teams": client.get("/teams").text,
+        "games": client.get("/games").text,
+        "standings": client.get("/standings").text,
+        "statistics": client.get("/statistics").text,
+        "dashboard": client.get("/dashboard").text,
+    }
+    scripts = "\n".join([
+        client.get("/static/teams.js").text,
+        client.get("/static/games.js").text,
+        client.get("/static/standings.js").text,
+        client.get("/static/statistics.js").text,
+        client.get("/static/dashboard.js").text,
+    ])
+
+    assert all("Infantiles" in page for page in pages.values())
+    assert "isUnifiedYouthCategory" in scripts
+    assert "divisionBranchLabel" in scripts
+
+
 def test_public_player_links_are_rendered_by_roster_and_leaderboards():
     roster_script = client.get("/static/roster.js")
     statistics_script = client.get("/static/statistics.js")

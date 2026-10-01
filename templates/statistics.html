@@ -30,17 +30,21 @@
     <section class="form-panel">
         <h3>Consultar estadísticas</h3>
         <form id="leaderboard-form" class="filter-form">
-            <label>
+            <label id="leaderboard-branch-field">
                 Rama
-                <select name="branch" required>
+                <select id="leaderboard-branch" name="branch" required>
                     <option value="varonil">Varonil</option>
                     <option value="femenil">Femenil</option>
                     <option value="mixto">Mixto</option>
                 </select>
             </label>
+            <label id="leaderboard-youth-branch" class="hidden">
+                Rama
+                <span class="readonly-control">Infantiles</span>
+            </label>
             <label>
                 Categoría
-                <select name="category" required>
+                <select id="leaderboard-category" name="category" required>
                     <option value="u6">U6</option>
                     <option value="u8">U8</option>
                     <option value="u10">U10</option>
@@ -60,6 +64,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260930-2"></script>
-<script src="/static/statistics.js?v=20260930-3"></script>
+<script src="/static/api.js?v=20261001-2"></script>
+<script src="/static/statistics.js?v=20261001-1"></script>
 {% endblock %}

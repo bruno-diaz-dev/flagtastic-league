@@ -62,9 +62,9 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Authenticated team creation with automatic creator assignment.
 - Team lifecycle: `pending`, `active`, and `inactive`.
 - Case-insensitive team identity within each branch/category division.
-- Preserved U8-U12 team branches with cross-branch game compatibility,
-  unified standings, and ambiguity-safe abbreviated-name matching in schedule
-  and statistics imports.
+- A single user-facing **Infantiles** division for U8-U12, with canonical new
+  registrations, compatibility for legacy branches, cross-branch games,
+  unified standings and leaderboards, and ambiguity-safe abbreviated matching.
 - Administrator duplicate audit for equivalent U8-U12 team names registered
   under different legacy branches.
 - Administrator team rename, representative assignment/removal, and deletion.

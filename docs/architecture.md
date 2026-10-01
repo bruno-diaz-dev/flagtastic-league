@@ -272,11 +272,11 @@ This separation allows the same person to play for multiple teams when league el
   `RAVENS` in the same division.
 
 - Every team has `name`, `branch`, `category`, and `status`.
-- U8, U10, and U12 teams retain their registered branch in storage and team
-  identity, but competition treats each category as one division. Game
-  validation and import matching allow cross-branch opponents, and standings
-  combine `femenil`, `varonil`, and `mixto` records. Older categories continue
-  to require the same branch.
+- Existing U8, U10, and U12 teams retain their legacy stored branch, while new
+  registrations are canonicalized to `mixto`. The UI presents **Infantiles**
+  instead of a branch selector. Game validation and import matching allow
+  cross-branch opponents; standings and leaderboards combine `femenil`,
+  `varonil`, and `mixto` records. Older categories continue to require a branch.
 - The administrator duplicate audit groups canonical U8-U12 names that exist
   in more than one branch. It is intentionally read-only: potential duplicates
   require human review before an existing team is renamed or deleted.

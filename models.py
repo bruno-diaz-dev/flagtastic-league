@@ -86,6 +86,13 @@ class TeamCreate(BaseModel):
 
         return normalized_category
 
+    @model_validator(mode="after")
+    def normalize_youth_branch(self):
+        """Store new U8-U12 teams in one compatible canonical branch."""
+        if self.category in {"u8", "u10", "u12"}:
+            self.branch = "mixto"
+        return self
+
 class TeamStaffUpdate(BaseModel):
     """Validate the staff names displayed on a public roster."""
 

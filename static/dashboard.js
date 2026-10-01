@@ -5,6 +5,8 @@ const joinMessage = document.querySelector("#join-team-message");
 const teamSelect = joinForm.elements.team_id;
 const teamBranchFilter = document.querySelector("#join-team-branch");
 const teamCategoryFilter = document.querySelector("#join-team-category");
+const teamBranchFilterField = document.querySelector("#join-team-branch-field");
+const teamYouthBranch = document.querySelector("#join-team-youth-branch");
 const teamResults = document.querySelector("#join-team-results");
 const statsContainer = document.querySelector("#personal-stats");
 const teamsContainer = document.querySelector("#dashboard-teams");
@@ -54,15 +56,19 @@ function renderTeamOptions() {
     const selectedTeamId = teamSelect.value;
     const branch = teamBranchFilter.value;
     const category = teamCategoryFilter.value;
+    const unified = isUnifiedYouthCategory(category);
+    teamBranchFilterField.classList.toggle("hidden", unified);
+    teamYouthBranch.classList.toggle("hidden", !unified);
+    if (unified) teamBranchFilter.value = "";
     const matchingTeams = availableTeams.filter((team) => (
-        (!branch || team.branch === branch)
+        (unified || !branch || team.branch === branch)
         && (!category || team.category === category)
     ));
 
     teamSelect.innerHTML = `<option value="">${matchingTeams.length
         ? "Selecciona un equipo"
         : "No hay equipos con estos filtros"}</option>` + matchingTeams.map(
-        (team) => `<option value="${team.id}">${escapeHtml(team.name)} · ${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</option>`
+        (team) => `<option value="${team.id}">${escapeHtml(team.name)} · ${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</option>`
     ).join("");
     teamSelect.disabled = matchingTeams.length === 0;
     if (matchingTeams.some((team) => String(team.id) === selectedTeamId)) {
@@ -122,7 +128,7 @@ async function loadDashboard() {
         ? dashboard.teams.map((team) => `
             <article class="team-card">
                 <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(team.team_name)}</a></h4>
-                <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
+                <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
                 <strong>${team.standing_position || "-"} / ${team.division_team_count}</strong>
             </article>`).join("")
         : `<div class="empty-state"><h4>Aún no tienes equipo</h4><p>Selecciona uno para comenzar.</p></div>`;

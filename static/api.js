@@ -11,6 +11,14 @@ async function getTeams() {
     return response;
 }
 
+function isUnifiedYouthCategory(category) {
+    return ["u8", "u10", "u12"].includes(String(category || "").toLowerCase());
+}
+
+function divisionBranchLabel(branch, category) {
+    return isUnifiedYouthCategory(category) ? "Infantiles" : branch;
+}
+
 async function getYouthDuplicateCandidates() {
     return fetch("/api/teams/duplicate-candidates");
 }

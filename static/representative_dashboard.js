@@ -58,7 +58,7 @@ function renderRepresentativeTeam(team) {
                 ${team.logo_url
                     ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}" loading="lazy" decoding="async">`
                     : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
-                <div><h3><a class="team-roster-link" href="/teams/${team.id}/roster">${escapeHtml(team.name)}</a></h3><p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p></div>
+                <div><h3><a class="team-roster-link" href="/teams/${team.id}/roster">${escapeHtml(team.name)}</a></h3><p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</p></div>
                 <div class="representative-team-actions">
                     <a class="secondary-link" href="/teams/${team.id}/roster">Ver y administrar roster</a>
                     <a class="secondary-link" href="/games">Ver partidos</a>

@@ -270,10 +270,10 @@ def test_list_teams_orders_by_branch_category_then_name():
         (team["branch"], team["category"], team["name"])
         for team in response.json()
     ] == [
-        ("varonil", "u10", "Búfalos"),
-        ("varonil", "u10", "Tigres"),
         ("femenil", "u6", "Águilas"),
         ("femenil", "u6", "Halcones"),
+        ("mixto", "u10", "Búfalos"),
+        ("mixto", "u10", "Tigres"),
         ("mixto", "libre", "Zorros")
     ]
 
@@ -353,30 +353,34 @@ def test_team_branch_and_category_normalized():
     assert team["category"] == "libre"
 
 
-def test_u12_team_registration_preserves_branch():
-    first = client.post(
+@pytest.mark.parametrize("category", ["u8", "u10", "u12"])
+def test_new_youth_team_registration_uses_one_canonical_branch(category):
+    response = client.post(
         "/api/teams",
-        json={"name": "Diablos U12", "branch": "femenil", "category": "u12"}
-    )
-    second = client.post(
-        "/api/teams",
-        json={"name": "Diablos U12", "branch": "varonil", "category": "u12"}
+        json={
+            "name": f"Diablos {category}",
+            "branch": "femenil",
+            "category": category,
+        }
     )
 
-    assert first.status_code == 201
-    assert first.json()["branch"] == "femenil"
-    assert second.status_code == 201
-    assert second.json()["branch"] == "varonil"
+    assert response.status_code == 201
+    assert response.json()["branch"] == "mixto"
 
 
 def test_admin_audit_groups_youth_duplicates_across_branches_only():
-    for payload in [
-        {"name": "Diablos U8", "branch": "femenil", "category": "u8"},
-        {"name": "DIABLOS", "branch": "varonil", "category": "u8"},
-        {"name": "Diablos", "branch": "mixto", "category": "u14"},
-        {"name": "Nomadas", "branch": "mixto", "category": "u10"},
-    ]:
-        assert client.post("/api/teams", json=payload).status_code == 201
+    connection = get_connection()
+    connection.execute(
+        """
+        INSERT INTO teams (name, branch, category, status) VALUES
+            ('Diablos U8', 'femenil', 'u8', 'active'),
+            ('DIABLOS', 'varonil', 'u8', 'active'),
+            ('Diablos', 'mixto', 'u14', 'active'),
+            ('Nomadas', 'mixto', 'u10', 'active')
+        """
+    )
+    connection.commit()
+    connection.close()
 
     response = client.get("/api/teams/duplicate-candidates")
     assert response.status_code == 200
