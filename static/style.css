@@ -2151,6 +2151,10 @@ body.role-league_admin .week-admin-actions.admin-only {
     margin-left: auto;
 }
 
+.representative-player-list {
+    display: none;
+}
+
 .role-dashboard-page {
     display: grid;
     gap: 24px;
@@ -2321,17 +2325,108 @@ body.role-league_admin .week-admin-actions.admin-only {
         flex-wrap: wrap;
     }
 
+    .representative-team-header > div:not(.representative-team-actions) {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .representative-team-header h3,
+    .representative-team-header p {
+        overflow-wrap: anywhere;
+    }
+
     .representative-team-actions {
+        display: grid;
+        grid-template-columns: 1fr;
         margin-left: 0;
         width: 100%;
     }
 
     .representative-team-actions .secondary-link {
+        display: block;
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        text-align: center;
         white-space: normal;
     }
 
     .dashboard-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .representative-team-panel {
+        padding: 16px;
+    }
+
+    .representative-team-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .representative-team-metrics .stat-item,
+    .dashboard-summary-grid .stat-item {
+        min-height: 82px;
+        padding: 14px;
+    }
+
+    .representative-player-table {
+        display: none;
+    }
+
+    .representative-player-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .representative-player-card {
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 14px;
+        background: rgba(7, 26, 68, 0.3);
+    }
+
+    .representative-player-card header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .representative-player-card header a {
+        min-width: 0;
+        color: var(--color-text);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+
+    .representative-player-card header strong {
+        color: var(--color-gold);
+        white-space: nowrap;
+    }
+
+    .representative-player-card dl {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px 8px;
+        margin: 12px 0 0;
+    }
+
+    .representative-player-card dl div {
+        min-width: 0;
+    }
+
+    .representative-player-card dt {
+        color: var(--color-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .representative-player-card dd {
+        margin: 4px 0 0;
+        color: var(--color-text);
+        font-weight: 700;
     }
 
     .referee-game-result {
@@ -2403,16 +2498,24 @@ body.role-league_admin .week-admin-actions.admin-only {
 }
 
 @media (max-width: 430px) {
-    .dashboard-summary-grid {
-        grid-template-columns: minmax(0, 1fr);
+    .role-dashboard-page .dashboard-summary-grid,
+    .role-dashboard-page .representative-team-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .role-dashboard-page .dashboard-summary-grid .stat-item:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
     }
 
     .dashboard-quick-links {
         display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .dashboard-quick-links a {
         width: 100%;
+        padding-inline: 10px;
+        text-align: center;
     }
 
     .dashboard-section-heading {

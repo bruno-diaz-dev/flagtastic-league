@@ -25,6 +25,30 @@ function renderRepresentativeSummary(teams) {
     ].join("");
 }
 
+
+function representativePlayerCard(player) {
+    const displayName = player.player_aka || player.player_name;
+    const statistics = [
+        ["PTS", player.points],
+        ["REC", player.receptions],
+        ["INT", player.interceptions],
+        ["CAP", player.sacks],
+        ["TAC", player.tackles],
+        ["PC / PL", `${player.passes_completed} / ${player.passes_attempted}`],
+        ["% pases", player.completion_percentage ?? "-"]
+    ];
+    return `
+        <article class="representative-player-card">
+            <header>
+                <a href="/players/${player.player_id}">${escapeHtml(displayName)}</a>
+                <strong>#${player.jersey_number}</strong>
+            </header>
+            <dl>${statistics.map(([label, value]) => `
+                <div><dt>${label}</dt><dd>${value}</dd></div>
+            `).join("")}</dl>
+        </article>`;
+}
+
 function renderRepresentativeTeam(team) {
     const standing = team.standing;
     const staff = [team.head_coach, team.coach, team.manager].filter(Boolean);
@@ -41,7 +65,7 @@ function renderRepresentativeTeam(team) {
                 </div>
             </header>
             <p class="muted-text">${staff.length ? `Cuerpo técnico: ${staff.map(escapeHtml).join(" · ")}` : "Cuerpo técnico pendiente"}</p>
-            <div class="stat-grid">
+            <div class="stat-grid representative-team-metrics">
                 ${metric("Posición", standing.position ? `${standing.position}/${standing.division_team_count}` : "-")}
                 ${metric("Récord", `${standing.wins}-${standing.losses}`)}
                 ${metric("PF / PC", `${standing.points_for} / ${standing.points_against}`)}
@@ -51,7 +75,7 @@ function renderRepresentativeTeam(team) {
                 ${metric("Tacleadas", team.statistics.tackles)}
                 ${metric("% pases", team.statistics.completion_percentage)}
             </div>
-            <div class="table-scroll"><table class="standings-data-table"><thead><tr>
+            <div class="table-scroll representative-player-table"><table class="standings-data-table"><thead><tr>
                 <th>Jugador</th><th>#</th><th>PTS</th><th>REC</th><th>INT</th><th>CAP</th><th>TAC</th><th>PC</th><th>PL</th><th>%</th>
             </tr></thead><tbody>${team.players.map((player) => `<tr>
                 <td><a href="/players/${player.player_id}">${escapeHtml(player.player_aka || player.player_name)}</a></td>
@@ -59,6 +83,11 @@ function renderRepresentativeTeam(team) {
                 <td>${player.sacks}</td><td>${player.tackles}</td><td>${player.passes_completed}</td><td>${player.passes_attempted}</td>
                 <td>${player.completion_percentage ?? "-"}</td>
             </tr>`).join("") || `<tr><td colspan="10">Sin jugadores registrados.</td></tr>`}</tbody></table></div>
+            <div class="representative-player-list">
+                ${team.players.length
+                    ? team.players.map(representativePlayerCard).join("")
+                    : `<div class="empty-state"><h4>Sin jugadores registrados</h4></div>`}
+            </div>
         </section>`;
 }
 
