@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Flagtastic League",
+    "slug": "flagtastic-league-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "flagtastic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#041329",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.flagtastic.league"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.flagtastic.league"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-font",
+      "expo-splash-screen"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://flagtastic-league.vercel.app"
+    }
+  }
+}

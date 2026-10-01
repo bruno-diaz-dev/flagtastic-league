@@ -1,6 +1,6 @@
 """Authentication and least-privilege authorization dependencies."""
 
-from fastapi import Cookie, Depends, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException
 
 from repositories.users import user_represents_team
 from services.auth import get_authenticated_user
@@ -12,13 +12,25 @@ def user_has_role(user, role):
     return role in user.get("roles", [user.get("role")])
 
 
-def require_authenticated_user(
+def resolve_session_token(
     session_token: str | None = Cookie(
         default=None,
         alias=SESSION_COOKIE_NAME
-    )
+    ),
+    authorization: str | None = Header(default=None),
 ):
-    """Resolve an active session or reject the request uniformly."""
+    """Accept the browser cookie or a native app Bearer session token."""
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.casefold() == "bearer" and token.strip():
+            return token.strip()
+    return session_token
+
+
+def require_authenticated_user(
+    session_token: str | None = Depends(resolve_session_token)
+):
+    """Resolve an active browser or native session uniformly."""
     user = (
         get_authenticated_user(session_token)
         if session_token is not None
@@ -35,10 +47,7 @@ def require_authenticated_user(
 
 
 def optional_authenticated_user(
-    session_token: str | None = Cookie(
-        default=None,
-        alias=SESSION_COOKIE_NAME
-    )
+    session_token: str | None = Depends(resolve_session_token)
 ):
     """Resolve a session when present without blocking public endpoints."""
     if session_token is None:

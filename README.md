@@ -120,7 +120,8 @@ least 30 attempts to qualify for the passing leaderboard.
 
 ## Architecture
 
-The application is a layered FastAPI monolith with a server-rendered frontend:
+The application is a layered FastAPI monolith with a server-rendered frontend
+and a focused Expo player client:
 
 ```text
 Browser (Jinja, CSS, vanilla JavaScript)
@@ -132,6 +133,10 @@ Browser (Jinja, CSS, vanilla JavaScript)
              repositories
                   |
           PostgreSQL (Supabase)
+
+Expo mobile app (four player views)
+                  |
+      Bearer session + same FastAPI API
 ```
 
 - `main.py` assembles the application, pages, media, and health endpoints.
@@ -141,6 +146,8 @@ Browser (Jinja, CSS, vanilla JavaScript)
 - `models.py` contains Pydantic contracts.
 - `migrations/` is the authoritative Alembic schema history.
 - `templates/` and `static/` implement the responsive interface.
+- `mobile/` implements the four native player views with Expo Router. All
+  other workflows deliberately open the existing web application.
 
 Profile photos and team logos are stored in PostgreSQL so they remain available
 across stateless Vercel deployments. The ignored local `uploads/` directory is
@@ -164,6 +171,7 @@ authorization boundaries, and detailed flows.
 - Python 3.14, FastAPI, Pydantic, Jinja, and Uvicorn
 - PostgreSQL with Psycopg and Alembic
 - Vanilla JavaScript and responsive CSS
+- Expo SDK 57, React Native, Expo Router, and TypeScript
 - OpenPyXL for workbooks; Pillow and Tesseract bindings for images and OCR
 - pytest and FastAPI TestClient
 - GitHub Actions, Docker/GHCR, Vercel, and Supabase
@@ -185,6 +193,7 @@ flagtastic-league/
 |-- migrations/             # Alembic migrations
 |-- templates/              # Jinja templates
 |-- static/                 # CSS, JavaScript, and assets
+|-- mobile/                 # Focused iOS/Android player application
 |-- scripts/                # Controlled admin/data utilities
 |-- tests/                  # Unit, integration, and smoke tests
 |-- docs/                   # Architecture, release, and operations docs
@@ -193,6 +202,17 @@ flagtastic-league/
 |-- alembic.ini
 `-- requirements.txt
 ```
+
+### Mobile application
+
+The mobile client exposes only `Inicio`, `Posiciones`, `Lideres`, and
+`Mis Stats`, matching the approved mobile designs. `Perfil` and every workflow
+outside those four screens open the production web application. It reads the
+same games, standings, statistics, media, and player dashboard data as the web
+client; it never maintains a second database or synthetic competition data.
+
+See [`mobile/README.md`](mobile/README.md) for local Expo setup and build
+commands. CI type-checks the client and validates its Expo dependency graph.
 
 ## Local Development
 
