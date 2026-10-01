@@ -29,13 +29,13 @@
     <div id="referee-games" class="referee-dashboard-games" aria-live="polite"></div>
     <section class="form-panel admin-only">
         <h3>Cargar rol de árbitros</h3>
-        <p>Sube una imagen legible. Podrás revisar campos y árbitros antes de guardar.</p>
+        <p>Sube una imagen, XLSX o CSV. Los archivos estructurados son más confiables; siempre podrás revisar las coincidencias antes de guardar.</p>
         <form id="referee-schedule-form" class="filter-form">
             <label>
-                Imagen del rol
-                <input name="file" type="file" accept="image/jpeg,image/png,image/webp" required>
+                Archivo del rol
+                <input name="file" type="file" accept="image/jpeg,image/png,image/webp,.xlsx,.csv" required>
             </label>
-            <button type="submit">Analizar imagen</button>
+            <button type="submit">Analizar rol</button>
         </form>
         <p id="schedule-import-message" class="form-message" role="status"></p>
         <div id="schedule-review" class="schedule-review hidden">
@@ -46,7 +46,7 @@
                 </table>
             </div>
             <button id="confirm-schedule" type="button">Confirmar asignaciones</button>
-            <details><summary>Texto reconocido</summary><pre id="schedule-raw-text"></pre></details>
+            <details><summary>Contenido reconocido</summary><pre id="schedule-raw-text"></pre></details>
         </div>
     </section>
 </section>
@@ -54,5 +54,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260928-1"></script>
-<script src="/static/referee_games.js?v=20260930-1"></script>
+<script src="/static/referee_games.js?v=20260930-2"></script>
 {% endblock %}

@@ -4,7 +4,19 @@ from io import BytesIO
 
 from PIL import Image
 
-from services.referee_schedule_ocr import parse_referee_schedule_image
+from services.referee_schedule_ocr import _grid_row_time, parse_referee_schedule_image
+
+
+def test_grid_time_uses_printed_hour_instead_of_row_position():
+    words = [
+        {"text": "11:00", "x": 20, "y": 130},
+        {"text": "12:00", "x": 20, "y": 230},
+        {"text": "Cam", "x": 200, "y": 150},
+    ]
+
+    assert _grid_row_time(words, 100, 200, 50) == "11:00"
+    assert _grid_row_time(words, 200, 300, 50) == "12:00"
+    assert _grid_row_time(words, 300, 400, 50) is None
 
 
 def test_schedule_ocr_matches_game_referee_and_field(monkeypatch):

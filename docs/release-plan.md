@@ -109,8 +109,9 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Referee, Down Judge, Field Judge, Side Judge, and Statistician assignments.
 - Referee and Down Judge as the required core positions when confirming an
   official role; optional positions support U6, regular games, and finals.
-- OCR-assisted official schedule review with explicit administrator
-  confirmation before data changes.
+- Referee-role review from images, the league XLSX grid, or normalized CSV,
+  with deterministic structured parsing where available, unresolved-name
+  warnings, and explicit administrator confirmation before data changes.
 - Private referee assignments and administrator replacement of officials.
 - Authenticated referee roster with self-service photos for referee-only
   accounts and shared player photos for multi-role accounts.
