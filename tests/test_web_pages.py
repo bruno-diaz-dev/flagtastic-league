@@ -146,8 +146,14 @@ def test_representative_dashboard_page_is_available():
 
     script = client.get("/static/representative_dashboard.js")
     assert "renderRepresentativeSummary" in script.text
+    assert "representativePlayerCard" in script.text
+    assert "representative-player-list" in script.text
     assert "Récord combinado" in script.text
     assert "Mejor posición" in script.text
+
+    stylesheet = client.get("/static/style.css")
+    assert ".representative-player-table" in stylesheet.text
+    assert ".representative-player-card" in stylesheet.text
 
     navigation = client.get("/teams").text
     assert 'id="representative-dashboard-link"' in navigation

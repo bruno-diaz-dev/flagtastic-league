@@ -73,6 +73,8 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
   including roster-only minors without login accounts, with division
   eligibility rechecked at write time.
 - CURP-derived age validation based on age reached during the calendar year.
+- Responsive representative dashboards with compact team metrics and
+  per-player statistic cards on mobile, plus full tables on desktop.
 
 ### Accounts and authorization
 

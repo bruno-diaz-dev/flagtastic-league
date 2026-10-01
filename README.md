@@ -43,6 +43,8 @@ representatives, referees, and league administrators.
   a duplicate player.
 - Import rosters from CSV or XLSX and download the CSV template.
 - View team standings, records, roster totals, and player statistics.
+- Use a responsive team dashboard whose mobile player cards avoid wide
+  statistics tables while preserving the complete desktop table.
 
 ### Referees
 
