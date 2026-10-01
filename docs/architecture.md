@@ -524,6 +524,13 @@ This keeps photos available when containers or Vercel Functions are replaced.
 The image excludes local uploads and development dependency directories from
 its build context.
 
+Player registration compresses photos larger than 3 MB in the browser to a
+maximum 1600-pixel edge and JPEG output before constructing the multipart
+request. This keeps mobile camera uploads below Vercel's request-body boundary;
+the server still validates the decoded signature, supported format, and its own
+5 MB safety limit. A platform-level `413` receives a specific user-facing
+message when it occurs before the application can return JSON.
+
 Application command:
 
 ```text

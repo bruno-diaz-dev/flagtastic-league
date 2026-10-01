@@ -112,6 +112,7 @@ def test_player_registration_page_is_available():
     assert 'name="photo" type="file"' in response.text
     assert 'name="privacy_acknowledgement"' in response.text
     assert 'href="/privacy"' in response.text
+    assert "Las fotos grandes se optimizan automáticamente" in response.text
 
 
 def test_player_dashboard_page_is_available():

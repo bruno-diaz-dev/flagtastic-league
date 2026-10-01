@@ -16,7 +16,7 @@
         <label>
             Foto de perfil
             <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
-            <small>JPG, PNG o WebP. Máximo 5 MB.</small>
+            <small>JPG, PNG o WebP. Las fotos grandes se optimizan automáticamente.</small>
         </label>
         <label class="privacy-consent">
             <input name="privacy_acknowledgement" type="checkbox" required>
@@ -31,5 +31,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260928-3"></script>
-<script src="/static/register.js?v=20260926-1"></script>
+<script src="/static/register.js?v=20261001-1"></script>
 {% endblock %}

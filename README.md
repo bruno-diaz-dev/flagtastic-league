@@ -28,7 +28,8 @@ representatives, referees, and league administrators.
 ### Players
 
 - Create an account linked to an existing roster identity through CURP.
-- Upload a required profile photo and maintain an optional league AKA.
+- Upload a required profile photo, with automatic optimization for large mobile
+  camera images, and maintain an optional league AKA.
 - Join an eligible team with a jersey number from the personal dashboard.
 - See personal teams, standings, season totals, and game-level statistics.
 
