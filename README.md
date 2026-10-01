@@ -70,8 +70,9 @@ representatives, referees, and league administrators.
 - Remove an entire jornada only through an explicit destructive confirmation.
 - Import a complete game role from its operational XLSX layout or a CSV, with
   team matching and administrator review before any game is created.
-- Upload a game-role image for OCR-assisted matchup review. Referee-role image
-  imports remain a separate workflow on the referee dashboard.
+- Upload a game-role image for OCR-assisted matchup review. Referee roles remain
+  a separate workflow on the referee dashboard and accept JPG, PNG, WebP, XLSX,
+  or CSV with administrator review before assignments are saved.
 - Correct recognized times in the review table and import only selected rows
   whose teams, jornada, field, and time are complete.
 - Import jornada statistics and inspect both teams in game-level statistics.
@@ -199,7 +200,8 @@ flagtastic-league/
 
 - Python 3.14
 - PostgreSQL 17 or newer
-- Tesseract OCR only for local referee-schedule recognition
+- Tesseract OCR only for referee-role images; XLSX and CSV roles use deterministic
+  structured parsing and do not require OCR
 
 ```powershell
 git clone <repository-url>

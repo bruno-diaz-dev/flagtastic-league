@@ -43,6 +43,10 @@ from services.referee_schedule_ocr import (
     RefereeScheduleImageError,
     parse_referee_schedule_image
 )
+from services.referee_schedule_import import (
+    RefereeScheduleImportError,
+    parse_referee_schedule_file,
+)
 from services.game_schedule_import import (
     GameScheduleImportError,
     parse_game_schedule_file,
@@ -233,17 +237,27 @@ async def analyze_referee_schedule(
     file: UploadFile = File(...),
     _admin=Depends(require_league_admin)
 ):
-    """Read an image into proposals that still require administrator review."""
+    """Read an image or structured file into reviewable assignment proposals."""
     allowed_types = {"image/jpeg", "image/png", "image/webp"}
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=415, detail="Se requiere una imagen JPG, PNG o WebP")
+    filename = file.filename or ""
+    is_image = file.content_type in allowed_types
+    is_structured = filename.lower().endswith((".xlsx", ".csv"))
+    if not is_image and not is_structured:
+        raise HTTPException(
+            status_code=415,
+            detail="Se requiere una imagen JPG, PNG o WebP, o un archivo XLSX o CSV",
+        )
     content = await file.read(MAX_REFEREE_SCHEDULE_BYTES + 1)
     if len(content) > MAX_REFEREE_SCHEDULE_BYTES:
-        raise HTTPException(status_code=413, detail="La imagen excede 10 MB")
+        raise HTTPException(status_code=413, detail="El archivo excede 10 MB")
     referees = get_referee_match_candidates()
     try:
+        if is_structured:
+            return parse_referee_schedule_file(
+                filename, content, get_games(), referees
+            )
         return parse_referee_schedule_image(content, get_games(), referees)
-    except RefereeScheduleImageError as error:
+    except (RefereeScheduleImageError, RefereeScheduleImportError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
 

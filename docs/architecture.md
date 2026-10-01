@@ -343,6 +343,8 @@ a recovery flow that Resend's onboarding sender cannot deliver to public users.
 | `GET` | `/api/games` | Lists games |
 | `POST` | `/api/games/schedule/analyze` | Parses an image, XLSX, or CSV role into reviewable proposals without writing data |
 | `POST` | `/api/games/schedule/confirm` | Atomically creates the selected matched games and omits exact duplicates |
+| `POST` | `/api/games/referee-schedule/analyze` | Parses an image, XLSX, or CSV referee role into reviewable assignments without writing data |
+| `POST` | `/api/games/referee-schedule/confirm` | Replaces officials only for administrator-reviewed games |
 | `PATCH` | `/api/games/{game_id}/score` | Updates a game's score |
 | `PATCH` | `/api/games/{game_id}/status` | Postpones or restores an unplayed game; league administrators only |
 | `PATCH` | `/api/games/week/{week}/status` | Postpones or restores every unplayed game in a jornada; league administrators only |
@@ -749,13 +751,22 @@ and field. The referee grid importer updates both field and time after review;
 when OCR cannot recognize a time it preserves the existing value instead of
 erasing it.
 
-The referee-role image import uses Pillow for safe raster decoding and local
-Tesseract OCR. `POST /api/games/referee-schedule/analyze` returns proposals and
-recognized source text without writing data. After an administrator reviews
-the table, `POST /api/games/referee-schedule/confirm` atomically updates the
-selected fields and replaces referee links only for those selected games. This
-two-step boundary prevents uncertain OCR output from silently becoming an
-official assignment.
+The referee-role import accepts JPG, PNG, WebP, XLSX, and UTF-8 CSV. Images use
+Pillow for safe raster decoding and local Tesseract OCR. Structured files avoid
+OCR: they can use either the league grid (a game row followed by its
+slash-delimited official row) or one row per game with jornada, campo, hora,
+local, visitante, and named official-position columns. CSV accepts comma or
+semicolon delimiters. Jornada may come from the grid heading or XLSX sheet
+name. `POST /api/games/referee-schedule/analyze` matches existing games using
+jornada, both team names, field, and time, then returns proposals, source text,
+and unresolved-name warnings without writing data. Image-grid times come from
+the printed hour column; an unreadable hour preserves the existing game time
+instead of deriving one from row position. Ambiguous games are never guessed.
+After an administrator reviews the table,
+`POST /api/games/referee-schedule/confirm` atomically updates the selected
+fields and replaces referee links only for those selected games. This two-step
+boundary prevents uncertain OCR or imported output from silently becoming an
+official assignment. Files are limited to 10 MB and 500 assignment rows.
 
 The unified `POST /api/games/schedule/analyze` endpoint reads every accepted
 format as a game calendar. Images are split by recognized jornada, time row,
@@ -770,7 +781,7 @@ correction is permitted only when the detected schedule is itself an hourly
 sequence; irregular intervals remain unchanged. A failed time remains empty and
 must be corrected by an administrator before that proposal can be selected.
 
-The current grid format prints four names in this order: Referee, Down Judge,
+The current image and structured-grid formats print four names in this order: Referee, Down Judge,
 Field Judge, Statistician. A five-name finals row inserts Side Judge before the
 Statistician. Empty slash-delimited positions remain empty, so a missing Field
 Judge does not shift the Statistician into the wrong role. Development data for

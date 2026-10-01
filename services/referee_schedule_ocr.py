@@ -130,6 +130,23 @@ def _game_match_score(text, game):
     return home_score + away_score
 
 
+def _grid_row_time(words, row_top, row_bottom, time_column_width):
+    """Read the printed hour for one grid row without inferring it by position."""
+    time_words = sorted(
+        (
+            word for word in words
+            if word["x"] < time_column_width * 1.35
+            and row_top <= word["y"] < row_bottom
+        ),
+        key=lambda word: word["x"],
+    )
+    text = " ".join(word["text"] for word in time_words)
+    match = re.search(r"\b([01]?\d|2[0-3])\s*[:.;]\s*([0-5]\d)\b", text)
+    if match is None:
+        return None
+    return f"{int(match.group(1)):02d}:{match.group(2)}"
+
+
 def _parse_grid_schedule(image, raw_text, games, referees):
     """Parse the league's week-by-field role sheet using word coordinates."""
     normalized_text = _normalized(raw_text)
@@ -178,8 +195,11 @@ def _parse_grid_schedule(image, raw_text, games, referees):
     if len(borders) < 2:
         return []
 
-    for row_index, (row_top, row_bottom) in enumerate(zip(borders, borders[1:])):
+    for row_top, row_bottom in zip(borders, borders[1:]):
         official_split = row_top + (row_bottom - row_top) * 0.62
+        scheduled_time = _grid_row_time(
+            words, row_top, row_bottom, time_column_width
+        )
         for field_index in range(field_count):
             left = time_column_width + field_index * field_width
             right = left + field_width
@@ -235,7 +255,7 @@ def _parse_grid_schedule(image, raw_text, games, referees):
                     "name": display_name,
                     "position": position
                 })
-            proposals.append({
+            proposal = {
                 "game_id": game["id"],
                 "game_label": (
                     f"J{game['week']}: {game['home_team']['name']} vs "
@@ -244,8 +264,12 @@ def _parse_grid_schedule(image, raw_text, games, referees):
                 "field_number": field_index + 1,
                 "officials": officials,
                 "source_text": f"{team_text} | {official_text}",
-                "scheduled_time": f"{12 + row_index}:00"
-            })
+            }
+            # A missing OCR time must preserve the game's current scheduled
+            # time during confirmation instead of writing an invented value.
+            if scheduled_time is not None:
+                proposal["scheduled_time"] = scheduled_time
+            proposals.append(proposal)
             used_games.add(game["id"])
     return proposals
 

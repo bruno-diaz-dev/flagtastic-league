@@ -107,6 +107,26 @@ def test_admin_player_referee_keeps_each_permission(monkeypatch):
     assert player["id"] in analysis.json()["candidate_ids"]
     assert admin["id"] != player["id"]
 
+    monkeypatch.setattr(
+        "routes.games.parse_referee_schedule_file",
+        lambda filename, content, games, referees: {
+            "filename": filename,
+            "candidate_ids": [referee["id"] for referee in referees],
+        },
+    )
+    spreadsheet_analysis = client.post(
+        "/api/games/referee-schedule/analyze",
+        files={
+            "file": (
+                "rol-arbitros.xlsx",
+                b"structured referee schedule",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+    assert spreadsheet_analysis.status_code == 200
+    assert spreadsheet_analysis.json()["filename"] == "rol-arbitros.xlsx"
+
 
 def test_referee_sees_only_assigned_games(monkeypatch):
     """A referee schedule contains assignments for that account only."""

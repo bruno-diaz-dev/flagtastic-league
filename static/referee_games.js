@@ -150,7 +150,7 @@ function officialSelects(selectedOfficials) {
 
 
 function renderScheduleReview(result) {
-    scheduleRawText.textContent = result.raw_text;
+    scheduleRawText.textContent = result.raw_text || "";
     scheduleReviewBody.innerHTML = result.proposals.map((proposal) => `
         <tr data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}">
             <td>
@@ -169,9 +169,13 @@ function renderScheduleReview(result) {
     `).join("");
     scheduleReview.classList.remove("hidden");
     confirmScheduleButton.disabled = result.proposals.length === 0;
+    const warnings = result.warnings || [];
+    const warningCopy = warnings.length
+        ? ` ${warnings.length} advertencia(s): ${warnings.join(" ")}`
+        : "";
     scheduleMessage.textContent = result.proposals.length
-        ? `${result.proposals.length} partido(s) reconocido(s). Revisa antes de confirmar.`
-        : "Se leyó la imagen, pero ningún partido coincidió. Revisa el texto reconocido.";
+        ? `${result.proposals.length} partido(s) reconocido(s). Revisa antes de confirmar.${warningCopy}`
+        : `Se leyó el archivo, pero ningún partido coincidió. Revisa el contenido reconocido.${warningCopy}`;
 }
 
 
@@ -208,12 +212,12 @@ dashboardPhotoForm?.addEventListener("submit", async (event) => {
 scheduleForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const file = new FormData(scheduleForm).get("file");
-    scheduleMessage.textContent = "Analizando imagen...";
+    scheduleMessage.textContent = "Analizando archivo...";
     scheduleReview.classList.add("hidden");
     const response = await analyzeRefereeSchedule(file);
     const body = await response.json();
     if (!response.ok) {
-        scheduleMessage.textContent = body.detail || "No se pudo analizar la imagen.";
+        scheduleMessage.textContent = body.detail || "No se pudo analizar el archivo.";
         return;
     }
     renderScheduleReview(body);

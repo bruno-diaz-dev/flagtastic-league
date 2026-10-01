@@ -317,7 +317,7 @@ def test_referee_page_has_reviewed_image_import():
     assert 'id="referee-summary"' in response.text
     assert 'id="referee-games"' in response.text
     assert 'id="referee-schedule-form"' in response.text
-    assert 'accept="image/jpeg,image/png,image/webp"' in response.text
+    assert 'accept="image/jpeg,image/png,image/webp,.xlsx,.csv"' in response.text
     assert 'id="schedule-review-body"' in response.text
     assert 'id="confirm-schedule"' in response.text
     assert 'id="referee-dashboard-photo-panel"' in response.text
