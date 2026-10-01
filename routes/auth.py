@@ -1,8 +1,8 @@
 """HTTP endpoints for creating and revoking authenticated sessions."""
 
 from fastapi import (
-    APIRouter, BackgroundTasks, Cookie, File, Form, HTTPException, Response,
-    UploadFile,
+    APIRouter, BackgroundTasks, Cookie, Depends, File, Form, HTTPException,
+    Response, UploadFile,
 )
 
 from models import (
@@ -35,6 +35,7 @@ from settings import (
     SESSION_MAX_AGE_SECONDS,
     session_cookie_is_secure
 )
+from dependencies.auth import resolve_session_token
 
 router = APIRouter(
     prefix="/api/auth",
@@ -113,14 +114,42 @@ def login(credentials: LoginRequest, response: Response):
 
     return user
 
+
+@router.post("/mobile/login")
+def mobile_login(credentials: LoginRequest):
+    """Issue a revocable Bearer session only to player accounts."""
+    user = authenticate_user(
+        credentials.email,
+        credentials.password.get_secret_value(),
+    )
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Correo o contraseña incorrectos",
+        )
+    if "player" not in user.get("roles", [user.get("role")]):
+        raise HTTPException(
+            status_code=403,
+            detail="La app móvil está disponible para jugadores",
+        )
+    if user.get("must_change_password"):
+        raise HTTPException(
+            status_code=403,
+            detail="Cambia tu contraseña en la versión web antes de continuar",
+        )
+    session = create_session(user["id"])
+    return {
+        "access_token": session["token"],
+        "token_type": "bearer",
+        "expires_at": session["expires_at"],
+        "user": user,
+    }
+
 @router.get("/me")
 def get_current_user(
-    session_token: str | None = Cookie(
-        default=None,
-        alias=SESSION_COOKIE_NAME
-    )
+    session_token: str | None = Depends(resolve_session_token)
 ):
-    """Return the user associated with the active session cookie."""
+    """Return the user associated with an active browser or native session."""
     if session_token is None:
         raise HTTPException(
             status_code=401,
@@ -199,10 +228,7 @@ def reset_password(confirmation: PasswordResetConfirmation):
 @router.post("/logout", status_code=204)
 def logout(
     response: Response,
-    session_token: str | None = Cookie(
-        default=None,
-        alias=SESSION_COOKIE_NAME
-    )
+    session_token: str | None = Depends(resolve_session_token)
 ):
     """Revoke the current session and remove its browser cookie."""
     if session_token is not None:

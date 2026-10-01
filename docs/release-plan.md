@@ -238,6 +238,25 @@ Definition of done:
 - Desktop screenshots show no regression in the same flows.
 - CI and Vercel Preview checks are green.
 
+### Focused native player client
+
+The first Expo release intentionally contains exactly four native screens:
+`Inicio`, `Posiciones`, `Lideres`, and `Mis Stats`. The persistent profile
+action and all operational workflows open the web application. The client uses
+production API contracts and the existing Supabase-backed database rather than
+duplicating domain logic or data.
+
+Release gates for the native client:
+
+- `npm run typecheck` and `npx expo-doctor` pass in CI.
+- Player login returns a revocable Bearer session; non-player-only accounts are
+  rejected and mandatory-password-change accounts are redirected to the web.
+- All four screens render real API data and remain usable at common phone
+  widths without horizontal overflow.
+- External web actions open the production domain and no fifth native product
+  screen is introduced without revising the approved scope.
+- Internal preview builds are exercised on Android and iOS before store builds.
+
 ## Sprint 7: Administrative Integrity and Auditability
 
 **Goal:** Make sensitive league changes traceable and recoverable.

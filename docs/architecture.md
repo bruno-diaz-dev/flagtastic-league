@@ -15,6 +15,19 @@ The project follows a deliberately lightweight layered architecture. The current
 
 ## Overview
 
+The web application remains the complete operational product. A separate Expo
+client provides a deliberately narrow player experience with four native
+views: home, standings, leaders, and personal statistics. Navigation labeled
+`Perfil` and actions outside that scope open the canonical web application.
+Both clients share FastAPI, authorization rules, PostgreSQL data, and media.
+
+Native authentication uses `POST /api/auth/mobile/login`. The endpoint accepts
+only accounts carrying the player role and returns the same revocable session
+token used by browser sessions as a 12-hour Bearer credential. Protected
+dependencies resolve either the secure browser cookie or an Authorization
+header; they do not create parallel authorization behavior. The client stores
+the token in Expo SecureStore on iOS and Android and never persists a password.
+
 ```mermaid
 flowchart TD
     Client[HTTP Client / Frontend]
@@ -309,6 +322,9 @@ Foreign keys use `ON DELETE CASCADE` to delete related memberships or games when
 Rules that need league context, such as preventing a player from registering twice in the same branch and category, are currently validated in the repository layer.
 
 ## Current Endpoints
+
+- `POST /api/auth/mobile/login` authenticates a player for the native client
+  and returns a revocable Bearer session.
 
 | Method | Path | Description |
 |---|---|---|

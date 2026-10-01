@@ -2,6 +2,7 @@
 
 import os
 from urllib.parse import parse_qs, urlparse
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -60,6 +61,69 @@ def test_login_creates_http_only_session_cookie():
     assert "HttpOnly" in set_cookie
     assert "SameSite=lax" in set_cookie
     assert "supersecret" not in response.text
+
+
+def test_mobile_login_returns_bearer_token_for_player_requests():
+    created_user = create_user(UserCreate(
+        email="mobile-player@example.com",
+        name="Mobile Player",
+        password="supersecret",
+        role="player",
+    ))
+    connection = get_connection()
+    curp = f"MOBI000101HAS{uuid4().hex[:5].upper()}"
+    player = connection.execute(
+        """
+        INSERT INTO players (name, curp, age)
+        VALUES ('Mobile Player', %s, 26)
+        RETURNING id
+        """,
+        (curp,),
+    ).fetchone()
+    connection.execute(
+        "UPDATE users SET player_id = %s WHERE id = %s",
+        (player["id"], created_user["id"]),
+    )
+    connection.commit()
+    connection.close()
+
+    response = client.post(
+        "/api/auth/mobile/login",
+        json={"email": "mobile-player@example.com", "password": "supersecret"},
+    )
+
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    assert response.json()["token_type"] == "bearer"
+    current = client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert current.status_code == 200
+    assert current.json()["id"] == created_user["id"]
+
+    dashboard = client.get(
+        "/api/me/dashboard",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert dashboard.status_code == 200
+
+
+def test_mobile_login_rejects_accounts_without_player_role():
+    create_user(UserCreate(
+        email="mobile-admin@example.com",
+        name="Mobile Admin",
+        password="supersecret",
+        role="league_admin",
+    ))
+
+    response = client.post(
+        "/api/auth/mobile/login",
+        json={"email": "mobile-admin@example.com", "password": "supersecret"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "La app móvil está disponible para jugadores"
 
 def test_login_rejects_invalid_credentials_without_cookie():
     create_user(
