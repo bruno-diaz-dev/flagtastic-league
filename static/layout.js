@@ -62,6 +62,7 @@ const logoutButton = document.querySelector("#logout-button");
 const dashboardLink = document.querySelector("#dashboard-link");
 const representativeDashboardLink = document.querySelector("#representative-dashboard-link");
 const adminUsersLink = document.querySelector("#admin-users-link");
+const adminTeamAuditLink = document.querySelector("#admin-team-audit-link");
 const refereeGamesLink = document.querySelector("#referee-games-link");
 const refereeRosterLink = document.querySelector("#referee-roster-link");
 
@@ -88,6 +89,9 @@ async function loadSessionIdentity() {
         }
         if (roles.includes("league_admin") && adminUsersLink) {
             adminUsersLink.classList.remove("hidden");
+        }
+        if (roles.includes("league_admin") && adminTeamAuditLink) {
+            adminTeamAuditLink.classList.remove("hidden");
         }
         if (
             roles.some((role) => ["referee", "league_admin"].includes(role))

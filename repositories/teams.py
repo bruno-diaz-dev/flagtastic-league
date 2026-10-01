@@ -1,6 +1,7 @@
 """Persistence operations for league teams."""
 
 from database import get_connection
+from services.team_matching import normalize_team_identity
 
 def create_team(team, representative_user_id=None):
     """Create a normalized pending team and return its public fields."""
@@ -106,6 +107,41 @@ def get_all_teams():
     connection.close()
 
     return [_public_team(row) for row in rows]
+
+
+def get_youth_duplicate_candidates():
+    """Group same-name U8-U12 teams registered under different branches."""
+    connection = get_connection()
+    rows = connection.execute(
+        """
+        SELECT id, name, branch, category, status,
+               head_coach, coach, manager,
+               logo_data IS NOT NULL AS has_logo,
+               md5(logo_data) AS logo_version
+        FROM teams
+        WHERE category IN ('u8', 'u10', 'u12')
+        ORDER BY category, LOWER(name), branch, id
+        """
+    ).fetchall()
+    connection.close()
+
+    groups = {}
+    for row in rows:
+        team = _public_team(row)
+        identity = normalize_team_identity(team["name"])
+        if identity:
+            groups.setdefault((team["category"], identity), []).append(team)
+
+    candidates = []
+    for (category, identity), teams in groups.items():
+        if len(teams) < 2 or len({team["branch"] for team in teams}) < 2:
+            continue
+        candidates.append({
+            "category": category,
+            "normalized_name": identity,
+            "teams": teams,
+        })
+    return candidates
 
 def get_team_by_id(team_id):
     """Return a team by identifier, or None when it does not exist."""

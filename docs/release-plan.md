@@ -53,7 +53,7 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Canonical roster links from team names across all public and role dashboards.
 - Chronological game agenda with team-name, jornada, branch, category, and
   field filters, plus scores and game details.
-- Division standings with team logos.
+- Division standings with team logos; U8, U10, and U12 combine all branches.
 - Top-five individual leaderboards by branch and category.
 - Integral privacy notice.
 
@@ -62,8 +62,11 @@ Release 1 is deployed at <https://flagtastic-league.vercel.app>.
 - Authenticated team creation with automatic creator assignment.
 - Team lifecycle: `pending`, `active`, and `inactive`.
 - Case-insensitive team identity within each branch/category division.
-- Preserved U12 team branches with cross-branch U12 game compatibility and
-  ambiguity-safe abbreviated-name matching in schedule and statistics imports.
+- Preserved U8-U12 team branches with cross-branch game compatibility,
+  unified standings, and ambiguity-safe abbreviated-name matching in schedule
+  and statistics imports.
+- Administrator duplicate audit for equivalent U8-U12 team names registered
+  under different legacy branches.
 - Administrator team rename, representative assignment/removal, and deletion.
 - Representative access limited to explicitly assigned teams.
 - Team logos and Head Coach, Coach, and Manager fields.

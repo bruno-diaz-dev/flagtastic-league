@@ -1,14 +1,19 @@
 """Read model for division standings calculated from completed games."""
 
 from database import get_connection
+from services.divisions import category_allows_cross_branch_games
 
 
 def get_standings(branch, category):
-    """Calculate and rank standings for one normalized division."""
+    """Calculate standings, combining all branches for U8 through U12."""
     connection = get_connection()
 
+    unified = category_allows_cross_branch_games(category)
+    branch_filter = "" if unified else "teams.branch = %s AND"
+    parameters = (category,) if unified else (branch, category)
+
     rows = connection.execute(
-        """
+        f"""
         SELECT
             teams.id AS team_id,
             teams.name AS team_name,
@@ -63,8 +68,8 @@ def get_standings(branch, category):
             AND games.away_score IS NOT NULL
             AND games.status = 'completed'
         WHERE
-            teams.branch = %s
-            AND teams.category = %s
+            {branch_filter}
+            teams.category = %s
         GROUP BY
             teams.id,
             teams.name,
@@ -75,10 +80,7 @@ def get_standings(branch, category):
             points_for DESC,
             teams.name ASC
         """,
-        (
-            branch,
-            category
-        )
+        parameters
     ).fetchall()
 
     connection.close()

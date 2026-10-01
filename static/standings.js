@@ -3,13 +3,27 @@
 const standingsForm = document.querySelector("#standings-form");
 const standingsFormMessage = document.querySelector("#standings-form-message");
 const standingsContainer = document.querySelector("#standings");
+const standingsBranch = document.querySelector("#standings-branch");
+const standingsCategory = document.querySelector("#standings-category");
+const youthStandingsRule = document.querySelector("#youth-standings-rule");
+const unifiedYouthCategories = new Set(["u8", "u10", "u12"]);
+
+function updateDivisionControls() {
+    const unified = unifiedYouthCategories.has(standingsCategory.value);
+    standingsBranch.disabled = unified;
+    standingsBranch.required = !unified;
+    if (unified) standingsBranch.value = "mixto";
+    youthStandingsRule.classList.toggle("hidden", !unified);
+}
 
 async function loadStandings(event) {
     event.preventDefault();
 
     const formData = new FormData(standingsForm);
-    const branch = formData.get("branch");
     const category = formData.get("category");
+    const branch = unifiedYouthCategories.has(category)
+        ? "mixto"
+        : formData.get("branch");
 
     standingsFormMessage.textContent = "Consultando tabla...";
 
@@ -78,4 +92,6 @@ function renderStandings(standings) {
 
 if (standingsForm !== null) {
     standingsForm.addEventListener("submit", loadStandings);
+    standingsCategory.addEventListener("change", updateDivisionControls);
+    updateDivisionControls();
 }

@@ -236,6 +236,12 @@ def user_administration_page(request: Request):
     return templates.TemplateResponse(request, "admin_users.html")
 
 
+@app.get("/admin/team-duplicates")
+def team_duplicate_audit_page(request: Request):
+    """Render the youth cross-branch duplicate audit shell."""
+    return templates.TemplateResponse(request, "admin_team_duplicates.html")
+
+
 @app.get("/referee/games")
 def referee_games_page(request: Request):
     """Render the private schedule shell; its API enforces referee access."""

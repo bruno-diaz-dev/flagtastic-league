@@ -272,9 +272,14 @@ This separation allows the same person to play for multiple teams when league el
   `RAVENS` in the same division.
 
 - Every team has `name`, `branch`, `category`, and `status`.
-- U12 teams retain their registered branch in storage, filters, standings, and
-  statistics. Game validation alone treats `femenil`, `varonil`, and `mixto`
-  U12 records as compatible. Cross-branch games remain invalid elsewhere.
+- U8, U10, and U12 teams retain their registered branch in storage and team
+  identity, but competition treats each category as one division. Game
+  validation and import matching allow cross-branch opponents, and standings
+  combine `femenil`, `varonil`, and `mixto` records. Older categories continue
+  to require the same branch.
+- The administrator duplicate audit groups canonical U8-U12 names that exist
+  in more than one branch. It is intentionally read-only: potential duplicates
+  require human review before an existing team is renamed or deleted.
 - New teams are created with `status = "pending"`.
 - League administrators transition teams among `pending`, `active`, and
   `inactive`; the status is operational state, not free-form display text.
@@ -347,6 +352,7 @@ a recovery flow that Resend's onboarding sender cannot deliver to public users.
 | `PUT` | `/api/teams/{team_id}/representatives/{user_id}` | Links an existing representative account to a historical team; league administrators only |
 | `DELETE` | `/api/teams/{team_id}/representatives/{user_id}` | Removes one incorrect team assignment without deleting the account; league administrators only |
 | `GET` | `/api/teams/representative-assignments` | Lists current team ownership for verification in the league administration UI |
+| `GET` | `/api/teams/duplicate-candidates` | Lists possible same-category U8-U12 duplicates across branches; league administrators only |
 | `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
 | `GET` | `/api/games/mine/referee` | Returns only games assigned to the authenticated referee, including each game's complete officiating crew |
 | `GET` | `/api/referees` | Lists active referee names and photos for authenticated users only |
@@ -366,7 +372,7 @@ a recovery flow that Resend's onboarding sender cannot deliver to public users.
 | `PATCH` | `/api/games/week/{week}/status` | Postpones or restores every unplayed game in a jornada; league administrators only |
 | `DELETE` | `/api/games/{game_id}` | Deletes one game; league administrators only |
 | `DELETE` | `/api/games/week/{week}` | Atomically deletes every game in a jornada; league administrators only |
-| `GET` | `/api/standings` | Lists standings by branch and category |
+| `GET` | `/api/standings` | Lists standings by branch and category; U8-U12 ignore branch and return one unified table |
 | `POST` | `/api/weeks/{week}/player-stats/import` | Atomically replaces a complete jornada from `.xlsx` |
 | `POST` | `/api/statistics/import` | Atomically imports all official `Wk` sheets, statistics, games, and inferred scores |
 | `GET` | `/api/weeks/{week}/player-stats` | Lists a jornada's individual statistics |
@@ -405,6 +411,7 @@ administrators cannot create the same slot concurrently.
 | `GET` | `/teams/{team_id}/roster` | Dedicated team roster and authorized roster management |
 | `GET` | `/games` | Chronological game agenda with team, jornada, division, and field filters |
 | `GET` | `/standings` | Standings page |
+| `GET` | `/admin/team-duplicates` | Administrator review of possible U8-U12 duplicates across branches |
 | `GET` | `/statistics` | Public individual leaderboards |
 | `GET` | `/login` | Operational user login |
 | `GET` | `/dashboard` | Private player dashboard |

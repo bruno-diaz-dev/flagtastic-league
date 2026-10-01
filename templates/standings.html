@@ -5,7 +5,7 @@
     <header class="section-header">
         <div>
             <h2>Tabla</h2>
-            <p>Consulta la tabla de posiciones por rama y categoria.</p>
+            <p>Consulta la tabla de posiciones de cada división.</p>
         </div>
     </header>
 
@@ -15,7 +15,7 @@
         <form id="standings-form" class="standings-form">
             <label>
                 Rama
-                <select name="branch" required>
+                <select id="standings-branch" name="branch" required>
                     <option value="">Selecciona una rama</option>
                     <option value="varonil">Varonil</option>
                     <option value="femenil">Femenil</option>
@@ -25,7 +25,7 @@
 
             <label>
                 Categoria
-                <select name="category" required>
+                <select id="standings-category" name="category" required>
                     <option value="">Selecciona una categoria</option>
                     <option value="u6">U6</option>
                     <option value="u8">U8</option>
@@ -41,6 +41,10 @@
             <button type="submit">Consultar tabla</button>
         </form>
 
+        <p id="youth-standings-rule" class="form-hint hidden">
+            U8, U10 y U12 usan una sola tabla con equipos de todas las ramas.
+        </p>
+
         <p id="standings-form-message" class="form-message" role="status"></p>
     </section>
 
@@ -50,5 +54,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260930-2"></script>
-<script src="/static/standings.js?v=20260930-3"></script>
+<script src="/static/standings.js?v=20261001-1"></script>
 {% endblock %}

@@ -126,10 +126,16 @@ function compareTeams(first, second) {
 function renderManualTeamSelect(select, searchInput) {
     const selectedTeamId = select.value;
     const search = normalizeSearchText(searchInput.value);
+    const category = manualGameCategory.value;
+    const unifiedYouthCategory = ["u8", "u10", "u12"].includes(category);
     const teams = gameTeamsState
         .filter((team) => (
-            (!manualGameBranch.value || team.branch === manualGameBranch.value)
-            && (!manualGameCategory.value || team.category === manualGameCategory.value)
+            (
+                !manualGameBranch.value
+                || unifiedYouthCategory
+                || team.branch === manualGameBranch.value
+            )
+            && (!category || team.category === category)
             && (!search || normalizeSearchText(team.name).includes(search))
         ))
         .sort(compareTeams);

@@ -4,7 +4,10 @@ from difflib import SequenceMatcher
 import re
 import unicodedata
 
-from services.divisions import normalize_division
+from services.divisions import (
+    category_allows_cross_branch_games,
+    normalize_division,
+)
 
 
 _NAME_STOP_WORDS = {"de", "del", "el", "la", "las", "los", "y"}
@@ -31,6 +34,11 @@ def _name_tokens(value, strip_division=False):
         token for token in normalize_team_text(value).split()
         if token not in ignored
     ]
+
+
+def normalize_team_identity(value):
+    """Return a stable team-name identity for duplicate auditing."""
+    return " ".join(_name_tokens(value, strip_division=True))
 
 
 def _token_score(source, target):
@@ -101,7 +109,7 @@ def rank_team_matches(label, teams, branch=None, category=None):
             continue
         if (
             normalized_branch
-            and normalized_category != "u12"
+            and not category_allows_cross_branch_games(normalized_category)
             and team_branch != normalized_branch
         ):
             continue
