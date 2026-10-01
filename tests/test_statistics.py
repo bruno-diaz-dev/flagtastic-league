@@ -168,7 +168,7 @@ def test_statistics_import_resolves_u12_abbreviated_team_names():
     ]])
 
     assert response.status_code == 200
-    assert response.json()["rows"][0]["branch"] == "femenil"
+    assert response.json()["rows"][0]["branch"] == "mixto"
     totals = client.get(f"/api/players/{player}/stats").json()
     assert totals["points"] == 6
 
@@ -364,3 +364,31 @@ def test_leaderboards_limit_results_and_apply_passing_threshold():
     assert leaders["completion_percentage"][0]["player_name"] == "Player 1"
     assert "player_aka" in leaders["completion_percentage"][0]
     assert "profile_photo_url" in leaders["completion_percentage"][0]
+
+
+def test_youth_leaderboards_combine_legacy_branches():
+    connection = get_connection()
+    legacy_team = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category, status)
+        VALUES ('Legacy Ravens', 'femenil', 'u10', 'active')
+        RETURNING id
+        """
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+    canonical_team = create_team("Nomadas", "mixto", "u10")
+    create_player(legacy_team, "Legacy Leader", "LEGA010101MASXX001", 7)
+    create_player(canonical_team, "Canonical Leader", "CANO010101HASXX002", 8)
+
+    assert upload_week(1, [
+        ["femenil", "u10", "Legacy Ravens", 7, 12, 2, 0, 0, 1, 0, 0],
+        ["mixto", "u10", "Nomadas", 8, 6, 1, 0, 0, 1, 0, 0],
+    ]).status_code == 200
+
+    leaders = client.get(
+        "/api/statistics/leaderboards?branch=varonil&category=u10"
+    ).json()
+    assert [leader["player_name"] for leader in leaders["points"]] == [
+        "Legacy Leader", "Canonical Leader"
+    ]

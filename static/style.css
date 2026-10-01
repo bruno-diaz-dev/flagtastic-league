@@ -308,6 +308,19 @@ select option {
     color: var(--color-muted);
 }
 
+.readonly-control {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    width: 100%;
+    border: 1px solid rgba(184, 195, 217, 0.35);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--color-muted);
+    font: inherit;
+}
+
 .form-hint {
     margin: 12px 0 0;
     color: var(--color-muted);

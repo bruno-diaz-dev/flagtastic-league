@@ -14,7 +14,7 @@
 
         <form id="game-form" class="game-form">
             <div class="manual-game-division-filters">
-                <label>
+                <label id="manual-game-branch-field">
                     Rama
                     <select id="manual-game-branch">
                         <option value="">Todas las ramas</option>
@@ -22,6 +22,11 @@
                         <option value="femenil">Femenil</option>
                         <option value="mixto">Mixto</option>
                     </select>
+                </label>
+
+                <label id="manual-game-youth-branch" class="hidden">
+                    Rama
+                    <span class="readonly-control">Infantiles</span>
                 </label>
 
                 <label>
@@ -178,7 +183,7 @@
             </select>
         </label>
 
-        <label>
+        <label id="game-filter-branch-field">
             Rama
             <select id="game-filter-branch">
                 <option value="">Todas las ramas</option>
@@ -186,6 +191,11 @@
                 <option value="femenil">Femenil</option>
                 <option value="mixto">Mixto</option>
             </select>
+        </label>
+
+        <label id="game-filter-youth-branch" class="hidden">
+            Rama
+            <span class="readonly-control">Infantiles</span>
         </label>
 
         <label>
@@ -237,7 +247,7 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
-<script src="/static/api.js?v=20260930-2"></script>
+<script src="/static/api.js?v=20261001-2"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20260930-5"></script>
+<script src="/static/games.js?v=20261001-1"></script>
 {% endblock %}

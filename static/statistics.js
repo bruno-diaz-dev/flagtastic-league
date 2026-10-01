@@ -4,6 +4,10 @@ const leaderboardForm = document.querySelector("#leaderboard-form");
 const leaderboardsContainer = document.querySelector("#leaderboards");
 const statisticsImportForm = document.querySelector("#statistics-import-form");
 const statisticsImportMessage = document.querySelector("#statistics-import-message");
+const leaderboardBranch = document.querySelector("#leaderboard-branch");
+const leaderboardCategory = document.querySelector("#leaderboard-category");
+const leaderboardBranchField = document.querySelector("#leaderboard-branch-field");
+const leaderboardYouthBranch = document.querySelector("#leaderboard-youth-branch");
 
 const leaderboardDefinitions = {
     completion_percentage: {
@@ -16,6 +20,14 @@ const leaderboardDefinitions = {
     interceptions: {title: "Cazador Aéreo", statistic: "Intercepciones"},
     sacks: {title: "Cazador de QBs", statistic: "Capturas"}
 };
+
+function updateLeaderboardBranchControl() {
+    const unified = isUnifiedYouthCategory(leaderboardCategory.value);
+    leaderboardBranchField.classList.toggle("hidden", unified);
+    leaderboardYouthBranch.classList.toggle("hidden", !unified);
+    leaderboardBranch.disabled = unified;
+    if (unified) leaderboardBranch.value = "mixto";
+}
 
 
 function leaderboardIdentity(leader) {
@@ -103,7 +115,9 @@ async function loadLeaderboards(event) {
 
     try {
         const response = await getLeaderboards(
-            formData.get("branch"),
+            isUnifiedYouthCategory(formData.get("category"))
+                ? "mixto"
+                : formData.get("branch"),
             formData.get("category")
         );
         if (!response.ok) throw new Error("Request failed");
@@ -115,7 +129,9 @@ async function loadLeaderboards(event) {
 
 
 leaderboardForm.addEventListener("submit", loadLeaderboards);
+leaderboardCategory.addEventListener("change", updateLeaderboardBranchControl);
 if (statisticsImportForm) {
     statisticsImportForm.addEventListener("submit", submitStatisticsImport);
 }
+updateLeaderboardBranchControl();
 loadLeaderboards();

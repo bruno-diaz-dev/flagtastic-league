@@ -23,9 +23,9 @@
                 >    
             </label>
 
-            <label>
+            <label id="team-branch-field">
                 Rama
-                <select name="branch" required>
+                <select id="team-branch" name="branch" required>
                     <option value="">Selecciona una rama</option>
                     <option value="varonil">Varonil</option>
                     <option value="femenil">Femenil</option>
@@ -33,9 +33,14 @@
                 </select>
             </label>
 
+            <label id="team-youth-branch" class="hidden">
+                Rama
+                <span class="readonly-control">Infantiles</span>
+            </label>
+
             <label>
                 Categoria
-                <select name="category" required>
+                <select id="team-category" name="category" required>
                     <option value="u6">U6</option>
                     <option value="u8">U8</option>
                     <option value="u10">U10</option>
@@ -68,7 +73,7 @@
     </section>
 
     <section class="filters-panel">
-        <label>
+        <label id="team-filter-branch-field">
             Rama
             <select id="team-filter-branch">
                 <option value="">Todas las ramas</option>
@@ -76,6 +81,11 @@
                 <option value="femenil">Femenil</option>
                 <option value="mixto">Mixto</option>
             </select>
+        </label>
+
+        <label id="team-filter-youth-branch" class="hidden">
+            Rama
+            <span class="readonly-control">Infantiles</span>
         </label>
 
         <label>
@@ -100,6 +110,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260930-2"></script>
-<script src="/static/teams.js?v=20260930-3"></script>
+<script src="/static/api.js?v=20261001-2"></script>
+<script src="/static/teams.js?v=20261001-1"></script>
 {% endblock %}

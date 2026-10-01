@@ -25,10 +25,13 @@
     <section class="form-panel">
         <h3>Registrarme en un equipo</h3>
         <form id="join-team-form" class="dashboard-join-form">
-            <label>Rama
+            <label id="join-team-branch-field">Rama
                 <select id="join-team-branch">
                     <option value="">Todas las ramas</option>
                 </select>
+            </label>
+            <label id="join-team-youth-branch" class="hidden">Rama
+                <span class="readonly-control">Infantiles</span>
             </label>
             <label>Categoría
                 <select id="join-team-category">
@@ -56,6 +59,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20260930-2"></script>
-<script src="/static/dashboard.js?v=20260930-3"></script>
+<script src="/static/api.js?v=20261001-2"></script>
+<script src="/static/dashboard.js?v=20261001-1"></script>
 {% endblock %}

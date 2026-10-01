@@ -8,12 +8,16 @@ const homeTeamSelect = document.querySelector("[name='home_team_id']");
 const awayTeamSelect = document.querySelector("[name='away_team_id']");
 const manualGameBranch = document.querySelector("#manual-game-branch");
 const manualGameCategory = document.querySelector("#manual-game-category");
+const manualGameBranchField = document.querySelector("#manual-game-branch-field");
+const manualGameYouthBranch = document.querySelector("#manual-game-youth-branch");
 const manualHomeTeamSearch = document.querySelector("#manual-home-team-search");
 const manualAwayTeamSearch = document.querySelector("#manual-away-team-search");
 const gameFilterWeek = document.querySelector("#game-filter-week");
 const gameFilterTeam = document.querySelector("#game-filter-team");
 const gameFilterBranch = document.querySelector("#game-filter-branch");
 const gameFilterCategory = document.querySelector("#game-filter-category");
+const gameFilterBranchField = document.querySelector("#game-filter-branch-field");
+const gameFilterYouthBranch = document.querySelector("#game-filter-youth-branch");
 const gameFilterField = document.querySelector("#game-filter-field");
 const gamesCount = document.querySelector("#games-count");
 const refereeAssignmentForm = document.querySelector("#referee-assignment-form");
@@ -123,6 +127,20 @@ function compareTeams(first, second) {
     );
 }
 
+function updateManualGameBranchControl() {
+    const unified = isUnifiedYouthCategory(manualGameCategory.value);
+    manualGameBranchField.classList.toggle("hidden", unified);
+    manualGameYouthBranch.classList.toggle("hidden", !unified);
+    if (unified) manualGameBranch.value = "";
+}
+
+function updateGameFilterBranchControl() {
+    const unified = isUnifiedYouthCategory(gameFilterCategory.value);
+    gameFilterBranchField.classList.toggle("hidden", unified);
+    gameFilterYouthBranch.classList.toggle("hidden", !unified);
+    if (unified) gameFilterBranch.value = "";
+}
+
 function renderManualTeamSelect(select, searchInput) {
     const selectedTeamId = select.value;
     const search = normalizeSearchText(searchInput.value);
@@ -147,7 +165,7 @@ function renderManualTeamSelect(select, searchInput) {
         <option value="">${placeholder}</option>
         ${teams.map((team) => `
             <option value="${team.id}">
-                ${escapeHtml(team.name)} · ${escapeHtml(team.branch)} / ${escapeHtml(team.category)}
+                ${escapeHtml(team.name)} · ${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}
             </option>
         `).join("")}
     `;
@@ -229,7 +247,7 @@ function renderGames(games) {
                         ${gameTeamRow(game.away_team, "Visitante", game.away_score)}
                     </div>
                     <footer class="game-card-footer">
-                        <span>${escapeHtml(game.home_team.branch)} · ${escapeHtml(game.home_team.category)}</span>
+                        <span>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} · ${escapeHtml(game.home_team.category)}</span>
                         <a class="secondary-link game-details-link" href="/games/${game.id}">Ver detalles</a>
                     </footer>
                     <details class="game-admin-panel admin-only">
@@ -300,7 +318,8 @@ function renderFilteredGames() {
             || String(game.week) === gameFilterWeek.value
         );
         const matchesBranch = (
-            gameFilterBranch.value === ""
+            isUnifiedYouthCategory(gameFilterCategory.value)
+            || gameFilterBranch.value === ""
             || game.home_team.branch === gameFilterBranch.value
         );
         const matchesCategory = (
@@ -473,8 +492,10 @@ if (gameForm !== null) {
     gameForm.addEventListener("submit", registerGame);
 }
 
-[manualGameBranch, manualGameCategory].forEach((filter) => {
-    filter.addEventListener("change", renderManualTeamOptions);
+manualGameBranch.addEventListener("change", renderManualTeamOptions);
+manualGameCategory.addEventListener("change", () => {
+    updateManualGameBranchControl();
+    renderManualTeamOptions();
 });
 manualHomeTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
@@ -483,10 +504,17 @@ manualAwayTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);
 });
 
-[gameFilterWeek, gameFilterBranch, gameFilterCategory, gameFilterField].forEach((filter) => {
+[gameFilterWeek, gameFilterBranch, gameFilterField].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);
 });
+gameFilterCategory.addEventListener("change", () => {
+    updateGameFilterBranchControl();
+    renderFilteredGames();
+});
 gameFilterTeam.addEventListener("input", renderFilteredGames);
+
+updateManualGameBranchControl();
+updateGameFilterBranchControl();
 
 deleteGamesWeekButton.addEventListener("click", async () => {
     const week = gameFilterWeek.value;
@@ -724,7 +752,13 @@ function renderGameScheduleReview(result) {
             <td><input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></td>
             <td>${escapeHtml(proposal.home_match || proposal.home_team)}</td>
             <td>${escapeHtml(proposal.away_match || proposal.away_team)}</td>
-            <td>${escapeHtml([proposal.home_match_branch || proposal.away_match_branch, proposal.home_match_category || proposal.away_match_category].filter(Boolean).join(" / "))}</td>
+            <td>${escapeHtml([
+                divisionBranchLabel(
+                    proposal.home_match_branch || proposal.away_match_branch,
+                    proposal.home_match_category || proposal.away_match_category
+                ),
+                proposal.home_match_category || proposal.away_match_category
+            ].filter(Boolean).join(" / "))}</td>
             <td>${proposal.ready ? (proposal.start_time ? "Listo" : "Completa la hora") : `Sin coincidencia (${escapeHtml(proposal.source_row)})`}</td>
         </tr>`).join("");
     confirmScheduleButton.disabled = result.matched === 0;

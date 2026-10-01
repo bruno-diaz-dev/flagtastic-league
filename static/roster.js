@@ -35,7 +35,7 @@ function playerPhoto(player) {
 
 function renderRoster(team) {
     rosterTitle.textContent = `Roster de ${team.name}`;
-    rosterSubtitle.textContent = `${team.branch} / ${team.category} · ${team.players.length} jugadores`;
+    rosterSubtitle.textContent = `${divisionBranchLabel(team.branch, team.category)} / ${team.category} · ${team.players.length} jugadores`;
     const teamLogo = document.querySelector("#roster-team-logo");
     if (team.logo_url) {
         teamLogo.src = `${team.logo_url}?v=${Date.now()}`;

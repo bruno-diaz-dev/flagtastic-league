@@ -14,7 +14,7 @@ let assignments = [];
 function renderTeam() {
     document.querySelector("#managed-team-title").textContent = managedTeam.name;
     document.querySelector("#managed-team-division").textContent =
-        `${managedTeam.branch} / ${managedTeam.category}`;
+        `${divisionBranchLabel(managedTeam.branch, managedTeam.category)} / ${managedTeam.category}`;
     nameForm.elements.name.value = managedTeam.name;
     statusForm.elements.status.value = managedTeam.status;
     const logo = document.querySelector("#managed-team-logo");

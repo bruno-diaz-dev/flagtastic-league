@@ -3,9 +3,15 @@
 const teamForm = document.querySelector("#team-form");
 const formMessage = document.querySelector("#form-message");
 const teamsContainer = document.querySelector("#teams");
+const teamBranch = document.querySelector("#team-branch");
+const teamCategory = document.querySelector("#team-category");
+const teamBranchField = document.querySelector("#team-branch-field");
+const teamYouthBranch = document.querySelector("#team-youth-branch");
 
 const teamFilterBranch = document.querySelector("#team-filter-branch");
 const teamFilterCategory = document.querySelector("#team-filter-category");
+const teamFilterBranchField = document.querySelector("#team-filter-branch-field");
+const teamFilterYouthBranch = document.querySelector("#team-filter-youth-branch");
 
 let teamsState = [];
 
@@ -36,6 +42,21 @@ function compareTeams(left, right) {
     return left.name.localeCompare(right.name, "es", {sensitivity: "base"});
 }
 
+function updateTeamBranchControl() {
+    const unified = isUnifiedYouthCategory(teamCategory.value);
+    teamBranchField.classList.toggle("hidden", unified);
+    teamYouthBranch.classList.toggle("hidden", !unified);
+    teamBranch.required = !unified;
+    if (unified) teamBranch.value = "mixto";
+}
+
+function updateTeamFilterBranchControl() {
+    const unified = isUnifiedYouthCategory(teamFilterCategory.value);
+    teamFilterBranchField.classList.toggle("hidden", unified);
+    teamFilterYouthBranch.classList.toggle("hidden", !unified);
+    if (unified) teamFilterBranch.value = "";
+}
+
 function renderEmptyTeamsState() {
     teamsContainer.innerHTML = `
         <div class="empty-state">
@@ -60,7 +81,7 @@ function renderTeams(teams) {
                         : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
                     <div>
                         <h3>${escapeHtml(team.name)}</h3>
-                        <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)}</p>
+                        <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</p>
                     </div>
                     <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
                 </a>
@@ -74,10 +95,11 @@ function getFilteredTeams() {
     // Filters are combined so large divisions remain usable without re-fetching.
     const selectedBranch= teamFilterBranch.value;
     const selectedCategory = teamFilterCategory.value;
+    const unified = isUnifiedYouthCategory(selectedCategory);
 
     return teamsState.filter((team) => {
         const matchesBranch =
-            selectedBranch === "" || team.branch === selectedBranch;
+            unified || selectedBranch === "" || team.branch === selectedBranch;
 
         const matchesCategory =
             selectedCategory === "" || team.category === selectedCategory;
@@ -132,7 +154,9 @@ async function registerTeam(event) {
 
     const payload = {
         name: formData.get("name"),
-        branch: formData.get("branch"),
+        branch: isUnifiedYouthCategory(formData.get("category"))
+            ? "mixto"
+            : formData.get("branch"),
         category: formData.get("category"),
         head_coach: formData.get("head_coach"),
         coach: formData.get("coach"),
@@ -165,6 +189,7 @@ async function registerTeam(event) {
         }
 
         teamForm.reset();
+        updateTeamBranchControl();
         formMessage.textContent = "Equipo registrado correctamente.";
 
         await loadTeams();
@@ -174,10 +199,16 @@ async function registerTeam(event) {
 }
 
 teamFilterBranch.addEventListener("change", renderFilteredTeams);
-teamFilterCategory.addEventListener("change", renderFilteredTeams);
+teamFilterCategory.addEventListener("change", () => {
+    updateTeamFilterBranchControl();
+    renderFilteredTeams();
+});
+teamCategory.addEventListener("change", updateTeamBranchControl);
 teamForm.addEventListener("submit", registerTeam);
 
 async function initializeTeams() {
+    updateTeamBranchControl();
+    updateTeamFilterBranchControl();
     await loadTeams();
 }
 

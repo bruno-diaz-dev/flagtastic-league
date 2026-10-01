@@ -300,6 +300,7 @@ def get_game_statistics(game_id, team_ids=None, player_id=None):
 def get_leaderboards(branch, category, limit=5):
     """Return the leading players for every supported division metric."""
     connection = get_connection()
+    unified = category_allows_cross_branch_games(category)
     rows = connection.execute(
         """
         SELECT players.id AS player_id, players.name AS player_name,
@@ -323,13 +324,13 @@ def get_leaderboards(branch, category, limit=5):
         JOIN teams ON teams.id = stats.team_id
         JOIN team_players ON team_players.team_id = stats.team_id
           AND team_players.player_id = stats.player_id
-        WHERE LOWER(teams.branch) = LOWER(%s)
-          AND LOWER(teams.category) = LOWER(%s)
+        WHERE LOWER(teams.category) = LOWER(%s)
+          AND (%s OR LOWER(teams.branch) = LOWER(%s))
         GROUP BY players.id, players.name, players.aka,
                  players.profile_photo_path, teams.id, teams.name,
                  team_players.jersey_number
         """,
-        (branch.strip(), category.strip())
+        (category.strip(), unified, branch.strip())
     ).fetchall()
     connection.close()
 

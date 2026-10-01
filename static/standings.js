@@ -6,6 +6,8 @@ const standingsContainer = document.querySelector("#standings");
 const standingsBranch = document.querySelector("#standings-branch");
 const standingsCategory = document.querySelector("#standings-category");
 const youthStandingsRule = document.querySelector("#youth-standings-rule");
+const standingsBranchField = document.querySelector("#standings-branch-field");
+const standingsYouthBranch = document.querySelector("#standings-youth-branch");
 const unifiedYouthCategories = new Set(["u8", "u10", "u12"]);
 
 function updateDivisionControls() {
@@ -13,6 +15,8 @@ function updateDivisionControls() {
     standingsBranch.disabled = unified;
     standingsBranch.required = !unified;
     if (unified) standingsBranch.value = "mixto";
+    standingsBranchField.classList.toggle("hidden", unified);
+    standingsYouthBranch.classList.toggle("hidden", !unified);
     youthStandingsRule.classList.toggle("hidden", !unified);
 }
 

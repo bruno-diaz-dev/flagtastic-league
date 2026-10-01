@@ -57,7 +57,7 @@ function renderPublicProfile(profile) {
         ? profile.teams.map((team) => `
             <article class="team-card">
                 <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(team.team_name)}</a></h4>
-                <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
+                <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
                 <strong>${team.standing_position || "-"} / ${team.division_team_count}</strong>
             </article>`).join("")
         : `<div class="empty-state"><h4>Sin equipo registrado</h4><p>Este jugador todavía no aparece en un roster.</p></div>`;
