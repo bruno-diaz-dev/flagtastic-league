@@ -6,56 +6,37 @@ class PlayerAlreadyRegisteredInDivision(Exception):
     """Raised when a person already belongs to the requested division."""
 
 def create_player(team, player):
-    """Create or reuse a person and attach them to an eligible team roster."""
+    """Create/reuse one player and idempotently attach them to a roster."""
     connection = get_connection()
 
     try:
+        connection.execute("LOCK TABLE team_players IN SHARE ROW EXCLUSIVE MODE")
+
         existing_player = connection.execute(
             """
-            SELECT
-                id,
-                name,
-                age
-            FROM players
-            WHERE curp = %s
+            INSERT INTO players (name, curp, age)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (curp) DO UPDATE
+            SET curp = EXCLUDED.curp
+            RETURNING id, name, age
             """,
-            (player.curp,)
+            (player.name, player.curp, player.age)
         ).fetchone()
-
-        # CURP identifies a person globally; roster membership is stored separately.
-        if existing_player is None:
-            existing_player = connection.execute(
-                """
-                INSERT INTO players (
-                    name,
-                    curp,
-                    age
-                )
-                VALUES (%s, %s, %s)
-                RETURNING id, name, age
-                """,
-                (
-                    player.name,
-                    player.curp,
-                    player.age
-                )
-            ).fetchone()
 
         player_id = existing_player["id"]
 
-        # A person may join multiple divisions, but only one team per division.
-        division_conflict = connection.execute(
+        division_membership = connection.execute(
             """
             SELECT
                 teams.id,
-                teams.name
+                teams.name,
+                team_players.jersey_number
             FROM team_players
-            JOIN teams
-                ON teams.id = team_players.team_id
+            JOIN teams ON teams.id = team_players.team_id
             WHERE team_players.player_id = %s
-                AND teams.branch = %s
-                AND teams.category = %s
-                AND team_players.active
+              AND teams.branch = %s
+              AND teams.category = %s
+              AND team_players.active
             LIMIT 1
             """,
             (
@@ -65,16 +46,15 @@ def create_player(team, player):
             )
         ).fetchone()
 
-        if division_conflict is not None:
+        if (
+            division_membership is not None
+            and division_membership["id"] != team["id"]
+        ):
             raise PlayerAlreadyRegisteredInDivision()
 
         connection.execute(
-            f"""
-            INSERT INTO team_players (
-                team_id,
-                player_id,
-                jersey_number
-            )
+            """
+            INSERT INTO team_players (team_id, player_id, jersey_number)
             VALUES (%s, %s, %s)
             ON CONFLICT (team_id, player_id) DO UPDATE
             SET jersey_number = EXCLUDED.jersey_number,
@@ -94,7 +74,7 @@ def create_player(team, player):
             "team_id": team["id"],
             "name": existing_player["name"],
             "curp": player.curp,
-            "age": player.age,
+            "age": existing_player["age"],
             "jersey_number": player.jersey_number
         }
 
