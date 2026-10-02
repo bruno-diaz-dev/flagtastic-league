@@ -287,10 +287,10 @@ def confirm_referee_schedule(
         ):
             raise HTTPException(status_code=409, detail="El usuario no es arbitro")
     try:
-        apply_referee_schedule(confirmation.assignments, admin["id"])
+        result = apply_referee_schedule(confirmation.assignments, admin["id"])
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    return {"updated": len(confirmation.assignments)}
+    return result
 
 
 @router.get("/{game_id}/referees")
