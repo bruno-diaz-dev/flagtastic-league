@@ -212,21 +212,28 @@ async function loadRoster() {
 
 playerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = playerForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
     const fields = new FormData(playerForm);
-    const response = await createPlayer(teamId, {
-        name: fields.get("name"),
-        curp: fields.get("curp"),
-        age: Number(fields.get("age")) || null,
-        jersey_number: Number(fields.get("jersey_number"))
-    });
-    if (!response.ok) {
-        const error = await response.json();
-        playerFormMessage.textContent = error.detail || "No se pudo registrar al jugador.";
-        return;
+
+    try {
+        const response = await createPlayer(teamId, {
+            name: fields.get("name"),
+            curp: fields.get("curp"),
+            age: Number(fields.get("age")) || null,
+            jersey_number: Number(fields.get("jersey_number"))
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            playerFormMessage.textContent = body.detail || "No se pudo registrar al jugador.";
+            return;
+        }
+        playerForm.reset();
+        playerFormMessage.textContent = "Jugador registrado correctamente.";
+        await loadRoster();
+    } finally {
+        submitButton.disabled = false;
     }
-    playerForm.reset();
-    playerFormMessage.textContent = "Jugador registrado correctamente.";
-    await loadRoster();
 });
 
 
