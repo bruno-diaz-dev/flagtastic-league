@@ -263,7 +263,11 @@ def test_duplicated_jersey_number():
     )
 
     assert first_response.status_code == 201
-    assert second_response.status_code == 409
+    assert second_response.status_code == 201
+
+    roster = client.get(f"/api/teams/{tigres_id}/players").json()
+    assert len(roster) == 1
+    assert roster[0]["jersey_number"] == 83
 
     assert (
         second_response.json()["detail"]
