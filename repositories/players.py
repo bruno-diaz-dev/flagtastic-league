@@ -107,49 +107,113 @@ def create_player(team, player):
 
 
 def import_players(team, players):
-    """Atomically create or reuse players and add them to one team roster."""
+    """Idempotently import roster rows without aborting on existing members."""
     connection = get_connection()
-    imported = []
+    created = 0
+    updated = 0
+    skipped = 0
+    conflicts = []
+    rows = []
 
     try:
+        # Serialize writes to this roster so repeated/double submissions cannot
+        # race on jersey numbers or memberships.
+        connection.execute("LOCK TABLE team_players IN SHARE ROW EXCLUSIVE MODE")
+
         for player in players:
             existing_player = connection.execute(
                 """
-                SELECT id, name, age
-                FROM players
-                WHERE curp = %s
+                INSERT INTO players (name, curp, age)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (curp) DO UPDATE
+                SET curp = EXCLUDED.curp
+                RETURNING id, name, age, (xmax = 0) AS was_created
                 """,
-                (player.curp,)
+                (player.name, player.curp, player.age)
             ).fetchone()
-
-            if existing_player is None:
-                existing_player = connection.execute(
-                    """
-                    INSERT INTO players (name, curp, age)
-                    VALUES (%s, %s, %s)
-                    RETURNING id, name, age
-                    """,
-                    (player.name, player.curp, player.age)
-                ).fetchone()
 
             player_id = existing_player["id"]
 
-            division_conflict = connection.execute(
+            division_membership = connection.execute(
                 """
-                SELECT teams.id, teams.name
+                SELECT
+                    team_players.team_id,
+                    team_players.jersey_number,
+                    teams.name AS team_name
                 FROM team_players
                 JOIN teams ON teams.id = team_players.team_id
                 WHERE team_players.player_id = %s
-                    AND teams.branch = %s
-                    AND teams.category = %s
-                    AND team_players.active
+                  AND teams.branch = %s
+                  AND teams.category = %s
+                  AND team_players.active
                 LIMIT 1
                 """,
                 (player_id, team["branch"], team["category"])
             ).fetchone()
 
-            if division_conflict is not None:
-                raise PlayerAlreadyRegisteredInDivision()
+            if (
+                division_membership is not None
+                and division_membership["team_id"] != team["id"]
+            ):
+                conflicts.append({
+                    "player_id": player_id,
+                    "name": existing_player["name"],
+                    "reason": "division_conflict",
+                    "team_id": division_membership["team_id"],
+                    "team_name": division_membership["team_name"],
+                })
+                continue
+
+            jersey_owner = connection.execute(
+                """
+                SELECT players.id, players.name
+                FROM team_players
+                JOIN players ON players.id = team_players.player_id
+                WHERE team_players.team_id = %s
+                  AND team_players.jersey_number = %s
+                  AND team_players.active
+                  AND team_players.player_id <> %s
+                LIMIT 1
+                """,
+                (team["id"], player.jersey_number, player_id)
+            ).fetchone()
+
+            if jersey_owner is not None:
+                conflicts.append({
+                    "player_id": player_id,
+                    "name": existing_player["name"],
+                    "reason": "jersey_conflict",
+                    "jersey_number": player.jersey_number,
+                    "existing_player_id": jersey_owner["id"],
+                    "existing_player_name": jersey_owner["name"],
+                })
+                continue
+
+            same_team = connection.execute(
+                """
+                SELECT jersey_number, active
+                FROM team_players
+                WHERE team_id = %s AND player_id = %s
+                LIMIT 1
+                """,
+                (team["id"], player_id)
+            ).fetchone()
+
+            if (
+                same_team is not None
+                and same_team["active"]
+                and same_team["jersey_number"] == player.jersey_number
+            ):
+                skipped += 1
+                rows.append({
+                    "id": player_id,
+                    "team_id": team["id"],
+                    "name": existing_player["name"],
+                    "age": existing_player["age"],
+                    "jersey_number": player.jersey_number,
+                    "action": "skipped",
+                })
+                continue
 
             connection.execute(
                 """
@@ -162,16 +226,30 @@ def import_players(team, players):
                 (team["id"], player_id, player.jersey_number)
             )
 
-            imported.append({
+            action = "created" if same_team is None else "updated"
+            if action == "created":
+                created += 1
+            else:
+                updated += 1
+
+            rows.append({
                 "id": player_id,
                 "team_id": team["id"],
                 "name": existing_player["name"],
                 "age": existing_player["age"],
-                "jersey_number": player.jersey_number
+                "jersey_number": player.jersey_number,
+                "action": action,
             })
 
         connection.commit()
-        return imported
+        return {
+            "imported": created,
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+            "conflicts": conflicts,
+            "rows": rows,
+        }
 
     except Exception:
         connection.rollback()
