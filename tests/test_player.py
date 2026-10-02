@@ -263,16 +263,12 @@ def test_duplicated_jersey_number():
     )
 
     assert first_response.status_code == 201
-    assert second_response.status_code == 201
-
-    roster = client.get(f"/api/teams/{tigres_id}/players").json()
-    assert len(roster) == 1
-    assert roster[0]["jersey_number"] == 83
-
+    assert second_response.status_code == 409
     assert (
         second_response.json()["detail"]
         == "Ese numero ya esta registrado en este equipo"
     )
+
 
 def test_player_can_join_different_branches():
     tigres_id = create_test_team(
@@ -443,7 +439,11 @@ def test_player_duplicity_in_same_team():
     )
 
     assert first_response.status_code == 201
-    assert second_response.status_code == 409
+    assert second_response.status_code == 201
+
+    roster = client.get(f"/api/teams/{tigres_id}/players").json()
+    assert len(roster) == 1
+    assert roster[0]["jersey_number"] == 83
 
 
 def test_reused_curp_creates_one_player_with_multiple_memberships():
