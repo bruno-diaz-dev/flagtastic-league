@@ -555,44 +555,117 @@ def get_games_for_referee(user_id):
 
 
 def apply_referee_schedule(assignments, assigned_by):
-    """Atomically replace reviewed fields and referees for selected games."""
+    """Idempotently apply reviewed referee assignments by game and position."""
     connection = get_connection()
+    created = 0
+    updated = 0
+    skipped = 0
+
     try:
+        connection.execute("LOCK TABLE game_referees IN SHARE ROW EXCLUSIVE MODE")
+
         for assignment in assignments:
-            updated = connection.execute(
+            game = connection.execute(
                 """
-                UPDATE games
-                SET field_number = %s,
-                    start_time = COALESCE(%s, start_time)
-                WHERE id = %s RETURNING id
+                SELECT id, field_number, start_time
+                FROM games
+                WHERE id = %s
+                FOR UPDATE
                 """,
-                (
-                    assignment.field_number,
-                    assignment.scheduled_time,
-                    assignment.game_id
-                )
-            ).fetchone()
-            if updated is None:
-                raise ValueError(f"No existe el partido {assignment.game_id}")
-            connection.execute(
-                "DELETE FROM game_referees WHERE game_id = %s",
                 (assignment.game_id,)
-            )
-            for official in assignment.officials:
+            ).fetchone()
+            if game is None:
+                raise ValueError(f"No existe el partido {assignment.game_id}")
+
+            desired_time = assignment.scheduled_time or game["start_time"]
+            if (
+                game["field_number"] != assignment.field_number
+                or game["start_time"] != desired_time
+            ):
                 connection.execute(
                     """
-                    INSERT INTO game_referees
-                        (game_id, user_id, position, assigned_by)
-                    VALUES (%s, %s, %s, %s)
+                    UPDATE games
+                    SET field_number = %s,
+                        start_time = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        assignment.field_number,
+                        desired_time,
+                        assignment.game_id,
+                    )
+                )
+
+            for official in assignment.officials:
+                current_position = connection.execute(
+                    """
+                    SELECT user_id
+                    FROM game_referees
+                    WHERE game_id = %s AND position = %s
+                    """,
+                    (assignment.game_id, official.position)
+                ).fetchone()
+
+                if (
+                    current_position is not None
+                    and current_position["user_id"] == official.user_id
+                ):
+                    skipped += 1
+                    continue
+
+                connection.execute(
+                    """
+                    DELETE FROM game_referees
+                    WHERE game_id = %s
+                      AND user_id = %s
+                      AND position <> %s
                     """,
                     (
                         assignment.game_id,
                         official.user_id,
                         official.position,
-                        assigned_by
                     )
                 )
+
+                if current_position is None:
+                    connection.execute(
+                        """
+                        INSERT INTO game_referees
+                            (game_id, user_id, position, assigned_by)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (
+                            assignment.game_id,
+                            official.user_id,
+                            official.position,
+                            assigned_by,
+                        )
+                    )
+                    created += 1
+                else:
+                    connection.execute(
+                        """
+                        UPDATE game_referees
+                        SET user_id = %s,
+                            assigned_by = %s,
+                            assigned_at = CURRENT_TIMESTAMP
+                        WHERE game_id = %s AND position = %s
+                        """,
+                        (
+                            official.user_id,
+                            assigned_by,
+                            assignment.game_id,
+                            official.position,
+                        )
+                    )
+                    updated += 1
+
         connection.commit()
+        return {
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+        }
     except Exception:
         connection.rollback()
         raise

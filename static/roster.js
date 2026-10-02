@@ -212,21 +212,28 @@ async function loadRoster() {
 
 playerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = playerForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
     const fields = new FormData(playerForm);
-    const response = await createPlayer(teamId, {
-        name: fields.get("name"),
-        curp: fields.get("curp"),
-        age: Number(fields.get("age")) || null,
-        jersey_number: Number(fields.get("jersey_number"))
-    });
-    if (!response.ok) {
-        const error = await response.json();
-        playerFormMessage.textContent = error.detail || "No se pudo registrar al jugador.";
-        return;
+
+    try {
+        const response = await createPlayer(teamId, {
+            name: fields.get("name"),
+            curp: fields.get("curp"),
+            age: Number(fields.get("age")) || null,
+            jersey_number: Number(fields.get("jersey_number"))
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            playerFormMessage.textContent = body.detail || "No se pudo registrar al jugador.";
+            return;
+        }
+        playerForm.reset();
+        playerFormMessage.textContent = "Jugador registrado correctamente.";
+        await loadRoster();
+    } finally {
+        submitButton.disabled = false;
     }
-    playerForm.reset();
-    playerFormMessage.textContent = "Jugador registrado correctamente.";
-    await loadRoster();
 });
 
 
@@ -312,19 +319,34 @@ registeredPlayerForm.addEventListener("submit", async (event) => {
 rosterImportForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fields = new FormData(rosterImportForm);
+    const submitButton = rosterImportForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
     rosterImportMessage.textContent = "Validando e importando roster...";
+
     try {
         const response = await importRoster(teamId, fields.get("file"));
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             rosterImportMessage.textContent = data.detail || "No se pudo importar el roster.";
             return;
         }
+
         rosterImportForm.reset();
-        rosterImportMessage.textContent = `${data.imported} jugadores importados correctamente.`;
+        const conflicts = data.conflicts || [];
+        const parts = [
+            `${data.created || 0} nuevos`,
+            `${data.updated || 0} actualizados`,
+            `${data.skipped || 0} ya existentes`
+        ];
+        if (conflicts.length) {
+            parts.push(`${conflicts.length} conflictos`);
+        }
+        rosterImportMessage.textContent = parts.join(" · ") + ".";
         await loadRoster();
     } catch (error) {
-        rosterImportMessage.textContent = "No se pudo conectar con el servidor.";
+        rosterImportMessage.textContent = "Ocurrió un error al procesar el roster. Intenta nuevamente.";
+    } finally {
+        submitButton.disabled = false;
     }
 });
 

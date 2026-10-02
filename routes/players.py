@@ -151,14 +151,9 @@ async def import_team_roster(
 
     try:
         players = parse_roster_file(file.filename, content)
-        imported = import_players(team, players)
+        result = import_players(team, players)
     except RosterImportError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    except PlayerAlreadyRegisteredInDivision:
-        raise HTTPException(
-            status_code=409,
-            detail="Uno de los jugadores ya esta registrado en esta rama y categoria"
-        )
     except UniqueViolation as error:
         constraint = error.diag.constraint_name
         if constraint == "team_players_team_id_jersey_number_key":
@@ -173,7 +168,7 @@ async def import_team_roster(
             )
         raise
 
-    return {"imported": len(imported), "rows": imported}
+    return result
 
 
 @router.get("/import/template.csv")

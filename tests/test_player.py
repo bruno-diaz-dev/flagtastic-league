@@ -684,3 +684,75 @@ def test_import_roster_accepts_semicolon_csv_from_excel():
     assert response.status_code == 201
     assert response.json()["imported"] == 1
 """API tests for player identity, eligibility, and roster membership."""
+
+
+def test_reimporting_same_roster_is_idempotent():
+    team_id = create_test_team()
+    content = (
+        "nombre,curp,numero\n"
+        "Bruno Diaz,DIBB961215HASXXX00,83\n"
+        "Selina Kyle,KYLS970101MASXXX01,12\n"
+    ).encode("utf-8")
+
+    first = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", content, "text/csv")}
+    )
+    second = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", content, "text/csv")}
+    )
+
+    assert first.status_code == 201
+    assert first.json()["created"] == 2
+    assert first.json()["skipped"] == 0
+    assert second.status_code == 201
+    assert second.json()["created"] == 0
+    assert second.json()["updated"] == 0
+    assert second.json()["skipped"] == 2
+    assert second.json()["conflicts"] == []
+    assert len(client.get(f"/api/teams/{team_id}/players").json()) == 2
+
+
+def test_roster_reimport_adds_only_missing_players():
+    team_id = create_test_team()
+    initial = (
+        "nombre,curp,numero\n"
+        "Bruno Diaz,DIBB961215HASXXX00,83\n"
+    ).encode("utf-8")
+    expanded = (
+        "nombre,curp,numero\n"
+        "Bruno Diaz,DIBB961215HASXXX00,83\n"
+        "Selina Kyle,KYLS970101MASXXX01,12\n"
+    ).encode("utf-8")
+
+    client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", initial, "text/csv")}
+    )
+    response = client.post(
+        f"/api/teams/{team_id}/players/import",
+        files={"file": ("roster.csv", expanded, "text/csv")}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["created"] == 1
+    assert response.json()["skipped"] == 1
+    assert response.json()["conflicts"] == []
+    assert len(client.get(f"/api/teams/{team_id}/players").json()) == 2
+
+
+def test_repeating_manual_player_registration_is_safe():
+    team_id = create_test_team()
+    payload = {
+        "name": "Bruno Diaz",
+        "curp": "DIBB961215HASXXX00",
+        "jersey_number": 83,
+    }
+
+    first = client.post(f"/api/teams/{team_id}/players", json=payload)
+    second = client.post(f"/api/teams/{team_id}/players", json=payload)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert len(client.get(f"/api/teams/{team_id}/players").json()) == 1
