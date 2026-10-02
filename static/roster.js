@@ -311,19 +311,34 @@ registeredPlayerForm.addEventListener("submit", async (event) => {
 rosterImportForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fields = new FormData(rosterImportForm);
+    const submitButton = rosterImportForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
     rosterImportMessage.textContent = "Validando e importando roster...";
+
     try {
         const response = await importRoster(teamId, fields.get("file"));
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             rosterImportMessage.textContent = data.detail || "No se pudo importar el roster.";
             return;
         }
+
         rosterImportForm.reset();
-        rosterImportMessage.textContent = `${data.imported} jugadores importados correctamente.`;
+        const conflicts = data.conflicts || [];
+        const parts = [
+            `${data.created || 0} nuevos`,
+            `${data.updated || 0} actualizados`,
+            `${data.skipped || 0} ya existentes`
+        ];
+        if (conflicts.length) {
+            parts.push(`${conflicts.length} conflictos`);
+        }
+        rosterImportMessage.textContent = parts.join(" · ") + ".";
         await loadRoster();
     } catch (error) {
-        rosterImportMessage.textContent = "No se pudo conectar con el servidor.";
+        rosterImportMessage.textContent = "Ocurrió un error al procesar el roster. Intenta nuevamente.";
+    } finally {
+        submitButton.disabled = false;
     }
 });
 
