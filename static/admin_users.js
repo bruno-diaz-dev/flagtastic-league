@@ -65,9 +65,12 @@ function renderUsers() {
                     <input class="official-aka-input" value="${escapeHtml(user.aka || "")}" maxlength="80" placeholder="Alias en la liga" aria-label="AKA de ${escapeHtml(user.name)}">
                     <button class="save-aka-button" type="button">Guardar AKA</button>
                 </div>` : '<span class="not-applicable">No aplica</span>'}</td>
-            <td>${user.status === "active" ? "Activo" : "Inactivo"}</td>
+            <td>${user.must_change_password
+                ? "Cambio de contraseña pendiente"
+                : (user.status === "active" ? "Activo" : "Inactivo")}</td>
             <td class="user-actions">
                 <button class="save-role-button" type="button">Guardar</button>
+                <button class="reset-password-button" type="button">Reiniciar contraseña</button>
                 <button class="delete-user-button" type="button">Eliminar</button>
             </td>
         </tr>`).join("");
@@ -89,6 +92,31 @@ async function loadUsers() {
 
 usersBody.addEventListener("click", async (event) => {
     const row = event.target.closest("tr");
+    if (event.target.classList.contains("reset-password-button")) {
+        const name = row.querySelector("strong").textContent;
+        if (!window.confirm(
+            `¿Reiniciar la contraseña de ${name}? Se cerrarán todas sus sesiones activas.`
+        )) return;
+
+        event.target.disabled = true;
+        const response = await resetAdminUserPassword(row.dataset.userId);
+        const body = await response.json().catch(() => ({}));
+        event.target.disabled = false;
+
+        if (!response.ok) {
+            usersMessage.textContent = body.detail || "No se pudo reiniciar la contraseña.";
+            return;
+        }
+
+        usersMessage.textContent =
+            `Contraseña de ${name} reiniciada. Debe cambiarla al iniciar sesión.`;
+        window.prompt(
+            "Contraseña temporal. Cópiala ahora; no volverá a mostrarse:",
+            body.temporary_password
+        );
+        await loadUsers();
+        return;
+    }
     if (event.target.classList.contains("delete-user-button")) {
         const name = row.querySelector("strong").textContent;
         if (!window.confirm(`¿Eliminar la cuenta de ${name}? Su historial deportivo se conservará.`)) return;
