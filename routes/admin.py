@@ -17,6 +17,7 @@ from repositories.users import (
     delete_user_account,
     get_all_users,
     get_user_by_id,
+    reset_user_password_by_admin,
     set_user_roles,
     update_user_role
 )
@@ -92,6 +93,24 @@ def replace_user_roles(
     if user is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
+
+
+@router.post("/{user_id}/reset-password")
+def reset_user_password(
+    user_id: int,
+    admin=Depends(require_league_admin),
+):
+    """Issue a temporary password and require the user to replace it."""
+    if user_id == admin["id"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Usa Cambiar contraseña para actualizar tu propia cuenta",
+        )
+
+    result = reset_user_password_by_admin(user_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return result
 
 
 @router.patch("/{user_id}/referee-aka")

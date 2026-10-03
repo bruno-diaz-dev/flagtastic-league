@@ -616,3 +616,122 @@ def test_only_league_admin_can_correct_team_name():
     response = client.patch(endpoint, json={"name": corrected_name})
     assert response.status_code == 200
     assert response.json()["name"] == corrected_name
+
+
+
+def test_league_admin_can_reset_another_users_password_and_force_change():
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("password-reset-admin")
+    create_user(UserCreate(
+        email=admin_email,
+        name="Reset Admin",
+        password="adminsecret",
+        role="league_admin"
+    ))
+    _, target_email = unique_identity("password-reset-target")
+    target = create_user(UserCreate(
+        email=target_email,
+        name="Reset Target",
+        password="oldsecret",
+        role="league_admin"
+    ))
+
+    target_client = TestClient(app, base_url="https://testserver")
+    assert target_client.post(
+        "/api/auth/login",
+        json={"email": target_email, "password": "oldsecret"}
+    ).status_code == 200
+
+    assert login(admin_email, "adminsecret").status_code == 200
+    response = client.post(
+        f"/api/admin/users/{target['id']}/reset-password"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    temporary_password = body["temporary_password"]
+    assert len(temporary_password) >= 8
+    assert body["must_change_password"] is True
+
+    # All existing sessions are revoked immediately.
+    assert target_client.get("/api/auth/me").status_code == 401
+
+    target_client.cookies.clear()
+    assert target_client.post(
+        "/api/auth/login",
+        json={"email": target_email, "password": "oldsecret"}
+    ).status_code == 401
+
+    temporary_login = target_client.post(
+        "/api/auth/login",
+        json={"email": target_email, "password": temporary_password}
+    )
+    assert temporary_login.status_code == 200
+    assert temporary_login.json()["must_change_password"] is True
+
+    # The temporary credential cannot be used for normal app access.
+    blocked = target_client.get("/api/admin/users")
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"] == (
+        "Debes cambiar tu contraseña antes de continuar"
+    )
+
+    changed = target_client.post(
+        "/api/auth/change-password",
+        json={
+            "current_password": temporary_password,
+            "new_password": "replacementsecret",
+        }
+    )
+    assert changed.status_code == 204
+
+    target_client.cookies.clear()
+    final_login = target_client.post(
+        "/api/auth/login",
+        json={"email": target_email, "password": "replacementsecret"}
+    )
+    assert final_login.status_code == 200
+    assert "must_change_password" not in final_login.json()
+
+
+def test_non_admin_cannot_reset_another_users_password():
+    disable_test_authorization_override()
+    _, representative_email = unique_identity("password-reset-representative")
+    create_user(UserCreate(
+        email=representative_email,
+        name="Representative",
+        password="supersecret",
+        role="team_representative"
+    ))
+    _, target_email = unique_identity("password-reset-target")
+    target = create_user(UserCreate(
+        email=target_email,
+        name="Target",
+        password="oldsecret",
+        role="referee"
+    ))
+
+    assert login(representative_email, "supersecret").status_code == 200
+    response = client.post(
+        f"/api/admin/users/{target['id']}/reset-password"
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_cannot_reset_own_password_from_user_admin():
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("self-reset-admin")
+    admin = create_user(UserCreate(
+        email=admin_email,
+        name="Self Reset Admin",
+        password="supersecret",
+        role="league_admin"
+    ))
+
+    assert login(admin_email, "supersecret").status_code == 200
+    response = client.post(
+        f"/api/admin/users/{admin['id']}/reset-password"
+    )
+
+    assert response.status_code == 409
