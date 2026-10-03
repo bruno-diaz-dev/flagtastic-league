@@ -426,6 +426,67 @@ def change_user_password(user_id, current_password, new_password):
         connection.close()
 
 
+def reset_user_password_by_admin(user_id):
+    """Set a one-time temporary password and force a change on next login."""
+    connection = get_connection()
+    temporary_password = secrets.token_urlsafe(12)
+
+    try:
+        user = connection.execute(
+            """
+            SELECT id, email, name
+            FROM users
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (user_id,)
+        ).fetchone()
+        if user is None:
+            return None
+
+        connection.execute(
+            """
+            UPDATE users
+            SET password_hash = %s,
+                must_change_password = true
+            WHERE id = %s
+            """,
+            (hash_password(temporary_password), user_id)
+        )
+        connection.execute(
+            """
+            UPDATE sessions
+            SET revoked_at = NOW()
+            WHERE user_id = %s
+              AND revoked_at IS NULL
+            """,
+            (user_id,)
+        )
+        connection.execute(
+            """
+            UPDATE password_reset_tokens
+            SET used_at = NOW()
+            WHERE user_id = %s
+              AND used_at IS NULL
+            """,
+            (user_id,)
+        )
+        connection.commit()
+
+        return {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "temporary_password": temporary_password,
+            "must_change_password": True,
+        }
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 def set_user_roles(user_id, roles):
     """Replace an account's role set while preserving identity constraints."""
     connection = get_connection()
