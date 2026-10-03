@@ -590,3 +590,36 @@ def test_schedule_supports_fields_seven_and_eight_and_null_time_reimports(field)
     assert first.status_code == second.status_code == 200
     assert second.json()["skipped"] == 1
     assert len(client.get("/api/games").json()) == 1
+
+
+
+def test_admin_can_correct_completed_game_score():
+    home_id = create_test_team(name="Home")
+    away_id = create_test_team(name="Away")
+    game_id = client.post("/api/games", json={
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "field_number": 1,
+    }).json()["id"]
+
+    first = client.patch(
+        f"/api/games/{game_id}/score",
+        json={"home_score": 20, "away_score": 6},
+    )
+    corrected = client.patch(
+        f"/api/games/{game_id}/score",
+        json={"home_score": 26, "away_score": 12},
+    )
+
+    assert first.status_code == 200
+    assert corrected.status_code == 200
+    assert corrected.json()["home_score"] == 26
+    assert corrected.json()["away_score"] == 12
+
+    game = next(
+        game for game in client.get("/api/games").json()
+        if game["id"] == game_id
+    )
+    assert game["status"] == "completed"
+    assert game["home_score"] == 26
+    assert game["away_score"] == 12
