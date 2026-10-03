@@ -218,21 +218,22 @@ function renderGames(games) {
                 : isPostponed
                     ? `<span class="game-status game-status-postponed">Pospuesto</span>`
                     : `<span class="game-status game-status-scheduled">Programado</span>`;
-            const scoreEditor = !hasScore && !isPostponed
+            const scoreEditor = !isPostponed
                 ? `
                         <form class="score-form admin-only" data-game-id="${game.id}">
                             <div class="score-fields">
                                 <label>
                                     <span>Local</span>
-                                    <input type="number" name="home_score" min="0" inputmode="numeric" aria-label="Puntos de ${escapeHtml(game.home_team.name)}" required>
+                                    <input type="number" name="home_score" min="0" inputmode="numeric" value="${game.home_score ?? ""}" aria-label="Puntos de ${escapeHtml(game.home_team.name)}" required>
                                 </label>
                                 <span class="score-separator" aria-hidden="true">-</span>
                                 <label>
                                     <span>Visitante</span>
-                                    <input type="number" name="away_score" min="0" inputmode="numeric" aria-label="Puntos de ${escapeHtml(game.away_team.name)}" required>
+                                    <input type="number" name="away_score" min="0" inputmode="numeric" value="${game.away_score ?? ""}" aria-label="Puntos de ${escapeHtml(game.away_team.name)}" required>
                                 </label>
                             </div>
-                            <button type="submit">Guardar marcador</button>
+                            <button type="submit">${hasScore ? "Actualizar marcador" : "Guardar marcador"}</button>
+                            <p class="score-form-message form-message" role="status"></p>
                         </form>`
                 : "";
 
@@ -439,22 +440,31 @@ async function submitGamesScore(event) {
     const scoreForm = event.target;
     const gameId = scoreForm.dataset.gameId;
     const formData = new FormData(scoreForm);
+    const submitButton = scoreForm.querySelector('button[type="submit"]');
+    const message = scoreForm.querySelector(".score-form-message");
 
     const payload = {
         home_score: Number(formData.get("home_score")),
         away_score: Number(formData.get("away_score"))
     };
 
+    submitButton.disabled = true;
+    message.textContent = "Guardando marcador...";
+
     try {
         const response = await updateGamesScore(gameId, payload);
+        const body = await response.json().catch(() => ({}));
 
         if (!response.ok) {
+            message.textContent = body.detail || "No se pudo actualizar el marcador.";
+            submitButton.disabled = false;
             return;
         }
 
         await loadGames();
     } catch (error) {
-        return;
+        message.textContent = "No se pudo actualizar el marcador.";
+        submitButton.disabled = false;
     }
 }
 
