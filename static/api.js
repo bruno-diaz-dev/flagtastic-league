@@ -326,6 +326,12 @@ async function updateAdminUserRoles(userId, roles) {
     });
 }
 
+async function resetAdminUserPassword(userId) {
+    return fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: "POST"
+    });
+}
+
 async function updateAdminRefereeAka(userId, aka) {
     return fetch(`/api/admin/users/${userId}/referee-aka`, {
         method: "PATCH",
