@@ -18,6 +18,7 @@ def get_standings(branch, category):
             teams.id AS team_id,
             teams.name AS team_name,
             teams.logo_data IS NOT NULL AS team_has_logo,
+            COUNT(games.id) AS games_played,
             COALESCE(SUM(
                 CASE
                     WHEN games.home_team_id = teams.id
@@ -75,6 +76,7 @@ def get_standings(branch, category):
             teams.name,
             teams.logo_data
         ORDER BY
+            CASE WHEN COUNT(games.id) = 0 THEN 1 ELSE 0 END ASC,
             wins DESC,
             losses ASC,
             points_for DESC,
@@ -96,9 +98,12 @@ def get_standings(branch, category):
             - team["points_against"]
         )
 
-    # League ranking: wins, point difference, points scored, losses, then name.
+    # Teams that have played at least one completed game always rank ahead of
+    # teams that have not played yet. Among active teams, preserve the league's
+    # existing tiebreakers: wins, point difference, points scored, losses, name.
     standings.sort(
         key=lambda team:(
+            team["games_played"] == 0,
             -team["wins"],
             -team["point_difference"],
             -team["points_for"],
@@ -107,5 +112,9 @@ def get_standings(branch, category):
         )
     )
 
-    return standings
+    # Keep games_played internal for ranking so the public response remains
+    # backwards-compatible with the current standings API.
+    for team in standings:
+        team.pop("games_played")
 
+    return standings
