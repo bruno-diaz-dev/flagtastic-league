@@ -179,7 +179,7 @@
         <label>
             Jornada
             <select id="game-filter-week">
-                <option value="">Todas las jornadas</option>
+                <option value="">Próximos partidos</option>
             </select>
         </label>
 
@@ -240,6 +240,7 @@
         <p id="week-action-message" class="form-message" role="status"></p>
     </section>
 
+    <p class="form-hint">Se muestran los partidos pendientes. Selecciona una jornada o busca un equipo para ver también los finalizados y pospuestos.</p>
     <p id="games-count" class="results-count" aria-live="polite"></p>
     <section id="games" class="games-list" aria-live="polite"></section>
 </section>
@@ -249,5 +250,5 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" crossorigin="anonymous"></script>
 <script src="/static/api.js?v=20261001-2"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20261003-2"></script>
+<script src="/static/games.js?v=20261004-1"></script>
 {% endblock %}

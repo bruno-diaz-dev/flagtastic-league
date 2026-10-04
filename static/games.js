@@ -186,8 +186,8 @@ function renderGames(games) {
     if (games.length === 0) {
         gamesContainer.innerHTML = `
             <div class="empty-state">
-                <h3>Sin partidos registrados</h3>
-                <p>Los partidos registrados aparecerán aquí.</p>
+                <h3>Sin partidos con estos filtros</h3>
+                <p>Selecciona una jornada o busca un equipo para consultar también partidos finalizados o pospuestos.</p>
             </div>
         `;
         return;
@@ -284,7 +284,7 @@ function populateWeekFilter(games) {
         .sort((first, second) => first - second);
 
     gameFilterWeek.innerHTML = `
-        <option value="">Todas las jornadas</option>
+        <option value="">Próximos partidos</option>
         ${weeks.map((week) => `<option value="${week}">Jornada ${week}</option>`).join("")}
     `;
     gameFilterWeek.value = selectedWeek;
@@ -331,7 +331,13 @@ function renderFilteredGames() {
             gameFilterField.value === ""
             || String(game.field_number) === gameFilterField.value
         );
-        return matchesTeam && matchesWeek && matchesBranch && matchesCategory && matchesField;
+        const hasScore = game.home_score != null && game.away_score != null;
+        const matchesStatus = (
+            selectedWeek !== ""
+            || normalizeSearchText(gameFilterTeam.value) !== ""
+            || (game.status !== "completed" && game.status !== "postponed" && !hasScore)
+        );
+        return matchesStatus && matchesTeam && matchesWeek && matchesBranch && matchesCategory && matchesField;
     });
 
     renderGames(filteredGames);
