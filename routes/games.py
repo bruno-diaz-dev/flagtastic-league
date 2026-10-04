@@ -1,6 +1,6 @@
 """HTTP endpoints for scheduling games and recording final scores."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from models import (
     GameCreate,
     GameScheduleImportConfirmation,
@@ -97,8 +97,10 @@ def create_game(
 
 
 @router.get("")
-def list_games():
+def list_games(response: Response):
     """Return all scheduled games and their current scores."""
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=15"
     return get_games()
 
 

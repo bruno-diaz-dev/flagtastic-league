@@ -2,7 +2,7 @@
 
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 
@@ -149,6 +149,8 @@ def public_player_profile(player_id: int):
 
 
 @router.get("/api/statistics/leaderboards")
-def statistics_leaderboards(branch: str, category: str):
+def statistics_leaderboards(branch: str, category: str, response: Response):
     """Return five leaders per statistic for one division."""
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=60"
     return get_leaderboards(branch, category)

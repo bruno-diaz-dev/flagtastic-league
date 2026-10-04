@@ -51,8 +51,10 @@ def register_team(
         )
 
 @router.get("")
-def list_teams():
+def list_teams(response: Response):
     """Return every registered team."""
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=30"
     return get_all_teams()
 
 
