@@ -368,7 +368,7 @@ def test_referee_page_has_reviewed_image_import():
 
     script = client.get("/static/referee_games.js")
     assert "renderRefereeSummary" in script.text
-    assert "Asignaciones pendientes" in script.text
+    assert "Próximas asignaciones" in script.text
     assert "Historial de arbitrajes" in script.text
     assert "Planilla arbitral" in script.text
     assert 'href="/games/${game.id}"' in script.text

@@ -2741,3 +2741,63 @@ body.role-league_admin .week-admin-actions.admin-only {
         margin-bottom: 10px;
     }
 }
+
+/* Referee work queue and historical experience use distinct presentation. */
+.referee-history-panel {
+    border: 1px solid rgba(85, 214, 164, 0.3);
+    border-top: 4px solid #55d6a4;
+    border-radius: 12px;
+    padding: 24px;
+    background: var(--color-surface-raised);
+}
+.referee-history-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.referee-history-metrics .stat-item strong { color: #8ce0be; }
+.referee-position-bars,
+.referee-history-list { list-style: none; padding: 0; margin: 0; }
+.referee-position-bars { display: grid; gap: 16px; margin-bottom: 28px; }
+.referee-position-bars li > div:first-child {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+.referee-position-bars strong { color: #8ce0be; font-size: 13px; }
+.referee-position-track { height: 8px; background: #233047; border-radius: 8px; overflow: hidden; }
+.referee-position-track span { display: block; height: 100%; background: #55d6a4; border-radius: inherit; }
+.referee-history-weeks { display: grid; gap: 10px; }
+.referee-history-week,
+.referee-postponed-panel { border: 1px solid var(--color-border); border-radius: 8px; }
+.referee-history-week > summary,
+.referee-postponed-panel > summary { padding: 16px; cursor: pointer; font-weight: 700; }
+.referee-history-week > summary:focus-visible,
+.referee-postponed-panel > summary:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+.referee-history-list > li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    border-top: 1px solid var(--color-border);
+    padding: 16px;
+}
+.referee-history-list p { color: var(--color-muted); margin: 6px 0 0; font-size: 13px; }
+.referee-history-list a { overflow-wrap: anywhere; }
+.referee-history-result { display: grid; gap: 8px; text-align: right; }
+.referee-history-result strong { color: #8ce0be; }
+.referee-postponed-panel { border-color: rgba(249, 115, 22, 0.45); }
+.referee-postponed-panel > summary,
+.game-state-postponed { color: #ffb078; }
+.game-state-postponed { border-color: rgba(249, 115, 22, 0.45); }
+.referee-postponed-panel .referee-game-section { padding: 0 16px 16px; }
+@media (max-width: 700px) {
+    .referee-history-panel { padding: 16px; }
+    .referee-history-list > li { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .referee-history-result { display: flex; align-items: center; justify-content: space-between; text-align: left; }
+    .referee-history-metrics .stat-item { min-width: 0; padding: 12px; }
+    .referee-history-metrics .stat-item span { overflow-wrap: anywhere; }
+}
