@@ -109,6 +109,31 @@ def test_get_standings_for_branch_and_category():
     ]
 
 
+def test_team_with_a_loss_ranks_above_team_that_has_not_played():
+    winner_id = create_test_team("Winner")
+    loser_id = create_test_team("Loser")
+    idle_id = create_test_team("Idle")
+
+    game = client.post("/api/games", json={
+        "home_team_id": winner_id,
+        "away_team_id": loser_id,
+        "field_number": 1,
+    }).json()
+    assert client.patch(f"/api/games/{game['id']}/score", json={
+        "home_score": 14,
+        "away_score": 6,
+    }).status_code == 200
+
+    standings = client.get(
+        "/api/standings?branch=varonil&category=libre"
+    )
+
+    assert standings.status_code == 200
+    assert [team["team_id"] for team in standings.json()] == [
+        winner_id, loser_id, idle_id
+    ]
+
+
 @pytest.mark.parametrize("category", ["u8", "u10", "u12"])
 def test_youth_standings_combine_all_registered_branches(category):
     home_id = create_test_team("Rancheros", "varonil", category)
@@ -130,6 +155,6 @@ def test_youth_standings_combine_all_registered_branches(category):
     )
     assert standings.status_code == 200
     assert [team["team_id"] for team in standings.json()] == [
-        home_id, idle_id, away_id
+        home_id, away_id, idle_id
     ]
 """API tests for division standings and ranking rules."""
