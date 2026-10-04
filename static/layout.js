@@ -14,23 +14,34 @@ function setSidebarCollapsed(isCollapsed, remember = false) {
         isCollapsed ? "Expandir menu" : "Contraer menu"
     );
     if (remember) {
-        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
+        try {
+            localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
+        } catch (error) {
+            // Navigation also works when browser storage is unavailable.
+        }
     }
 }
 
 
 function closeMobileSidebar() {
     if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        const wasOpen = !document.body.classList.contains("sidebar-collapsed");
         setSidebarCollapsed(true, true);
+        if (wasOpen) sidebarToggle?.focus();
     }
 }
 
 
-// The menu is closed by default and keeps the user's explicit choice.
-const savedSidebarState = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+// Keep mobile browsing unobstructed and desktop navigation discoverable.
+let savedSidebarState = null;
+try {
+    savedSidebarState = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+} catch (error) {
+    // Use responsive defaults when storage is blocked.
+}
 const startsCollapsed = window.innerWidth <= MOBILE_BREAKPOINT
     ? true
-    : savedSidebarState === null || savedSidebarState === "true";
+    : savedSidebarState === "true";
 setSidebarCollapsed(startsCollapsed);
 
 if (sidebarToggle !== null) {
@@ -47,6 +58,23 @@ if (sidebarToggle !== null) {
 sidebarBackdrop?.addEventListener("click", closeMobileSidebar);
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMobileSidebar();
+    if (event.key !== "Tab" || window.innerWidth > MOBILE_BREAKPOINT
+        || document.body.classList.contains("sidebar-collapsed")) return;
+    const controls = [...document.querySelectorAll('.sidebar button, .sidebar a[href]')]
+        .filter((control) => !control.disabled && control.getClientRects().length);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (!first) return;
+    if (!controls.includes(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
 });
 document.querySelectorAll(".navigation .nav-link").forEach((link) => {
     link.addEventListener("click", closeMobileSidebar);
@@ -55,6 +83,38 @@ document.querySelectorAll(".navigation .nav-link").forEach((link) => {
 window.addEventListener("resize", () => {
     if (window.innerWidth <= MOBILE_BREAKPOINT) closeMobileSidebar();
 });
+
+// Parent sections stay selected when opening a roster, game, or profile.
+const navigationLinks = [...document.querySelectorAll(".navigation .nav-link")];
+const pagePath = window.location.pathname.replace(/\/$/, "") || "/";
+const activeNavigation = navigationLinks.filter((link) => {
+    const href = link.getAttribute("href");
+    return pagePath === href || pagePath.startsWith(`${href}/`);
+}).sort((a, b) => b.getAttribute("href").length - a.getAttribute("href").length)[0];
+navigationLinks.forEach((link) => {
+    const label = link.querySelector(".nav-text")?.textContent.trim();
+    if (label) {
+        link.setAttribute("aria-label", label);
+        link.setAttribute("title", label);
+    }
+    if (link === activeNavigation) {
+        link.classList.add("active");
+        link.setAttribute("aria-current", "page");
+    }
+});
+const pageHeading = document.querySelector(".content h2")?.textContent.trim();
+const mobilePageLabel = document.querySelector("#current-page-label");
+if (mobilePageLabel) mobilePageLabel.textContent = pageHeading || "La liga";
+if (pageHeading) document.title = `${pageHeading} | FlagTastic`;
+
+// Reveal a collapsed action before focusing a field with a validation error.
+document.addEventListener("invalid", (event) => {
+    let disclosure = event.target.closest("details");
+    while (disclosure) {
+        disclosure.open = true;
+        disclosure = disclosure.parentElement.closest("details");
+    }
+}, true);
 
 const sessionUser = document.querySelector("#session-user");
 const loginLink = document.querySelector("#login-link");

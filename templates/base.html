@@ -7,12 +7,15 @@
     <link rel="icon" type="image/jpeg" href="/static/assets/flagtastic.jpeg?v=20260927-1">
     <link rel="apple-touch-icon" href="/static/assets/flagtastic.jpeg?v=20260927-1">
     <link rel="stylesheet" href="/static/style.css?v=20261004-4">
+    <link rel="stylesheet" href="/static/ui.css?v=20261004-1">
 </head>
 <body class="sidebar-collapsed">
+    <a class="skip-link" href="#main-content">Saltar al contenido</a>
     <div class="layout">
         <aside class="sidebar">
             <button
                 id="sidebar-toggle"
+                aria-controls="league-navigation"
                 class="sidebar-toggle"
                 type="button"
                 aria-label="Expandir menu"
@@ -33,55 +36,57 @@
                 <h1>Operaciones</h1>
             </div>
 
-            <nav class="navigation" aria-label="Navegación principal">
+            <div class="mobile-page-context"><span>FlagTastic</span><strong id="current-page-label">La liga</strong></div>
+
+            <nav id="league-navigation" class="navigation" aria-label="Navegación principal">
                 <a class="nav-link" href="/teams">
                     <span class="nav-text">Equipos</span>
-                    <span class="nav-short">EQ</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                 </a>
 
                 <a class="nav-link" href="/games">
                     <span class="nav-text">Partidos</span>
-                    <span class="nav-short">PA</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2"/></svg></span>
                 </a>
 
                 <a class="nav-link" href="/standings">
-                    <span class="nav-text">Tabla</span>
-                    <span class="nav-short">TB</span>
+                    <span class="nav-text">Tabla de posiciones</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8v6a4 4 0 0 1-8 0V3ZM8 5H4v3a4 4 0 0 0 4 4M16 5h4v3a4 4 0 0 1-4 4M12 13v6M8 21h8M10 19h4"/></svg></span>
                 </a>
 
                 <a class="nav-link" href="/statistics">
                     <span class="nav-text">Estadísticas</span>
-                    <span class="nav-short">ES</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 16v-5M12 16V4M17 16V8"/></svg></span>
                 </a>
 
                 <a id="dashboard-link" class="nav-link hidden" href="/dashboard">
                     <span class="nav-text">Mi dashboard</span>
-                    <span class="nav-short">MI</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0"/></svg></span>
                 </a>
 
                 <a id="representative-dashboard-link" class="nav-link hidden" href="/representative-dashboard">
                     <span class="nav-text">Dashboard de equipo</span>
-                    <span class="nav-short">ME</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
                 </a>
 
                 <a id="admin-users-link" class="nav-link hidden" href="/admin/users">
                     <span class="nav-text">Usuarios</span>
-                    <span class="nav-short">US</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/><path d="m9 12 2 2 4-4"/></svg></span>
                 </a>
 
                 <a id="admin-team-audit-link" class="nav-link hidden" href="/admin/team-duplicates">
                     <span class="nav-text">Auditar equipos</span>
-                    <span class="nav-short">AE</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m8 13 2 2 6-6"/></svg></span>
                 </a>
 
                 <a id="referee-games-link" class="nav-link hidden" href="/referee/games">
                     <span class="nav-text">Dashboard de árbitro</span>
-                    <span class="nav-short">AR</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
                 </a>
 
                 <a id="referee-roster-link" class="nav-link hidden" href="/referees">
                     <span class="nav-text">Planilla de árbitros</span>
-                    <span class="nav-short">PL</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM9 4v16M15 4v16M4 9h16M4 15h16"/></svg></span>
                 </a>
             </nav>
 
@@ -89,7 +94,7 @@
                 <span id="session-user" class="session-user"></span>
                 <a id="login-link" class="nav-link" href="/login">
                     <span class="nav-text">Iniciar sesión</span>
-                    <span class="nav-short">IN</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5M15 12H3M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></svg></span>
                 </a>
                 <button id="logout-button" class="logout-button hidden" type="button">
                     Cerrar sesión
@@ -97,7 +102,7 @@
             </div>
         </aside>
 
-        <main class="content">
+        <main id="main-content" class="content" tabindex="-1">
             {% block content %}{% endblock %}
             <footer class="site-footer">
                 <span>Flagtastic Football League<br><small>Software &copy; 2026 Bruno Mijail Díaz Barba. Todos los derechos reservados.</small></span>
@@ -114,7 +119,7 @@
         tabindex="-1"
     ></button>
 
-    <script src="/static/layout.js?v=20260928-1"></script>
+    <script src="/static/layout.js?v=20261004-1"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

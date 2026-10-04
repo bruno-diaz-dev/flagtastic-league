@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section id="team-management-page" class="admin-only" data-team-id="{{ team_id }}">
+<section id="team-management-page" class="admin-only league-page" data-team-id="{{ team_id }}">
     <a class="back-link" href="/teams">← Volver a equipos</a>
 
     <header class="section-header team-management-header">
         <img id="managed-team-logo" class="team-logo roster-team-logo hidden" alt="">
         <div>
+            <p class="ui-kicker">FlagTastic · Administración</p>
             <h2 id="managed-team-title">Administrar equipo</h2>
             <p id="managed-team-division">Cargando equipo...</p>
         </div>

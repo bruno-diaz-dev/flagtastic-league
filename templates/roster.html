@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section id="roster-page" data-team-id="{{ team_id }}">
+<section id="roster-page" data-team-id="{{ team_id }}" class="league-page">
     <a class="back-link" href="/teams">← Volver a equipos</a>
 
     <header class="section-header roster-header">
         <img id="roster-team-logo" class="team-logo roster-team-logo hidden" alt="">
         <div>
+            <p class="ui-kicker">FlagTastic · Plantilla del equipo</p>
             <h2 id="roster-title">Roster</h2>
             <p id="roster-subtitle">Cargando equipo...</p>
         </div>
@@ -15,7 +16,7 @@
     <section id="team-staff" class="team-staff" aria-label="Cuerpo técnico"></section>
 
     <section class="form-panel team-scope-manager-only">
-        <h3>Actualizar logo</h3>
+        <details class="ui-disclosure"><summary>Actualizar logo<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="team-logo-form" class="stats-import-form">
             <label>
                 Nuevo logo del equipo
@@ -26,7 +27,8 @@
         </form>
         <p id="team-logo-message" class="form-message" role="status"></p>
 
-        <h3>Cuerpo técnico</h3>
+        </div></details>
+<details class="ui-disclosure"><summary>Cuerpo técnico<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="team-staff-form" class="player-form">
             <label>Head Coach<input name="head_coach" maxlength="120"></label>
             <label>Coach<input name="coach" maxlength="120"></label>
@@ -35,7 +37,8 @@
         </form>
         <p id="team-staff-message" class="form-message" role="status"></p>
 
-        <h3>Registrar jugador</h3>
+        </div></details>
+<details class="ui-disclosure"><summary>Registrar jugador<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="player-form" class="player-form">
             <label>Nombre<input name="name" autocomplete="off" required></label>
             <label>CURP<input name="curp" autocomplete="off" minlength="18" maxlength="18" required></label>
@@ -45,7 +48,8 @@
         </form>
         <p id="player-form-message" class="form-message" role="status"></p>
 
-        <h3>Agregar jugador existente</h3>
+        </div></details>
+<details class="ui-disclosure"><summary>Agregar jugador existente<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="registered-player-form" class="player-form">
             <label>
                 Buscar por nombre o AKA
@@ -65,6 +69,8 @@
         </form>
         <p id="registered-player-message" class="form-message" role="status"></p>
 
+        </div></details>
+        <details class="ui-disclosure"><summary>Importar plantilla de jugadores<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="roster-import-form" class="stats-import-form">
             <label>Importar roster (.csv o .xlsx)
                 <input name="file" type="file" accept=".csv,.xlsx" required>
@@ -76,6 +82,7 @@
             Descargar plantilla CSV
         </a>
         <p id="roster-import-message" class="form-message" role="status"></p>
+        </div></details>
     </section>
 
     <div id="roster" class="roster-list" aria-live="polite"></div>

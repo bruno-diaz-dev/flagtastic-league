@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section id="public-player-profile" class="dashboard-page" data-player-id="{{ player_id }}">
+<section id="public-player-profile" class="dashboard-page league-page" data-player-id="{{ player_id }}">
     <button id="public-profile-back" class="back-link link-button" type="button">← Volver</button>
 
     <header class="section-header">
@@ -9,7 +9,8 @@
             <span id="public-player-photo-placeholder" class="profile-photo profile-placeholder" aria-hidden="true"></span>
             <img id="public-player-photo" class="profile-photo hidden" alt="">
             <div>
-                <h2 id="public-player-name">Perfil de jugador</h2>
+                <p class="ui-kicker">FlagTastic · Perfil de jugador</p>
+            <h2 id="public-player-name">Perfil de jugador</h2>
                 <p id="public-player-identity">Cargando temporada...</p>
             </div>
         </div>
