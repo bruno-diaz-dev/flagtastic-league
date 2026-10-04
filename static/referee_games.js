@@ -84,8 +84,52 @@ function refereeGameCard(game) {
                 <strong>${isPostponed ? "Por reprogramar" : isPending ? "Por jugar" : `${game.home_score} - ${game.away_score}`}</strong>
                 <a class="secondary-link" href="/games/${game.id}">Ver detalle</a>
             </div>
+            ${isPending && game.home_score == null && game.away_score == null ? `
+            <details class="referee-score-panel">
+                <summary>Registrar resultado</summary>
+                <form class="score-form referee-score-form" data-game-id="${game.id}">
+                    <div class="score-fields">
+                        <label><span>${escapeHtml(game.home_team.name)}</span><input type="number" name="home_score" min="0" step="1" inputmode="numeric" required aria-label="Puntos de ${escapeHtml(game.home_team.name)}"></label>
+                        <span class="score-separator" aria-hidden="true">-</span>
+                        <label><span>${escapeHtml(game.away_team.name)}</span><input type="number" name="away_score" min="0" step="1" inputmode="numeric" required aria-label="Puntos de ${escapeHtml(game.away_team.name)}"></label>
+                    </div>
+                    <p class="score-capture-help">Verifica los puntos antes de guardar. Solo un administrador podrá corregir el resultado.</p>
+                    <button type="submit">Guardar resultado final</button>
+                    <p class="score-form-message form-message" role="status"></p>
+                </form>
+            </details>` : ""}
         </article>`;
 }
+
+
+refereeGames.addEventListener("submit", async (event) => {
+    if (!event.target.classList.contains("referee-score-form")) return;
+    event.preventDefault();
+    const form = event.target;
+    const button = form.querySelector('button[type="submit"]');
+    const message = form.querySelector(".score-form-message");
+    if (button.disabled) return;
+    const values = new FormData(form);
+    button.disabled = true;
+    message.textContent = "Guardando resultado...";
+    try {
+        const response = await updateGamesScore(form.dataset.gameId, {
+            home_score: Number(values.get("home_score")),
+            away_score: Number(values.get("away_score"))
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            message.textContent = body.detail || "No se pudo registrar el resultado.";
+            button.disabled = false;
+            return;
+        }
+        refereeGamesMessage.textContent = "Resultado registrado. El partido está ahora en tu historial.";
+        await loadRefereeGames();
+    } catch (error) {
+        message.textContent = "No se pudo conectar. Comprueba el estado del partido antes de reintentar.";
+        button.disabled = false;
+    }
+});
 
 
 function refereeGameSection(title, description, games) {

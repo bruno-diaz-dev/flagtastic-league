@@ -75,3 +75,13 @@ test('Empty dashboard provides distinct upcoming and experience empty states', a
     assert.doesNotMatch(nodes.get('#referee-games').innerHTML, /width: NaN/);
     assert.match(nodes.get('#referee-summary').innerHTML, /Próxima jornada<\/span><strong>-/);
 });
+
+test('Score capture is offered only for unscored pending assignments', () => {
+    const {context: c, game} = setup();
+    assert.match(c.refereeGameCard(game(1, 'scheduled', 1)), /referee-score-form/);
+    assert.match(c.refereeGameCard(game(1, 'scheduled', 1)), /Solo un administrador/);
+    for (const g of [game(2, 'postponed', 1), game(3, 'completed', 1, [21, 7]),
+        game(4, 'completed', 1), game(5, 'scheduled', 1, [7, null])]) {
+        assert.doesNotMatch(c.refereeGameCard(g), /referee-score-form/);
+    }
+});

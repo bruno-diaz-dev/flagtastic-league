@@ -33,6 +33,7 @@ from dependencies.auth import (
     optional_authenticated_user,
     require_league_admin,
     require_referee,
+    require_score_recorder,
     user_has_role
 )
 from repositories.referees import get_referee_match_candidates
@@ -341,7 +342,7 @@ def delete_game_referee(
 def update_score(
     game_id: int,
     score: GameScoreUpdate,
-    _user=Depends(require_league_admin)
+    user=Depends(require_score_recorder)
 ):
     """Record a non-tied final score for an existing game."""
 
@@ -352,7 +353,9 @@ def update_score(
         )
     
     try:
-        game = update_game_score(game_id, score)
+        game = update_game_score(
+            game_id, score, allow_overwrite=user_has_role(user, "league_admin")
+        )
     except GameStateConflictError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 

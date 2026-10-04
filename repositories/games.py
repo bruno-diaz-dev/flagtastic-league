@@ -216,8 +216,8 @@ def get_games():
     ]
 
 
-def update_game_score(game_id, score):
-    """Store a final score unless the game is currently postponed."""
+def update_game_score(game_id, score, *, allow_overwrite=False):
+    """Atomically record a score; only administrators may overwrite it."""
     connection = get_connection()
 
     try:
@@ -230,6 +230,11 @@ def update_game_score(game_id, score):
                 status = 'completed'
             WHERE id = %s
               AND status <> 'postponed'
+              AND (%s OR (
+                  status <> 'completed'
+                  AND home_score IS NULL
+                  AND away_score IS NULL
+              ))
             RETURNING
                 id,
                 home_team_id,
@@ -240,18 +245,24 @@ def update_game_score(game_id, score):
             (
                 score.home_score,
                 score.away_score,
-                game_id
+                game_id,
+                allow_overwrite
             )
         ).fetchone()
 
         if updated_game is None:
             existing = connection.execute(
-                "SELECT status FROM games WHERE id = %s",
+                "SELECT status, home_score, away_score FROM games WHERE id = %s",
                 (game_id,),
             ).fetchone()
             if existing is not None and existing["status"] == "postponed":
                 raise GameStateConflictError(
                     "Un partido pospuesto no puede recibir marcador"
+                )
+            if existing is not None and not allow_overwrite:
+                raise GameStateConflictError(
+                    "El resultado ya fue registrado. Solo un administrador "
+                    "puede modificarlo."
                 )
 
         connection.commit()

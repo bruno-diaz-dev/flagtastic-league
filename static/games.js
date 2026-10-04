@@ -211,7 +211,7 @@ function renderGames(games) {
                     </header>
                     <div class="game-time-grid">
                         ${groupGames.map((game) => {
-            const hasScore = game.home_score !== null && game.away_score !== null;
+            const hasScore = game.status === "completed" || game.home_score != null || game.away_score != null;
             const isPostponed = game.status === "postponed";
             const status = hasScore
                 ? `<span class="game-status game-status-completed">Finalizado</span>`
@@ -220,7 +220,7 @@ function renderGames(games) {
                     : `<span class="game-status game-status-scheduled">Programado</span>`;
             const scoreEditor = !isPostponed
                 ? `
-                        <form class="score-form admin-only" data-game-id="${game.id}">
+                        <form class="score-form ${hasScore ? "admin-only" : "scorekeeper-only"}" data-game-id="${game.id}">
                             <div class="score-fields">
                                 <label>
                                     <span>Local</span>
@@ -232,7 +232,8 @@ function renderGames(games) {
                                     <input type="number" name="away_score" min="0" inputmode="numeric" value="${game.away_score ?? ""}" aria-label="Puntos de ${escapeHtml(game.away_team.name)}" required>
                                 </label>
                             </div>
-                            <button type="submit">${hasScore ? "Actualizar marcador" : "Guardar marcador"}</button>
+                            ${!hasScore ? '<p class="score-capture-help">Verifica los puntos antes de guardar. Solo un administrador podrá corregir el resultado.</p>' : ""}
+                            <button type="submit">${hasScore ? "Actualizar marcador" : "Guardar resultado final"}</button>
                             <p class="score-form-message form-message" role="status"></p>
                         </form>`
                 : "";
@@ -251,8 +252,8 @@ function renderGames(games) {
                         <span>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} · ${escapeHtml(game.home_team.category)}</span>
                         <a class="secondary-link game-details-link" href="/games/${game.id}">Ver detalles</a>
                     </footer>
-                    <details class="game-admin-panel admin-only">
-                        <summary>Administrar partido</summary>
+                    <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
+                        <summary>${!hasScore && !isPostponed ? "Registrar resultado" : "Administrar partido"}</summary>
                         <div class="game-admin-controls">
                             ${scoreEditor}
                             ${!hasScore ? `
@@ -448,6 +449,7 @@ async function submitGamesScore(event) {
     const formData = new FormData(scoreForm);
     const submitButton = scoreForm.querySelector('button[type="submit"]');
     const message = scoreForm.querySelector(".score-form-message");
+    if (submitButton.disabled) return;
 
     const payload = {
         home_score: Number(formData.get("home_score")),
@@ -467,7 +469,12 @@ async function submitGamesScore(event) {
             return;
         }
 
-        await loadGames();
+        // Reflect the confirmed result immediately instead of reloading the
+        // public schedule, which may still be cached briefly at the edge.
+        gamesState = gamesState.map((game) => game.id === Number(gameId)
+            ? {...game, home_score: body.home_score, away_score: body.away_score, status: "completed"}
+            : game);
+        renderFilteredGames();
     } catch (error) {
         message.textContent = "No se pudo actualizar el marcador.";
         submitButton.disabled = false;

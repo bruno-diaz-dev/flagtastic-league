@@ -12,6 +12,9 @@ const teamFilterBranch = document.querySelector("#team-filter-branch");
 const teamFilterCategory = document.querySelector("#team-filter-category");
 const teamFilterBranchField = document.querySelector("#team-filter-branch-field");
 const teamFilterYouthBranch = document.querySelector("#team-filter-youth-branch");
+const teamFilterSearch = document.querySelector("#team-filter-search");
+const teamRegistration = document.querySelector("#team-registration");
+const teamsCount = document.querySelector("#teams-count");
 
 let teamsState = [];
 
@@ -60,8 +63,8 @@ function updateTeamFilterBranchControl() {
 function renderEmptyTeamsState() {
     teamsContainer.innerHTML = `
         <div class="empty-state">
-            <h3>Sin equipos registrados</h3>
-            <p>Los equipos registrados aparecerán aquí.</p>
+            <h3>${teamsState.length ? "Sin coincidencias" : "Sin equipos registrados"}</h3>
+            <p>${teamsState.length ? "Prueba otro nombre o limpia los filtros." : "Los equipos registrados aparecerán aquí."}</p>
         </div>
     `;
 }
@@ -79,11 +82,11 @@ function renderTeams(teams) {
                     ${team.logo_url
                         ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}" loading="lazy" decoding="async">`
                         : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
-                    <div>
+                    <div class="team-card-copy">
                         <h3>${escapeHtml(team.name)}</h3>
                         <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</p>
+                        <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
                     </div>
-                    <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
                 </a>
                 <a class="team-manage-link admin-only" href="/teams/${team.id}/manage">Administrar</a>
             </article>
@@ -96,6 +99,7 @@ function getFilteredTeams() {
     const selectedBranch= teamFilterBranch.value;
     const selectedCategory = teamFilterCategory.value;
     const unified = isUnifiedYouthCategory(selectedCategory);
+    const search = normalizeTeamSearch(teamFilterSearch.value);
 
     return teamsState.filter((team) => {
         const matchesBranch =
@@ -104,13 +108,23 @@ function getFilteredTeams() {
         const matchesCategory =
             selectedCategory === "" || team.category === selectedCategory;
 
-        return matchesBranch && matchesCategory;
+        return matchesBranch && matchesCategory && (!search || normalizeTeamSearch(team.name).includes(search));
     }).sort(compareTeams);
 }
 
 function renderFilteredTeams() {
     const filteredTeams = getFilteredTeams();
+    teamsCount.textContent = `${filteredTeams.length} de ${teamsState.length} equipos`;
     renderTeams(filteredTeams);
+}
+
+function normalizeTeamSearch(value) {
+    return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX").trim();
+}
+
+function closeTeamRegistration() {
+    teamRegistration.open = false;
+    teamRegistration.querySelector("summary").focus();
 }
 
 async function loadTeams() {
@@ -149,6 +163,9 @@ async function loadTeams() {
 
 async function registerTeam(event) {
     event.preventDefault();
+    const submitButton = teamForm.querySelector('button[type="submit"]');
+    if (submitButton.disabled) return;
+    submitButton.disabled = true;
 
     const formData = new FormData(teamForm);
 
@@ -184,6 +201,9 @@ async function registerTeam(event) {
         );
         if (!logoResponse.ok) {
             formMessage.textContent = "El equipo se registró, pero no se pudo guardar el logo.";
+            teamForm.reset();
+            updateTeamBranchControl();
+            closeTeamRegistration();
             await loadTeams();
             return;
         }
@@ -191,14 +211,29 @@ async function registerTeam(event) {
         teamForm.reset();
         updateTeamBranchControl();
         formMessage.textContent = "Equipo registrado correctamente.";
+        closeTeamRegistration();
 
         await loadTeams();
     } catch (error) {
         formMessage.textContent = "No se pudo conectar con el servidor.";
+    } finally {
+        submitButton.disabled = false;
     }
 }
 
 teamFilterBranch.addEventListener("change", renderFilteredTeams);
+teamFilterSearch.addEventListener("input", renderFilteredTeams);
+document.querySelector("#clear-team-filters").addEventListener("click", () => {
+    teamFilterSearch.value = "";
+    teamFilterBranch.value = "";
+    teamFilterCategory.value = "";
+    updateTeamFilterBranchControl();
+    renderFilteredTeams();
+});
+document.querySelector("#cancel-team-registration").addEventListener("click", closeTeamRegistration);
+teamRegistration.addEventListener("toggle", () => {
+    if (teamRegistration.open) teamForm.querySelector('[name="name"]').focus();
+});
 teamFilterCategory.addEventListener("change", () => {
     updateTeamFilterBranchControl();
     renderFilteredTeams();
