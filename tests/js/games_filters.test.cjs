@@ -81,3 +81,16 @@ test('Unplayed game score controls support referees while correction stays admin
     c.renderGameCards([c.fixtures[2]]);
     assert.doesNotMatch(nodes.get('#games').innerHTML, /class="score-form/);
 });
+
+test('Saving a score immediately removes the game from pending without a cached reload', async () => {
+    const s = setup();
+    s.context.FormData = class {get(name) {return name === 'home_score' ? '21' : '7';}};
+    s.context.updateGamesScore = async () => ({ok: true, json: async () => ({id: 1, home_score: 21, away_score: 7})});
+    const button = {disabled: false};
+    const message = {textContent: ''};
+    const form = {dataset: {gameId: '1'}, querySelector: selector => selector.startsWith('button') ? button : message};
+    await s.context.submitGamesScore({preventDefault() {}, target: form});
+    assert.deepEqual(s.ids(), []);
+    s.nodes.get('#game-filter-week').value = '2';
+    assert.ok(s.ids().includes(1));
+});

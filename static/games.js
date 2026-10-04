@@ -469,7 +469,12 @@ async function submitGamesScore(event) {
             return;
         }
 
-        await loadGames();
+        // Reflect the confirmed result immediately instead of reloading the
+        // public schedule, which may still be cached briefly at the edge.
+        gamesState = gamesState.map((game) => game.id === Number(gameId)
+            ? {...game, home_score: body.home_score, away_score: body.away_score, status: "completed"}
+            : game);
+        renderFilteredGames();
     } catch (error) {
         message.textContent = "No se pudo actualizar el marcador.";
         submitButton.disabled = false;
