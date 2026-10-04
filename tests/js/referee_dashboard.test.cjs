@@ -60,7 +60,7 @@ test('Historical metrics only count completed participation and escape team name
     g.home_team.name = '<script>bad</script>';
     const html = c.renderRefereeHistory([g]);
     assert.match(html, /Partidos arbitrados<\/span><strong>1/);
-    assert.match(html, /Jornadas completadas<\/span><strong>1/);
+    assert.match(html, /Jornadas arbitradas<\/span><strong>1/);
     assert.match(html, /&lt;script&gt;bad&lt;\/script&gt;/);
     assert.doesNotMatch(html, /<script>/);
     assert.doesNotMatch(html, /Down Judge/);

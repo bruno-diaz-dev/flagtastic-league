@@ -121,7 +121,7 @@ function renderRefereeHistory(games) {
             </header>
             <div class="referee-history-metrics">
                 ${refereeMetric("Partidos arbitrados", games.length)}
-                ${refereeMetric("Jornadas completadas", weeks.length)}
+                ${refereeMetric("Jornadas arbitradas", weeks.length)}
             </div>
             ${games.length ? `
                 <h4>Participación por puesto</h4>
