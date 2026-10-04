@@ -2801,3 +2801,68 @@ body.role-league_admin .week-admin-actions.admin-only {
     .referee-history-metrics .stat-item { min-width: 0; padding: 12px; }
     .referee-history-metrics .stat-item span { overflow-wrap: anywhere; }
 }
+
+/* Public referee profiles read as compact sporting dashboards on every screen. */
+#public-referee-profile { gap: 22px; max-width: 1040px; margin: 0 auto; width: 100%; }
+#public-referee-profile .referee-profile-return { justify-self: start; min-height: 44px; padding: 8px 0; font-size: 14px; }
+#public-referee-profile .referee-profile-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin: 0;
+    padding: 30px;
+    border: 1px solid rgba(244, 197, 66, 0.3);
+    border-radius: 18px;
+    background:
+        linear-gradient(125deg, transparent 65%, rgba(244, 197, 66, 0.08) 65%, rgba(244, 197, 66, 0.02) 82%, transparent 82%),
+        linear-gradient(110deg, #142c55, #071a37);
+    overflow: hidden;
+}
+#public-referee-profile .referee-profile-avatar { flex: 0 0 auto; }
+#public-referee-profile .profile-photo { width: 104px; height: 104px; border: 3px solid var(--color-gold); box-shadow: 0 0 0 6px rgba(244, 197, 66, 0.08); }
+#public-referee-profile .profile-placeholder { display: grid; place-items: center; font-size: 30px; }
+#public-referee-profile .profile-placeholder.hidden { display: none; }
+#public-referee-profile .referee-profile-intro { min-width: 0; }
+#public-referee-profile .referee-profile-intro .eyebrow { color: var(--color-gold); font-size: 12px; letter-spacing: 0.08em; margin-bottom: 8px; }
+#public-referee-profile .referee-profile-intro h2 { font-size: clamp(28px, 4vw, 42px); line-height: 1.1; overflow-wrap: anywhere; margin-bottom: 8px; }
+#public-referee-profile .referee-profile-intro > p:not(.eyebrow) { margin-bottom: 12px; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.referee-league-label { display: inline-block; padding: 5px 9px; border: 1px solid rgba(244, 197, 66, 0.3); border-radius: 6px; color: #f8df89; font-size: 11px; }
+#public-referee-profile h3 { font-size: 18px; margin-bottom: 14px; }
+#public-referee-profile .referee-profile-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.referee-profile-kpi { display: grid; gap: 8px; padding: 20px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-raised); }
+.referee-profile-kpi strong { color: var(--color-text); font-size: 40px; line-height: 1; }
+.referee-profile-kpi > span { color: var(--color-muted); font-size: 13px; line-height: 1.4; }
+.referee-profile-kpi.referee-kpi-completed { border-color: rgba(244, 197, 66, 0.5); background: linear-gradient(135deg, #302719, #161e2e); }
+.referee-kpi-completed strong { color: var(--color-gold); }
+.referee-profile-distribution { border: 1px solid var(--color-border); background: var(--color-surface-raised); border-radius: 16px; padding: 24px; }
+.referee-distribution-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.referee-distribution-heading .eyebrow { color: var(--color-gold); font-size: 11px; letter-spacing: 0.06em; margin-bottom: 5px; }
+#public-referee-profile .referee-distribution-heading h3 { margin-bottom: 0; }
+.referee-primary-position { display: grid; gap: 5px; }
+.referee-primary-position > span { color: var(--color-muted); font-size: 11px; }
+.referee-primary-position > strong { color: var(--color-gold); font-size: 14px; }
+.referee-distribution-note { color: var(--color-muted); font-size: 12px; line-height: 1.5; margin-bottom: 22px; }
+.referee-profile-bars { display: grid; gap: 20px; }
+.referee-profile-bar-heading { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
+.referee-profile-bar-heading > span { font-size: 14px; font-weight: 700; }
+.referee-profile-bar-heading > strong { font-size: 16px; }
+.referee-profile-bar-heading small { color: var(--color-muted); font-size: 11px; font-weight: 400; }
+.referee-profile-bar-body { display: flex; align-items: center; gap: 12px; }
+.referee-profile-bar-track { flex: 1; height: 10px; background: #253148; border-radius: 10px; overflow: hidden; }
+.referee-profile-bar-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f4c542, #f97316); }
+.referee-profile-bar-percent { width: 3em; text-align: right; color: var(--color-muted); font-size: 12px; }
+@media (max-width: 700px) {
+    #public-referee-profile { gap: 18px; }
+    #public-referee-profile .referee-profile-hero { padding: 20px 16px; gap: 16px; border-radius: 14px; }
+    #public-referee-profile .profile-photo { width: 76px; height: 76px; }
+    #public-referee-profile .referee-profile-intro h2 { font-size: 28px; }
+    #public-referee-profile .referee-profile-intro > p:not(.eyebrow) { font-size: 13px; }
+    .referee-profile-kpi { padding: 16px 10px; gap: 8px; }
+    .referee-profile-kpi strong { font-size: 32px; }
+    .referee-profile-kpi > span { font-size: 11px; overflow-wrap: anywhere; }
+    .referee-profile-distribution { padding: 18px 16px; }
+}
+@media (max-width: 360px) {
+    #public-referee-profile .referee-profile-hero { flex-direction: column; align-items: flex-start; }
+}

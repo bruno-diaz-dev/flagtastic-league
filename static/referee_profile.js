@@ -39,22 +39,36 @@ function renderRefereeProfile(profile) {
 
     const statistics = profile.statistics;
     refereeStats.innerHTML = [
-        ["Partidos registrados", statistics.games],
-        ["Partidos completados", statistics.completed_games],
-        ["Jornadas con participación", statistics.weeks]
-    ].map(([label, value]) => `
-        <article class="stat-item"><span>${label}</span><strong>${value}</strong></article>
+        ["Partidos completados", statistics.completed_games, "referee-kpi-completed"],
+        ["Partidos registrados", statistics.games, ""],
+        ["Jornadas con participación", statistics.weeks, ""]
+    ].map(([label, value, className]) => `
+        <article class="referee-profile-kpi ${className}">
+            <strong>${escapeHtml(String(value))}</strong><span>${label}</span>
+        </article>
     `).join("");
 
-    refereePositions.innerHTML = statistics.positions.length
-        ? statistics.positions.map((position) => `
-            <article class="referee-position-item">
-                <span>${positionLabels[position.position] || position.position}</span>
-                <strong>${position.games}</strong>
-                <small>${position.games === 1 ? "partido" : "partidos"}</small>
-            </article>
-        `).join("")
-        : `<div class="empty-state"><h4>Sin asignaciones registradas</h4><p>Su experiencia aparecerá al asignarle partidos.</p></div>`;
+    const positions = [...statistics.positions].sort((a, b) => b.games - a.games);
+    const total = positions.reduce((sum, position) => sum + position.games, 0);
+    document.querySelector("#referee-profile-primary-position").textContent = positions[0]?.games > 0
+        ? positionLabels[positions[0].position] || positions[0].position
+        : "Sin asignaciones";
+    refereePositions.innerHTML = positions.length && total > 0
+        ? positions.map((position) => {
+            const percent = Math.round(position.games / total * 100);
+            return `
+                <article class="referee-profile-bar">
+                    <div class="referee-profile-bar-heading">
+                        <span>${escapeHtml(positionLabels[position.position] || position.position)}</span>
+                        <strong>${position.games} <small>${position.games === 1 ? "partido" : "partidos"}</small></strong>
+                    </div>
+                    <div class="referee-profile-bar-body">
+                        <div class="referee-profile-bar-track" aria-hidden="true"><span style="width: ${percent}%"></span></div>
+                        <span class="referee-profile-bar-percent">${percent}%</span>
+                    </div>
+                </article>`;
+        }).join("")
+        : `<div class="empty-state"><h4>Sin asignaciones registradas</h4><p>Su participación por puesto aparecerá al asignarle partidos.</p></div>`;
 }
 
 
