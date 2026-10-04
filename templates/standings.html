@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section>
+<section class="league-page">
     <header class="section-header">
         <div>
-            <h2>Tabla</h2>
+            <p class="ui-kicker">FlagTastic · Competencia</p>
+            <h2>Tabla de posiciones</h2>
             <p>Consulta la tabla de posiciones de cada división.</p>
         </div>
     </header>
@@ -29,9 +30,9 @@
             </label>
 
             <label>
-                Categoria
+                Categoría
                 <select id="standings-category" name="category" required>
-                    <option value="">Selecciona una categoria</option>
+                    <option value="">Selecciona una categoría</option>
                     <option value="u6">U6</option>
                     <option value="u8">U8</option>
                     <option value="u10">U10</option>

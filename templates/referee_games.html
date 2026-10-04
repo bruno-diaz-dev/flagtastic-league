@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="role-dashboard-page">
+<section class="role-dashboard-page league-page">
     <header class="section-header">
-        <h2>Mi dashboard de arbitraje</h2>
+        <p class="ui-kicker">FlagTastic · Equipo arbitral</p>
+            <h2>Mi dashboard de arbitraje</h2>
         <p>Tus próximas asignaciones y tu experiencia arbitral en secciones independientes.</p>
     </header>
     <div id="referee-summary" class="stat-grid dashboard-summary-grid" aria-live="polite"></div>
@@ -28,7 +29,7 @@
     <p id="referee-games-message" class="form-message" role="status"></p>
     <div id="referee-games" class="referee-dashboard-games" aria-live="polite"></div>
     <section class="form-panel admin-only">
-        <h3>Cargar rol de árbitros</h3>
+        <details class="ui-disclosure"><summary>Cargar rol de árbitros<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <p>Sube una imagen, XLSX o CSV. Los archivos estructurados son más confiables; siempre podrás revisar las coincidencias antes de guardar.</p>
         <form id="referee-schedule-form" class="filter-form">
             <label>
@@ -48,6 +49,8 @@
             <button id="confirm-schedule" type="button">Confirmar asignaciones</button>
             <details><summary>Contenido reconocido</summary><pre id="schedule-raw-text"></pre></details>
         </div>
+    
+        </div></details>
     </section>
 </section>
 {% endblock %}

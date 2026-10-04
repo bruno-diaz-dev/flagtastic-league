@@ -1,29 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-page">
+<section class="dashboard-page league-page">
     <header class="section-header">
         <div class="player-profile-header">
             <img id="dashboard-photo" class="profile-photo hidden" alt="Foto de perfil">
             <span id="dashboard-photo-placeholder" class="profile-photo profile-placeholder hidden" aria-hidden="true"></span>
             <div>
-                <h2 id="dashboard-player-name">Mi dashboard</h2>
+                <p class="ui-kicker">FlagTastic · Mi temporada</p>
+            <h2 id="dashboard-player-name">Mi dashboard</h2>
                 <p id="dashboard-greeting">Tu temporada en un solo lugar.</p>
             </div>
         </div>
     </header>
 
     <section class="form-panel">
-        <h3>Mi perfil público</h3>
+        <details class="ui-disclosure"><summary>Mi perfil público<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="profile-form" class="dashboard-join-form">
             <label>AKA<input name="aka" type="text" maxlength="80" placeholder="Tu apodo en la liga"></label>
             <button type="submit">Guardar AKA</button>
         </form>
         <p id="profile-message" class="form-message" role="status"></p>
+    
+        </div></details>
     </section>
 
     <section class="form-panel">
-        <h3>Registrarme en un equipo</h3>
+        <details class="ui-disclosure"><summary>Registrarme en un equipo<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="join-team-form" class="dashboard-join-form">
             <label id="join-team-branch-field">Rama
                 <select id="join-team-branch">
@@ -44,6 +47,8 @@
         </form>
         <p id="join-team-results" class="results-count" aria-live="polite"></p>
         <p id="join-team-message" class="form-message" role="status"></p>
+    
+        </div></details>
     </section>
 
     <section aria-labelledby="personal-stats-title">

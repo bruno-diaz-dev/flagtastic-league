@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section>
+<section class="league-page">
     <header class="section-header">
         <div>
+            <p class="ui-kicker">FlagTastic · Calendario de la liga</p>
             <h2>Partidos</h2>
             <p>Consulta los partidos registrados y sus marcadores</p>
         </div>
     </header>
 
+    <details class="form-panel admin-only ui-action-hub"><summary>Gestionar calendario<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
     <section class="form-panel admin-only">
-        <h3>Registrar partido</h3>
+        <details class="ui-disclosure"><summary>Registrar partido<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
 
         <form id="game-form" class="game-form">
             <div class="manual-game-division-filters">
@@ -100,10 +102,12 @@
         </form>
 
         <p id="game-form-message" class="form-message" role="status"></p>
+    
+        </div></details>
     </section>
 
     <section class="form-panel admin-only">
-        <h3>Importar rol de juegos</h3>
+        <details class="ui-disclosure"><summary>Importar rol de juegos<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <p class="panel-description">
             Sube una imagen del rol o el calendario en XLSX o CSV. Podrás revisar
             los partidos reconocidos antes de guardarlos.
@@ -136,10 +140,12 @@
                 Confirmar importación
             </button>
         </div>
+    
+        </div></details>
     </section>
 
     <section class="form-panel admin-only">
-        <h3>Asignar oficial</h3>
+        <details class="ui-disclosure"><summary>Asignar oficial<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="referee-assignment-form" class="filter-form">
             <label>
                 Partido
@@ -163,7 +169,11 @@
         </form>
         <p id="referee-assignment-message" class="form-message" role="status"></p>
         <div id="assigned-referees" class="assigned-referees"></div>
+    
+        </div></details>
     </section>
+
+    </div></details>
 
     <section class="filters-panel games-filters" aria-label="Filtros de partidos">
         <label class="games-team-search">

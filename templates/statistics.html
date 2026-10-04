@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section>
+<section class="league-page">
     <header class="section-header">
         <div>
+            <p class="ui-kicker">FlagTastic · Temporada</p>
             <h2>Líderes individuales</h2>
             <p>Los cinco mejores jugadores por rama y categoría.</p>
         </div>
     </header>
 
     <section class="form-panel admin-only">
-        <h3>Cargar estadísticas individuales</h3>
+        <details class="ui-disclosure"><summary>Cargar estadísticas individuales<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="statistics-import-form" class="stats-import-form">
             <label>
                 Archivo oficial de estadísticas (.xlsx)
@@ -25,6 +26,8 @@
             Descargar plantilla Excel
         </a>
         <p id="statistics-import-message" class="form-message" role="status"></p>
+    
+        </div></details>
     </section>
 
     <section class="form-panel">
