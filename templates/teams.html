@@ -1,24 +1,27 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section>
+<section id="teams-directory" class="teams-directory">
     <header class="section-header">
         <div>
             <h2>Equipos</h2>
-            <p>Registra y consulta los equipos activos de la liga</p>
+            <p>Encuentra tu equipo, consulta su plantilla y sigue a la liga.</p>
         </div>
     </header>
 
-    <section class="form-panel team-manager-only">
-        <h3>Registrar equipo</h3>
+    <details id="team-registration" class="form-panel team-registration team-manager-only">
+        <summary><span><strong>Registrar equipo</strong><small>Agrega un equipo a la liga</small></span><span class="team-registration-indicator" aria-hidden="true">+</span></summary>
+        <div class="team-registration-content">
+        <p class="registration-help">Completa los datos del equipo y su logo. El cuerpo técnico es opcional.</p>
 
         <form id="team-form" class="team-form">
-            <label>
+            <label class="team-form-wide">
                 Nombre del equipo
                 <input
                     type="text"
                     name="name"
                     autocomplete="off"
+                    placeholder="Ej. Diablos del Sol"
                     required
                 >    
             </label>
@@ -39,7 +42,7 @@
             </label>
 
             <label>
-                Categoria
+                Categoría
                 <select id="team-category" name="category" required>
                     <option value="u6">U6</option>
                     <option value="u8">U8</option>
@@ -52,27 +55,40 @@
                 </select>
             </label>
 
-            <label>
+            <label class="team-form-wide team-logo-field">
                 Logo del equipo
                 <input
                     type="file"
                     name="logo"
                     accept="image/jpeg,image/png,image/webp"
+                    aria-describedby="team-logo-help"
                     required
                 >
             </label>
 
+            <p id="team-logo-help" class="field-help team-form-wide">JPG, PNG o WebP.</p>
+
+            <details class="team-staff-fields team-form-wide">
+                <summary>Cuerpo técnico <span>Opcional</span></summary>
+                <div class="team-staff-grid">
             <label>Head Coach<input type="text" name="head_coach" maxlength="120"></label>
             <label>Coach<input type="text" name="coach" maxlength="120"></label>
             <label>Manager<input type="text" name="manager" maxlength="120"></label>
 
-            <button type="submit">Registrar Equipo</button>
+                </div>
+            </details>
+
+            <div class="team-form-actions team-form-wide"><button type="button" id="cancel-team-registration" class="secondary-button">Cancelar</button><button type="submit">Registrar equipo</button></div>
         </form>
 
-        <p id="form-message" class="form-message" role="status"></p>
-    </section>
+        </div>
+    </details>
+    <p id="form-message" class="form-message" role="status"></p>
 
-    <section class="filters-panel">
+    <div class="teams-directory-heading"><h3>Directorio de equipos</h3><span id="teams-count" role="status"></span></div>
+
+    <section class="filters-panel teams-directory-filters" aria-label="Buscar equipos">
+        <label class="team-search-field">Buscar equipo<input id="team-filter-search" type="search" placeholder="Nombre del equipo" autocomplete="off"></label>
         <label id="team-filter-branch-field">
             Rama
             <select id="team-filter-branch">
@@ -89,7 +105,7 @@
         </label>
 
         <label>
-            Categoria
+            Categoría
             <select id="team-filter-category">
                 <option value="">Todas las categorías</option>
                 <option value="u6">U6</option>
@@ -102,6 +118,7 @@
                 <option value="libre">Libre</option>
             </select>
         </label>
+        <button id="clear-team-filters" type="button" class="secondary-button">Limpiar filtros</button>
     </section>
 
     <section id="teams" class="teams-grid" aria-live="polite"></section>
@@ -111,5 +128,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/teams.js?v=20261001-1"></script>
+<script src="/static/teams.js?v=20261004-2"></script>
 {% endblock %}

@@ -17,6 +17,7 @@ if not os.getenv("CI"):
 
 from dependencies.auth import (
     require_league_admin,
+    require_score_recorder,
     require_team_creator,
     require_team_manager
 )
@@ -36,6 +37,7 @@ TEST_ADMIN = {
 def authorize_domain_test_writes():
     """Keep domain tests focused while authorization has a dedicated suite."""
     app.dependency_overrides[require_league_admin] = lambda: TEST_ADMIN
+    app.dependency_overrides[require_score_recorder] = lambda: TEST_ADMIN
     app.dependency_overrides[require_team_creator] = lambda: TEST_ADMIN
     app.dependency_overrides[require_team_manager] = lambda: TEST_ADMIN
     yield

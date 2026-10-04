@@ -428,7 +428,7 @@ def test_games_are_rendered_as_a_grouped_schedule_with_compact_admin_controls():
     assert 'id="game-filter-team"' in page
     assert 'class="game-time-group"' in script
     assert 'class="game-team-row"' in script
-    assert 'class="game-admin-panel admin-only"' in script
+    assert 'class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}"' in script
     assert "[...games].sort(compareGames)" in script
     assert "normalizeSearchText(gameFilterTeam.value)" in script
     assert 'class="score-fields"' in script

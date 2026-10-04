@@ -70,6 +70,13 @@ def require_team_creator(user=Depends(require_authenticated_user)):
     return user
 
 
+def require_score_recorder(user=Depends(require_authenticated_user)):
+    """Allow administrators and referees to record final game scores."""
+    if not any(user_has_role(user, role) for role in ("league_admin", "referee")):
+        raise HTTPException(status_code=403, detail="Acceso no autorizado")
+    return user
+
+
 def require_player(user=Depends(require_authenticated_user)):
     """Allow only player accounts linked to a player identity."""
     if not user_has_role(user, "player") or user.get("player_id") is None:
