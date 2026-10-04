@@ -5,7 +5,7 @@ Football League. It provides public schedules, standings, rosters, player
 profiles, and leaderboards together with private workflows for players, team
 representatives, referees, and league administrators.
 
-- Production: <https://flagtastic-league.vercel.app>
+- Production: <https://flagtastic.online>
 - API docs: `/docs` and `/redoc`
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Release plan: [`docs/release-plan.md`](docs/release-plan.md)
