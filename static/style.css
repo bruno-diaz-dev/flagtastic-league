@@ -2689,3 +2689,55 @@ body.role-league_admin .week-admin-actions.admin-only {
         margin-bottom: 0;
     }
 }
+
+/* Keep standings identity readable while statistics scroll on mobile. */
+.standings-position {
+    color: var(--color-gold);
+    font-weight: 700;
+    min-width: 1.5em;
+}
+.standings-scroll-hint { display: none; }
+@media (max-width: 820px) {
+    #standings .standings-data-table {
+        min-width: 480px;
+        overflow: visible;
+        font-size: 13px;
+    }
+    #standings .standings-data-table th,
+    #standings .standings-data-table td {
+        padding: 12px 10px;
+    }
+    #standings .standings-data-table th:first-child,
+    #standings .standings-data-table td:first-child {
+        width: clamp(144px, 42vw, 184px);
+        min-width: clamp(144px, 42vw, 184px);
+        max-width: clamp(144px, 42vw, 184px);
+        white-space: normal;
+        box-shadow: 2px 0 0 var(--color-border);
+    }
+    #standings .standings-data-table th:first-child { z-index: 2; }
+    #standings .standings-data-table tbody tr:nth-child(even) td:first-child {
+        background: #192338;
+    }
+    #standings .standings-team {
+        display: flex;
+        gap: 6px;
+        white-space: normal;
+    }
+    #standings .standings-team-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        line-height: 1.35;
+    }
+    #standings .standings-team .team-logo {
+        width: 24px;
+        height: 24px;
+        flex: 0 0 24px;
+    }
+    .standings-scroll-hint {
+        display: block;
+        color: var(--color-muted);
+        font-size: 13px;
+        margin-bottom: 10px;
+    }
+}

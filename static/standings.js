@@ -63,7 +63,7 @@ function renderStandings(standings) {
         <table class="standings-data-table">
             <thead>
                 <tr>
-                    <th>Equipo</th>
+                    <th scope="col">Posición / Equipo</th>
                     <th>G</th>
                     <th>P</th>
                     <th>PF</th>
@@ -73,12 +73,13 @@ function renderStandings(standings) {
             </thead>
             <tbody>
                 ${standings
-                    .map((team) => `
+                    .map((team, index) => `
                         <tr>
                             <td>
                                 <a class="standings-team team-roster-link" href="/teams/${team.team_id}/roster">
+                                    <span class="standings-position" aria-label="Posición ${index + 1}">${index + 1}</span>
                                     ${team.team_logo_url ? `<img class="team-logo team-logo-small" src="${team.team_logo_url}" alt="" loading="lazy" decoding="async">` : ""}
-                                    ${escapeHtml(team.team_name)}
+                                    <span class="standings-team-name">${escapeHtml(team.team_name)}</span>
                                 </a>
                             </td>
                             <td>${team.wins}</td>
