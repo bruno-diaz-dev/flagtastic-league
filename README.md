@@ -410,5 +410,15 @@ as completed functionality here.
 
 ## License
 
-This project is developed for the Flagtastic Football League. No public license
-has been granted.
+Copyright © 2026 Bruno Mijail Díaz Barba. All rights reserved.
+
+The original application software is proprietary; see [LICENSE](LICENSE) and
+[NOTICE](NOTICE). No public or open-source license is granted. Dependencies
+and third-party assets retain their own licenses and owners' rights.
+
+The platform was developed for the FlagTastic Football League. The League is
+completing its legal incorporation, and a separate written software license
+agreement remains to be formalized with the appropriate contracting party.
+These repository notices do not transfer ownership or state that an agreement
+has already been signed. Software rights are distinct from League branding,
+uploaded content, sports records, and personal data.
