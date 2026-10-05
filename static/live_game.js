@@ -248,6 +248,13 @@ function renderLiveAttendance(data, official) {
 
 async function liveCaptureAdministrative(kind, teamId = null, playerId = null) {
     if (!liveQueue || liveBusy || !liveHasRole("referee") || liveData?.state !== "live") return;
+    for (const [field,minimum,maximum] of [["period",1,10],["minute",0,200],["second",0,59]]) {
+        const value = liveForm.elements[field].value;
+        if (value === "" || !Number.isInteger(Number(value)) || Number(value) < minimum || Number(value) > maximum) {
+            liveMessage.textContent = "Revisa el periodo y reloj antes de registrar.";
+            return;
+        }
+    }
     const payload = {client_id:crypto.randomUUID(),kind,team_id:teamId,player_id:playerId,receiver_id:null,
         period:Number(liveForm.elements.period.value),minute:Number(liveForm.elements.minute.value),second:Number(liveForm.elements.second.value)};
     const player = liveData.roster.find(p => p.team_id === teamId && p.player_id === playerId);

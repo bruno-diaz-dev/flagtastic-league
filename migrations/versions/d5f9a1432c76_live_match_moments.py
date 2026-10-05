@@ -16,4 +16,14 @@ ALTER TABLE game_live_events ADD CONSTRAINT game_live_events_moment_identity_che
 def upgrade():
     op.execute(SCHEMA)
 def downgrade():
-    raise RuntimeError("Match moments are retained for audit; forward migration required")
+    # Empty installations can roll back; never discard recorded match breaks.
+    op.execute("""DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM game_live_events WHERE kind IN ('halftime','two_minute_warning')) THEN
+            RAISE EXCEPTION 'Recorded match moments prevent downgrade; use a forward migration';
+        END IF;
+    END $$;
+    ALTER TABLE game_live_events DROP CONSTRAINT game_live_events_moment_identity_check;
+    ALTER TABLE game_live_events DROP CONSTRAINT game_live_events_kind_check;
+    ALTER TABLE game_live_events ADD CONSTRAINT game_live_events_kind_check CHECK (kind IN ('pass_complete','pass_incomplete','passing_touchdown','touchdown','extra_one','extra_two','safety','sack','flag','interception','attendance','note'));
+    ALTER TABLE game_live_events ALTER COLUMN team_id SET NOT NULL;
+    """)
