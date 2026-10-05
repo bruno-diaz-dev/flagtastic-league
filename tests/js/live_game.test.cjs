@@ -64,3 +64,13 @@ test('stale refresh cannot overwrite newer score and pass fields match event typ
     assert.equal(form.elements.player_id.required,false);
     assert.equal(form.elements.note.required,true);
 });
+
+test('start failures describe server and permission problems instead of invalid play data',async()=>{
+    const {context}=harness();
+    context.fetch=async()=>({ok:false,status:500,json:async()=>{throw Error('Not JSON');}});
+    await assert.rejects(context.liveWrite('start'),/servidor/);
+    context.fetch=async()=>({ok:false,status:403,json:async()=>({})});
+    await assert.rejects(context.liveWrite('start'),/permiso/);
+    context.fetch=async()=>({ok:false,status:422,json:async()=>({detail:[{msg:'Selecciona receptor'}]})});
+    await assert.rejects(context.liveWrite('events'),/Selecciona receptor/);
+});

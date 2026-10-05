@@ -11,6 +11,7 @@ from repositories.users import create_user
 from services.live_game import project_events
 from repositories.live_games import append_event, finish_live_game
 from routes.live_games import LiveEvent
+from migrations.versions.b3d7e9210a54_grant_live_backend_access import SCHEMA as BACKEND_GRANTS
 
 
 def setup_match():
@@ -155,3 +156,29 @@ def test_concurrent_live_retries_and_finish_publish_once():
         count = connection.execute("SELECT COUNT(*) AS count FROM player_week_stats WHERE game_id = %s", (game_id,)).fetchone()["count"]
     assert count == 1
     assert client.get(path).json()["home_score"] == 6
+
+
+def test_restricted_backend_role_can_read_and_write_live_tables():
+    """Exercise the production database role, not just the test owner."""
+    client, game_id, teams, players, users = setup_match()
+    connection = get_connection()
+    try:
+        connection.execute("""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'flagtastic_app') THEN
+                CREATE ROLE flagtastic_app NOLOGIN;
+            END IF;
+        END $$;""")
+        connection.execute(BACKEND_GRANTS)
+        connection.execute("SET LOCAL ROLE flagtastic_app")
+        assert connection.execute("SELECT current_user AS role").fetchone()["role"] == "flagtastic_app"
+        connection.execute("INSERT INTO game_live_sessions(game_id) VALUES (%s)", (game_id,))
+        saved = connection.execute("""
+            INSERT INTO game_live_events(game_id,client_id,kind,team_id,period,minute,second,note)
+            VALUES (%s,%s,'note',%s,1,0,0,'Permission verification') RETURNING id
+        """, (game_id, uuid4(), teams[0])).fetchone()
+        assert saved["id"] > 0
+        assert connection.execute("SELECT state FROM game_live_sessions WHERE game_id=%s", (game_id,)).fetchone()["state"] == "live"
+    finally:
+        # No test role, grants, policies, session or event escapes this check.
+        connection.rollback()
+        connection.close()
