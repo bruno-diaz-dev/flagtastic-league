@@ -1,44 +1,56 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/referee_directory.css?v=20261004-1">
 <section class="referee-roster-page league-page">
     <header class="section-header">
         <div>
             <p class="ui-kicker">FlagTastic · Equipo arbitral</p>
             <h2>Planilla de árbitros</h2>
-            <p>Conoce al equipo arbitral activo de la liga.</p>
+            <p>Conoce a quienes hacen posible cada partido.</p>
         </div>
+        <span class="referee-directory-badge">Equipo de la liga</span>
     </header>
 
-    <section id="referee-photo-panel" class="form-panel hidden">
-        <h3>Completa tu perfil arbitral</h3>
-        <p>Agrega el AKA que aparece en el rol de árbitros para que el sistema pueda identificarte al cargar la imagen. La foto es opcional si solo quieres actualizar tu AKA.</p>
-        <form id="referee-photo-form" class="filter-form">
-            <label>
-                AKA
-                <input
-                    name="aka"
-                    type="text"
-                    maxlength="80"
-                    autocomplete="off"
-                    placeholder="Como aparece en el rol de árbitros"
-                >
-            </label>
-            <label>
-                Foto de perfil
-                <input name="file" type="file" accept="image/jpeg,image/png,image/webp">
-            </label>
-            <button type="submit">Guardar perfil</button>
-        </form>
+    <section id="referee-photo-panel" class="referee-self-panel hidden" aria-label="Mi perfil arbitral">
+        <details id="referee-profile-editor">
+            <summary>
+                <span id="referee-self-avatar" class="referee-self-avatar" aria-hidden="true"></span>
+                <span class="referee-self-identity"><small>Mi perfil arbitral</small><strong id="referee-self-name"></strong></span>
+                <span class="referee-edit-label">Editar perfil</span>
+            </summary>
+            <div class="referee-editor-body">
+                <h3>Tu identidad en la cancha</h3>
+                <p class="form-help">Usa el AKA que aparece en el rol de árbitros. Puedes cambiarlo sin subir una nueva foto.</p>
+                <form id="referee-photo-form" class="filter-form">
+                    <label>AKA
+                        <input name="aka" type="text" maxlength="80" autocomplete="off" placeholder="Como aparece en el rol de árbitros">
+                    </label>
+                    <label>Foto de perfil <small>Opcional · JPG, PNG o WebP</small>
+                        <input name="file" type="file" accept="image/jpeg,image/png,image/webp">
+                    </label>
+                    <div class="referee-editor-actions">
+                        <button type="button" id="referee-edit-cancel" class="secondary-button">Cerrar</button>
+                        <button type="submit">Guardar cambios</button>
+                    </div>
+                </form>
+            </div>
+        </details>
         <p id="referee-photo-message" class="form-message" role="status"></p>
     </section>
 
+    <section class="referee-directory-tools" aria-label="Buscar árbitros">
+        <div class="referee-directory-heading"><h3>Equipo arbitral</h3><p id="referee-directory-count" role="status">Cargando planilla…</p></div>
+        <label class="referee-search-label" for="referee-search"><span>Buscar por nombre o AKA</span>
+            <input id="referee-search" type="search" placeholder="Buscar árbitro…" autocomplete="off" aria-controls="referee-roster">
+        </label>
+    </section>
     <p id="referee-roster-message" class="form-message" role="status"></p>
-    <section id="referee-roster" class="referee-roster-grid" aria-live="polite"></section>
+    <section id="referee-roster" class="referee-roster-grid" aria-label="Árbitros de la liga"></section>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/api.js?v=20260930-4"></script>
-<script src="/static/referees.js?v=20260930-1"></script>
+<script src="/static/referees.js?v=20261004-2"></script>
 {% endblock %}
