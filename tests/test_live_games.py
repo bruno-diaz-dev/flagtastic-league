@@ -225,3 +225,15 @@ def test_match_moments_and_attendance_are_not_sporting_statistics():
     assert row["attended_games"] == 1 and row["required_games"] == 1 and row["eligible"]
     with get_connection() as connection:
         assert connection.execute("SELECT COUNT(*) AS count FROM player_week_stats WHERE game_id=%s", (game_id,)).fetchone()["count"] == 1
+
+    closed = client.get(path).json()
+    correction = {"reason":"No asistió", "expected_version":closed["version"]}
+    assert client.post(path + f"/events/{row['entry_id']}/void", json=correction).status_code == 403
+    login(client, users["league_admin"])
+    with get_connection() as connection:
+        connection.execute("UPDATE games SET home_score=99, away_score=42 WHERE id=%s", (game_id,))
+    assert client.post(path + f"/events/{row['entry_id']}/void", json=correction).status_code == 200
+    corrected = client.get(path).json()
+    assert (corrected["home_score"], corrected["away_score"]) == (99,42)
+    row = next(r for r in corrected["attendance"] if r["player_id"] == players[0][0])
+    assert row["attended_games"] == 0 and not row["present"] and not row["eligible"]

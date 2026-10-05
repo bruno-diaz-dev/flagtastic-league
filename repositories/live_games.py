@@ -213,7 +213,7 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
             connection.execute("UPDATE game_live_events SET voided_at = NOW(), voided_by = %s, void_reason = %s WHERE id = %s", (user_id, payload["reason"].strip(), event_id))
             if event["kind"] == "attendance":
                 connection.execute("UPDATE game_live_events SET voided_at=NOW(), voided_by=%s, void_reason=%s WHERE game_id=%s AND team_id=%s AND player_id=%s AND kind='attendance' AND voided_at IS NULL", (user_id, payload["reason"].strip(), game_id, event["team_id"], event["player_id"]))
-            if session["state"] == "completed":
+            if session["state"] == "completed" and event["kind"] != "attendance":
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
