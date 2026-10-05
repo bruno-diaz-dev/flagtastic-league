@@ -42,7 +42,10 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('2 jugadas'));
     offline=false;
     await page.locator('#live-retry').click();
-    await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('Todo enviado'));
+    await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('Todo enviado')).catch(async error=>{
+        console.log('CAPTURE_DIAGNOSTIC',JSON.stringify({accepted:plays.size,errors,state:await page.evaluate(()=>({status:document.querySelector('#live-queue-status').textContent,message:document.querySelector('#live-operation-message').textContent,rows:liveQueue?.rows,working:liveQueue?.working,liveState:liveData?.state,online:navigator.onLine}))}));
+        throw error;
+    });
     await page.waitForFunction(()=>document.querySelector('#live-home-score').textContent==='1');
     assert.equal(plays.size,2);
     assert.equal(await page.locator('.live-event').count(),2);
