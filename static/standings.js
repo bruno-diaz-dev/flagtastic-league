@@ -64,6 +64,7 @@ function renderStandings(standings) {
             <thead>
                 <tr>
                     <th scope="col">Posición / Equipo</th>
+                    <th scope="col" title="Juegos jugados" aria-label="Juegos jugados">JJ</th>
                     <th>G</th>
                     <th>P</th>
                     <th>PF</th>
@@ -82,6 +83,7 @@ function renderStandings(standings) {
                                     <span class="standings-team-name">${escapeHtml(team.team_name)}</span>
                                 </a>
                             </td>
+                            <td>${team.games_played}</td>
                             <td>${team.wins}</td>
                             <td>${team.losses}</td>
                             <td>${team.points_for}</td>

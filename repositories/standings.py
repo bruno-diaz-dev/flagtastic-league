@@ -112,9 +112,4 @@ def get_standings(branch, category):
         )
     )
 
-    # Keep games_played internal for ranking so the public response remains
-    # backwards-compatible with the current standings API.
-    for team in standings:
-        team.pop("games_played")
-
     return standings
