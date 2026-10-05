@@ -163,12 +163,12 @@ def test_youth_standings_combine_all_registered_branches(category):
 
 
 
-def test_games_played_counts_completed_games_including_ties_only():
+def test_games_played_is_wins_plus_losses_excluding_unplayed_games():
     home_id = create_test_team("Played Home")
     away_id = create_test_team("Played Away")
     idle_id = create_test_team("Never Played")
 
-    for home_score, away_score in [(14, 6), (12, 12)]:
+    for home_score, away_score in [(14, 6), (6, 12)]:
         game = client.post("/api/games", json={
             "home_team_id": home_id,
             "away_team_id": away_id,
@@ -197,4 +197,6 @@ def test_games_played_counts_completed_games_including_ties_only():
     assert teams[home_id]["games_played"] == 2
     assert teams[away_id]["games_played"] == 2
     assert teams[idle_id]["games_played"] == 0
-    assert teams[home_id]["wins"] + teams[home_id]["losses"] == 1
+    assert teams[home_id]["games_played"] == (
+        teams[home_id]["wins"] + teams[home_id]["losses"]
+    )

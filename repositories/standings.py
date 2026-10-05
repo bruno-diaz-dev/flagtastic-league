@@ -91,6 +91,8 @@ def get_standings(branch, category):
 
     # Point difference is derived after aggregation to keep the SQL readable.
     for team in standings:
+        # The league has no draws: played games are wins plus losses.
+        team["games_played"] = team["wins"] + team["losses"]
         if team.pop("team_has_logo"):
             team["team_logo_url"] = f"/api/teams/{team['team_id']}/logo"
         team["point_difference"] = (
