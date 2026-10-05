@@ -91,6 +91,7 @@ def test_get_standings_for_branch_and_category():
         {
             "team_id": tigres_id,
             "team_name": "Tigres",
+            "games_played": 1,
             "wins": 1,
             "losses": 0,
             "points_for": 32,
@@ -100,6 +101,7 @@ def test_get_standings_for_branch_and_category():
         {
             "team_id": ravens_id,
             "team_name": "Ravens",
+            "games_played": 1,
             "wins": 0,
             "losses": 1,
             "points_for": 24,
@@ -158,3 +160,43 @@ def test_youth_standings_combine_all_registered_branches(category):
         home_id, away_id, idle_id
     ]
 """API tests for division standings and ranking rules."""
+
+
+
+def test_games_played_is_wins_plus_losses_excluding_unplayed_games():
+    home_id = create_test_team("Played Home")
+    away_id = create_test_team("Played Away")
+    idle_id = create_test_team("Never Played")
+
+    for home_score, away_score in [(14, 6), (6, 12)]:
+        game = client.post("/api/games", json={
+            "home_team_id": home_id,
+            "away_team_id": away_id,
+            "field_number": 1,
+        }).json()
+        assert client.patch(f"/api/games/{game['id']}/score", json={
+            "home_score": home_score,
+            "away_score": away_score,
+        }).status_code == 200
+
+    # Scheduled and postponed games do not increase the played count.
+    for status in ("scheduled", "postponed"):
+        game = client.post("/api/games", json={
+            "home_team_id": home_id,
+            "away_team_id": idle_id,
+            "field_number": 1,
+        }).json()
+        if status == "postponed":
+            assert client.patch(f"/api/games/{game['id']}/status", json={
+                "status": status,
+            }).status_code == 200
+
+    response = client.get("/api/standings?branch=varonil&category=libre")
+    assert response.status_code == 200
+    teams = {team["team_id"]: team for team in response.json()}
+    assert teams[home_id]["games_played"] == 2
+    assert teams[away_id]["games_played"] == 2
+    assert teams[idle_id]["games_played"] == 0
+    assert teams[home_id]["games_played"] == (
+        teams[home_id]["wins"] + teams[home_id]["losses"]
+    )
