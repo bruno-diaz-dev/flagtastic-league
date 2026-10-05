@@ -8,30 +8,41 @@
     <p id="live-update-status" class="form-help" role="status">Consultando cobertura del partido…</p>
     <div id="live-official-controls" class="hidden">
         <button id="live-start" type="button" data-primary-action>Iniciar captura en vivo</button>
+        <p id="live-queue-status" class="live-queue-status" role="status">Preparando guardado local…</p>
+        <p id="live-last-capture" class="form-help" role="status"></p>
         <details id="live-capture-panel" class="ui-disclosure hidden">
-            <summary>Registrar jugada <span class="ui-disclosure-hint">Captura arbitral</span></summary>
+            <summary>Captura rápida <span class="ui-disclosure-hint">Jugada → dorsal</span></summary>
             <div class="ui-disclosure-body">
                 <form id="live-event-form" class="live-event-form">
-                    <label>Equipo<select name="team_id" required></select></label>
-                    <label>Jugada<select name="kind" required>
+                    <div class="live-tap-instructions"><label class="live-tap-toggle"><input id="live-one-tap" type="checkbox" checked>Registrar al tocar un dorsal</label><p id="live-tap-hint" class="form-help"></p></div>
+                    <div class="live-team-choice"><span class="live-control-label">Equipo de la estadística</span><div id="live-team-buttons" class="live-team-buttons" role="group" aria-label="Equipo"></div><label class="live-select-fallback">Equipo<select name="team_id" required></select></label></div>
+                    <div class="live-kind-choice"><span class="live-control-label">¿Qué pasó?</span><div id="live-kind-buttons" class="live-kind-buttons" role="group" aria-label="Tipo de jugada"></div><label class="live-select-fallback">Jugada<select name="kind" required>
                         <option value="pass_complete">Pase completo</option><option value="pass_incomplete">Pase incompleto</option>
                         <option value="passing_touchdown">Pase de touchdown · 6 pts</option><option value="touchdown">Touchdown por carrera / retorno · 6 pts</option>
                         <option value="extra_one">Extra de 1 punto</option><option value="extra_two">Extra de 2 puntos</option><option value="safety">Safety · 2 pts</option>
                         <option value="sack">Sack</option><option value="flag">Flag retirado</option><option value="interception">Intercepción</option>
                         <option value="attendance">Asistencia de jugador</option>
-                    </select></label>
-                    <label><span id="live-player-label">Pasador</span><select name="player_id" required></select></label>
-                    <label id="live-receiver-field">Receptor<select name="receiver_id" required></select></label>
-                    <fieldset class="live-clock"><legend>Tiempo de juego · copia el reloj del campo</legend>
+                    </select></label></div>
+                    <details id="live-passer-choices" class="live-player-choice" open><summary id="live-passer-summary">Selecciona jugador</summary><label><span id="live-player-label">Pasador</span><select name="player_id" required></select></label><div id="live-player-buttons" class="live-player-buttons" role="group" aria-label="Jugador o pasador"></div></details>
+                    <div id="live-receiver-field" class="live-player-choice"><label>Receptor<select name="receiver_id" required></select></label><div id="live-receiver-buttons" class="live-player-buttons" role="group" aria-label="Receptor"></div></div>
+                    <fieldset class="live-clock"><legend>Reloj del campo · se conserva entre jugadas</legend>
                         <label>Periodo<input name="period" type="number" value="1" min="1" max="10" required inputmode="numeric"></label>
                         <label>Minutos<input name="minute" type="number" value="0" min="0" max="200" required inputmode="numeric"></label>
                         <label>Segundos<input name="second" type="number" value="0" min="0" max="59" required inputmode="numeric"></label>
                     </fieldset>
-                    <p class="form-help live-event-help">El minuto a minuto se genera automáticamente con las estadísticas; no necesitas escribir comentarios. Pase de touchdown registra intento, pase completo, recepción y 6 puntos en una sola jugada. En defensa, selecciona al equipo defensor.</p>
-                    <button type="submit">Registrar jugada</button>
+                    <div class="live-capture-footer">
+                        <p id="live-selection-summary" class="live-selection-summary"></p>
+                        <button id="live-save-play" type="submit">Registrar jugada</button>
+                    </div>
+                    <p class="form-help live-event-help">Actualiza el reloj cuando cambie: el sistema no lo estima. En defensa elige al equipo defensor. TD por pase registra pase completo, recepción y puntos juntos. El minuto a minuto se publica al confirmar el envío, sin escribir comentarios.</p>
                 </form>
             </div>
         </details>
+        <section id="live-outbox" class="live-outbox hidden" aria-labelledby="live-outbox-title">
+            <div class="live-section-heading"><h4 id="live-outbox-title">Capturas pendientes</h4><button id="live-retry" type="button" class="secondary-button">Reintentar envío</button></div>
+            <p class="form-help">Estas jugadas están guardadas en este dispositivo. Puedes seguir capturando; aparecerán en la cronología pública al confirmarse. No cierres el partido hasta enviarlas.</p>
+            <div id="live-outbox-list"></div>
+        </section>
         <button id="live-finish" type="button" class="secondary-button hidden">Revisar y finalizar partido</button>
     </div>
     <p id="live-operation-message" class="form-message" role="status"></p>
