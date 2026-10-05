@@ -74,3 +74,37 @@
     .live-scoreboard { position: sticky; top: 76px; z-index: 2; background: #0c1b32; padding: 10px; }
     .live-scoreboard strong { font-size: 32px; }
 }
+
+
+/* SVG coverage shares the event feed; no tracking or additional capture requests. */
+.live-field-panel { position: relative; z-index: 3; --field-accent: #f4c542; padding: 14px; border: 1px solid rgba(244,197,66,.22); border-radius: 14px; background: linear-gradient(145deg,#10263a,#091929); min-width: 0; }
+.live-field-panel[data-team="away"] { --field-accent: #7dc8ff; }
+.live-field-panel h4 { margin: 0; font-size: 16px; }
+.content #live-field-replay { font-size: 12px; min-height: 44px; padding: 8px 12px; }
+.live-field-stage { position: relative; margin: 12px 0; overflow: hidden; border-radius: 12px; }
+.live-field-stage svg { display: block; width: 100%; height: auto; }
+.live-field-turf { fill: #123e37; stroke: #5b8b75; stroke-width: 2; }
+.live-field-endzone { fill: #0b2928; }
+.live-field-lines { stroke: #b1dbc7; stroke-width: 1; opacity: .3; }
+.live-field-boundary { fill: none; stroke: #d7f1e1; stroke-width: 2; opacity: .7; }
+.live-field-zone-label { fill: #a3c8b9; text-anchor: middle; font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+.live-field-brand { fill: #c9ebd9; opacity: .12; text-anchor: middle; font-size: 26px; font-weight: 800; letter-spacing: 3px; }
+.live-field-route { fill: none; stroke: var(--field-accent); stroke-width: 5; stroke-linecap: round; }
+.live-field-draw { animation: live-field-draw 1.3s ease-out both; }
+.live-field-incomplete { stroke-dasharray: .025 .018; }
+.live-field-player circle { fill: #0a1929; stroke: var(--field-accent); stroke-width: 3; }
+.live-field-player text { fill: #fff; text-anchor: middle; font-size: 14px; font-weight: 800; }
+.live-field-ball ellipse { fill: #bb7544; stroke: #fff4dd; stroke-width: 1.5; }
+.live-field-ball path { stroke: #fff4dd; stroke-width: 1.5; }
+.live-field-miss { fill: none; stroke: #ffac94; stroke-width: 4; }
+.live-field-banner { position: absolute; top: 12%; left: 15%; width: 70%; text-align: center; color: #fff; background: rgba(7,24,35,.94); border: 1px solid var(--field-accent); border-radius: 10px; padding: 8px; box-sizing: border-box; }
+.live-field-banner strong { display: block; font-size: clamp(12px,3.8vw,24px); }
+.live-field-banner span { display: block; font-size: 11px; margin-top: 3px; }
+.live-field-td { color: #08182c; background: #f4c542; border-color: #ffe9a0; }
+.live-field-celebrate { animation: live-field-celebrate .55s ease-out both; }
+.live-field-description strong { color: var(--field-accent); font-size: 14px; }
+.live-field-description p { margin: 5px 0; font-size: 12px; overflow-wrap: anywhere; }
+.live-field-disclaimer { margin: 10px 0 0; font-size: 11px; color: var(--color-muted); line-height: 1.5; }
+@keyframes live-field-draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes live-field-celebrate { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .live-field-draw, .live-field-celebrate { animation: none; } }
