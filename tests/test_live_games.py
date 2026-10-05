@@ -97,6 +97,7 @@ def test_live_game_roles_retry_public_privacy_and_final_publication():
     assert client.post(path + f"/events/{extra.json()['id']}/void", json={"reason": "Duplicada", "expected_version": live["version"] + 1}).status_code == 200
     final = client.get(path).json()
     assert final["state"] == "completed" and final["home_score"] == 6
+    assert extra.json()["id"] not in [row["id"] for row in final["events"]]
     assert next(row for row in final["attendance"] if row["player_id"] == players[0][1])["attended_games"] == 1
     with get_connection() as connection:
         rows = connection.execute("SELECT * FROM player_week_stats WHERE game_id = %s", (game_id,)).fetchall()
@@ -119,7 +120,11 @@ def test_live_void_is_audited_and_cannot_erase_final_result_into_a_tie():
     live = client.get(path).json()
     assert client.post(path + f"/events/{score['id']}/void", json={"reason": "Captura equivocada", "expected_version": live["version"]}).status_code == 200
     corrected = client.get(path).json()
-    assert corrected["home_score"] == 0 and corrected["events"][0]["voided_at"]
+    assert corrected["home_score"] == 0 and corrected["events"] == []
+    assert corrected["statistics"] == []
+    with get_connection() as connection:
+        audit = connection.execute("SELECT voided_at, void_reason FROM game_live_events WHERE id=%s", (score["id"],)).fetchone()
+    assert audit["voided_at"] is not None and audit["void_reason"] == "Captura equivocada"
     assert client.post(path + "/finish", json={"expected_version": corrected["version"]}).status_code == 409
     score = client.post(path + "/events", json=event(teams[1], players[1][1])).json()
     live = client.get(path).json()
@@ -237,3 +242,12 @@ def test_match_moments_and_attendance_are_not_sporting_statistics():
     assert (corrected["home_score"], corrected["away_score"]) == (99,42)
     row = next(r for r in corrected["attendance"] if r["player_id"] == players[0][0])
     assert row["attended_games"] == 0 and not row["present"] and not row["eligible"]
+
+
+
+@pytest.mark.parametrize("kind", ["pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "extra_one", "extra_two", "safety", "sack", "flag", "interception"])
+def test_voided_play_contributes_no_score_or_player_statistics(kind):
+    scores, totals = project_events([{"kind":kind, "team_id":1, "player_id":10,
+                                    "receiver_id":11, "voided_at":"2026-10-05"}], 1, 2)
+    assert scores == {1:0, 2:0}
+    assert totals == []

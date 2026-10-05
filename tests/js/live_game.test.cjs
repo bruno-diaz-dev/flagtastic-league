@@ -153,3 +153,20 @@ test('attendance stays out of sporting feed and moments require no player',async
     form.elements.second.value='60';await context.liveCaptureAdministrative('halftime');
     assert.equal(captured.length,1);
 });
+
+
+
+test('voided captures never appear in the timeline, including older cached responses',()=>{
+    const {context,node}=harness('referee');
+    context.renderLive(snapshot());
+    assert.match(node('#live-timeline').innerHTML,/Touchdown/);
+    const corrected=snapshot('live',3);
+    corrected.home_score=0;corrected.events[0].voided_at='2026-10-05';
+    context.renderLive(corrected);
+    assert.doesNotMatch(node('#live-timeline').innerHTML,/Scorer|Touchdown|Anulada|data-void-event/);
+    assert.match(node('#live-timeline').innerHTML,/Sin jugadas confirmadas/);
+    assert.equal(node('#live-home-score').textContent,0);
+    const mixed=snapshot('live',4);mixed.events.push(corrected.events[0]);
+    context.renderLive(mixed);
+    assert.equal((node('#live-timeline').innerHTML.match(/class="live-event"/g)||[]).length,1);
+});

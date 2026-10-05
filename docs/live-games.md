@@ -53,3 +53,8 @@ Attendance is explicit check-in, not a sporting statistic. It is shown separatel
 Eligibility uses floor(team calendar games / 2) + 1, counting only attendance in completed matches. The UI clearly labels this provisional against the current calendar: it cannot distinguish regular season from playoffs or detect uncreated fixtures. Administrators must verify the regular-season calendar before approving final eligibility.
 
 Halftime and the two-minute warning are neutral timeline entries using the official's current period and clock. They require no team or player, produce no points or statistics, and use the existing durable retry queue.
+
+
+### Capture corrections
+
+Voided captures are excluded from the public API timeline and defensively filtered in the client, including old cached responses. They contribute no score, passing totals, receiver statistics or defensive statistics. Correcting a completed sporting capture recomputes the published game totals atomically. Internal records retain the original capture and its author, correction time and reason for audit; a void is never a physical deletion.
