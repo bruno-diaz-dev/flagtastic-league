@@ -633,7 +633,7 @@ def test_versioned_display_logo_is_bounded_and_preserves_original():
 
 def test_legacy_invalid_logo_still_displays_with_thumbnail_parameter():
     team_id = create_test_team(name="Legacy Logo")
-    original = b"\\x89PNG\\r\\n\\x1a\\nlegacy-logo"
+    original = bytes.fromhex("89504e470d0a1a0a") + b"legacy-logo"
     assert client.put(
         f"/api/teams/{team_id}/logo",
         files={"file": ("logo.png", original, "image/png")}
