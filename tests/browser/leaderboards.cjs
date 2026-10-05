@@ -11,14 +11,24 @@ const assert=require('node:assert/strict');
     ]]));
     await page.route('https://leaders.test/**',async route=>{
         const url=new URL(route.request().url());
+        if(url.pathname==='/api/statistics/passing-visual') return route.fulfill({json:[
+            {player_id:1,team_id:1,display_name:'María Fernanda Nombre Largo Apellido Completo',team_name:'Diablos del Sol Aguascalientes',jersey_number:100,completed:316,attempts:417},
+            {player_id:2,team_id:2,display_name:'Ana López',team_name:'Lobos',jersey_number:7,completed:281,attempts:400}
+        ]});
         if(url.pathname.startsWith('/static/')) return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
         const content=fs.readFileSync('templates/statistics.html','utf8').split('{% block content %}')[1].split('{% endblock %}')[0];
-        await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script>const data=${JSON.stringify(leaders)};function getLeaderboards(){return Promise.resolve({ok:true,json:async()=>data});}function isUnifiedYouthCategory(){return false;}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/statistics.js"></script></body></html>`});
+        await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script>const data=${JSON.stringify(leaders)};function getLeaderboards(){return Promise.resolve({ok:true,json:async()=>data});}function isUnifiedYouthCategory(){return false;}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/passing_visual.js"></script><script src="/static/statistics.js"></script></body></html>`});
     });
     for(const width of [320,360,390,430,1280]){
         await page.setViewportSize({width,height:844});await page.goto('https://leaders.test/');
         await page.locator('.leaderboard-panel').last().waitFor();
         assert.equal(await page.locator('.leaderboard-panel').count(),6);
+        await page.locator('#passing-visual-player:not([disabled])').waitFor();
+        assert.equal(await page.locator('#passing-visual-field circle').count(),40);
+        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('316/417'));
+        assert.ok((await page.locator('#passing-visual-field').textContent()).includes('SIN UBICACIONES REALES'));
+        await page.locator('#passing-visual-player').selectOption('1');
+        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('281/400'));
         assert.ok(await page.locator('.leaderboard-player').nth(1).textContent().then(text=>text.includes('Ana López')));
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`page overflow at ${width}`);
         if(width<=430){

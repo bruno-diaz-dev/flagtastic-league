@@ -156,8 +156,7 @@ jobs:
             mobile-capture.png
             mobile-field-touchdown.png
             mobile-leaderboards.png
-            mobile-pass-chart.png
+            mobile-passing-statistics.png
           retention-days: 3
-
 
 

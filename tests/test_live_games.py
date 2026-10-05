@@ -253,23 +253,19 @@ def test_voided_play_contributes_no_score_or_player_statistics(kind):
     assert totals == []
 
 
-
-def test_located_play_retry_void_and_statistics():
+def test_passing_visual_uses_official_statistics_without_coordinates():
     client, game_id, teams, players, users = setup_match()
     path = f"/api/games/{game_id}/live"
     login(client, users["referee"])
     assert client.post(path + "/start").status_code == 200
-    location = {"start_x": 50, "start_y": 80, "end_x": 25, "end_y": 10}
-    payload = event(teams[0], players[0][0], "passing_touchdown", receiver_id=players[0][1], field_location=location)
-    first = client.post(path + "/events", json=payload)
-    assert first.status_code == 201
-    assert client.post(path + "/events", json=payload).json()["duplicate"] is True
-    assert client.post(path + "/events", json={**payload,"field_location":{**location,"end_x":30}}).status_code == 409
-    assert client.post(path + "/events", json={**payload,"field_location":{**location,"end_x":101}}).status_code == 422
-    assert client.post(path + "/events", json={**payload,"kind":"attendance","receiver_id":None}).status_code == 422
-    snapshot = client.get(path).json()
-    assert snapshot["events"][0]["field_location"] == location
-    assert snapshot["home_score"] == 6
-    assert client.post(path + f"/events/{first.json()['id']}/void", json={"reason":"Error de captura", "expected_version":snapshot["version"]}).status_code == 200
-    corrected = client.get(path).json()
-    assert corrected["events"] == [] and corrected["statistics"] == [] and corrected["home_score"] == 0
+    payload = event(teams[0], players[0][0], "passing_touchdown", receiver_id=players[0][1])
+    assert client.post(path + "/events", json=payload).status_code == 201
+    version = client.get(path).json()["version"]
+    assert client.post(path + "/finish", json={"expected_version":version}).status_code == 200
+    client.cookies.clear()
+    response = client.get("/api/statistics/passing-visual?branch=varonil&category=libre")
+    assert response.status_code == 200
+    row = next(r for r in response.json() if r["player_id"]==players[0][0])
+    assert row["completed"] == 1 and row["attempts"] == 1
+    assert "curp" not in row and "field_location" not in row
+    assert not any(r["player_id"]==players[0][0] for r in client.get("/api/statistics/passing-visual?branch=femenil&category=libre").json())

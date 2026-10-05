@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
         const u=new URL(route.request().url());
         if(u.pathname==='/') {
             const panel=fs.readFileSync('templates/live_game_panel.html','utf8');
-            await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"><link rel="stylesheet" href="/static/live_game.css"></head><body><main class="content"><section class="game-detail-page" data-game-id="5"><section id="game-score"></section>${panel}</section></main><script>function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/live_capture_queue.js"></script><script src="/static/live_pass_chart.js"></script><script src="/static/live_field.js"></script><script src="/static/live_game.js"></script></body></html>`});
+            await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"><link rel="stylesheet" href="/static/live_game.css"></head><body><main class="content"><section class="game-detail-page" data-game-id="5"><section id="game-score"></section>${panel}</section></main><script>function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/live_capture_queue.js"></script><script src="/static/live_field.js"></script><script src="/static/live_game.js"></script></body></html>`});
         } else if(u.pathname.startsWith('/static/')) {
             await route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+u.pathname,'utf8')});
         } else if(u.pathname==='/api/auth/me') {
@@ -87,33 +87,11 @@ const assert = require('node:assert/strict');
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.locator('#live-field-replay').click();
     assert.equal(await page.locator('animateMotion').count(),0);
-    // Optional placement suppresses automatic dorsal submission; both points persist in the outbox.
-    await page.locator('[data-live-kind="pass_complete"]').click();
-    await page.locator('#live-location-panel summary').click();
-    const before=plays.size;
-    // Reload intentionally clears the in-memory passer selection. Select it explicitly.
-    await page.locator('[data-live-player="10"][data-live-field="player_id"]').click();
-    await page.locator('[data-live-player="7"][data-live-field="receiver_id"]').click();
-    assert.equal(plays.size,before);
-    await page.locator('#live-location-editor').click({position:{x:150,y:190}});
-    await page.locator('#live-location-editor').click({position:{x:80,y:50}});
-    await page.locator('#live-save-play').click();
-    await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('Todo enviado'));
-    await page.waitForFunction(()=>document.querySelector('#live-map-count').textContent.startsWith('1 de')).catch(async error=>{console.log('LOCATION_DIAGNOSTIC',JSON.stringify({plays:[...plays.values()],errors,state:await page.evaluate(()=>({message:liveMessage.textContent,selection:liveCapturePayload(),location:LiveLocationCapture.read(liveForm.elements.kind.value),status:document.querySelector('#live-map-count').textContent}))}));throw error;});
-    const located=[...plays.values()].at(-1);
-    assert.ok(located.field_location && Number.isInteger(located.field_location.end_x));
-    assert.equal(plays.size,before+1);
-    assert.equal(await page.locator('[data-pass-id]').count(),1);
-    await page.locator('#live-chart-passer').selectOption('1:10');
-    assert.ok((await page.locator('#live-pass-summary').textContent()).includes('Completos / intentos'));
-    await page.locator('#live-field-panel').screenshot({path:'mobile-pass-chart.png'});
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
     role='player';await page.reload();await page.locator('#live-state[data-state="live"]').waitFor();
     assert.equal(await page.locator('#live-official-controls').isVisible(),false);
     assert.deepEqual(errors,[]);
     console.log('Mobile browser verified: one-tap pass, next play while offline, IndexedDB reload recovery, ordered upload, no duplicate plays, no optimistic public score, no overflow, private referee controls, no page errors.');
     await browser.close();
 })().catch(error=>{console.error(error);process.exit(1);});
-
 
 

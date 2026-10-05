@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/statistics.css?v=20261005-1">
+<link rel="stylesheet" href="/static/statistics.css?v=20261005-preview-stats-1">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -63,12 +63,23 @@
         </form>
     </section>
 
+    <section id="passing-visual-panel" class="passing-visual-panel" aria-labelledby="passing-visual-heading">
+        <p class="ui-kicker">Análisis del pasador</p><h3 id="passing-visual-heading">Pases en el campo</h3>
+        <p class="form-help">Explora los totales oficiales del jugador en la división seleccionada.</p>
+        <label>Pasador<select id="passing-visual-player" disabled><option>Consultando pasadores…</option></select></label>
+        <div id="passing-visual-summary" class="passing-visual-summary"></div>
+        <div id="passing-visual-field" class="passing-visual-field"></div>
+        <div class="passing-visual-legend"><span>● Completo</span><span>○ Incompleto</span></div>
+        <p class="form-help">Campo ilustrativo: los puntos representan la proporción de pases completos e incompletos. Su distribución y la curva son decorativas; no muestran lugares, recorridos ni distancias reales.</p>
+        <p id="passing-visual-status" class="form-help" role="status"></p>
+    </section>
     <section id="leaderboards" class="leaderboards" aria-live="polite"></section>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/statistics.js?v=20261005-1"></script>
+<script src="/static/passing_visual.js?v=20261005-preview-stats-1"></script>
+<script src="/static/statistics.js?v=20261005-preview-stats-1"></script>
 {% endblock %}
 

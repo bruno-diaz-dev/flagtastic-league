@@ -12,14 +12,6 @@ from repositories.live_games import LiveGameError, read_live_game, start_live_ga
 router = APIRouter(prefix="/api/games/{game_id}/live", tags=["live games"])
 
 
-class FieldLocation(BaseModel):
-    """Approximate normalized field coordinates, always attacking toward the top."""
-    start_x: int = Field(ge=0, le=100, strict=True)
-    start_y: int = Field(ge=0, le=100, strict=True)
-    end_x: int = Field(ge=0, le=100, strict=True)
-    end_y: int = Field(ge=0, le=100, strict=True)
-
-
 class LiveEvent(BaseModel):
     """An idempotent, timestamped entry in the digital statistics sheet."""
     client_id: UUID
@@ -30,13 +22,10 @@ class LiveEvent(BaseModel):
     period: int = Field(ge=1, le=10)
     minute: int = Field(ge=0, le=200)
     second: int = Field(ge=0, le=59)
-    field_location: FieldLocation | None = None
     note: Literal[""] = ""  # Compatibility with stored payloads; narration is automatic.
 
     @model_validator(mode="after")
     def validate_players(self):
-        if self.field_location is not None and self.kind not in ("pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "interception"):
-            raise ValueError("Esta jugada no utiliza ubicación en el campo")
         if self.kind in ("halftime", "two_minute_warning"):
             if any(value is not None for value in (self.team_id, self.player_id, self.receiver_id)):
                 raise ValueError("Las pausas corresponden al partido, sin equipo ni jugador")
@@ -98,4 +87,3 @@ def correct(game_id: int, event_id: int, correction: LiveVoid, user=Depends(requ
 @router.post("/finish")
 def finish(game_id: int, payload: LiveFinish, user=Depends(require_referee)):
     return perform(finish_live_game, game_id, payload.expected_version, user["id"])
-
