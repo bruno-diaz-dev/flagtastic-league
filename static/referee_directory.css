@@ -1,0 +1,44 @@
+/* Compact referee directory; scoped to preserve the shared league interface. */
+.referee-roster-page > .section-header { align-items: center; gap: 16px; }
+.referee-directory-badge { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--color-gold); border: 1px solid rgba(244,197,66,.3); border-radius: 999px; background: rgba(244,197,66,.06); }
+.referee-self-panel { border: 1px solid var(--color-border); border-radius: var(--ui-radius); background: var(--color-surface); overflow: hidden; }
+.referee-self-panel summary { display: flex; gap: 12px; align-items: center; list-style: none; cursor: pointer; padding: 14px 16px; min-height: 76px; }
+.referee-self-panel summary::-webkit-details-marker { display: none; }
+.referee-self-avatar { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; color: var(--color-gold); background: #193052; font-weight: 700; }
+.referee-self-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.referee-self-identity { display: grid; min-width: 0; gap: 2px; }
+.referee-self-identity small { color: var(--color-muted); font-size: 11px; }
+.referee-self-identity strong { font-size: 15px; overflow-wrap: anywhere; }
+.referee-edit-label { margin-left: auto; flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--color-gold); padding: 8px 10px; border-radius: 8px; background: rgba(244,197,66,.08); }
+.referee-edit-label::after { content: " +"; }
+details[open] .referee-edit-label::after { content: " −"; }
+.referee-editor-body { padding: 18px; border-top: 1px solid var(--color-border); }
+.referee-editor-body h3 { margin: 0 0 6px; }
+.referee-editor-body > p { margin: 0 0 16px; }
+.referee-editor-body .filter-form { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 16px; }
+.referee-editor-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }
+.referee-self-panel > .form-message:not(:empty) { margin: 0 16px 14px; }
+.referee-directory-tools { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.referee-directory-heading h3 { margin: 0 0 4px; font-size: 18px; }
+.referee-directory-heading p { margin: 0; color: var(--color-muted); font-size: 12px; }
+.referee-search-label { display: grid; gap: 6px; width: min(100%,320px); font-size: 12px; color: var(--color-muted); }
+.referee-roster-page .referee-roster-grid { grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 12px; }
+.referee-roster-page .referee-profile-link { border-radius: var(--ui-radius); }
+.content .referee-roster-page .referee-roster-card { padding: 16px; gap: 14px; height: 100%; box-shadow: none; transition: border-color .15s, background .15s; }
+.referee-roster-page .referee-roster-card img, .referee-roster-page .referee-photo-placeholder { width: 52px; height: 52px; flex: 0 0 52px; border: 1px solid rgba(244,197,66,.4); }
+.referee-roster-page .referee-photo-placeholder { background: linear-gradient(145deg,#234372,#101e36); font-size: 16px; }
+.referee-card-identity { min-width: 0; flex: 1; }
+.content .referee-roster-page .referee-roster-card h3 { font-size: 17px; margin: 0; overflow-wrap: anywhere; }
+.referee-roster-page .referee-roster-card p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.referee-roster-page .referee-profile-action { margin-top: 6px; font-size: 11px; font-weight: 500; }
+.referee-card-arrow { color: var(--color-gold); font-size: 22px; }
+.referee-roster-page .empty-state { grid-column: 1 / -1; }
+@media (max-width: 820px) {
+    .referee-directory-badge { display: none; }
+    .referee-directory-tools { display: grid; gap: 12px; }
+    .referee-search-label { width: 100%; }
+    .referee-roster-page .referee-roster-grid { grid-template-columns: minmax(0,1fr); gap: 10px; }
+    .referee-editor-body .filter-form { grid-template-columns: minmax(0,1fr); }
+    .referee-editor-body { padding: 16px; }
+}
+@media (max-width: 360px) { .referee-edit-label { padding: 8px 4px; font-size: 11px; } }
