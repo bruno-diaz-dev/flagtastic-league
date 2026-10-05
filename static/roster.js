@@ -38,7 +38,7 @@ function renderRoster(team) {
     rosterSubtitle.textContent = `${divisionBranchLabel(team.branch, team.category)} / ${team.category} · ${team.players.length} jugadores`;
     const teamLogo = document.querySelector("#roster-team-logo");
     if (team.logo_url) {
-        teamLogo.src = `${team.logo_url}?v=${Date.now()}`;
+        teamLogo.src = team.logo_url;
         teamLogo.alt = `Logo de ${team.name}`;
         teamLogo.classList.remove("hidden");
     } else {
