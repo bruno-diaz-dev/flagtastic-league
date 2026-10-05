@@ -91,6 +91,8 @@ const assert = require('node:assert/strict');
     await page.locator('[data-live-kind="pass_complete"]').click();
     await page.locator('#live-location-panel summary').click();
     const before=plays.size;
+    // Reload intentionally clears the in-memory passer selection. Select it explicitly.
+    await page.locator('[data-live-player="10"][data-live-field="player_id"]').click();
     await page.locator('[data-live-player="7"][data-live-field="receiver_id"]').click();
     assert.equal(plays.size,before);
     await page.locator('#live-location-editor').click({position:{x:150,y:190}});
