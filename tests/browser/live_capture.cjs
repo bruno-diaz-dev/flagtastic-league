@@ -97,7 +97,7 @@ const assert = require('node:assert/strict');
     await page.locator('#live-location-editor').click({position:{x:80,y:50}});
     await page.locator('#live-save-play').click();
     await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('Todo enviado'));
-    await page.waitForFunction(()=>document.querySelector('#live-map-count').textContent.startsWith('1 de'));
+    await page.waitForFunction(()=>document.querySelector('#live-map-count').textContent.startsWith('1 de')).catch(async error=>{console.log('LOCATION_DIAGNOSTIC',JSON.stringify({plays:[...plays.values()],errors,state:await page.evaluate(()=>({message:liveMessage.textContent,selection:liveCapturePayload(),location:LiveLocationCapture.read(liveForm.elements.kind.value),status:document.querySelector('#live-map-count').textContent}))}));throw error;});
     const located=[...plays.values()].at(-1);
     assert.ok(located.field_location && Number.isInteger(located.field_location.end_x));
     assert.equal(plays.size,before+1);
