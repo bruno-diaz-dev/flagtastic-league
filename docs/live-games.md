@@ -10,9 +10,9 @@ The public match detail page contains a live scoreboard, reverse-entry-order pla
 - Safety: two points to the selected team and player.
 - Sack, flag removed, interception: select the defending team/player. Flags map to the existing `tackles` statistic.
 - Attendance: records presence once per player in the digital sheet; retained in events and live totals.
-- Observation: public text, never private referee evaluations or signatures.
+- The public feed narrates every entry automatically from its event type, team, player and receiver. No description or commentary is required or accepted on new entries. Historical observations remain stored but their free text is not rendered.
 
-The supplied paper has separate referee evaluations/signatures; this release implements sporting capture, not electronic signatures or private evaluations. Public observations must contain only game commentary.
+The supplied paper has separate referee evaluations/signatures; this release implements sporting capture, not electronic signatures or private evaluations. No free-text public commentary is captured.
 
 ## Time and refresh
 
@@ -29,3 +29,8 @@ Legacy final-score/status actions cannot close or postpone active capture. Weekl
 ## Database
 
 Migration `a2c6f8109d43` follows `9a12e8d4c6f0`; `b3d7e9210a54` grants the existing restricted `flagtastic_app` backend role table/sequence access and role-scoped RLS policies. Both tables have RLS enabled and no browser policies; access goes through FastAPI authentication and existing server credentials. Test with the restricted backend role as well as the database owner. Never change an Alembic version marker merely because managed deployment markers differ.
+
+
+## Preview test rosters
+
+The optional script `scripts/seed_preview_live_players.sql` fills every preview team to at least seven active players. Select project `mqnrrlymoddxgnyadsvy`, begin a transaction, set the explicit preview marker shown in the script, run it and commit. It is not an Alembic migration and must never be applied to production. It preserves existing players and jersey numbers, uses visibly fictional names and provisional TEST identities with synthetic birth dates appropriate to the category, and adds nothing on an unchanged repeat run.

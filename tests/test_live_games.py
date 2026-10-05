@@ -1,4 +1,7 @@
 """Live capture permissions, projection, retries and atomic final publication."""
+import pytest
+from pydantic import ValidationError
+
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 
@@ -182,3 +185,15 @@ def test_restricted_backend_role_can_read_and_write_live_tables():
         # No test role, grants, policies, session or event escapes this check.
         connection.rollback()
         connection.close()
+
+def test_live_events_require_statistics_and_never_manual_commentary():
+    payload = event(1, 10, "passing_touchdown", receiver_id=11)
+    saved = LiveEvent(**payload).model_dump()
+    assert saved["note"] == ""
+    assert saved["player_id"] == 10 and saved["receiver_id"] == 11
+    with pytest.raises(ValidationError):
+        LiveEvent(**{**payload, "note": "Manual description"})
+    with pytest.raises(ValidationError):
+        LiveEvent(**{**payload, "kind": "note", "receiver_id": None})
+    with pytest.raises(ValidationError):
+        LiveEvent(**{**payload, "kind": "flag", "player_id": None, "receiver_id": None})
