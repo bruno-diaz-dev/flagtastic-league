@@ -77,7 +77,7 @@
 
 
 /* SVG coverage shares the event feed; no tracking or additional capture requests. */
-.live-field-panel { --field-accent: #f4c542; padding: 14px; border: 1px solid rgba(244,197,66,.22); border-radius: 14px; background: linear-gradient(145deg,#10263a,#091929); min-width: 0; }
+.live-field-panel { position: relative; z-index: 3; --field-accent: #f4c542; padding: 14px; border: 1px solid rgba(244,197,66,.22); border-radius: 14px; background: linear-gradient(145deg,#10263a,#091929); min-width: 0; }
 .live-field-panel[data-team="away"] { --field-accent: #7dc8ff; }
 .live-field-panel h4 { margin: 0; font-size: 16px; }
 .content #live-field-replay { font-size: 12px; min-height: 44px; padding: 8px 12px; }

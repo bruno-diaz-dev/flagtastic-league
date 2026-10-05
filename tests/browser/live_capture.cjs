@@ -60,7 +60,14 @@ const assert = require('node:assert/strict');
     await page.evaluate(()=>refreshLive(true));
     await page.waitForFunction(()=>document.querySelector('#live-field-stage').textContent.includes('TOUCHDOWN'));
     assert.ok(await page.locator('.live-field-route').getAttribute('d').then(d=>d.includes(' L ')));
+    await page.waitForFunction(()=>document.querySelector('#live-field-stage svg').getCurrentTime()>1.5);
     await page.locator('#live-field-panel').screenshot({path:'mobile-field-touchdown.png'});
+    // The sticky score must not cover the field, even after timeline replay scrolls it.
+    assert.equal(await page.evaluate(()=>{
+        const field=document.querySelector('#live-field-stage').getBoundingClientRect();
+        const top=document.elementFromPoint(field.left+field.width/2,field.top+field.height/2);
+        return Boolean(top?.closest('#live-field-panel'));
+    }),true);
     plays.set('visual-td',{...plays.get('visual-td'),voided_at:'2026-10-05'});correctionVersion++;
     await page.evaluate(()=>refreshLive(true));
     await page.waitForFunction(()=>!document.querySelector('#live-field-stage').textContent.includes('TOUCHDOWN'));
