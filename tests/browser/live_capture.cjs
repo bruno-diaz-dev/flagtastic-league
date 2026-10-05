@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
         const u=new URL(route.request().url());
         if(u.pathname==='/') {
             const panel=fs.readFileSync('templates/live_game_panel.html','utf8');
-            await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"><link rel="stylesheet" href="/static/live_game.css"></head><body><main class="content"><section class="game-detail-page" data-game-id="5"><section id="game-score"></section>${panel}</section></main><script>function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/live_capture_queue.js"></script><script src="/static/live_game.js"></script></body></html>`});
+            await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"><link rel="stylesheet" href="/static/live_game.css"></head><body><main class="content"><section class="game-detail-page" data-game-id="5"><section id="game-score"></section>${panel}</section></main><script>function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/live_capture_queue.js"></script><script src="/static/live_game.js"></script></body></html>`});
         } else if(u.pathname.startsWith('/static/')) {
             await route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+u.pathname,'utf8')});
         } else if(u.pathname==='/api/auth/me') {
@@ -37,6 +37,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#live-home-score').textContent(),'0');
     assert.equal(await page.locator('#live-finish').isDisabled(),true);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
+    await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:'mobile-capture.png',fullPage:true});
     await page.reload();
     await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('2 jugadas'));
@@ -52,7 +53,6 @@ const assert = require('node:assert/strict');
     role='player';await page.reload();await page.locator('#live-state[data-state="live"]').waitFor();
     assert.equal(await page.locator('#live-official-controls').isVisible(),false);
     assert.deepEqual(errors,[]);
-    console.log('VISUAL_SAMPLE:' + fs.readFileSync('mobile-capture.png').toString('base64'));
     console.log('Mobile browser verified: one-tap pass, next play while offline, IndexedDB reload recovery, ordered upload, no duplicate plays, no optimistic public score, no overflow, private referee controls, no page errors.');
     await browser.close();
 })().catch(error=>{console.error(error);process.exit(1);});
