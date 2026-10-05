@@ -88,7 +88,7 @@ function renderLiveOutbox(rows) {
 }
 
 function liveQueueError(error) {
-    liveMessage.textContent = `No se pudo guardar la captura local: ${error.message}. Conserva esta pantalla abierta y reintenta.`;
+    liveMessage.textContent = "No se pudo completar el guardado local. Conserva esta pantalla abierta; revisa las capturas pendientes antes de reintentar.";
 }
 
 async function initializeLiveQueue() {

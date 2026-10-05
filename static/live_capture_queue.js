@@ -77,7 +77,8 @@ class LiveCaptureQueue {
                     this.failures = 0; confirmed = true;
                 } catch (error) {
                     const blocked = error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status);
-                    await this.store.put({...play, status: blocked ? "blocked" : "retry", error: error.message, httpStatus: error.status || null});
+                    const message = error.status ? error.message : "No se confirmó el envío. La captura sigue guardada y se reintentará.";
+                    await this.store.put({...play, status: blocked ? "blocked" : "retry", error: message, httpStatus: error.status || null});
                     if (!blocked) {
                         this.failures += 1;
                         this.timer = this.schedule(() => { this.flush().catch(this.onError); }, Math.min(60000, 3000 * 2 ** Math.min(this.failures, 4)));

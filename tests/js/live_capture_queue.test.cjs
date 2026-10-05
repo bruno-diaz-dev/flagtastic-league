@@ -40,6 +40,7 @@ test('ambiguous network failure survives reload and reuses the original UUID wit
     const first=queue(store,send);
     await first.enqueue(payload('same-uuid'),labels);await first.flush();
     assert.equal(store.entries.size,1);assert.equal(first.rows[0].status,'retry');
+    assert.match(first.rows[0].error,/captura sigue guardada/);
     const restored=queue(store,send);await restored.reload();await restored.flush();
     assert.equal(accepted.size,1);assert.equal(store.entries.size,0);
 });
