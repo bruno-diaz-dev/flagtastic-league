@@ -16,7 +16,8 @@ test("roster preserves the versioned thumbnail URL across repeated renders", () 
         }},
         divisionBranchLabel: branch => branch
     });
-    vm.runInContext(fs.readFileSync("static/roster.js", "utf8"), context);
+    const source = fs.readFileSync("static/roster.js", "utf8");
+    vm.runInContext(source.slice(0, source.indexOf("async function loadRoster")), context);
     const team = {
         name: "Cobras Reales", branch: "mixto", category: "libre", players: [],
         logo_url: "/api/teams/105/logo?v=content-hash&size=256"
