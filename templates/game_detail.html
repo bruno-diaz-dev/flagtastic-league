@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/live_game.css?v=20261004-1">
 <section class="game-detail-page league-page" data-game-id="{{ game_id }}">
     <header class="section-header">
         <div>
@@ -11,6 +12,7 @@
         </div>
     </header>
     <section id="game-score" class="form-panel" aria-live="polite"></section>
+    {% include "live_game_panel.html" %}
     <section id="my-game-statistics" class="hidden" aria-labelledby="my-game-stats-title">
         <h3 id="my-game-stats-title">Mis estadísticas</h3>
         <div id="my-game-stats-grid" class="stat-grid"></div>
@@ -51,4 +53,5 @@
 {% block scripts %}
 <script src="/static/api.js?v=20260925-6"></script>
 <script src="/static/game_detail.js?v=20260930-1"></script>
+<script src="/static/live_game.js?v=20261004-1"></script>
 {% endblock %}

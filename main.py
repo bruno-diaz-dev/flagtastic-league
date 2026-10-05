@@ -16,6 +16,7 @@ from routes.statistics import router as statistics_router
 from routes.dashboard import router as dashboard_router
 from routes.admin import router as admin_router
 from routes.referees import router as referees_router
+from routes.live_games import router as live_games_router
 
 logger = configure_observability()
 
@@ -41,6 +42,7 @@ app.include_router(statistics_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(referees_router)
+app.include_router(live_games_router)
 
 
 @app.get("/media/profiles/{filename}")

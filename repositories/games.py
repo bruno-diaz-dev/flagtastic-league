@@ -93,9 +93,11 @@ def import_game_schedule(games):
                         SELECT 1 FROM player_week_stats WHERE game_id = %s
                         UNION ALL
                         SELECT 1 FROM game_referees WHERE game_id = %s
+                        UNION ALL
+                        SELECT 1 FROM game_live_sessions WHERE game_id = %s
                     ) AS present
                     """,
-                    (existing["id"], existing["id"]),
+                    (existing["id"], existing["id"], existing["id"]),
                 ).fetchone()["present"]
                 if existing["home_score"] is not None or existing["away_score"] is not None or related:
                     raise ScheduleConflictError(
@@ -221,6 +223,14 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
     connection = get_connection()
 
     try:
+        connection.execute("SELECT id FROM games WHERE id = %s FOR UPDATE", (game_id,))
+        if connection.execute(
+            "SELECT 1 FROM game_live_sessions WHERE game_id = %s AND state = 'live'",
+            (game_id,),
+        ).fetchone():
+            raise GameStateConflictError(
+                "El partido está en vivo. Usa la captura en vivo para finalizarlo."
+            )
         updated_game = connection.execute(
             """
             UPDATE games
@@ -286,6 +296,14 @@ def update_game_status(game_id, status):
     """Postpone or restore an unscored game and return its new state."""
     connection = get_connection()
     try:
+        connection.execute("SELECT id FROM games WHERE id = %s FOR UPDATE", (game_id,))
+        if connection.execute(
+            "SELECT 1 FROM game_live_sessions WHERE game_id = %s AND state = 'live'",
+            (game_id,),
+        ).fetchone():
+            raise GameStateConflictError(
+                "El partido está en vivo. Usa la captura en vivo para finalizarlo."
+            )
         game = connection.execute(
             """
             SELECT id, home_score, away_score
@@ -353,6 +371,9 @@ def update_games_status_by_week(week, status):
     """Change every unplayed game in a jornada without altering final results."""
     connection = get_connection()
     try:
+        # A concurrent live start must become visible before deciding which
+        # games may be postponed; serialize the bulk operation with capture.
+        connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
         existing = connection.execute(
             "SELECT COUNT(*) AS total FROM games WHERE week = %s",
             (week,),
@@ -367,6 +388,10 @@ def update_games_status_by_week(week, status):
             WHERE week = %s
               AND home_score IS NULL
               AND away_score IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM game_live_sessions live
+                  WHERE live.game_id = games.id AND live.state = 'live'
+              )
             RETURNING id
             """,
             (status, week),
