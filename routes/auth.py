@@ -1,5 +1,9 @@
 """HTTP endpoints for creating and revoking authenticated sessions."""
 
+from datetime import date
+
+from pydantic import ValidationError
+
 from fastapi import (
     APIRouter, BackgroundTasks, Cookie, Depends, File, Form, HTTPException,
     Response, UploadFile,
@@ -51,17 +55,20 @@ async def register_player_account(
     curp: str = Form(...),
     age: int | None = Form(default=None),
     aka: str | None = Form(default=None),
+    identity_type: str = Form(default="curp"),
+    birth_date: date | None = Form(default=None),
     photo: UploadFile = File(...)
 ):
     """Create a player login without exposing credentials or CURP."""
-    registration = PlayerAccountCreate(
-        email=email,
-        password=password,
-        name=name,
-        curp=curp,
-        age=age,
-        aka=aka
-    )
+    try:
+        registration = PlayerAccountCreate(
+            email=email, password=password, name=name, curp=curp,
+            age=age, aka=aka, identity_type=identity_type,
+            birth_date=birth_date,
+        )
+    except ValidationError as error:
+        # Multipart model validation must return a useful client error, not 500.
+        raise HTTPException(status_code=422, detail=error.errors()[0]["msg"]) from error
     profile_photo = await save_profile_photo(photo)
     try:
         return create_player_account(registration, profile_photo)

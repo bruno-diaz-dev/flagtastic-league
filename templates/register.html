@@ -10,7 +10,10 @@
     <form id="register-form" class="form-panel auth-form" enctype="multipart/form-data">
         <label>Nombre completo<input name="name" required autocomplete="name"></label>
         <label>AKA <span class="optional-label">Opcional</span><input name="aka" maxlength="80" autocomplete="nickname"></label>
-        <label>CURP<input name="curp" required minlength="18" maxlength="18"></label>
+        <label>Tipo de identificación<select name="identity_type"><option value="curp">CURP (18 caracteres)</option><option value="provisional">Documento provisional o escolar</option></select></label>
+        <label><span data-identity-label>CURP</span><input name="curp" required minlength="18" maxlength="18" aria-describedby="registration-identity-help"></label>
+        <p id="registration-identity-help" class="form-help">Si el documento tiene menos de 18 caracteres, elige identificación provisional y registra la fecha de nacimiento. Conserva el identificador tal como aparece en el documento.</p>
+        <label class="hidden" data-birth-date-field>Fecha de nacimiento<input name="birth_date" type="date" disabled></label>
         <label>Edad cumplida<input name="age" type="number" readonly tabindex="-1"></label>
         <label>Correo<input name="email" type="email" required autocomplete="email"></label>
         <label>Contraseña<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
@@ -32,5 +35,6 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260928-3"></script>
-<script src="/static/register.js?v=20261001-1"></script>
+<script src="/static/player_identity.js?v=20261004-1"></script>
+<script src="/static/register.js?v=20261004-1"></script>
 {% endblock %}

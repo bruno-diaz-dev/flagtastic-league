@@ -5,6 +5,10 @@ from database import get_connection
 class PlayerAlreadyRegisteredInDivision(Exception):
     """Raised when a person already belongs to the requested division."""
 
+
+class PlayerIdentityMismatch(Exception):
+    """Raised when a provisional document is already linked to another person."""
+
 def create_player(team, player):
     """Create/reuse one player and idempotently attach them to a roster."""
     connection = get_connection()
@@ -14,14 +18,21 @@ def create_player(team, player):
 
         existing_player = connection.execute(
             """
-            INSERT INTO players (name, curp, age)
-            VALUES (%s, %s, %s)
+            INSERT INTO players (name, curp, age, identity_type, birth_date)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (curp) DO UPDATE
             SET curp = EXCLUDED.curp
-            RETURNING id, name, age
+            RETURNING id, name, age, identity_type, birth_date
             """,
-            (player.name, player.curp, player.age)
+            (player.name, player.curp, player.age, player.identity_type, player.birth_date)
         ).fetchone()
+
+        if player.identity_type == "provisional" and (
+            existing_player["identity_type"] != "provisional"
+            or existing_player["birth_date"] != player.birth_date
+            or existing_player["name"].strip().casefold() != player.name.strip().casefold()
+        ):
+            raise PlayerIdentityMismatch()
 
         player_id = existing_player["id"]
 
@@ -87,13 +98,13 @@ def import_players(team, players):
         for player in players:
             existing_player = connection.execute(
                 """
-                INSERT INTO players (name, curp, age)
-                VALUES (%s, %s, %s)
+                INSERT INTO players (name, curp, age, identity_type, birth_date)
+                VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (curp) DO UPDATE
                 SET curp = EXCLUDED.curp
                 RETURNING id, name, age
                 """,
-                (player.name, player.curp, player.age)
+                (player.name, player.curp, player.age, player.identity_type, player.birth_date)
             ).fetchone()
 
             player_id = existing_player["id"]
@@ -347,6 +358,7 @@ def get_managed_roster_player(team_id, player_id):
     row = connection.execute(
         """
         SELECT players.id, players.name, players.curp, players.age,
+               players.identity_type, players.birth_date,
                team_players.jersey_number
         FROM team_players
         JOIN players ON players.id = team_players.player_id
@@ -413,11 +425,11 @@ def update_roster_player(team_id, player_id, player):
         updated = connection.execute(
             """
             UPDATE players
-            SET name = %s, curp = %s, age = %s
+            SET name = %s, curp = %s, age = %s, identity_type = %s, birth_date = %s
             WHERE id = %s
             RETURNING id, name, age
             """,
-            (player.name, player.curp, player.age, player_id)
+            (player.name, player.curp, player.age, player.identity_type, player.birth_date, player_id)
         ).fetchone()
         connection.execute(
             """

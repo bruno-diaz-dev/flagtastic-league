@@ -71,9 +71,7 @@ async function optimizeProfilePhoto(file) {
     });
 }
 
-registerForm.elements.curp.addEventListener("input", (event) => {
-    registerForm.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
-});
+bindPlayerIdentityFields(registerForm);
 
 registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
