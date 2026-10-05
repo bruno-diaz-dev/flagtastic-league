@@ -150,5 +150,8 @@ jobs:
         if: always()
         with:
           name: live-capture-mobile
-          path: mobile-capture.png
+          path: |
+            mobile-capture.png
+            mobile-field-touchdown.png
           retention-days: 3
+

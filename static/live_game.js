@@ -9,6 +9,7 @@ const liveLabels = {
     touchdown: "Touchdown · +6", extra_one: "Extra · +1", extra_two: "Extra · +2", safety: "Safety · +2",
     sack: "Sack", flag: "Flag retirado", interception: "Intercepción", attendance: "Asistencia", halftime: "Medio tiempo", two_minute_warning: "Pausa de los 2 minutos",
 };
+const liveFieldView = typeof LiveFieldView !== "undefined" ? new LiveFieldView(document.querySelector("#live-field-panel")) : null;
 let liveData = null;
 let liveUser = null;
 let liveBusy = false;
@@ -197,6 +198,7 @@ function renderLive(data) {
     const rosterChanged = !liveData || JSON.stringify(liveData.roster) !== JSON.stringify(data.roster);
     const changed = !liveData || data.version !== liveData.version || data.state !== liveData.state;
     liveData = data;
+    liveFieldView?.update(data);
     document.querySelector("#live-home-name").textContent = data.home_team.name;
     document.querySelector("#live-away-name").textContent = data.away_team.name;
     document.querySelector("#live-home-score").textContent = data.home_score ?? "—";
@@ -225,6 +227,7 @@ function renderLive(data) {
             const canCorrect = ((data.state === "live" && official) || (data.state === "completed" && liveHasRole("league_admin")));
             return `<article class="live-event"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
                 <div><h4>${liveLabels[event.kind] || "Registro histórico"}</h4><p>${escapeHtml(liveNarrative(event, team.name))}</p>
+                ${liveFieldView && event.kind !== "note" ? `<button type="button" class="secondary-button" data-live-field-event="${event.id}">Ver en el campo</button>` : ""}
                 ${canCorrect ? `<button type="button" class="secondary-button" data-void-event="${event.id}">Anular jugada</button>` : ""}</div></article>`;
         }).join("") : '<div class="empty-state"><h4>Sin jugadas confirmadas</h4><p>Las nuevas capturas aparecerán al confirmar el envío.</p></div>';
     }
@@ -392,6 +395,8 @@ document.querySelector("#live-finish").addEventListener("click", async () => {
     });
 });
 document.querySelector("#live-timeline").addEventListener("click", event => {
+    const replay = event.target.closest("[data-live-field-event]");
+    if (replay) { liveFieldView?.show(Number(replay.dataset.liveFieldEvent)); document.querySelector("#live-field-panel").scrollIntoView({block:"nearest",behavior:"auto"}); return; }
     const button = event.target.closest("[data-void-event]");
     if (!button) return;
     const reason = window.prompt("Motivo de la anulación (mínimo 3 caracteres). La corrección quedará en el registro interno.");
@@ -410,4 +415,5 @@ window.addEventListener("beforeunload", event => { if (liveCaptureSaving || live
     await initializeLiveQueue();
     await refreshLive();
 })();
+
 

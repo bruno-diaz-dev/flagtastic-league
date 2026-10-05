@@ -6,6 +6,12 @@
         <div><span id="live-away-name">Visitante</span><strong id="live-away-score">—</strong></div>
     </div>
     <p id="live-update-status" class="form-help" role="status">Consultando cobertura del partido…</p>
+    <section id="live-field-panel" class="live-field-panel" aria-labelledby="live-field-heading">
+        <div class="live-section-heading"><div><p class="ui-kicker">En la cancha</p><h4 id="live-field-heading">Cobertura visual</h4></div><button id="live-field-replay" class="secondary-button" type="button" disabled>Repetir</button></div>
+        <div id="live-field-stage" class="live-field-stage"></div>
+        <div class="live-field-description" aria-live="polite"><strong id="live-field-title">La cancha, jugada a jugada</strong><p id="live-field-caption">Esperando capturas confirmadas…</p></div>
+        <p class="live-field-disclaimer">Recorridos ilustrativos: no representan posiciones, distancias ni dirección reales. Puedes volver a ver una jugada desde la cronología.</p>
+    </section>
     <div id="live-official-controls" class="hidden">
         <button id="live-start" type="button" data-primary-action>Iniciar captura en vivo</button>
         <p id="live-queue-status" class="live-queue-status" role="status">Preparando guardado local…</p>
@@ -52,3 +58,4 @@
         <details class="live-stats-panel"><summary>Estadísticas de la cédula</summary><p class="form-help">PTS: anotados · REC: recepciones · INT: intercepciones · SAC: sacks · FLG: flags · PC/PI: pases completos/intentos · PP: puntos por pase.</p><div id="live-statistics" class="table-scroll"></div></details>
     </div>
 </section>
+
