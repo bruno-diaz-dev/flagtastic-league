@@ -38,6 +38,7 @@ const assert=require('node:assert/strict');
         assert.equal(await page.locator('.stat-value strong').first().textContent(),'75.78%');
         assert.equal(await page.locator('.leaderboard-pass-detail').first().textContent(),'316/417 C/I');
         assert.equal(await page.locator('.leaderboard-panel').nth(2).locator('.stat-value strong').first().textContent(),'1234');
+        if(width===390)await page.locator('#passing-visual-panel').screenshot({path:'mobile-passing-statistics.png'});
         if(width===390)await page.locator('.leaderboard-panel').first().screenshot({path:'mobile-leaderboards.png'});
     }
     assert.deepEqual(errors,[]);await browser.close();console.log('Leaderboards verified at 320, 360, 390, 430 and 1280 pixels; names and totals fit without horizontal scrolling.');
