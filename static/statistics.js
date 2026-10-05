@@ -66,8 +66,8 @@ function renderLeaderboards(leaderboards) {
                         <td>${leaderboardIdentity(leader)}</td>
                         <td class="stat-value">${
                             metric === "completion_percentage"
-                                ? `${leader.value}% (${leader.passes_completed}/${leader.passes_attempted})`
-                                : leader.value
+                                ? `<strong>${leader.value}%</strong><small class="leaderboard-pass-detail">${leader.passes_completed}/${leader.passes_attempted} C/I</small>`
+                                : `<strong>${leader.value}</strong>`
                         }</td>
                     </tr>
                 `).join("")
@@ -78,6 +78,7 @@ function renderLeaderboards(leaderboards) {
                     <h3>${definition.title}</h3>
                     <p class="leaderboard-statistic">${definition.statistic}</p>
                     <table class="leaderboard-table">
+                        <colgroup><col class="leaderboard-rank-column"><col><col class="leaderboard-total-column"></colgroup>
                         <thead><tr><th>Pos.</th><th>Jugador</th><th>${metric === "completion_percentage" ? "% (C/I)" : "Total"}</th></tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
@@ -135,3 +136,4 @@ if (statisticsImportForm) {
 }
 updateLeaderboardBranchControl();
 loadLeaderboards();
+
