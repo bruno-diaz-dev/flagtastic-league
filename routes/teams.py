@@ -1,6 +1,6 @@
 """HTTP endpoints for team registration and roster-aware team details."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from psycopg.errors import UniqueViolation
 
 from models import TeamCreate, TeamNameUpdate, TeamStaffUpdate, TeamStatusUpdate
@@ -28,6 +28,7 @@ from dependencies.auth import (
     user_has_role
 )
 from services.profile_photos import save_team_logo
+from services.logo_thumbnails import thumbnail_logo
 
 router = APIRouter(
     prefix="/api/teams",
@@ -177,14 +178,17 @@ def unlink_team_representative(
 
 
 @router.get("/{team_id}/logo")
-def read_team_logo(team_id: int):
+def read_team_logo(team_id: int, size: int | None = Query(default=None, ge=32, le=256)):
     """Serve a persisted team logo with its validated media type."""
     logo = get_team_logo(team_id)
     if logo is None:
         raise HTTPException(status_code=404, detail="Logo not found")
+    content, media_type = logo["logo_data"], logo["logo_type"]
+    if size is not None:
+        content, media_type = thumbnail_logo(content, media_type, size)
     return Response(
-        content=logo["logo_data"],
-        media_type=logo["logo_type"],
+        content=content,
+        media_type=media_type,
         headers={
             # `logo_url` includes a content hash, so each URL is immutable.
             "Cache-Control": "public, max-age=31536000, immutable",

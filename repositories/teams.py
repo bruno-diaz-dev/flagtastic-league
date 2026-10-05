@@ -78,8 +78,8 @@ def get_all_teams():
         """
         SELECT id, name, branch, category, status,
                head_coach, coach, manager,
-               logo_data IS NOT NULL AS has_logo,
-               md5(logo_data) AS logo_version
+               logo_version IS NOT NULL AS has_logo,
+               logo_version
         FROM teams
         ORDER BY
             CASE branch
@@ -116,8 +116,8 @@ def get_youth_duplicate_candidates():
         """
         SELECT id, name, branch, category, status,
                head_coach, coach, manager,
-               logo_data IS NOT NULL AS has_logo,
-               md5(logo_data) AS logo_version
+               logo_version IS NOT NULL AS has_logo,
+               logo_version
         FROM teams
         WHERE category IN ('u8', 'u10', 'u12')
         ORDER BY category, LOWER(name), branch, id
@@ -151,8 +151,8 @@ def get_team_by_id(team_id):
         """
         SELECT id, name, branch, category, status,
                head_coach, coach, manager,
-               logo_data IS NOT NULL AS has_logo,
-               md5(logo_data) AS logo_version
+               logo_version IS NOT NULL AS has_logo,
+               logo_version
         FROM teams
         WHERE id = %s
         """,
@@ -174,8 +174,8 @@ def get_team_roster_detail(team_id, user_id=None, is_admin=False):
         """
         SELECT id, name, branch, category, status,
                head_coach, coach, manager,
-               logo_data IS NOT NULL AS has_logo,
-               md5(logo_data) AS logo_version
+               logo_version IS NOT NULL AS has_logo,
+               logo_version
         FROM teams
         WHERE id = %s
         """,
@@ -223,7 +223,7 @@ def _public_team(row):
     has_logo = team.pop("has_logo", False)
     logo_version = team.pop("logo_version", None)
     team["logo_url"] = (
-        f"/api/teams/{team['id']}/logo?v={logo_version}"
+        f"/api/teams/{team['id']}/logo?v={logo_version}&size=256"
         if has_logo else None
     )
     return team
@@ -260,8 +260,8 @@ def update_team_staff(team_id, staff):
             WHERE id = %s
             RETURNING id, name, branch, category, status,
                       head_coach, coach, manager,
-                      logo_data IS NOT NULL AS has_logo,
-                      md5(logo_data) AS logo_version
+                      logo_version IS NOT NULL AS has_logo,
+                      logo_version
             """,
             (staff.head_coach, staff.coach, staff.manager, team_id)
         ).fetchone()
@@ -284,8 +284,8 @@ def update_team_status(team_id, status):
             WHERE id = %s
             RETURNING id, name, branch, category, status,
                       head_coach, coach, manager,
-                      logo_data IS NOT NULL AS has_logo,
-                      md5(logo_data) AS logo_version
+                      logo_version IS NOT NULL AS has_logo,
+                      logo_version
             """,
             (status, team_id)
         ).fetchone()
@@ -308,8 +308,8 @@ def update_team_name(team_id, name):
             WHERE id = %s
             RETURNING id, name, branch, category, status,
                       head_coach, coach, manager,
-                      logo_data IS NOT NULL AS has_logo,
-                      md5(logo_data) AS logo_version
+                      logo_version IS NOT NULL AS has_logo,
+                      logo_version
             """,
             (name, team_id)
         ).fetchone()

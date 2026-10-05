@@ -33,6 +33,12 @@ app.mount(
 
 templates = Jinja2Templates(directory="templates")
 
+# These four pages are identical public HTML shells; identity is fetched privately.
+PUBLIC_PAGE_HEADERS = {
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "Vercel-CDN-Cache-Control": "public, max-age=300",
+}
+
 app.include_router(teams_router)
 app.include_router(players_router)
 app.include_router(games_router)
@@ -118,7 +124,8 @@ def teams_page(request: Request):
     """Render the searchable team directory."""
     return templates.TemplateResponse(
         request,
-        "teams.html"
+        "teams.html",
+        headers=PUBLIC_PAGE_HEADERS
     )
 
 @app.get("/games")
@@ -126,7 +133,8 @@ def games_page(request: Request):
     """Render the game and score operations page."""
     return templates.TemplateResponse(
         request,
-        "games.html"
+        "games.html",
+        headers=PUBLIC_PAGE_HEADERS
     )
 
 
@@ -144,7 +152,8 @@ def standings_page(request: Request):
     """Render the standings query page."""
     return templates.TemplateResponse(
         request,
-        "standings.html"
+        "standings.html",
+        headers=PUBLIC_PAGE_HEADERS
     )
 
 
@@ -171,7 +180,7 @@ def team_management_page(request: Request, team_id: int):
 @app.get("/statistics")
 def statistics_page(request: Request):
     """Render the public individual-statistics leaderboards."""
-    return templates.TemplateResponse(request, "statistics.html")
+    return templates.TemplateResponse(request, "statistics.html", headers=PUBLIC_PAGE_HEADERS)
 
 
 @app.get("/login")

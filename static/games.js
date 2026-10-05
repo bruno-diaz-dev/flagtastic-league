@@ -715,9 +715,7 @@ function mapTimeCropWords(tsv, scale) {
 
 
 async function analyzeScheduleImageInBrowser(file, weekOverride) {
-    if (!window.Tesseract) {
-        throw new Error("El lector OCR del navegador no está disponible.");
-    }
+    await loadScheduleOcr();
 
     const dimensions = await getImageDimensions(file);
     let worker = null;
