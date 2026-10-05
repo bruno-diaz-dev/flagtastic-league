@@ -6,7 +6,8 @@
       "main": true,
       "preview": true,
       "chore/vercel-storage-optimization": true,
-      "fix/vercel-fast-origin-transfer": true
+      "fix/vercel-fast-origin-transfer": true,
+      "preview-pass-chart": true
     }
   },
   "functions": {
