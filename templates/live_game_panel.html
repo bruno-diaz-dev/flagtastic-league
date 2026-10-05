@@ -18,7 +18,7 @@
                         <option value="passing_touchdown">Pase de touchdown · 6 pts</option><option value="touchdown">Touchdown por carrera / retorno · 6 pts</option>
                         <option value="extra_one">Extra de 1 punto</option><option value="extra_two">Extra de 2 puntos</option><option value="safety">Safety · 2 pts</option>
                         <option value="sack">Sack</option><option value="flag">Flag retirado</option><option value="interception">Intercepción</option>
-                        <option value="attendance">Asistencia de jugador</option><option value="note">Observación pública</option>
+                        <option value="attendance">Asistencia de jugador</option>
                     </select></label>
                     <label><span id="live-player-label">Pasador</span><select name="player_id" required></select></label>
                     <label id="live-receiver-field">Receptor<select name="receiver_id" required></select></label>
@@ -27,8 +27,7 @@
                         <label>Minutos<input name="minute" type="number" value="0" min="0" max="200" required inputmode="numeric"></label>
                         <label>Segundos<input name="second" type="number" value="0" min="0" max="59" required inputmode="numeric"></label>
                     </fieldset>
-                    <label class="live-event-note">Descripción <small>Opcional. Será visible para el público.</small><input name="note" type="text" maxlength="240" placeholder="Detalle de la jugada"></label>
-                    <p class="form-help live-event-help">Pase de touchdown registra intento, pase completo, recepción y 6 puntos en una sola jugada. En defensa, selecciona al equipo defensor.</p>
+                    <p class="form-help live-event-help">El minuto a minuto se genera automáticamente con las estadísticas; no necesitas escribir comentarios. Pase de touchdown registra intento, pase completo, recepción y 6 puntos en una sola jugada. En defensa, selecciona al equipo defensor.</p>
                     <button type="submit">Registrar jugada</button>
                 </form>
             </div>

@@ -7,7 +7,7 @@ const liveStatus = document.querySelector("#live-update-status");
 const liveLabels = {
     pass_complete: "Pase completo", pass_incomplete: "Pase incompleto", passing_touchdown: "Pase de touchdown · +6",
     touchdown: "Touchdown · +6", extra_one: "Extra · +1", extra_two: "Extra · +2", safety: "Safety · +2",
-    sack: "Sack", flag: "Flag retirado", interception: "Intercepción", attendance: "Asistencia", note: "Observación",
+    sack: "Sack", flag: "Flag retirado", interception: "Intercepción", attendance: "Asistencia",
 };
 let liveData = null;
 let liveUser = null;
@@ -39,9 +39,27 @@ function liveKindControls() {
     document.querySelector("#live-receiver-field").classList.toggle("hidden", !hasReceiver);
     liveForm.elements.receiver_id.disabled = !hasReceiver;
     liveForm.elements.receiver_id.required = hasReceiver;
-    liveForm.elements.player_id.required = kind !== "note";
-    liveForm.elements.note.required = kind === "note";
+    liveForm.elements.player_id.required = true;
     document.querySelector("#live-player-label").textContent = kind.startsWith("pass") ? "Pasador" : "Jugador";
+}
+
+function liveNarrative(event, teamName) {
+    const player = event.player_label || "Jugador";
+    const receiver = event.receiver_label || "Receptor";
+    const descriptions = {
+        pass_complete: `${player} completa un pase con ${receiver}.`,
+        pass_incomplete: `Pase incompleto de ${player}.`,
+        passing_touchdown: `${player} conecta con ${receiver} para touchdown. +6 puntos.`,
+        touchdown: `${player} anota un touchdown por carrera o retorno. +6 puntos.`,
+        extra_one: `${player} consigue la conversión de 1 punto.`,
+        extra_two: `${player} consigue la conversión de 2 puntos.`,
+        safety: `${player} registra un safety. +2 puntos.`,
+        sack: `${player} consigue un sack.`,
+        flag: `${player} retira un flag.`,
+        interception: `${player} intercepta el pase.`,
+        attendance: `${player} queda registrado en la asistencia.`,
+    };
+    return `${teamName} · ${descriptions[event.kind] || "Registro histórico."}`;
 }
 
 function renderLive(data) {
@@ -72,9 +90,7 @@ function renderLive(data) {
             const team = event.team_id === data.home_team.id ? data.home_team : data.away_team;
             const canCorrect = !event.voided_at && ((data.state === "live" && official) || (data.state === "completed" && liveHasRole("league_admin")));
             return `<article class="live-event ${event.voided_at ? "live-event-void" : ""}"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
-                <div><h4>${liveLabels[event.kind]}${event.voided_at ? " · Anulada" : ""}</h4><p>${escapeHtml(team.name)}</p>
-                ${event.player_label ? `<p>${escapeHtml(event.player_label)}${event.receiver_label ? ` → ${escapeHtml(event.receiver_label)}` : ""}</p>` : ""}
-                ${event.note ? `<p>${escapeHtml(event.note)}</p>` : ""}
+                <div><h4>${liveLabels[event.kind] || "Registro histórico"}${event.voided_at ? " · Anulada" : ""}</h4><p>${escapeHtml(liveNarrative(event, team.name))}</p>
                 ${canCorrect ? `<button type="button" class="secondary-button" data-void-event="${event.id}">Anular jugada</button>` : ""}</div></article>`;
         }).join("") : '<div class="empty-state"><h4>Aún no hay jugadas</h4><p>La cobertura aparecerá cuando el árbitro inicie la captura.</p></div>';
     }
@@ -135,13 +151,12 @@ liveForm.elements.kind.addEventListener("change", liveKindControls);
 liveForm.addEventListener("submit", event => {
     event.preventDefault();
     const fields = new FormData(liveForm);
-    const payload = {kind:fields.get("kind"),team_id:Number(fields.get("team_id")),player_id:fields.get("player_id") ? Number(fields.get("player_id")) : null,receiver_id:fields.get("receiver_id") ? Number(fields.get("receiver_id")) : null,period:Number(fields.get("period")),minute:Number(fields.get("minute")),second:Number(fields.get("second")),note:String(fields.get("note") || "").trim()};
+    const payload = {kind:fields.get("kind"),team_id:Number(fields.get("team_id")),player_id:fields.get("player_id") ? Number(fields.get("player_id")) : null,receiver_id:fields.get("receiver_id") ? Number(fields.get("receiver_id")) : null,period:Number(fields.get("period")),minute:Number(fields.get("minute")),second:Number(fields.get("second"))};
     if (!livePending || livePending.signature !== JSON.stringify(payload)) livePending = {signature:JSON.stringify(payload),client_id:crypto.randomUUID()};
     const request = {...payload,client_id:livePending.client_id};
     liveOperation(async () => {
         await liveWrite("events", request);
         livePending = null;
-        liveForm.elements.note.value = "";
         liveMessage.textContent = "Jugada registrada.";
     }, true);
 });

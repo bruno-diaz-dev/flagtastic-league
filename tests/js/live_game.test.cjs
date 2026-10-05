@@ -15,7 +15,7 @@ function harness(role) {
         return nodes.get(selector);
     };
     const form = node('#live-event-form');
-    form.elements = Object.fromEntries(['team_id','kind','player_id','receiver_id','note'].map(key => [key,node(key)]));
+    form.elements = Object.fromEntries(['team_id','kind','player_id','receiver_id'].map(key => [key,node(key)]));
     form.elements.kind.value = 'pass_complete';
     const context = vm.createContext({
         document:{querySelector:node,addEventListener(){},hidden:false},
@@ -60,9 +60,7 @@ test('stale refresh cannot overwrite newer score and pass fields match event typ
     assert.equal(form.elements.receiver_id.required,true);
     form.elements.kind.value='flag';context.liveKindControls();
     assert.equal(form.elements.receiver_id.disabled,true);
-    form.elements.kind.value='note';context.liveKindControls();
-    assert.equal(form.elements.player_id.required,false);
-    assert.equal(form.elements.note.required,true);
+    assert.equal(form.elements.player_id.required,true);
 });
 
 test('start failures describe server and permission problems instead of invalid play data',async()=>{
@@ -73,4 +71,26 @@ test('start failures describe server and permission problems instead of invalid 
     await assert.rejects(context.liveWrite('start'),/permiso/);
     context.fetch=async()=>({ok:false,status:422,json:async()=>({detail:[{msg:'Selecciona receptor'}]})});
     await assert.rejects(context.liveWrite('events'),/Selecciona receptor/);
+});
+
+test('narration comes from statistics without descriptions for every sporting event',()=>{
+    const {context,node}=harness();
+    const event={player_label:'#12 Ana',receiver_label:'#7 Eva',note:'Manual text must not appear'};
+    const expected={
+        pass_complete:'completa un pase con #7 Eva',
+        pass_incomplete:'Pase incompleto',
+        passing_touchdown:'conecta con #7 Eva para touchdown. +6 puntos',
+        touchdown:'touchdown por carrera o retorno. +6 puntos',
+        extra_one:'conversión de 1 punto',extra_two:'conversión de 2 puntos',
+        safety:'safety. +2 puntos',sack:'consigue un sack',
+        flag:'retira un flag',interception:'intercepta el pase',attendance:'asistencia',
+    };
+    for(const [kind,phrase] of Object.entries(expected)) {
+        const text=context.liveNarrative({...event,kind},'Tigres');
+        assert.ok(text.includes(phrase),kind);
+        assert.ok(text.includes('Tigres'));
+        assert.ok(!text.includes(event.note));
+    }
+    context.renderLive(snapshot());
+    assert.doesNotMatch(node('#live-timeline').innerHTML,/&lt;script&gt;/);
 });

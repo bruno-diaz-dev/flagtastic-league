@@ -15,27 +15,24 @@ router = APIRouter(prefix="/api/games/{game_id}/live", tags=["live games"])
 class LiveEvent(BaseModel):
     """An idempotent, timestamped entry in the digital statistics sheet."""
     client_id: UUID
-    kind: Literal["pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "extra_one", "extra_two", "safety", "sack", "flag", "interception", "attendance", "note"]
+    kind: Literal["pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "extra_one", "extra_two", "safety", "sack", "flag", "interception", "attendance"]
     team_id: int = Field(gt=0)
     player_id: int | None = Field(default=None, gt=0)
     receiver_id: int | None = Field(default=None, gt=0)
     period: int = Field(ge=1, le=10)
     minute: int = Field(ge=0, le=200)
     second: int = Field(ge=0, le=59)
-    note: str = Field(default="", max_length=240)
+    note: Literal[""] = ""  # Compatibility with stored payloads; narration is automatic.
 
     @model_validator(mode="after")
     def validate_players(self):
-        if self.kind != "note" and self.player_id is None:
+        if self.player_id is None:
             raise ValueError("Selecciona al jugador de la jugada")
         is_pass = self.kind in ("pass_complete", "passing_touchdown")
         if is_pass and (self.receiver_id is None or self.receiver_id == self.player_id):
             raise ValueError("Selecciona un receptor distinto al pasador")
         if not is_pass and self.receiver_id is not None:
             raise ValueError("Esta jugada no requiere receptor")
-        if self.kind == "note" and not self.note.strip():
-            raise ValueError("Escribe la observación")
-        self.note = self.note.strip()
         return self
 
 
