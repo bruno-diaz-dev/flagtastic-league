@@ -219,13 +219,14 @@ function renderLive(data) {
     document.querySelector("#live-moments").classList.toggle("hidden", data.state !== "live");
     renderLiveAttendance(data, official);
     if (changed) {
-        document.querySelector("#live-timeline").innerHTML = data.events.filter(e => e.kind !== "attendance").length ? [...data.events].filter(e => e.kind !== "attendance").reverse().map(event => {
+        const visibleEvents = data.events.filter(event => event.kind !== "attendance" && !event.voided_at);
+        document.querySelector("#live-timeline").innerHTML = visibleEvents.length ? [...visibleEvents].reverse().map(event => {
             const team = event.team_id === data.home_team.id ? data.home_team : data.away_team;
-            const canCorrect = !event.voided_at && ((data.state === "live" && official) || (data.state === "completed" && liveHasRole("league_admin")));
-            return `<article class="live-event ${event.voided_at ? "live-event-void" : ""}"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
-                <div><h4>${liveLabels[event.kind] || "Registro histórico"}${event.voided_at ? " · Anulada" : ""}</h4><p>${escapeHtml(liveNarrative(event, team.name))}</p>
+            const canCorrect = ((data.state === "live" && official) || (data.state === "completed" && liveHasRole("league_admin")));
+            return `<article class="live-event"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
+                <div><h4>${liveLabels[event.kind] || "Registro histórico"}</h4><p>${escapeHtml(liveNarrative(event, team.name))}</p>
                 ${canCorrect ? `<button type="button" class="secondary-button" data-void-event="${event.id}">Anular jugada</button>` : ""}</div></article>`;
-        }).join("") : '<div class="empty-state"><h4>Aún no hay jugadas</h4><p>La cobertura aparecerá cuando el árbitro inicie la captura.</p></div>';
+        }).join("") : '<div class="empty-state"><h4>Sin jugadas confirmadas</h4><p>Las nuevas capturas aparecerán al confirmar el envío.</p></div>';
     }
     document.querySelector("#live-statistics").innerHTML = data.statistics.length ? `<table><thead><tr><th>Jugador / Equipo</th><th>PTS</th><th>REC</th><th>INT</th><th>SAC</th><th>FLG</th><th>PC/PI</th><th>PP</th></tr></thead><tbody>${data.statistics.map(row => `<tr><td>#${row.jersey_number ?? "—"} ${escapeHtml(row.display_name)}<br><small>${escapeHtml(row.team_id === data.home_team.id ? data.home_team.name : data.away_team.name)}</small></td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}/${row.passes_attempted}</td><td>${row.passing_points}</td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><p>Sin estadísticas capturadas todavía.</p></div>';
     const updated = new Date().toLocaleTimeString("es-MX", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
@@ -393,7 +394,7 @@ document.querySelector("#live-finish").addEventListener("click", async () => {
 document.querySelector("#live-timeline").addEventListener("click", event => {
     const button = event.target.closest("[data-void-event]");
     if (!button) return;
-    const reason = window.prompt("Motivo de la anulación (mínimo 3 caracteres). La jugada quedará en el historial.");
+    const reason = window.prompt("Motivo de la anulación (mínimo 3 caracteres). La corrección quedará en el registro interno.");
     if (!reason || reason.trim().length < 3) return;
     liveOperation(async () => {
         await liveWrite(`events/${button.dataset.voidEvent}/void`, {reason:reason.trim(),expected_version:liveData.version});
@@ -409,3 +410,4 @@ window.addEventListener("beforeunload", event => { if (liveCaptureSaving || live
     await initializeLiveQueue();
     await refreshLive();
 })();
+

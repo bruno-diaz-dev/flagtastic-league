@@ -99,7 +99,7 @@ def read_live_game(game_id):
         public_events = [{key: row[key] for key in (
             "id", "kind", "team_id", "player_id", "receiver_id", "player_label", "receiver_label",
             "period", "minute", "second", "note", "created_at", "voided_at",
-        )} for row in events if row["kind"] != "attendance"]
+        )} for row in events if row["kind"] != "attendance" and not row["voided_at"]]
         state = session["state"] if session else "not_started"
         if game["status"] == "completed":
             state = "completed"
@@ -217,3 +217,4 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
+
