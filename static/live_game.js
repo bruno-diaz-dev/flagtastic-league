@@ -81,7 +81,7 @@ function renderLive(data) {
     document.querySelector("#live-statistics").innerHTML = data.statistics.length ? `<table><thead><tr><th>Jugador / Equipo</th><th>PTS</th><th>REC</th><th>INT</th><th>SAC</th><th>FLG</th><th>PC/PI</th><th>PP</th><th>ASIS</th></tr></thead><tbody>${data.statistics.map(row => `<tr><td>#${row.jersey_number ?? "—"} ${escapeHtml(row.display_name)}<br><small>${escapeHtml(row.team_id === data.home_team.id ? data.home_team.name : data.away_team.name)}</small></td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}/${row.passes_attempted}</td><td>${row.passing_points}</td><td>${row.attendance ? "Sí" : "—"}</td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><p>Sin estadísticas capturadas todavía.</p></div>';
     const updated = new Date().toLocaleTimeString("es-MX", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
     liveStatus.textContent = data.state === "live" ? `Última actualización ${updated} · se actualiza automáticamente` : data.state === "completed" ? "Resultado final. La captura arbitral está cerrada." : "La cobertura se actualiza cuando el árbitro registra una jugada.";
-    if (data.state === "live") document.querySelector("#game-score").classList.add("hidden");
+    document.querySelector("#game-score").classList.add("hidden");
 }
 
 async function refreshLive(force = false) {

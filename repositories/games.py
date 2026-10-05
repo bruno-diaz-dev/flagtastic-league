@@ -371,6 +371,9 @@ def update_games_status_by_week(week, status):
     """Change every unplayed game in a jornada without altering final results."""
     connection = get_connection()
     try:
+        # A concurrent live start must become visible before deciding which
+        # games may be postponed; serialize the bulk operation with capture.
+        connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
         existing = connection.execute(
             "SELECT COUNT(*) AS total FROM games WHERE week = %s",
             (week,),

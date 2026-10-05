@@ -1,5 +1,6 @@
 """Live capture permissions, projection, retries and atomic final publication."""
 from uuid import uuid4
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi.testclient import TestClient
 
@@ -8,6 +9,8 @@ from main import app
 from models import UserCreate
 from repositories.users import create_user
 from services.live_game import project_events
+from repositories.live_games import append_event, finish_live_game
+from routes.live_games import LiveEvent
 
 
 def setup_match():
@@ -132,3 +135,23 @@ def test_live_projection_defense_and_voided_events():
     assert rows[0]["sacks"] == rows[0]["tackles"] == rows[0]["interceptions"] == 1
     assert rows[0]["passes_attempted"] == 1 and rows[0]["passes_completed"] == 0
     assert rows[0]["attendance"] is True
+
+
+def test_concurrent_live_retries_and_finish_publish_once():
+    client, game_id, teams, players, users = setup_match()
+    login(client, users["referee"])
+    user_id = client.get("/api/auth/me").json()["id"]
+    path = f"/api/games/{game_id}/live"
+    assert client.post(path + "/start").status_code == 200
+    payload = LiveEvent(**event(teams[0], players[0][1])).model_dump()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: append_event(game_id, payload, user_id), range(2)))
+    assert results[0]["id"] == results[1]["id"]
+    assert sorted(result["duplicate"] for result in results) == [False, True]
+    snapshot = client.get(path).json()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(lambda _: finish_live_game(game_id, snapshot["version"], user_id), range(2)))
+    with get_connection() as connection:
+        count = connection.execute("SELECT COUNT(*) AS count FROM player_week_stats WHERE game_id = %s", (game_id,)).fetchone()["count"]
+    assert count == 1
+    assert client.get(path).json()["home_score"] == 6

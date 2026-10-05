@@ -22,7 +22,7 @@ def import_statistics_workbook(weeks, games=None):
             """SELECT 1 FROM game_live_sessions live
                JOIN games ON games.id = live.game_id
                WHERE games.week = ANY(%s) LIMIT 1""",
-            (list(weeks),),
+            (list(set(weeks) | set(games or {})),),
         ).fetchone():
             raise StatisticsValidationError(
                 "La jornada incluye captura en vivo. Corrige esos partidos "
