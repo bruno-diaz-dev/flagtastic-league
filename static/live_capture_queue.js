@@ -31,7 +31,7 @@ class LiveCaptureStore {
 }
 
 class LiveCaptureQueue {
-    constructor({store, send, onChange, onConfirmed, onError, canSend = () => true, schedule = setTimeout, cancel = clearTimeout}) {
+    constructor({store, send, onChange, onConfirmed, onError, canSend = () => true, schedule = (callback, delay) => setTimeout(callback, delay), cancel = timer => clearTimeout(timer)}) {
         Object.assign(this, {store, send, onChange, onConfirmed, onError, canSend, schedule, cancel});
         this.rows = []; this.working = false; this.timer = null; this.failures = 0;
     }
