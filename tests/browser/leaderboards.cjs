@@ -13,12 +13,13 @@ const assert=require('node:assert/strict');
         const url=new URL(route.request().url());
         if(url.pathname.startsWith('/static/')) return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
         const content=fs.readFileSync('templates/statistics.html','utf8').split('{% block content %}')[1].split('{% endblock %}')[0];
-        await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script>const data=${JSON.stringify(leaders)};function getLeaderboards(){return Promise.resolve({ok:true,json:async()=>data});}function isUnifiedYouthCategory(){return false;}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/statistics.js"></script></body></html>`});
+        await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script>const data=${JSON.stringify(leaders)};function getLeaderboards(){return Promise.resolve({ok:true,json:async()=>data});}function isUnifiedYouthCategory(){return false;}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/statistics.js"></script></body></html>`});
     });
     for(const width of [320,360,390,430,1280]){
         await page.setViewportSize({width,height:844});await page.goto('https://leaders.test/');
         await page.locator('.leaderboard-panel').last().waitFor();
         assert.equal(await page.locator('.leaderboard-panel').count(),6);
+        assert.ok(await page.locator('.leaderboard-player').nth(1).textContent().then(text=>text.includes('Ana López')));
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`page overflow at ${width}`);
         if(width<=430){
             assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.leaderboard-panel')].every(el=>el.scrollWidth<=el.clientWidth+1)),true,`panel overflow at ${width}`);
