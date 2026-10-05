@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     let offline=true;let role='referee';const plays=new Map();
     const roster=[{team_id:1,player_id:10,jersey_number:10,display_name:'Ana'},{team_id:1,player_id:7,jersey_number:7,display_name:'Eva'},{team_id:1,player_id:12,jersey_number:12,display_name:'Luz'},{team_id:2,player_id:20,jersey_number:20,display_name:'María'}];
-    const snapshot=()=>({game_id:5,state:'live',version:plays.size,home_team:{id:1,name:'Tigres'},away_team:{id:2,name:'Lobos'},home_score:[...plays.values()].filter(p=>p.kind==='extra_one').length,away_score:0,roster,statistics:[],events:[...plays.values()].map((p,i)=>({...p,id:i+1,player_label:'#'+roster.find(r=>r.player_id===p.player_id).jersey_number,receiver_label:p.receiver_id?'#7 Eva':null,voided_at:null}))});
+    const snapshot=()=>({game_id:5,state:'live',version:plays.size,home_team:{id:1,name:'Tigres'},away_team:{id:2,name:'Lobos'},home_score:[...plays.values()].filter(p=>p.kind==='extra_one').length,away_score:0,roster,attendance:roster.map(r=>({...r,present:[...plays.values()].some(p=>p.kind==='attendance'&&p.player_id===r.player_id),attended_games:0,required_games:5})),statistics:[],events:[...plays.values()].filter(p=>p.kind!=='attendance').map((p,i)=>({...p,id:i+1,player_label:'#'+(roster.find(r=>r.player_id===p.player_id)?.jersey_number||''),receiver_label:p.receiver_id?'#7 Eva':null,voided_at:null}))});
     await page.route('https://capture.test/**',async route=>{
         const u=new URL(route.request().url());
         if(u.pathname==='/') {
@@ -42,7 +42,8 @@ const assert = require('node:assert/strict');
     await page.reload();
     await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('2 jugadas'));
     offline=false;
-    await page.locator('#live-retry').click();
+    // Automatic recovery can empty and hide the outbox before locator actionability.
+    await page.evaluate(()=>document.querySelector('#live-retry').click());
     await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('Todo enviado')).catch(async error=>{
         console.log('CAPTURE_DIAGNOSTIC',JSON.stringify({accepted:plays.size,errors,state:await page.evaluate(()=>({status:document.querySelector('#live-queue-status').textContent,message:document.querySelector('#live-operation-message').textContent,rows:liveQueue?.rows,working:liveQueue?.working,liveState:liveData?.state,online:navigator.onLine}))}));
         throw error;
@@ -50,9 +51,20 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>document.querySelector('#live-home-score').textContent==='1');
     assert.equal(plays.size,2);
     assert.equal(await page.locator('.live-event').count(),2);
+    await page.locator('[data-live-moment="halftime"]').click();
+    await page.waitForFunction(()=>document.querySelector('#live-timeline').textContent.includes('Medio tiempo'));
+    await page.locator('[data-live-moment="two_minute_warning"]').click();
+    await page.waitForFunction(()=>document.querySelector('#live-timeline').textContent.includes('Pausa de los 2 minutos'));
+    await page.locator('#live-attendance-panel summary').click();
+    await page.locator('[data-live-attendance="10"]').click();
+    await page.waitForFunction(()=>document.querySelector('#live-attendance').textContent.includes('Presente en este juego'));
+    assert.equal(await page.locator('#live-timeline').textContent().then(t=>t.includes('Asistencia')),false);
+    assert.equal(plays.size,5);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
     role='player';await page.reload();await page.locator('#live-state[data-state="live"]').waitFor();
     assert.equal(await page.locator('#live-official-controls').isVisible(),false);
     assert.deepEqual(errors,[]);
     console.log('Mobile browser verified: one-tap pass, next play while offline, IndexedDB reload recovery, ordered upload, no duplicate plays, no optimistic public score, no overflow, private referee controls, no page errors.');
     await browser.close();
 })().catch(error=>{console.error(error);process.exit(1);});
+

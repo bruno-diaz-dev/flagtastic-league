@@ -134,3 +134,22 @@ test('finalization is blocked by pending plays even if the button handler is inv
     await node('#live-finish').listeners.click();
     assert.equal(writes,0);assert.match(node('#live-operation-message').textContent,/sin confirmar/);
 });
+
+
+test('attendance stays out of sporting feed and moments require no player',async()=>{
+    const {context,node,form}=harness('referee');
+    const data=snapshot();data.events.push({id:2,kind:'attendance',team_id:1,player_label:'Ana'});
+    context.renderLive(data);
+    assert.doesNotMatch(node('#live-kind-buttons').innerHTML,/attendance/);
+    assert.doesNotMatch(node('#live-timeline').innerHTML,/Asistencia|Ana/);
+    assert.equal(context.liveNarrative({kind:'halftime'},'Away'),'Medio tiempo del partido.');
+    assert.equal(context.liveNarrative({kind:'two_minute_warning'},'Away'),'Pausa de los 2 minutos.');
+    const captured=[];
+    context.mockQueue={async enqueue(p){captured.push(p);},async flush(){}};
+    vm.runInContext('liveQueue=mockQueue',context);
+    form.elements.period.value='1';form.elements.minute.value='2';form.elements.second.value='0';
+    await context.liveCaptureAdministrative('two_minute_warning');
+    assert.equal(captured.length,1);assert.equal(captured[0].team_id,null);assert.equal(captured[0].player_id,null);
+    form.elements.second.value='60';await context.liveCaptureAdministrative('halftime');
+    assert.equal(captured.length,1);
+});

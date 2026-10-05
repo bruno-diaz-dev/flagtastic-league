@@ -4,7 +4,7 @@ POINTS = {"touchdown": 6, "passing_touchdown": 6, "extra_one": 1, "extra_two": 2
 KINDS = {
     "pass_complete", "pass_incomplete", "passing_touchdown", "touchdown",
     "extra_one", "extra_two", "safety", "sack", "flag", "interception",
-    "attendance", "note",
+    "attendance", "note", "halftime", "two_minute_warning",
 }
 METRICS = ("points", "receptions", "interceptions", "sacks", "tackles", "passes_completed", "passes_attempted")
 
@@ -19,7 +19,7 @@ def project_events(events, home_id, away_id):
             return None
         return players.setdefault((team_id, player_id), {
             "team_id": team_id, "player_id": player_id,
-            **dict.fromkeys(METRICS, 0), "attendance": False,
+            **dict.fromkeys(METRICS, 0),
             "passing_points": 0,
         })
 
@@ -27,6 +27,8 @@ def project_events(events, home_id, away_id):
         if event.get("voided_at"):
             continue
         team_id, kind = event["team_id"], event["kind"]
+        if kind in ("attendance", "note", "halftime", "two_minute_warning"):
+            continue
         actor = player(team_id, event.get("player_id"))
         receiver = player(team_id, event.get("receiver_id"))
         points = POINTS.get(kind, 0)
@@ -47,6 +49,4 @@ def project_events(events, home_id, away_id):
         metric = {"sack": "sacks", "flag": "tackles", "interception": "interceptions"}.get(kind)
         if metric and actor:
             actor[metric] += 1
-        if kind == "attendance" and actor:
-            actor["attendance"] = True
     return scores, list(players.values())

@@ -7,7 +7,7 @@ const liveStatus = document.querySelector("#live-update-status");
 const liveLabels = {
     pass_complete: "Pase completo", pass_incomplete: "Pase incompleto", passing_touchdown: "Pase de touchdown · +6",
     touchdown: "Touchdown · +6", extra_one: "Extra · +1", extra_two: "Extra · +2", safety: "Safety · +2",
-    sack: "Sack", flag: "Flag retirado", interception: "Intercepción", attendance: "Asistencia",
+    sack: "Sack", flag: "Flag retirado", interception: "Intercepción", attendance: "Asistencia", halftime: "Medio tiempo", two_minute_warning: "Pausa de los 2 minutos",
 };
 let liveData = null;
 let liveUser = null;
@@ -22,7 +22,7 @@ let liveCaptureSaving = 0;
 let liveLastTap = null;
 const livePassers = new Map();
 const liveActors = new Map();
-const liveShortLabels = {pass_complete:"Pase completo",pass_incomplete:"Incompleto",passing_touchdown:"TD por pase",touchdown:"TD carrera / retorno",extra_one:"Extra +1",extra_two:"Extra +2",safety:"Safety",sack:"Sack",flag:"Flag",interception:"Intercepción",attendance:"Asistencia"};
+const liveShortLabels = {pass_complete:"Pase completo",pass_incomplete:"Incompleto",passing_touchdown:"TD por pase",touchdown:"TD carrera / retorno",extra_one:"Extra +1",extra_two:"Extra +2",safety:"Safety",sack:"Sack",flag:"Flag",interception:"Intercepción"};
 
 function liveIsPass(kind) { return ["pass_complete","pass_incomplete","passing_touchdown"].includes(kind); }
 
@@ -82,7 +82,7 @@ function renderLiveOutbox(rows) {
         ? `${rows.length} jugada${rows.length === 1 ? "" : "s"} pendiente${rows.length === 1 ? "" : "s"} de confirmar${rows[0].status === "blocked" ? " · Requiere revisión" : rows[0].status === "retry" ? " · Reintentando" : ""}`
         : "Todo enviado · puedes seguir capturando";
     document.querySelector("#live-outbox-list").innerHTML = [...rows].reverse().map(row =>
-        `<article class="live-pending-play"><strong>${escapeHtml(liveShortLabels[row.payload.kind])} · ${escapeHtml(row.labels.player)}${row.labels.receiver ? " → " + escapeHtml(row.labels.receiver) : ""}</strong><span>${escapeHtml(row.labels.team)} · P${row.payload.period} ${String(row.payload.minute).padStart(2,"0")}:${String(row.payload.second).padStart(2,"0")} · ${{pending:"En espera",sending:"Enviando",retry:"Pendiente de confirmación",blocked:"No aceptada"}[row.status] || "En espera"}</span>${row.error ? `<p>${escapeHtml(row.error)}</p>` : ""}${row.status === "blocked" && row.httpStatus === 422 ? `<button type="button" class="secondary-button" data-live-edit="${row.id}">Corregir selección</button>` : ""}</article>`
+        `<article class="live-pending-play"><strong>${escapeHtml(liveLabels[row.payload.kind])} · ${escapeHtml(row.labels.player)}${row.labels.receiver ? " → " + escapeHtml(row.labels.receiver) : ""}</strong><span>${escapeHtml(row.labels.team)} · P${row.payload.period} ${String(row.payload.minute).padStart(2,"0")}:${String(row.payload.second).padStart(2,"0")} · ${{pending:"En espera",sending:"Enviando",retry:"Pendiente de confirmación",blocked:"No aceptada"}[row.status] || "En espera"}</span>${row.error ? `<p>${escapeHtml(row.error)}</p>` : ""}${row.status === "blocked" && row.httpStatus === 422 ? `<button type="button" class="secondary-button" data-live-edit="${row.id}">Corregir selección</button>` : ""}</article>`
     ).join("");
     document.querySelector("#live-finish").disabled = Boolean(rows.length || liveQueue?.working || liveBusy || liveCaptureSaving);
 }
@@ -171,6 +171,8 @@ function liveKindControls() {
 }
 
 function liveNarrative(event, teamName) {
+    if (event.kind === "halftime") return "Medio tiempo del partido.";
+    if (event.kind === "two_minute_warning") return "Pausa de los 2 minutos.";
     const player = event.player_label || "Jugador";
     const receiver = event.receiver_label || "Receptor";
     const descriptions = {
@@ -214,8 +216,10 @@ function renderLive(data) {
         if ([data.home_team.id, data.away_team.id].some(id => String(id) === selectedTeam)) liveForm.elements.team_id.value = selectedTeam;
         liveOptions();
     }
+    document.querySelector("#live-moments").classList.toggle("hidden", data.state !== "live");
+    renderLiveAttendance(data, official);
     if (changed) {
-        document.querySelector("#live-timeline").innerHTML = data.events.length ? [...data.events].reverse().map(event => {
+        document.querySelector("#live-timeline").innerHTML = data.events.filter(e => e.kind !== "attendance").length ? [...data.events].filter(e => e.kind !== "attendance").reverse().map(event => {
             const team = event.team_id === data.home_team.id ? data.home_team : data.away_team;
             const canCorrect = !event.voided_at && ((data.state === "live" && official) || (data.state === "completed" && liveHasRole("league_admin")));
             return `<article class="live-event ${event.voided_at ? "live-event-void" : ""}"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
@@ -223,7 +227,7 @@ function renderLive(data) {
                 ${canCorrect ? `<button type="button" class="secondary-button" data-void-event="${event.id}">Anular jugada</button>` : ""}</div></article>`;
         }).join("") : '<div class="empty-state"><h4>Aún no hay jugadas</h4><p>La cobertura aparecerá cuando el árbitro inicie la captura.</p></div>';
     }
-    document.querySelector("#live-statistics").innerHTML = data.statistics.length ? `<table><thead><tr><th>Jugador / Equipo</th><th>PTS</th><th>REC</th><th>INT</th><th>SAC</th><th>FLG</th><th>PC/PI</th><th>PP</th><th>ASIS</th></tr></thead><tbody>${data.statistics.map(row => `<tr><td>#${row.jersey_number ?? "—"} ${escapeHtml(row.display_name)}<br><small>${escapeHtml(row.team_id === data.home_team.id ? data.home_team.name : data.away_team.name)}</small></td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}/${row.passes_attempted}</td><td>${row.passing_points}</td><td>${row.attendance ? "Sí" : "—"}</td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><p>Sin estadísticas capturadas todavía.</p></div>';
+    document.querySelector("#live-statistics").innerHTML = data.statistics.length ? `<table><thead><tr><th>Jugador / Equipo</th><th>PTS</th><th>REC</th><th>INT</th><th>SAC</th><th>FLG</th><th>PC/PI</th><th>PP</th></tr></thead><tbody>${data.statistics.map(row => `<tr><td>#${row.jersey_number ?? "—"} ${escapeHtml(row.display_name)}<br><small>${escapeHtml(row.team_id === data.home_team.id ? data.home_team.name : data.away_team.name)}</small></td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}/${row.passes_attempted}</td><td>${row.passing_points}</td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><p>Sin estadísticas capturadas todavía.</p></div>';
     const updated = new Date().toLocaleTimeString("es-MX", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
     liveStatus.textContent = data.state === "live" ? `Última actualización ${updated} · se actualiza automáticamente` : data.state === "completed" ? "Resultado final. La captura arbitral está cerrada." : "La cobertura se actualiza cuando el árbitro registra una jugada.";
     document.querySelector("#game-score").classList.add("hidden");
@@ -233,6 +237,52 @@ function renderLive(data) {
         liveQueue.flush().catch(liveQueueError);
     }
 }
+
+function renderLiveAttendance(data, official) {
+    document.querySelector("#live-attendance").innerHTML = [data.home_team, data.away_team].map(team =>
+        `<h4>${escapeHtml(team.name)}</h4><div class="live-player-buttons">${(data.attendance || []).filter(row => row.team_id === team.id).map(row =>
+            `<div><strong>#${row.jersey_number} ${escapeHtml(row.display_name)}</strong><p>${row.present ? "Presente en este juego" : "Sin asistencia registrada"} · ${row.attended_games}/${row.required_games} juegos requeridos · ${row.eligible ? "Cumple según calendario actual" : "Aún no cumple"}</p>${official && data.state === "live" && !row.present ? `<button type="button" class="secondary-button" data-live-attendance="${row.player_id}" data-live-attendance-team="${row.team_id}">Marcar presente</button>` : ""}${row.present && ((official && data.state === "live") || (liveHasRole("league_admin") && data.state === "completed")) ? `<button type="button" class="secondary-button" data-attendance-void="${row.entry_id}">Corregir asistencia</button>` : ""}</div>`
+        ).join("")}</div>`
+    ).join("");
+}
+
+async function liveCaptureAdministrative(kind, teamId = null, playerId = null) {
+    if (!liveQueue || liveBusy || !liveHasRole("referee") || liveData?.state !== "live") return;
+    for (const [field,minimum,maximum] of [["period",1,10],["minute",0,200],["second",0,59]]) {
+        const value = liveForm.elements[field].value;
+        if (value === "" || !Number.isInteger(Number(value)) || Number(value) < minimum || Number(value) > maximum) {
+            liveMessage.textContent = "Revisa el periodo y reloj antes de registrar.";
+            return;
+        }
+    }
+    const payload = {client_id:crypto.randomUUID(),kind,team_id:teamId,player_id:playerId,receiver_id:null,
+        period:Number(liveForm.elements.period.value),minute:Number(liveForm.elements.minute.value),second:Number(liveForm.elements.second.value)};
+    const player = liveData.roster.find(p => p.team_id === teamId && p.player_id === playerId);
+    const labels = {player:player ? `#${player.jersey_number} ${player.display_name}` : "",receiver:"",team:teamId === liveData.home_team.id ? liveData.home_team.name : teamId === liveData.away_team.id ? liveData.away_team.name : "Partido"};
+    liveCaptureSaving += 1;
+    try {
+        await liveQueue.enqueue(payload, labels);
+        liveMessage.textContent = `${liveLabels[kind]} guardada en este dispositivo; pendiente de confirmar.`;
+        liveQueue.flush().catch(liveQueueError);
+    } catch(error) { liveQueueError(error); }
+    finally { liveCaptureSaving -= 1; }
+}
+
+document.querySelector("#live-moments").addEventListener("click", event => {
+    const button = event.target.closest("[data-live-moment]");
+    if (button) liveCaptureAdministrative(button.dataset.liveMoment);
+});
+document.querySelector("#live-attendance").addEventListener("click", event => {
+    const button = event.target.closest("[data-live-attendance]");
+    if (button) liveCaptureAdministrative("attendance", Number(button.dataset.liveAttendanceTeam), Number(button.dataset.liveAttendance));
+    const correction = event.target.closest("[data-attendance-void]");
+    if (!correction) return;
+    const reason = window.prompt("Motivo de la corrección de asistencia (mínimo 3 caracteres).");
+    if (reason?.trim().length >= 3) liveOperation(async () => {
+        await liveWrite(`events/${correction.dataset.attendanceVoid}/void`, {reason:reason.trim(),expected_version:liveData.version});
+        liveMessage.textContent = "Asistencia corregida.";
+    });
+});
 
 async function refreshLive(force = false) {
     clearTimeout(liveTimer);

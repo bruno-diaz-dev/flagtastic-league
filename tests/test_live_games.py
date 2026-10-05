@@ -80,7 +80,7 @@ def test_live_game_roles_retry_public_privacy_and_final_publication():
     assert attendance.status_code == 201
     live = client.get(path).json()
     assert live["home_score"] == 7 and live["away_score"] == 0
-    assert len(live["events"]) == 3
+    assert len(live["events"]) == 2
     assert "recorded_by" not in live["events"][0]
     assert "curp" not in str(live) and "birth_date" not in str(live)
     assert "started_by" not in live
@@ -97,7 +97,7 @@ def test_live_game_roles_retry_public_privacy_and_final_publication():
     assert client.post(path + f"/events/{extra.json()['id']}/void", json={"reason": "Duplicada", "expected_version": live["version"] + 1}).status_code == 200
     final = client.get(path).json()
     assert final["state"] == "completed" and final["home_score"] == 6
-    assert next(row for row in final["statistics"] if row["player_id"] == players[0][1])["attendance"] is True
+    assert next(row for row in final["attendance"] if row["player_id"] == players[0][1])["attended_games"] == 1
     with get_connection() as connection:
         rows = connection.execute("SELECT * FROM player_week_stats WHERE game_id = %s", (game_id,)).fetchall()
     stats = {row["player_id"]: row for row in rows}
@@ -138,7 +138,7 @@ def test_live_projection_defense_and_voided_events():
     assert score == {1: 2, 2: 0}
     assert rows[0]["sacks"] == rows[0]["tackles"] == rows[0]["interceptions"] == 1
     assert rows[0]["passes_attempted"] == 1 and rows[0]["passes_completed"] == 0
-    assert rows[0]["attendance"] is True
+    assert "attendance" not in rows[0]
 
 
 def test_concurrent_live_retries_and_finish_publish_once():
@@ -197,3 +197,43 @@ def test_live_events_require_statistics_and_never_manual_commentary():
         LiveEvent(**{**payload, "kind": "note", "receiver_id": None})
     with pytest.raises(ValidationError):
         LiveEvent(**{**payload, "kind": "flag", "player_id": None, "receiver_id": None})
+
+
+def test_match_moments_and_attendance_are_not_sporting_statistics():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    login(client, users["referee"])
+    assert client.post(path + "/start").status_code == 200
+    for kind in ("halftime", "two_minute_warning"):
+        payload = event(None, None, kind)
+        response = client.post(path + "/events", json=payload)
+        assert response.status_code == 201
+        assert client.post(path + "/events", json=payload).json()["id"] == response.json()["id"]
+        assert client.post(path + "/events", json=event(teams[0], players[0][0], kind)).status_code == 422
+    for _ in range(2):
+        assert client.post(path + "/events", json=event(teams[0], players[0][0], "attendance")).status_code == 201
+    snapshot = client.get(path).json()
+    assert len(snapshot["events"]) == 2
+    assert snapshot["statistics"] == []
+    assert snapshot["home_score"] == snapshot["away_score"] == 0
+    row = next(r for r in snapshot["attendance"] if r["player_id"] == players[0][0])
+    assert row["present"] and row["attended_games"] == 0 and not row["eligible"]
+    assert client.post(path + "/events", json=event(teams[0], players[0][1])).status_code == 201
+    snapshot = client.get(path).json()
+    assert client.post(path + "/finish", json={"expected_version":snapshot["version"]}).status_code == 200
+    row = next(r for r in client.get(path).json()["attendance"] if r["player_id"] == players[0][0])
+    assert row["attended_games"] == 1 and row["required_games"] == 1 and row["eligible"]
+    with get_connection() as connection:
+        assert connection.execute("SELECT COUNT(*) AS count FROM player_week_stats WHERE game_id=%s", (game_id,)).fetchone()["count"] == 1
+
+    closed = client.get(path).json()
+    correction = {"reason":"No asistió", "expected_version":closed["version"]}
+    assert client.post(path + f"/events/{row['entry_id']}/void", json=correction).status_code == 403
+    login(client, users["league_admin"])
+    with get_connection() as connection:
+        connection.execute("UPDATE games SET home_score=99, away_score=42 WHERE id=%s", (game_id,))
+    assert client.post(path + f"/events/{row['entry_id']}/void", json=correction).status_code == 200
+    corrected = client.get(path).json()
+    assert (corrected["home_score"], corrected["away_score"]) == (99,42)
+    row = next(r for r in corrected["attendance"] if r["player_id"] == players[0][0])
+    assert row["attended_games"] == 0 and not row["present"] and not row["eligible"]

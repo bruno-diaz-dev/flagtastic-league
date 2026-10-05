@@ -43,6 +43,40 @@ def roster_for(connection, game):
     """, (game["home_team_id"], game["away_team_id"])).fetchall()
 
 
+def attendance_for(connection, game, roster):
+    """Explicit check-ins, deduplicated by match; never infer from statistics."""
+    rows = connection.execute("""
+        SELECT e.team_id, e.player_id,
+               COUNT(DISTINCT e.game_id) FILTER (WHERE g.status = 'completed') AS attended,
+               BOOL_OR(e.game_id = %s) AS present,
+               MAX(e.id) FILTER (WHERE e.game_id = %s) AS entry_id
+        FROM game_live_events e JOIN games g ON g.id = e.game_id
+        WHERE e.kind = 'attendance' AND e.voided_at IS NULL
+          AND e.team_id IN (%s, %s)
+        GROUP BY e.team_id, e.player_id
+    """, (game['id'], game['id'], game['home_team_id'], game['away_team_id'])).fetchall()
+    records = {(r['team_id'], r['player_id']): r for r in rows}
+    scheduled = connection.execute("""
+        SELECT team_id, COUNT(*) AS total FROM (
+            SELECT home_team_id AS team_id FROM games WHERE home_team_id IN (%s, %s)
+            UNION ALL
+            SELECT away_team_id AS team_id FROM games WHERE away_team_id IN (%s, %s)
+        ) calendar GROUP BY team_id
+    """, (game['home_team_id'], game['away_team_id']) * 2).fetchall()
+    totals = {r['team_id']: r['total'] for r in scheduled}
+    result = []
+    for player in roster:
+        record = records.get((player['team_id'], player['player_id']), {})
+        total = totals.get(player['team_id'], 0)
+        required = total // 2 + 1 if total else None
+        attended = record.get('attended', 0)
+        result.append({**dict(player), 'present': record.get('present', False),
+                       'entry_id': record.get('entry_id'), 'attended_games': attended,
+                       'scheduled_games': total, 'required_games': required,
+                       'eligible': required is not None and attended >= required})
+    return result
+
+
 def read_live_game(game_id):
     """Read a consistent projection without exposing identifiers or staff IDs."""
     with get_connection() as connection:
@@ -65,7 +99,7 @@ def read_live_game(game_id):
         public_events = [{key: row[key] for key in (
             "id", "kind", "team_id", "player_id", "receiver_id", "player_label", "receiver_label",
             "period", "minute", "second", "note", "created_at", "voided_at",
-        )} for row in events]
+        )} for row in events if row["kind"] != "attendance"]
         state = session["state"] if session else "not_started"
         if game["status"] == "completed":
             state = "completed"
@@ -81,6 +115,7 @@ def read_live_game(game_id):
             "away_team": {"id": game["away_team_id"], "name": game["away_name"]},
             "home_score": game["home_score"] if state == "completed" else scores[game["home_team_id"]],
             "away_score": game["away_score"] if state == "completed" else scores[game["away_team_id"]],
+            "attendance": attendance_for(connection, game, rosters),
             "events": public_events, "statistics": totals, "roster": [dict(p) for p in rosters],
         }
 
@@ -109,7 +144,7 @@ def append_event(game_id, payload, user_id):
                 raise LiveGameError("La clave de la jugada ya fue utilizada para otro contenido")
             return {"id": existing["id"], "duplicate": True}
         require_live(game, session_for(connection, game_id))
-        if payload["team_id"] not in (game["home_team_id"], game["away_team_id"]):
+        if payload["kind"] not in ("halftime", "two_minute_warning") and payload["team_id"] not in (game["home_team_id"], game["away_team_id"]):
             raise LiveGameError("El equipo no pertenece a este partido", 422)
         roster = {p["player_id"]: p for p in roster_for(connection, game) if p["team_id"] == payload["team_id"]}
         for key in ("player_id", "receiver_id"):
@@ -171,12 +206,14 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
             require_live(game, session)
         if session["version"] != payload["expected_version"]:
             raise LiveGameError("Hay nuevas jugadas. Actualiza antes de corregir")
-        event = connection.execute("SELECT id, voided_at FROM game_live_events WHERE game_id = %s AND id = %s", (game_id, event_id)).fetchone()
+        event = connection.execute("SELECT id, voided_at, kind, team_id, player_id FROM game_live_events WHERE game_id = %s AND id = %s", (game_id, event_id)).fetchone()
         if event is None:
             raise LiveGameError("Jugada no encontrada", 404)
         if event["voided_at"] is None:
             connection.execute("UPDATE game_live_events SET voided_at = NOW(), voided_by = %s, void_reason = %s WHERE id = %s", (user_id, payload["reason"].strip(), event_id))
-            if session["state"] == "completed":
+            if event["kind"] == "attendance":
+                connection.execute("UPDATE game_live_events SET voided_at=NOW(), voided_by=%s, void_reason=%s WHERE game_id=%s AND team_id=%s AND player_id=%s AND kind='attendance' AND voided_at IS NULL", (user_id, payload["reason"].strip(), game_id, event["team_id"], event["player_id"]))
+            if session["state"] == "completed" and event["kind"] != "attendance":
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
