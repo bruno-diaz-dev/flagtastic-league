@@ -92,7 +92,9 @@ function renderRoster(team) {
                 </div>
                 <form class="roster-edit-form team-scope-manager-only hidden" data-player-id="${player.id}">
                     <label>Nombre<input name="name" required></label>
-                    <label>CURP<input name="curp" minlength="18" maxlength="18" required></label>
+                    <label>Tipo de identificación<select name="identity_type"><option value="curp">CURP (18 caracteres)</option><option value="provisional">Documento provisional o escolar</option></select></label>
+                    <label><span data-identity-label>CURP</span><input name="curp" minlength="18" maxlength="18" required></label>
+                    <label class="hidden" data-birth-date-field>Fecha de nacimiento<input name="birth_date" type="date" disabled></label>
                     <label>Edad calendario<input name="age" type="number" readonly tabindex="-1"></label>
                     <label>Número<input name="jersey_number" type="number" min="0" required></label>
                     <div class="form-actions">
@@ -138,6 +140,8 @@ rosterContainer.addEventListener("submit", async (event) => {
     const response = await updateRosterPlayer(teamId, form.dataset.playerId, {
         name: fields.get("name"),
         curp: fields.get("curp"),
+        identity_type: fields.get("identity_type"),
+        birth_date: fields.get("birth_date") || null,
         age: Number(fields.get("age")) || null,
         jersey_number: Number(fields.get("jersey_number"))
     });
@@ -151,10 +155,16 @@ rosterContainer.addEventListener("submit", async (event) => {
 
 
 rosterContainer.addEventListener("input", (event) => {
-    if (event.target.name !== "curp") return;
+    if (!["curp", "birth_date"].includes(event.target.name)) return;
     const form = event.target.closest(".roster-edit-form");
     if (!form) return;
-    form.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
+    updatePlayerIdentityAge(form);
+});
+
+rosterContainer.addEventListener("change", (event) => {
+    if (event.target.name !== "identity_type") return;
+    const form = event.target.closest(".roster-edit-form");
+    if (form) updatePlayerIdentityFields(form);
 });
 
 
@@ -170,6 +180,9 @@ rosterContainer.addEventListener("click", async (event) => {
         const player = await response.json();
         form.elements.name.value = player.name;
         form.elements.curp.value = player.curp;
+        form.elements.identity_type.value = player.identity_type || "curp";
+        form.elements.birth_date.value = player.birth_date || "";
+        updatePlayerIdentityFields(form);
         form.elements.age.value = player.age;
         form.elements.jersey_number.value = player.jersey_number;
         form.classList.remove("hidden");
@@ -220,6 +233,8 @@ playerForm.addEventListener("submit", async (event) => {
         const response = await createPlayer(teamId, {
             name: fields.get("name"),
             curp: fields.get("curp"),
+            identity_type: fields.get("identity_type"),
+            birth_date: fields.get("birth_date") || null,
             age: Number(fields.get("age")) || null,
             jersey_number: Number(fields.get("jersey_number"))
         });
@@ -229,6 +244,7 @@ playerForm.addEventListener("submit", async (event) => {
             return;
         }
         playerForm.reset();
+        updatePlayerIdentityFields(playerForm);
         playerFormMessage.textContent = "Jugador registrado correctamente.";
         await loadRoster();
     } finally {
@@ -237,9 +253,7 @@ playerForm.addEventListener("submit", async (event) => {
 });
 
 
-playerForm.elements.curp.addEventListener("input", (event) => {
-    playerForm.elements.age.value = calendarAgeFromCurp(event.target.value) ?? "";
-});
+bindPlayerIdentityFields(playerForm);
 
 
 let registeredPlayerSearchTimer;

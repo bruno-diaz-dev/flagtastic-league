@@ -1,11 +1,11 @@
 """Pydantic request contracts and league-wide input constraints."""
 
-from datetime import time
+from datetime import date, time
 from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
-from services.curp import InvalidCurpBirthDate, calendar_age_from_curp
+from services.curp import resolve_player_identity
 
 ALLOWED_BRANCHES = {
     "varonil",
@@ -138,7 +138,9 @@ class TeamNameUpdate(BaseModel):
 class PlayerCreate(BaseModel):
     """Validate a player registration for a team roster."""
     name: str = Field(min_length=1)
-    curp: str = Field(min_length=18, max_length=18)
+    curp: str = Field(min_length=1, max_length=18)
+    identity_type: Literal["curp", "provisional"] = "curp"
+    birth_date: date | None = None
     age: int | None = Field(default=None, gt=0)
     jersey_number: int = Field(ge=0)
 
@@ -151,11 +153,9 @@ class PlayerCreate(BaseModel):
     @model_validator(mode="after")
     def derive_completed_age(self):
         """Prefer CURP-derived completed age while accepting legacy test data."""
-        try:
-            self.age = calendar_age_from_curp(self.curp)
-        except InvalidCurpBirthDate:
-            if self.age is None:
-                raise ValueError("La CURP no contiene una fecha valida")
+        self.birth_date, self.age = resolve_player_identity(
+            self.curp, self.identity_type, self.birth_date, self.age
+        )
         return self
 
 
@@ -261,7 +261,9 @@ class PlayerAccountCreate(BaseModel):
     password: SecretStr = Field(min_length=8)
     name: str = Field(min_length=1)
     aka: str | None = Field(default=None, max_length=80)
-    curp: str = Field(min_length=18, max_length=18)
+    curp: str = Field(min_length=1, max_length=18)
+    identity_type: Literal["curp", "provisional"] = "curp"
+    birth_date: date | None = None
     age: int | None = Field(default=None, gt=0)
 
     @field_validator("email")
@@ -286,11 +288,9 @@ class PlayerAccountCreate(BaseModel):
     @model_validator(mode="after")
     def derive_completed_age(self):
         """Use completed years of age from the CURP for account matching."""
-        try:
-            self.age = calendar_age_from_curp(self.curp)
-        except InvalidCurpBirthDate:
-            if self.age is None:
-                raise ValueError("La CURP no contiene una fecha valida")
+        self.birth_date, self.age = resolve_player_identity(
+            self.curp, self.identity_type, self.birth_date, self.age
+        )
         return self
 
 

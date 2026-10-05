@@ -15,7 +15,8 @@ from repositories.players import (
     get_players_by_team,
     update_roster_player,
     update_roster_player_photo,
-    PlayerAlreadyRegisteredInDivision
+    PlayerAlreadyRegisteredInDivision,
+    PlayerIdentityMismatch
 )
 from dependencies.auth import require_team_manager
 from services.roster_import import RosterImportError, parse_roster_file
@@ -95,6 +96,12 @@ def register_player(
 
     try:
         return create_player(team, player)
+
+    except PlayerIdentityMismatch as error:
+        raise HTTPException(
+            status_code=409,
+            detail="El documento provisional ya está registrado con otros datos"
+        ) from error
 
     except PlayerAlreadyRegisteredInDivision:
 

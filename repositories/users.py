@@ -162,13 +162,15 @@ def create_player_account(registration, profile_photo):
     connection = get_connection()
     try:
         player = connection.execute(
-            "SELECT id, name, age FROM players WHERE curp = %s FOR UPDATE",
+            "SELECT id, name, age, identity_type, birth_date FROM players WHERE curp = %s FOR UPDATE",
             (registration.curp,)
         ).fetchone()
 
         if player is not None and (
             player["name"].strip().casefold() != registration.name.strip().casefold()
             or player["age"] != registration.age
+            or player["identity_type"] != registration.identity_type
+            or (registration.identity_type == "provisional" and player["birth_date"] != registration.birth_date)
         ):
             raise PlayerIdentityConflict()
 
@@ -177,16 +179,17 @@ def create_player_account(registration, profile_photo):
                 """
                 INSERT INTO players (
                     name, curp, age, aka, profile_photo_path,
-                    profile_photo_data, profile_photo_type
+                    profile_photo_data, profile_photo_type, identity_type, birth_date
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, name, age
                 """,
                 (
                     registration.name.strip(), registration.curp,
                     registration.age, registration.aka,
                     profile_photo["filename"], profile_photo["content"],
-                    profile_photo["media_type"]
+                    profile_photo["media_type"], registration.identity_type,
+                    registration.birth_date
                 )
             ).fetchone()
         else:
