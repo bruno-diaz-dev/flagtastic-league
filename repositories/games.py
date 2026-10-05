@@ -166,12 +166,12 @@ def get_games():
             home_team.name AS "home_team_name",
             home_team.branch AS "home_team_branch",
             home_team.category AS "home_team_category",
-            home_team.logo_data IS NOT NULL AS "home_team_has_logo",
+            home_team.logo_version AS "home_team_has_logo",
             away_team.id AS "away_team_id",
             away_team.name AS "away_team_name",
             away_team.branch AS "away_team_branch",
             away_team.category AS "away_team_category",
-            away_team.logo_data IS NOT NULL AS "away_team_has_logo"
+            away_team.logo_version AS "away_team_has_logo"
         FROM games
         JOIN teams AS home_team
             ON games.home_team_id = home_team.id
@@ -192,7 +192,7 @@ def get_games():
                 "branch": row["home_team_branch"],
                 "category": row["home_team_category"],
                 **(
-                    {"logo_url": f"/api/teams/{row['home_team_id']}/logo"}
+                    {"logo_url": f"/api/teams/{row['home_team_id']}/logo?v={row['home_team_has_logo']}&size=256"}
                     if row["home_team_has_logo"] else {}
                 )
             },
@@ -203,7 +203,7 @@ def get_games():
                 "branch": row["away_team_branch"],
                 "category": row["away_team_category"],
                 **(
-                    {"logo_url": f"/api/teams/{row['away_team_id']}/logo"}
+                    {"logo_url": f"/api/teams/{row['away_team_id']}/logo?v={row['away_team_has_logo']}&size=256"}
                     if row["away_team_has_logo"] else {}
                 )
             },
@@ -500,12 +500,12 @@ def get_games_for_referee(user_id):
             home_team.name AS home_team_name,
             home_team.branch AS home_team_branch,
             home_team.category AS home_team_category,
-            home_team.logo_data IS NOT NULL AS home_team_has_logo,
+            home_team.logo_version AS home_team_has_logo,
             away_team.id AS away_team_id,
             away_team.name AS away_team_name,
             away_team.branch AS away_team_branch,
             away_team.category AS away_team_category,
-            away_team.logo_data IS NOT NULL AS away_team_has_logo
+            away_team.logo_version AS away_team_has_logo
         FROM game_referees
         JOIN games ON games.id = game_referees.game_id
         JOIN teams AS home_team ON home_team.id = games.home_team_id
@@ -563,7 +563,7 @@ def get_games_for_referee(user_id):
                 "branch": row["home_team_branch"],
                 "category": row["home_team_category"],
                 **(
-                    {"logo_url": f"/api/teams/{row['home_team_id']}/logo"}
+                    {"logo_url": f"/api/teams/{row['home_team_id']}/logo?v={row['home_team_has_logo']}&size=256"}
                     if row["home_team_has_logo"] else {}
                 )
             },
@@ -573,7 +573,7 @@ def get_games_for_referee(user_id):
                 "branch": row["away_team_branch"],
                 "category": row["away_team_category"],
                 **(
-                    {"logo_url": f"/api/teams/{row['away_team_id']}/logo"}
+                    {"logo_url": f"/api/teams/{row['away_team_id']}/logo?v={row['away_team_has_logo']}&size=256"}
                     if row["away_team_has_logo"] else {}
                 )
             },

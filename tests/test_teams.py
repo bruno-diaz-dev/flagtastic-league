@@ -603,3 +603,42 @@ def test_missing_team_logo_returns_not_found():
     team_id = create_test_team(name="Halcones")
     assert client.get(f"/api/teams/{team_id}/logo").status_code == 404
 """API tests for team registration, listing, and detail views."""
+
+
+def test_versioned_display_logo_is_bounded_and_preserves_original():
+    from io import BytesIO
+    from hashlib import md5
+    from PIL import Image
+
+    team_id = create_test_team(name="Display Logo")
+    source = BytesIO()
+    Image.new("RGBA", (1200, 900), (255, 200, 0, 128)).save(source, format="PNG")
+    original = source.getvalue()
+    assert client.put(
+        f"/api/teams/{team_id}/logo",
+        files={"file": ("logo.png", original, "image/png")}
+    ).status_code == 204
+    url = client.get(f"/api/teams/{team_id}").json()["logo_url"]
+    assert f"v={md5(original).hexdigest()}" in url
+    assert "size=256" in url
+    display = client.get(url)
+    assert display.status_code == 200
+    assert display.headers["content-type"] == "image/webp"
+    with Image.open(BytesIO(display.content)) as image:
+        assert image.size == (256, 192)
+        assert image.mode == "RGBA"
+    assert client.get(f"/api/teams/{team_id}/logo").content == original
+    assert client.get(f"/api/teams/{team_id}/logo?size=9999").status_code == 422
+
+
+def test_legacy_invalid_logo_still_displays_with_thumbnail_parameter():
+    team_id = create_test_team(name="Legacy Logo")
+    original = bytes.fromhex("89504e470d0a1a0a") + b"legacy-logo"
+    assert client.put(
+        f"/api/teams/{team_id}/logo",
+        files={"file": ("logo.png", original, "image/png")}
+    ).status_code == 204
+    display = client.get(client.get(f"/api/teams/{team_id}").json()["logo_url"])
+    assert display.status_code == 200
+    assert display.content == original
+    assert display.headers["content-type"] == "image/png"

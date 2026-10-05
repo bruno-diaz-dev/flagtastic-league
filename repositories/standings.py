@@ -17,7 +17,7 @@ def get_standings(branch, category):
         SELECT
             teams.id AS team_id,
             teams.name AS team_name,
-            teams.logo_data IS NOT NULL AS team_has_logo,
+            teams.logo_version AS team_logo_version,
             COUNT(games.id) AS games_played,
             COALESCE(SUM(
                 CASE
@@ -72,9 +72,7 @@ def get_standings(branch, category):
             {branch_filter}
             teams.category = %s
         GROUP BY
-            teams.id,
-            teams.name,
-            teams.logo_data
+            teams.id
         ORDER BY
             CASE WHEN COUNT(games.id) = 0 THEN 1 ELSE 0 END ASC,
             wins DESC,
@@ -93,8 +91,9 @@ def get_standings(branch, category):
     for team in standings:
         # The league has no draws: played games are wins plus losses.
         team["games_played"] = team["wins"] + team["losses"]
-        if team.pop("team_has_logo"):
-            team["team_logo_url"] = f"/api/teams/{team['team_id']}/logo"
+        logo_version = team.pop("team_logo_version")
+        if logo_version:
+            team["team_logo_url"] = f"/api/teams/{team['team_id']}/logo?v={logo_version}&size=256"
         team["point_difference"] = (
             team["points_for"]
             - team["points_against"]
