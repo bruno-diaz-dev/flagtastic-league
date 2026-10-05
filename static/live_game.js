@@ -108,18 +108,25 @@ async function liveWrite(path, body = {}) {
     const response = await fetch(`/api/games/${liveGameId}/live/${path}`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(typeof error.detail === "string" ? error.detail : "Revisa los datos de la jugada.");
+        const detail = Array.isArray(error.detail)
+            ? error.detail.map(item => item.msg || "Dato inválido").join(". ")
+            : error.detail;
+        throw new Error(typeof detail === "string" ? detail
+            : response.status >= 500 ? "No se pudo completar la operación en el servidor. Intenta nuevamente."
+            : response.status === 401 ? "Tu sesión terminó. Inicia sesión nuevamente."
+            : response.status === 403 ? "Tu cuenta no tiene permiso para esta operación."
+            : "No se pudo completar la operación.");
     }
     return response.json();
 }
 
-async function liveOperation(action) {
+async function liveOperation(action, isPlay = false) {
     if (liveBusy) return;
     liveBusy = true;
     liveRoot.querySelectorAll("button").forEach(button => { button.disabled = true; });
     liveMessage.textContent = "Guardando…";
     try { await action(); await refreshLive(true); }
-    catch (error) { liveMessage.textContent = `${error.message} No se confirmó el envío. Revisa la cronología antes de reintentar.`; }
+    catch (error) { liveMessage.textContent = `${error.message}${isPlay ? " Revisa la cronología antes de reenviar la jugada." : ""}`; }
     finally { liveBusy = false; liveRoot.querySelectorAll("button").forEach(button => {button.disabled = false;}); }
 }
 
@@ -136,7 +143,7 @@ liveForm.addEventListener("submit", event => {
         livePending = null;
         liveForm.elements.note.value = "";
         liveMessage.textContent = "Jugada registrada.";
-    });
+    }, true);
 });
 document.querySelector("#live-start").addEventListener("click", () => liveOperation(async () => {
     await liveWrite("start");

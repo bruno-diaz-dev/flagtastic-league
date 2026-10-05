@@ -28,4 +28,4 @@ Legacy final-score/status actions cannot close or postpone active capture. Weekl
 
 ## Database
 
-Migration `a2c6f8109d43` follows `9a12e8d4c6f0`. Two additive tables use foreign keys and idempotent schema creation. Both have RLS enabled and no browser write policies; access goes through FastAPI authentication and existing server credentials. Never change an Alembic version marker merely because managed deployment markers differ.
+Migration `a2c6f8109d43` follows `9a12e8d4c6f0`; `b3d7e9210a54` grants the existing restricted `flagtastic_app` backend role table/sequence access and role-scoped RLS policies. Both tables have RLS enabled and no browser policies; access goes through FastAPI authentication and existing server credentials. Test with the restricted backend role as well as the database owner. Never change an Alembic version marker merely because managed deployment markers differ.
