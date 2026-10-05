@@ -12,7 +12,7 @@ const assert=require('node:assert/strict');
     await page.route('https://leaders.test/**',async route=>{
         const url=new URL(route.request().url());
         if(url.pathname==='/api/statistics/passing-visual') return route.fulfill({json:[
-            {player_id:1,team_id:1,display_name:'María Fernanda Nombre Largo Apellido Completo',team_name:'Diablos del Sol Aguascalientes',jersey_number:100,completed:316,attempts:417},
+            {player_id:1,team_id:1,display_name:'María Fernanda Nombre Largo Apellido Completo',team_name:'Diablos del Sol Aguascalientes',jersey_number:100,completed:4,attempts:5},
             {player_id:2,team_id:2,display_name:'Ana López',team_name:'Lobos',jersey_number:7,completed:281,attempts:400}
         ]});
         if(url.pathname.startsWith('/static/')) return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
@@ -24,9 +24,11 @@ const assert=require('node:assert/strict');
         await page.locator('.leaderboard-panel').last().waitFor();
         assert.equal(await page.locator('.leaderboard-panel').count(),6);
         await page.locator('#passing-visual-player:not([disabled])').waitFor();
-        assert.equal(await page.locator('#passing-visual-field circle').count(),40);
-        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('316/417'));
-        assert.ok((await page.locator('#passing-visual-field').textContent()).includes('SIN UBICACIONES REALES'));
+        assert.equal(await page.locator('#passing-visual-field .passing-marker').count(),5);
+        assert.equal(await page.locator('#passing-visual-field [data-result="complete"]').count(),4);
+        assert.equal(await page.locator('#passing-visual-field [data-result="incomplete"]').count(),1);
+        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('4/5'));
+        assert.ok((await page.locator('#passing-visual-field').textContent()).includes('POSICIONES Y ESCALA ILUSTRATIVAS'));
         await page.locator('#passing-visual-player').selectOption('1');
         assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('281/400'));
         assert.ok(await page.locator('.leaderboard-player').nth(1).textContent().then(text=>text.includes('Ana López')));
@@ -38,8 +40,10 @@ const assert=require('node:assert/strict');
         assert.equal(await page.locator('.stat-value strong').first().textContent(),'75.78%');
         assert.equal(await page.locator('.leaderboard-pass-detail').first().textContent(),'316/417 C/I');
         assert.equal(await page.locator('.leaderboard-panel').nth(2).locator('.stat-value strong').first().textContent(),'1234');
+        if(width===390)await page.locator('#passing-visual-player').selectOption('0');
         if(width===390)await page.locator('#passing-visual-panel').screenshot({path:'mobile-passing-statistics.png'});
         if(width===390)await page.locator('.leaderboard-panel').first().screenshot({path:'mobile-leaderboards.png'});
     }
     assert.deepEqual(errors,[]);await browser.close();console.log('Leaderboards verified at 320, 360, 390, 430 and 1280 pixels; names and totals fit without horizontal scrolling.');
 })().catch(error=>{console.error(error);process.exit(1);});
+

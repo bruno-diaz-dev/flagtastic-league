@@ -393,6 +393,8 @@ def get_passing_visual_statistics(branch, category):
         rows = connection.execute("""
             SELECT p.id AS player_id, COALESCE(NULLIF(p.aka,''),p.name) AS display_name,
                    t.id AS team_id, t.name AS team_name, tp.jersey_number,
+                   CASE WHEN p.profile_photo_path IS NULL THEN NULL
+                        ELSE '/media/profiles/' || p.profile_photo_path END AS profile_photo_url,
                    SUM(s.passes_completed)::int AS completed,
                    SUM(s.passes_attempted)::int AS attempts
             FROM player_week_stats s JOIN players p ON p.id=s.player_id
@@ -400,8 +402,9 @@ def get_passing_visual_statistics(branch, category):
             JOIN team_players tp ON tp.player_id=s.player_id AND tp.team_id=s.team_id
             WHERE LOWER(t.category)=LOWER(%s)
               AND (%s OR LOWER(t.branch)=LOWER(%s))
-            GROUP BY p.id,p.name,p.aka,t.id,t.name,tp.jersey_number
+            GROUP BY p.id,p.name,p.aka,p.profile_photo_path,t.id,t.name,tp.jersey_number
             HAVING SUM(s.passes_attempted)>0
             ORDER BY SUM(s.passes_attempted) DESC,p.name,t.name
         """, (category.strip(),category_allows_cross_branch_games(category),branch.strip())).fetchall()
     return [dict(row) for row in rows]
+

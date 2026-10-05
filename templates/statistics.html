@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/statistics.css?v=20261005-preview-stats-1">
+<link rel="stylesheet" href="/static/statistics.css?v=20261005-preview-stats-2">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -64,13 +64,13 @@
     </section>
 
     <section id="passing-visual-panel" class="passing-visual-panel" aria-labelledby="passing-visual-heading">
-        <p class="ui-kicker">Análisis del pasador</p><h3 id="passing-visual-heading">Pases en el campo</h3>
-        <p class="form-help">Explora los totales oficiales del jugador en la división seleccionada.</p>
-        <label>Pasador<select id="passing-visual-player" disabled><option>Consultando pasadores…</option></select></label>
-        <div id="passing-visual-summary" class="passing-visual-summary"></div>
+        <label class="passing-player-select">Pasador<select id="passing-visual-player" disabled><option>Consultando pasadores…</option></select></label>
+        <div class="passing-chart-brand"><span>FLAGTASTIC</span><strong>PASS CHART</strong><small>ESTADÍSTICAS</small></div>
         <div id="passing-visual-field" class="passing-visual-field"></div>
-        <div class="passing-visual-legend"><span>● Completo</span><span>○ Incompleto</span></div>
-        <p class="form-help">Campo ilustrativo: los puntos representan la proporción de pases completos e incompletos. Su distribución y la curva son decorativas; no muestran lugares, recorridos ni distancias reales.</p>
+        <div class="passing-visual-legend"><span><i class="passing-ring complete"></i> COMPLETO</span><span><i class="passing-ring incomplete"></i> INCOMPLETO</span><span><i class="passing-los"></i> LOS ILUSTRATIVA</span></div>
+        <h3 id="passing-visual-heading">MAPA DE PASES</h3>
+        <div class="passing-player-card"><div id="passing-visual-identity" class="passing-visual-identity"></div><div id="passing-visual-summary" class="passing-visual-summary"></div></div>
+        <p id="passing-visual-note" class="passing-visual-note"></p>
         <p id="passing-visual-status" class="form-help" role="status"></p>
     </section>
     <section id="leaderboards" class="leaderboards" aria-live="polite"></section>
@@ -79,7 +79,8 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/passing_visual.js?v=20261005-preview-stats-1"></script>
-<script src="/static/statistics.js?v=20261005-preview-stats-1"></script>
+<script src="/static/passing_visual.js?v=20261005-preview-stats-2"></script>
+<script src="/static/statistics.js?v=20261005-preview-stats-2"></script>
 {% endblock %}
+
 
