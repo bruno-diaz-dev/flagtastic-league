@@ -18,7 +18,7 @@ let liveTimer;
 let liveFailures = 0;
 let liveQueue = null;
 let liveEditing = null;
-let liveCaptureSaving = false;
+let liveCaptureSaving = 0;
 let liveLastTap = null;
 const livePassers = new Map();
 const liveActors = new Map();
@@ -84,7 +84,7 @@ function renderLiveOutbox(rows) {
     document.querySelector("#live-outbox-list").innerHTML = [...rows].reverse().map(row =>
         `<article class="live-pending-play"><strong>${escapeHtml(liveShortLabels[row.payload.kind])} · ${escapeHtml(row.labels.player)}${row.labels.receiver ? " → " + escapeHtml(row.labels.receiver) : ""}</strong><span>${escapeHtml(row.labels.team)} · P${row.payload.period} ${String(row.payload.minute).padStart(2,"0")}:${String(row.payload.second).padStart(2,"0")} · ${{pending:"En espera",sending:"Enviando",retry:"Pendiente de confirmación",blocked:"No aceptada"}[row.status] || "En espera"}</span>${row.error ? `<p>${escapeHtml(row.error)}</p>` : ""}${row.status === "blocked" && row.httpStatus === 422 ? `<button type="button" class="secondary-button" data-live-edit="${row.id}">Corregir selección</button>` : ""}</article>`
     ).join("");
-    document.querySelector("#live-finish").disabled = Boolean(rows.length || liveQueue?.working || liveBusy);
+    document.querySelector("#live-finish").disabled = Boolean(rows.length || liveQueue?.working || liveBusy || liveCaptureSaving);
 }
 
 function liveQueueError(error) {
@@ -117,29 +117,30 @@ function liveCapturePayload() {
 }
 
 async function liveCapturePlay() {
-    if (liveCaptureSaving || liveBusy || !liveQueue || !liveHasRole("referee") || liveData?.state !== "live") return;
+    if (liveBusy || !liveQueue || !liveHasRole("referee") || liveData?.state !== "live") return;
     if (!liveForm.reportValidity()) return;
     const payload = liveCapturePayload();
     if (payload.receiver_id === payload.player_id) { liveMessage.textContent = "Selecciona un receptor distinto al pasador."; return; }
     const signature = JSON.stringify(payload);
     if (!liveEditing && liveLastTap?.signature === signature && Date.now() - liveLastTap.at < 400) return;
-    liveCaptureSaving = true;
+    const tap = {signature,at:Date.now()};
+    liveLastTap = tap;
+    liveCaptureSaving += 1;
     try {
         const players = liveData.roster.filter(player => player.team_id === payload.team_id);
         const label = id => { const player = players.find(p => p.player_id === id); return player ? `#${player.jersey_number} ${player.display_name}` : ""; };
         const labels = {player:label(payload.player_id),receiver:label(payload.receiver_id),team:payload.team_id === liveData.home_team.id ? liveData.home_team.name : liveData.away_team.name};
         if (liveEditing) await liveQueue.replace(liveEditing, payload, labels);
         else await liveQueue.enqueue({...payload,client_id:crypto.randomUUID()}, labels);
-        liveLastTap = {signature,at:Date.now()};
         liveEditing = null;
         document.querySelector("#live-save-play").textContent = "Registrar jugada";
         liveMessage.textContent = `${liveShortLabels[payload.kind]} · ${labels.player}${labels.receiver ? " → " + labels.receiver : ""}. Guardada en este dispositivo; esperando confirmación.`;
         document.querySelector("#live-last-capture").textContent = `Última captura: ${liveShortLabels[payload.kind]} · ${labels.player}${labels.receiver ? " → " + labels.receiver : ""}`;
-        if (payload.receiver_id) liveForm.elements.receiver_id.value = "";
+        if (payload.receiver_id && Number(liveForm.elements.receiver_id.value) === payload.receiver_id && Number(liveForm.elements.team_id.value) === payload.team_id && liveForm.elements.kind.value === payload.kind) liveForm.elements.receiver_id.value = "";
         renderLiveQuickControls();
         liveQueue.flush().catch(liveQueueError);
-    } catch (error) { liveQueueError(error); }
-    finally { liveCaptureSaving = false; }
+    } catch (error) { if (liveLastTap === tap) liveLastTap = null; liveQueueError(error); }
+    finally { liveCaptureSaving -= 1; }
 }
 
 function liveHasRole(role) { return Boolean(liveUser && (liveUser.roles || [liveUser.role]).includes(role)); }

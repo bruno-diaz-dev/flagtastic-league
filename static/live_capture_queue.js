@@ -36,13 +36,17 @@ class LiveCaptureQueue {
         this.rows = []; this.working = false; this.timer = null; this.failures = 0;
     }
     async reload() { this.rows = await this.store.list(); this.onChange(this.rows); return this.rows; }
-    async enqueue(payload, labels) {
-        const rows = await this.store.list();
-        const play = {id: payload.client_id, payload, labels, status: "pending", createdAt: Math.max(Date.now(), (rows.at(-1)?.createdAt || 0) + 1)};
-        await this.store.put(play); // Never report a capture before its durable transaction completes.
-        this.rows = [...rows, play];
-        this.onChange(this.rows);
-        return play;
+    enqueue(payload, labels) {
+        const task = (this.persisting || Promise.resolve()).then(async () => {
+            const rows = await this.store.list();
+            const play = {id: payload.client_id, payload, labels, status: "pending", createdAt: Math.max(Date.now(), (rows.at(-1)?.createdAt || 0) + 1)};
+            await this.store.put(play); // Never report a capture before its durable transaction completes.
+            this.rows = [...rows, play];
+            try { this.onChange(this.rows); } catch (error) { this.onError(error); }
+            return play;
+        });
+        this.persisting = task.catch(() => {});
+        return task;
     }
     async replace(id, payload, labels) {
         const existing = (await this.store.list()).find(row => row.id === id);

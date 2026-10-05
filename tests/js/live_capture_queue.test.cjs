@@ -68,3 +68,10 @@ test('storage failure never reports a play as captured or sends it',async()=>{
     await assert.rejects(q.enqueue(payload('unsaved'),labels),/Disk full/);
     assert.equal(sent,0);assert.equal(store.entries.size,0);
 });
+
+test('simultaneous local captures are durably serialized without dropping a play',async()=>{
+    const store=memoryStore();const q=queue(store,async()=>{});
+    await Promise.all([q.enqueue(payload('first'),labels),q.enqueue(payload('second'),labels),q.enqueue(payload('third'),labels)]);
+    assert.deepEqual((await store.list()).map(row=>row.id),['first','second','third']);
+    assert.equal(q.rows.length,3);
+});
