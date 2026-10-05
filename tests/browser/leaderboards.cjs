@@ -11,14 +11,34 @@ const assert=require('node:assert/strict');
     ]]));
     await page.route('https://leaders.test/**',async route=>{
         const url=new URL(route.request().url());
+        if(url.pathname==='/api/statistics/passing-visual') return route.fulfill({json:[
+            {player_id:1,team_id:1,display_name:'María Fernanda Nombre Largo Apellido Completo',team_name:'Diablos del Sol Aguascalientes',jersey_number:100,completed:4,attempts:5},
+            {player_id:2,team_id:2,display_name:'Ana López',team_name:'Lobos',jersey_number:7,completed:281,attempts:400},
+            {player_id:3,team_id:3,display_name:'Brucie',team_name:'Storms',jersey_number:83,completed:1,attempts:1,profile_photo_url:'/portrait.svg'}
+        ]});
+        if(url.pathname==='/portrait.svg') return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="300" height="1400"><rect width="300" height="1400" fill="#263d59"/><circle cx="150" cy="700" r="85" fill="#e2be9e"/></svg>'});
         if(url.pathname.startsWith('/static/')) return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
         const content=fs.readFileSync('templates/statistics.html','utf8').split('{% block content %}')[1].split('{% endblock %}')[0];
-        await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script>const data=${JSON.stringify(leaders)};function getLeaderboards(){return Promise.resolve({ok:true,json:async()=>data});}function isUnifiedYouthCategory(){return false;}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/statistics.js"></script></body></html>`});
+        await route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script>const data=${JSON.stringify(leaders)};function getLeaderboards(){return Promise.resolve({ok:true,json:async()=>data});}function isUnifiedYouthCategory(){return false;}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}</script><script src="/static/passing_visual.js"></script><script src="/static/statistics.js"></script></body></html>`});
     });
     for(const width of [320,360,390,430,1280]){
         await page.setViewportSize({width,height:844});await page.goto('https://leaders.test/');
         await page.locator('.leaderboard-panel').last().waitFor();
         assert.equal(await page.locator('.leaderboard-panel').count(),6);
+        await page.locator('#passing-visual-player:not([disabled])').waitFor();
+        assert.equal(await page.locator('#passing-visual-field .passing-marker').count(),5);
+        assert.equal(await page.locator('#passing-visual-field [data-result="complete"]').count(),4);
+        assert.equal(await page.locator('#passing-visual-field [data-result="incomplete"]').count(),1);
+        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('4/5'));
+        assert.ok((await page.locator('#passing-visual-field').textContent()).includes('POSICIONES Y ESCALA ILUSTRATIVAS'));
+        await page.locator('#passing-visual-player').selectOption('1');
+        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('281/400'));
+        assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.passing-visual-summary strong')].every(el=>el.scrollWidth<=el.clientWidth+1)),true,`passing totals overflow at ${width}`);
+        await page.locator('#passing-visual-player').selectOption('2');
+        await page.waitForFunction(()=>document.querySelector('.passing-player-photo img')?.complete);
+        assert.ok((await page.locator('#passing-visual-summary').textContent()).includes('100.0%'));
+        assert.equal(await page.evaluate(()=>{const image=document.querySelector('.passing-player-photo img').getBoundingClientRect();const frame=document.querySelector('.passing-player-photo').getBoundingClientRect();const metrics=document.querySelector('.passing-visual-summary').getBoundingClientRect();return image.top>=frame.top&&image.bottom<=frame.bottom+1&&(innerWidth>=760||image.bottom<=metrics.top+1);}),true,`portrait extends into totals at ${width}`);
+        assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.passing-visual-summary strong')].every(el=>el.scrollWidth<=el.clientWidth+1)),true,`100 percent overlaps incompletions at ${width}`);
         assert.ok(await page.locator('.leaderboard-player').nth(1).textContent().then(text=>text.includes('Ana López')));
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`page overflow at ${width}`);
         if(width<=430){
@@ -28,7 +48,11 @@ const assert=require('node:assert/strict');
         assert.equal(await page.locator('.stat-value strong').first().textContent(),'75.78%');
         assert.equal(await page.locator('.leaderboard-pass-detail').first().textContent(),'316/417 C/I');
         assert.equal(await page.locator('.leaderboard-panel').nth(2).locator('.stat-value strong').first().textContent(),'1234');
+        if(width===390)await page.locator('#passing-visual-player').selectOption('2');
+        if(width===390)await page.locator('#passing-visual-panel').screenshot({path:'mobile-passing-statistics.png'});
         if(width===390)await page.locator('.leaderboard-panel').first().screenshot({path:'mobile-leaderboards.png'});
     }
     assert.deepEqual(errors,[]);await browser.close();console.log('Leaderboards verified at 320, 360, 390, 430 and 1280 pixels; names and totals fit without horizontal scrolling.');
 })().catch(error=>{console.error(error);process.exit(1);});
+
+

@@ -251,3 +251,21 @@ def test_voided_play_contributes_no_score_or_player_statistics(kind):
                                     "receiver_id":11, "voided_at":"2026-10-05"}], 1, 2)
     assert scores == {1:0, 2:0}
     assert totals == []
+
+
+def test_passing_visual_uses_official_statistics_without_coordinates():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    login(client, users["referee"])
+    assert client.post(path + "/start").status_code == 200
+    payload = event(teams[0], players[0][0], "passing_touchdown", receiver_id=players[0][1])
+    assert client.post(path + "/events", json=payload).status_code == 201
+    version = client.get(path).json()["version"]
+    assert client.post(path + "/finish", json={"expected_version":version}).status_code == 200
+    client.cookies.clear()
+    response = client.get("/api/statistics/passing-visual?branch=varonil&category=libre")
+    assert response.status_code == 200
+    row = next(r for r in response.json() if r["player_id"]==players[0][0])
+    assert row["completed"] == 1 and row["attempts"] == 1
+    assert "curp" not in row and "field_location" not in row
+    assert not any(r["player_id"]==players[0][0] for r in client.get("/api/statistics/passing-visual?branch=femenil&category=libre").json())

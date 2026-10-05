@@ -1,5 +1,6 @@
 // Public leaderboard controller. Totals are calculated by the backend.
 
+const passingVisual = typeof PassingStatisticsView !== "undefined" ? new PassingStatisticsView(document.querySelector("#passing-visual-panel")) : null;
 const leaderboardForm = document.querySelector("#leaderboard-form");
 const leaderboardsContainer = document.querySelector("#leaderboards");
 const statisticsImportForm = document.querySelector("#statistics-import-form");
@@ -113,6 +114,7 @@ async function loadLeaderboards(event) {
     if (event) event.preventDefault();
     const formData = new FormData(leaderboardForm);
     leaderboardsContainer.innerHTML = "<p>Cargando estadísticas...</p>";
+    passingVisual?.load(isUnifiedYouthCategory(formData.get("category")) ? "mixto" : formData.get("branch"), formData.get("category"));
 
     try {
         const response = await getLeaderboards(

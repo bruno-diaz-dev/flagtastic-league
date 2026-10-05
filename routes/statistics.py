@@ -10,6 +10,7 @@ from repositories.statistics import (
     StatisticsValidationError,
     get_week_statistics,
     get_leaderboards,
+    get_passing_visual_statistics,
     get_player_statistics,
     import_statistics_workbook,
     import_week_statistics
@@ -154,3 +155,11 @@ def statistics_leaderboards(branch: str, category: str, response: Response):
     response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=60"
     return get_leaderboards(branch, category)
+
+
+@router.get("/api/statistics/passing-visual")
+def passing_visual(branch: str, category: str, response: Response):
+    """Public passing totals for a decorative field, never tracking data."""
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=60"
+    return get_passing_visual_statistics(branch, category)
