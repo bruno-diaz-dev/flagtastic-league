@@ -250,7 +250,7 @@ function renderGames(games) {
                     </div>
                     <footer class="game-card-footer">
                         <span>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} · ${escapeHtml(game.home_team.category)}</span>
-                        <a class="secondary-link game-details-link" href="/games/${game.id}">Ver detalles</a>
+                        <a class="secondary-link game-details-link" href="/games/${game.id}">Ver partido / En vivo</a>
                     </footer>
                     <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
                         <summary>${!hasScore && !isPostponed ? "Registrar resultado" : "Administrar partido"}</summary>

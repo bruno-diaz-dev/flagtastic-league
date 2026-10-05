@@ -82,7 +82,7 @@ function refereeGameCard(game) {
             </div>
             <div class="referee-game-result">
                 <strong>${isPostponed ? "Por reprogramar" : isPending ? "Por jugar" : `${game.home_score} - ${game.away_score}`}</strong>
-                <a class="secondary-link" href="/games/${game.id}">Ver detalle</a>
+                <a class="secondary-link" href="/games/${game.id}">${isPending ? "Captura en vivo" : "Ver detalle"}</a>
             </div>
             ${isPending && game.home_score == null && game.away_score == null ? `
             <details class="referee-score-panel">
