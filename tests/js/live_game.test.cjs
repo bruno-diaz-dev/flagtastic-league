@@ -9,17 +9,19 @@ function harness(role) {
     const node = selector => {
         if (!nodes.has(selector)) nodes.set(selector, {
             dataset:{gameId:'5'}, value:'', innerHTML:'', textContent:'',
-            addEventListener(){}, classList:{hidden:false,add(){},toggle(name,value){this[name]=value;}},
+            listeners:{}, addEventListener(name,handler){this.listeners[name]=handler;}, classList:{hidden:false,add(){},toggle(name,value){this[name]=value;}},
             querySelectorAll(){return [];},
         });
         return nodes.get(selector);
     };
     const form = node('#live-event-form');
-    form.elements = Object.fromEntries(['team_id','kind','player_id','receiver_id'].map(key => [key,node(key)]));
+    form.elements = Object.fromEntries(['team_id','kind','player_id','receiver_id','period','minute','second'].map(key => [key,node(key)]));
+    form.reportValidity = () => true;
     form.elements.kind.value = 'pass_complete';
     const context = vm.createContext({
         document:{querySelector:node,addEventListener(){},hidden:false},
         window:{addEventListener(){}}, fetch:()=>new Promise(()=>{}),
+        AbortController, crypto: require('node:crypto').webcrypto, navigator:{onLine:true},
         clearTimeout(){},setTimeout(){},
         escapeHtml:value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
     });
@@ -93,4 +95,42 @@ test('narration comes from statistics without descriptions for every sporting ev
     }
     context.renderLive(snapshot());
     assert.doesNotMatch(node('#live-timeline').innerHTML,/&lt;script&gt;/);
+});
+
+test('quick capture remembers each team passer and does not retain the previous receiver',()=>{
+    const {context,form,node}=harness('referee');
+    form.elements.team_id.value='1';
+    const data={...snapshot(),roster:[{team_id:1,player_id:10,jersey_number:10,display_name:'Ana'},{team_id:1,player_id:11,jersey_number:11,display_name:'Eva'},{team_id:2,player_id:20,jersey_number:20,display_name:'Luz'}]};
+    context.renderLive(data);
+    form.elements.player_id.value='10';context.liveRememberPlayer();
+    assert.equal(node('#live-passer-choices').open,false);
+    form.elements.receiver_id.value='11';context.liveSelectKind('passing_touchdown');
+    assert.equal(form.elements.player_id.value,'10');assert.equal(form.elements.receiver_id.value,'');
+    context.liveSelectTeam(2);form.elements.player_id.value='20';context.liveRememberPlayer();
+    context.liveSelectTeam(1);assert.equal(form.elements.player_id.value,'10');
+    context.liveSelectKind('flag');assert.equal(form.elements.player_id.value,'');
+    context.liveSelectKind('pass_complete');assert.equal(form.elements.player_id.value,'10');
+});
+
+test('next play is captured durably while an earlier upload is in progress; public score is not guessed',async()=>{
+    const {context,form,node}=harness('referee');form.elements.team_id.value='1';context.renderLive(snapshot());
+    form.elements.player_id.value='10';form.elements.receiver_id.value='11';
+    form.elements.period.value='2';form.elements.minute.value='8';form.elements.second.value='12';
+    const captured=[];
+    context.mockQueue={working:true,rows:[{id:'previous'}],async enqueue(play){captured.push(play);},async flush(){}};
+    vm.runInContext('liveQueue=mockQueue',context);
+    await context.liveCapturePlay();
+    assert.equal(captured.length,1);assert.equal(captured[0].minute,8);assert.ok(captured[0].client_id);
+    assert.equal(form.elements.player_id.value,'10');assert.equal(form.elements.receiver_id.value,'');
+    assert.equal(node('#live-home-score').textContent,6);
+    assert.match(node('#live-operation-message').textContent,/Guardada en este dispositivo/);
+});
+
+test('finalization is blocked by pending plays even if the button handler is invoked directly',async()=>{
+    const {context,node}=harness('referee');context.renderLive(snapshot());let writes=0;
+    context.mockQueue={rows:[{id:'pending'}],working:false,async reload(){}};
+    context.fetch=async()=>{writes++;throw Error('Unexpected write');};
+    vm.runInContext('liveQueue=mockQueue',context);
+    await node('#live-finish').listeners.click();
+    assert.equal(writes,0);assert.match(node('#live-operation-message').textContent,/sin confirmar/);
 });

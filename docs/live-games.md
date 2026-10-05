@@ -34,3 +34,14 @@ Migration `a2c6f8109d43` follows `9a12e8d4c6f0`; `b3d7e9210a54` grants the exist
 ## Preview test rosters
 
 The optional script `scripts/seed_preview_live_players.sql` fills every preview team to at least seven active players. Select project `mqnrrlymoddxgnyadsvy`, begin a transaction, set the explicit preview marker shown in the script, run it and commit. It is not an Alembic migration and must never be applied to production. It preserves existing players and jersey numbers, uses visibly fictional names and provisional TEST identities with synthetic birth dates appropriate to the category, and adds nothing on an unchanged repeat run.
+
+
+## Touch capture and durable outbox
+
+The referee form opens for a live game. Team and event-type buttons replace repeated dropdown navigation. Dorsal buttons capture immediately when the clearly labeled one-tap toggle is enabled. Complete passes and passing touchdowns preserve the passer per team; tapping the receiver captures the combined event. Incomplete passes and individual statistics capture on the actor button. Disable one-tap to review and submit manually. The field clock is copied by the official and retained, never estimated.
+
+Each capture is committed to IndexedDB before upload, scoped to the game and authenticated referee ID. Pending plays remain separate from the public confirmed timeline and survive reload on the same browser/origin. Ordered background uploads leave capture controls available for the next play. Network timeouts and ambiguous responses reuse the play UUID; the server's existing idempotency check prevents duplicates. A 4xx rejection stops the queue and preserves every later play. Invalid selections (422) can be corrected in place before retry; other rejected plays require review. No request is sent by public/player roles or after the game closes.
+
+Finalization and voiding are blocked while there are local pending writes. No provisional local event changes the public score or published statistics. The current browser must reconnect to upload pending plays; clearing browser data or switching domains/devices does not transfer the outbox. If local storage cannot open, new capture is disabled instead of claiming a play was saved.
+
+Validation includes VM tests for per-team passer retention, non-blocking capture, close guards, durable write failures and ordered/idempotent retries. The isolated mobile browser check uses the actual IndexedDB API, reloads with two unsent plays, reconnects and verifies exactly two published events, correct score, no horizontal overflow and no referee controls for a player. Its API responses are mocked; backend authorization and idempotency remain covered by the existing API tests.

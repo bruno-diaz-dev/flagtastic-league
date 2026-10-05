@@ -130,3 +130,25 @@ jobs:
 
       - name: Verify Expo dependencies and configuration
         run: npx expo-doctor
+
+  LiveCaptureBrowser:
+    name: Live capture browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test tools
+        run: |
+          npm install --no-save --no-package-lock playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Verify mobile capture and durable offline recovery
+        run: node tests/browser/live_capture.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-capture-mobile
+          path: mobile-capture.png
+          retention-days: 3
