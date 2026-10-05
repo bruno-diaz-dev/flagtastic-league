@@ -45,3 +45,11 @@ Each capture is committed to IndexedDB before upload, scoped to the game and aut
 Finalization and voiding are blocked while there are local pending writes. No provisional local event changes the public score or published statistics. The current browser must reconnect to upload pending plays; clearing browser data or switching domains/devices does not transfer the outbox. If local storage cannot open, new capture is disabled instead of claiming a play was saved.
 
 Validation includes VM tests for per-team passer retention, non-blocking capture, close guards, durable write failures and ordered/idempotent retries. The isolated mobile browser check uses the actual IndexedDB API, reloads with two unsent plays, reconnects and verifies exactly two published events, correct score, no horizontal overflow and no referee controls for a player. Its API responses are mocked; backend authorization and idempotency remain covered by the existing API tests.
+
+### Attendance and match breaks
+
+Attendance is explicit check-in, not a sporting statistic. It is shown separately from the public timeline and never generates player statistical rows. Retries or repeated check-ins count once per player, team and completed match. Existing attendance ledger records are preserved. Corrections are audited and completed matches require an administrator. No attendance is inferred from scores or imported statistics.
+
+Eligibility uses floor(team calendar games / 2) + 1, counting only attendance in completed matches. The UI clearly labels this provisional against the current calendar: it cannot distinguish regular season from playoffs or detect uncreated fixtures. Administrators must verify the regular-season calendar before approving final eligibility.
+
+Halftime and the two-minute warning are neutral timeline entries using the official's current period and clock. They require no team or player, produce no points or statistics, and use the existing durable retry queue.

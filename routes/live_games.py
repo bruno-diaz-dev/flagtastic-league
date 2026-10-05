@@ -15,8 +15,8 @@ router = APIRouter(prefix="/api/games/{game_id}/live", tags=["live games"])
 class LiveEvent(BaseModel):
     """An idempotent, timestamped entry in the digital statistics sheet."""
     client_id: UUID
-    kind: Literal["pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "extra_one", "extra_two", "safety", "sack", "flag", "interception", "attendance"]
-    team_id: int = Field(gt=0)
+    kind: Literal["pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "extra_one", "extra_two", "safety", "sack", "flag", "interception", "attendance", "halftime", "two_minute_warning"]
+    team_id: int | None = Field(default=None, gt=0)
     player_id: int | None = Field(default=None, gt=0)
     receiver_id: int | None = Field(default=None, gt=0)
     period: int = Field(ge=1, le=10)
@@ -26,6 +26,12 @@ class LiveEvent(BaseModel):
 
     @model_validator(mode="after")
     def validate_players(self):
+        if self.kind in ("halftime", "two_minute_warning"):
+            if any(value is not None for value in (self.team_id, self.player_id, self.receiver_id)):
+                raise ValueError("Las pausas corresponden al partido, sin equipo ni jugador")
+            return self
+        if self.team_id is None:
+            raise ValueError("Selecciona al equipo")
         if self.player_id is None:
             raise ValueError("Selecciona al jugador de la jugada")
         is_pass = self.kind in ("pass_complete", "passing_touchdown")

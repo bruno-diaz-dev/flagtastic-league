@@ -21,7 +21,6 @@
                         <option value="passing_touchdown">Pase de touchdown · 6 pts</option><option value="touchdown">Touchdown por carrera / retorno · 6 pts</option>
                         <option value="extra_one">Extra de 1 punto</option><option value="extra_two">Extra de 2 puntos</option><option value="safety">Safety · 2 pts</option>
                         <option value="sack">Sack</option><option value="flag">Flag retirado</option><option value="interception">Intercepción</option>
-                        <option value="attendance">Asistencia de jugador</option>
                     </select></label></div>
                     <details id="live-passer-choices" class="live-player-choice" open><summary id="live-passer-summary">Selecciona jugador</summary><label><span id="live-player-label">Pasador</span><select name="player_id" required></select></label><div id="live-player-buttons" class="live-player-buttons" role="group" aria-label="Jugador o pasador"></div></details>
                     <div id="live-receiver-field" class="live-player-choice"><label>Receptor<select name="receiver_id" required></select></label><div id="live-receiver-buttons" class="live-player-buttons" role="group" aria-label="Receptor"></div></div>
@@ -43,9 +42,11 @@
             <p class="form-help">Estas jugadas están guardadas en este dispositivo. Puedes seguir capturando; aparecerán en la cronología pública al confirmarse. No cierres el partido hasta enviarlas.</p>
             <div id="live-outbox-list"></div>
         </section>
+        <section id="live-moments" class="hidden"><h4>Pausas del partido</h4><p class="form-help">Usan el periodo y reloj de la captura. No requieren equipo ni jugador.</p><button type="button" class="secondary-button" data-live-moment="halftime">Medio tiempo</button> <button type="button" class="secondary-button" data-live-moment="two_minute_warning">Pausa de los 2 minutos</button></section>
         <button id="live-finish" type="button" class="secondary-button hidden">Revisar y finalizar partido</button>
     </div>
     <p id="live-operation-message" class="form-message" role="status"></p>
+    <details id="live-attendance-panel" class="ui-disclosure"><summary>Asistencia y elegibilidad a finales</summary><div class="ui-disclosure-body"><p class="form-help">Marca a quienes asistieron, aunque no tengan estadísticas. Cada partido finalizado cuenta una vez. Requisito: mitad del calendario registrado más uno (8 juegos → 5; 9 → 5). La elegibilidad es provisional si el calendario aún está incompleto o incluye finales; verifica la temporada regular antes de aprobarla.</p><div id="live-attendance"></div></div></details>
     <div class="live-content-grid">
         <section aria-labelledby="live-timeline-title"><h4 id="live-timeline-title">Jugadas recientes</h4><div id="live-timeline" class="live-timeline"></div></section>
         <details class="live-stats-panel"><summary>Estadísticas de la cédula</summary><p class="form-help">PTS: anotados · REC: recepciones · INT: intercepciones · SAC: sacks · FLG: flags · PC/PI: pases completos/intentos · PP: puntos por pase.</p><div id="live-statistics" class="table-scroll"></div></details>
