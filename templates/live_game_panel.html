@@ -8,9 +8,14 @@
     <p id="live-update-status" class="form-help" role="status">Consultando cobertura del partido…</p>
     <section id="live-field-panel" class="live-field-panel" aria-labelledby="live-field-heading">
         <div class="live-section-heading"><div><p class="ui-kicker">En la cancha</p><h4 id="live-field-heading">Cobertura visual</h4></div><button id="live-field-replay" class="secondary-button" type="button" disabled>Repetir</button></div>
+        <div id="live-pass-summary" class="live-pass-summary"></div>
+        <label class="live-chart-filter">Mapa de pases<select id="live-chart-passer"><option value="">Todos los jugadores</option></select></label>
+        <div id="live-pass-map" class="live-pass-map"></div>
+        <p id="live-map-count" class="form-help"></p>
+        <div class="live-map-legend"><span class="complete">● Completo</span><span class="incomplete">○ Incompleto</span><span class="td">● TD</span><span class="int">● Intercepción defensiva</span></div>
         <div id="live-field-stage" class="live-field-stage"></div>
         <div class="live-field-description" aria-live="polite"><strong id="live-field-title">La cancha, jugada a jugada</strong><p id="live-field-caption">Esperando capturas confirmadas…</p></div>
-        <p class="live-field-disclaimer">Recorridos ilustrativos: no representan posiciones, distancias ni dirección reales. Puedes volver a ver una jugada desde la cronología.</p>
+        <p class="live-field-disclaimer">Mapa: ubicaciones aproximadas capturadas por el árbitro, con ataque hacia arriba. Las jugadas sin ubicación usan recorridos ilustrativos. No calculamos yardas. Puedes volver a ver una jugada desde la cronología.</p>
     </section>
     <div id="live-official-controls" class="hidden">
         <button id="live-start" type="button" data-primary-action>Iniciar captura en vivo</button>
@@ -30,6 +35,14 @@
                     </select></label></div>
                     <details id="live-passer-choices" class="live-player-choice" open><summary id="live-passer-summary">Selecciona jugador</summary><label><span id="live-player-label">Pasador</span><select name="player_id" required></select></label><div id="live-player-buttons" class="live-player-buttons" role="group" aria-label="Jugador o pasador"></div></details>
                     <div id="live-receiver-field" class="live-player-choice"><label>Receptor<select name="receiver_id" required></select></label><div id="live-receiver-buttons" class="live-player-buttons" role="group" aria-label="Receptor"></div></div>
+                    <details id="live-location-panel" class="ui-disclosure">
+                        <summary>Ubicar jugada <span class="ui-disclosure-hint">Opcional · dos toques</span></summary>
+                        <p class="form-help">Con esta opción abierta, el dorsal no envía la jugada. Marca salida y llegada, luego pulsa Registrar. Orienta siempre el ataque hacia arriba; las posiciones son aproximadas.</p>
+                        <div id="live-location-editor" class="live-location-editor"></div>
+                        <p id="live-location-status" role="status">Marca la salida del balón.</p>
+                        <div class="live-location-accessible"><label>Salida X<input id="location-start-x" type="number" min="0" max="100" inputmode="numeric"></label><label>Salida Y<input id="location-start-y" type="number" min="0" max="100" inputmode="numeric"></label><label>Llegada X<input id="location-end-x" type="number" min="0" max="100" inputmode="numeric"></label><label>Llegada Y<input id="location-end-y" type="number" min="0" max="100" inputmode="numeric"></label></div>
+                        <button id="live-location-reset" type="button" class="secondary-button">Limpiar ubicación</button>
+                    </details>
                     <fieldset class="live-clock"><legend>Reloj del campo · se conserva entre jugadas</legend>
                         <label>Periodo<input name="period" type="number" value="1" min="1" max="10" required inputmode="numeric"></label>
                         <label>Minutos<input name="minute" type="number" value="0" min="0" max="200" required inputmode="numeric"></label>
@@ -58,4 +71,5 @@
         <details class="live-stats-panel"><summary>Estadísticas de la cédula</summary><p class="form-help">PTS: anotados · REC: recepciones · INT: intercepciones · SAC: sacks · FLG: flags · PC/PI: pases completos/intentos · PP: puntos por pase.</p><div id="live-statistics" class="table-scroll"></div></details>
     </div>
 </section>
+
 

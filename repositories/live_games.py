@@ -1,5 +1,7 @@
 """Atomic, auditable live-game persistence and final statistics publication."""
 
+from psycopg.types.json import Jsonb
+
 from database import get_connection
 from services.live_game import METRICS, project_events
 
@@ -98,7 +100,7 @@ def read_live_game(game_id):
             row.update(display_name=identity.get("display_name", "Jugador"), jersey_number=identity.get("jersey_number"))
         public_events = [{key: row[key] for key in (
             "id", "kind", "team_id", "player_id", "receiver_id", "player_label", "receiver_label",
-            "period", "minute", "second", "note", "created_at", "voided_at",
+            "period", "minute", "second", "note", "created_at", "voided_at", "field_location",
         )} for row in events if row["kind"] != "attendance" and not row["voided_at"]]
         state = session["state"] if session else "not_started"
         if game["status"] == "completed":
@@ -142,6 +144,8 @@ def append_event(game_id, payload, user_id):
         if existing:
             if any(existing[key] != payload[key] for key in ("kind", "team_id", "player_id", "receiver_id", "period", "minute", "second", "note")):
                 raise LiveGameError("La clave de la jugada ya fue utilizada para otro contenido")
+            if existing.get("field_location") != payload.get("field_location"):
+                raise LiveGameError("La clave de la jugada ya fue utilizada para otra ubicación")
             return {"id": existing["id"], "duplicate": True}
         require_live(game, session_for(connection, game_id))
         if payload["kind"] not in ("halftime", "two_minute_warning") and payload["team_id"] not in (game["home_team_id"], game["away_team_id"]):
@@ -155,9 +159,9 @@ def append_event(game_id, payload, user_id):
             return f"#{p['jersey_number']} {p['display_name']}" if p else None
         saved = connection.execute("""
             INSERT INTO game_live_events (game_id, client_id, kind, team_id, player_id, receiver_id,
-                player_label, receiver_label, period, minute, second, note, recorded_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """, (game_id, payload["client_id"], payload["kind"], payload["team_id"], payload["player_id"], payload["receiver_id"], label("player_id"), label("receiver_id"), payload["period"], payload["minute"], payload["second"], payload["note"], user_id)).fetchone()
+                player_label, receiver_label, period, minute, second, note, recorded_by, field_location)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (game_id, payload["client_id"], payload["kind"], payload["team_id"], payload["player_id"], payload["receiver_id"], label("player_id"), label("receiver_id"), payload["period"], payload["minute"], payload["second"], payload["note"], user_id, Jsonb(payload["field_location"]) if payload.get("field_location") else None)).fetchone()
         connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"id": saved["id"], "duplicate": False}
 
@@ -217,4 +221,5 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
+
 

@@ -251,3 +251,25 @@ def test_voided_play_contributes_no_score_or_player_statistics(kind):
                                     "receiver_id":11, "voided_at":"2026-10-05"}], 1, 2)
     assert scores == {1:0, 2:0}
     assert totals == []
+
+
+
+def test_located_play_retry_void_and_statistics():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    login(client, users["referee"])
+    assert client.post(path + "/start").status_code == 200
+    location = {"start_x": 50, "start_y": 80, "end_x": 25, "end_y": 10}
+    payload = event(teams[0], players[0][0], "passing_touchdown", receiver_id=players[0][1], field_location=location)
+    first = client.post(path + "/events", json=payload)
+    assert first.status_code == 201
+    assert client.post(path + "/events", json=payload).json()["duplicate"] is True
+    assert client.post(path + "/events", json={**payload,"field_location":{**location,"end_x":30}}).status_code == 409
+    assert client.post(path + "/events", json={**payload,"field_location":{**location,"end_x":101}}).status_code == 422
+    assert client.post(path + "/events", json={**payload,"kind":"attendance","receiver_id":None}).status_code == 422
+    snapshot = client.get(path).json()
+    assert snapshot["events"][0]["field_location"] == location
+    assert snapshot["home_score"] == 6
+    assert client.post(path + f"/events/{first.json()['id']}/void", json={"reason":"Error de captura", "expected_version":snapshot["version"]}).status_code == 200
+    corrected = client.get(path).json()
+    assert corrected["events"] == [] and corrected["statistics"] == [] and corrected["home_score"] == 0

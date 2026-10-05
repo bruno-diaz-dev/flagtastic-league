@@ -121,6 +121,11 @@ async function liveCapturePlay() {
     if (liveBusy || !liveQueue || !liveHasRole("referee") || liveData?.state !== "live") return;
     if (!liveForm.reportValidity()) return;
     const payload = liveCapturePayload();
+    if (typeof LiveLocationCapture !== "undefined") {
+        const location = LiveLocationCapture.read(payload.kind);
+        if (location === false) { liveMessage.textContent = "Marca salida y llegada o cierra Ubicar jugada para guardar sin ubicación."; return; }
+        if (location) payload.field_location = location;
+    }
     if (payload.receiver_id === payload.player_id) { liveMessage.textContent = "Selecciona un receptor distinto al pasador."; return; }
     const signature = JSON.stringify(payload);
     if (!liveEditing && liveLastTap?.signature === signature && Date.now() - liveLastTap.at < 400) return;
@@ -133,6 +138,7 @@ async function liveCapturePlay() {
         const labels = {player:label(payload.player_id),receiver:label(payload.receiver_id),team:payload.team_id === liveData.home_team.id ? liveData.home_team.name : liveData.away_team.name};
         if (liveEditing) await liveQueue.replace(liveEditing, payload, labels);
         else await liveQueue.enqueue({...payload,client_id:crypto.randomUUID()}, labels);
+        if (typeof LiveLocationCapture !== "undefined") LiveLocationCapture.reset();
         liveEditing = null;
         document.querySelector("#live-save-play").textContent = "Registrar jugada";
         liveMessage.textContent = `${liveShortLabels[payload.kind]} · ${labels.player}${labels.receiver ? " → " + labels.receiver : ""}. Guardada en este dispositivo; esperando confirmación.`;
@@ -357,7 +363,7 @@ document.querySelector("#live-capture-panel").addEventListener("click", event =>
         liveForm.elements[field].value = player.dataset.livePlayer;
         if (field === "player_id") liveRememberPlayer();
         else renderLiveQuickControls();
-        const quick = document.querySelector("#live-one-tap").checked;
+        const quick = document.querySelector("#live-one-tap").checked && !document.querySelector("#live-location-panel")?.open;
         const receiverRequired = !liveForm.elements.receiver_id.disabled;
         if (quick && (field === "receiver_id" || !receiverRequired)) liveCapturePlay();
     }
@@ -371,6 +377,7 @@ document.querySelector("#live-outbox-list").addEventListener("click", event => {
     liveSelectTeam(row.payload.team_id);
     liveSelectKind(row.payload.kind);
     for (const [field,value] of Object.entries(row.payload)) if (liveForm.elements[field]) liveForm.elements[field].value = value ?? "";
+    if (typeof LiveLocationCapture !== "undefined") LiveLocationCapture.restore(row.payload.field_location);
     liveRememberPlayer(); liveKindControls();
     liveEditing = row.id;
     document.querySelector("#live-one-tap").checked = false;
@@ -415,5 +422,6 @@ window.addEventListener("beforeunload", event => { if (liveCaptureSaving || live
     await initializeLiveQueue();
     await refreshLive();
 })();
+
 
 

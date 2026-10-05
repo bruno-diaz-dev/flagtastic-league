@@ -5,6 +5,8 @@
     const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     function eligibleEvents(data) { return (data.events || []).filter(event => !event.voided_at && Object.hasOwn(LABELS, event.kind)); }
     function fieldMarkup(event, animated) {
+        const located = root.fieldLocationMarkup?.(event, animated);
+        if (located) return located;
         const kind = event?.kind;
         const moment = kind === "halftime" || kind === "two_minute_warning";
         const pass = ["pass_complete","pass_incomplete","passing_touchdown","interception"].includes(kind);
@@ -28,6 +30,7 @@
             this.root = element;
             this.reducedMotion = options.reducedMotion || (() => Boolean(root.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
             this.hidden = options.hidden || (() => Boolean(root.document?.hidden));
+            this.chart = typeof root.LivePassChart !== "undefined" ? new root.LivePassChart(element, id => this.show(id)) : null;
             this.data = null;
             this.latestId = null;
             this.selectedId = null;
@@ -35,6 +38,7 @@
             this.root.querySelector("#live-field-replay").addEventListener("click", () => this.show(this.selectedId, true));
         }
         update(data) {
+            this.chart?.update(data);
             const events = eligibleEvents(data);
             const latest = events.at(-1);
             const newPlay = this.initialized && latest && latest.id !== this.latestId && latest.id > (this.latestId ?? 0);
@@ -60,3 +64,4 @@
     root.LiveFieldView = LiveFieldView;
     if (typeof module !== "undefined" && module.exports) module.exports = {LiveFieldView,fieldMarkup,eligibleEvents};
 })(typeof globalThis !== "undefined" ? globalThis : window);
+

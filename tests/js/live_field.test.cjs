@@ -40,3 +40,4 @@ test('neutral pauses show no player route and identities are escaped',()=>{
     assert.equal(nodes.get('#live-field-caption').textContent,'Tigres · <script> · → <img onerror=alert(1)> · P1 02:30');
     assert.doesNotMatch(nodes.get('#live-field-stage').innerHTML,/<script>|<img/);
 });
+
