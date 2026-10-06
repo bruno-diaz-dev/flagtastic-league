@@ -52,7 +52,8 @@
         <button id="live-finish" type="button" class="secondary-button hidden">Revisar y finalizar partido</button>
     </div>
     <p id="live-operation-message" class="form-message" role="status"></p>
-    <details id="live-attendance-panel" class="ui-disclosure"><summary>Asistencia y elegibilidad a finales</summary><div class="ui-disclosure-body"><p class="form-help">Marca a quienes asistieron, aunque no tengan estadísticas. Cada partido finalizado cuenta una vez. Requisito: mitad del calendario registrado más uno (8 juegos → 5; 9 → 5). La elegibilidad es provisional si el calendario aún está incompleto o incluye finales; verifica la temporada regular antes de aprobarla.</p><div id="live-attendance"></div></div></details>
+    <button id="attendance-action" type="button" class="hidden">Tomar asistencia</button>
+    <details id="live-attendance-panel" class="ui-disclosure"><summary>Asistencia y elegibilidad a finales</summary><div class="ui-disclosure-body"><p class="form-help">Marca a quienes asistieron, aunque no tengan estadísticas. Cada partido finalizado cuenta una vez. Requisito: mitad del calendario registrado más uno (8 juegos → 5; 9 → 5). La elegibilidad es provisional si el calendario aún está incompleto o incluye finales; verifica la temporada regular antes de aprobarla.</p><p id="attendance-permission" class="form-help"></p><div id="live-attendance"></div></div></details>
     <div class="live-content-grid">
         <section aria-labelledby="live-timeline-title"><h4 id="live-timeline-title">Jugadas recientes</h4><div id="live-timeline" class="live-timeline"></div></section>
         <details class="live-stats-panel"><summary>Estadísticas de la cédula</summary><p class="form-help">PTS: anotados · REC: recepciones · INT: intercepciones · SAC: sacks · FLG: flags · PC/PI: pases completos/intentos · PP: puntos por pase.</p><div id="live-statistics" class="table-scroll"></div></details>

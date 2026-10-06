@@ -10,7 +10,8 @@
       "chore/vercel-storage-optimization": true,
       "fix/vercel-fast-origin-transfer": true,
       "fix/friendly-guest-search": true,
-      "fix/diablos-schedule-colors": true
+      "fix/diablos-schedule-colors": true,
+      "fix/attendance-access": true
     }
   },
   "functions": {

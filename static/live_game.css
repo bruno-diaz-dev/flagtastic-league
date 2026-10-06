@@ -108,3 +108,11 @@
 @keyframes live-field-draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes live-field-celebrate { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .live-field-draw, .live-field-celebrate { animation: none; } }
+
+/* Attendance lists use readable rows rather than the compact play selector. */
+#live-attendance-panel { scroll-margin-top: 130px; }
+.attendance-roster { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.attendance-player { min-width: 0; padding: 14px; border: 1px solid var(--color-border); border-radius: 12px; }
+.attendance-player strong { display: block; overflow-wrap: anywhere; }
+.attendance-player p { margin: 8px 0; font-size: 13px; line-height: 1.5; color: var(--color-text-muted); }
+.attendance-player button { margin: 0; min-height: 44px; width: 100%; }

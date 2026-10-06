@@ -87,3 +87,19 @@ def correct(game_id: int, event_id: int, correction: LiveVoid, user=Depends(requ
 @router.post("/finish")
 def finish(game_id: int, payload: LiveFinish, user=Depends(require_referee)):
     return perform(finish_live_game, game_id, payload.expected_version, user["id"])
+
+
+class AttendanceCheckIn(BaseModel):
+    client_id: UUID
+    team_id: int = Field(gt=0)
+    player_id: int = Field(gt=0)
+
+
+@router.post("/attendance", status_code=201)
+def check_in(game_id: int, payload: AttendanceCheckIn, user=Depends(require_authenticated_user)):
+    """Check attendance without starting live capture or changing the score."""
+    is_admin = user_has_role(user, "league_admin")
+    if not is_admin and not user_has_role(user, "referee"):
+        raise HTTPException(status_code=403, detail="Acceso no autorizado")
+    event = LiveEvent(**payload.model_dump(), kind="attendance", period=1, minute=0, second=0)
+    return perform(append_event, game_id, event.model_dump(), user["id"], is_admin)

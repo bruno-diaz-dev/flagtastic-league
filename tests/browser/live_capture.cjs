@@ -7,9 +7,9 @@ const assert = require('node:assert/strict');
     const context = await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     const page = await context.newPage();
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
-    let offline=true;let role='referee';let correctionVersion=0;const plays=new Map();
+    let offline=true;let role='referee';let matchState='live';let correctionVersion=0;const plays=new Map();
     const roster=[{team_id:1,player_id:10,jersey_number:10,display_name:'Ana'},{team_id:1,player_id:7,jersey_number:7,display_name:'Eva'},{team_id:1,player_id:12,jersey_number:12,display_name:'Luz'},{team_id:2,player_id:20,jersey_number:20,display_name:'María'}];
-    const snapshot=()=>({game_id:5,state:'live',version:plays.size+correctionVersion,home_team:{id:1,name:'Tigres'},away_team:{id:2,name:'Lobos'},home_score:[...plays.values()].filter(p=>p.kind==='extra_one').length,away_score:0,roster,attendance:roster.map(r=>({...r,present:[...plays.values()].some(p=>p.kind==='attendance'&&p.player_id===r.player_id),attended_games:0,required_games:5})),statistics:[],events:[...plays.values()].filter(p=>p.kind!=='attendance').map((p,i)=>({...p,id:i+1,player_label:'#'+(roster.find(r=>r.player_id===p.player_id)?.jersey_number||''),receiver_label:p.receiver_id?'#7 Eva':null,voided_at:p.voided_at || null}))});
+    const snapshot=()=>({game_id:5,state:matchState,version:plays.size+correctionVersion,home_team:{id:1,name:'Tigres'},away_team:{id:2,name:'Lobos'},home_score:[...plays.values()].filter(p=>p.kind==='extra_one').length,away_score:0,roster,attendance:roster.map(r=>({...r,present:[...plays.values()].some(p=>p.kind==='attendance'&&p.player_id===r.player_id),attended_games:0,required_games:5})),statistics:[],events:[...plays.values()].filter(p=>p.kind!=='attendance').map((p,i)=>({...p,id:i+1,player_label:'#'+(roster.find(r=>r.player_id===p.player_id)?.jersey_number||''),receiver_label:p.receiver_id?'#7 Eva':null,voided_at:p.voided_at || null}))});
     await page.route('https://capture.test/**',async route=>{
         const u=new URL(route.request().url());
         if(u.pathname==='/') {
@@ -21,7 +21,7 @@ const assert = require('node:assert/strict');
             await route.fulfill({json:{id:12,role,roles:[role]}});
         } else if(route.request().method()==='POST') {
             if(offline)await route.abort('failed');
-            else {const p=route.request().postDataJSON();plays.set(p.client_id,p);await route.fulfill({status:201,json:{id:plays.size}});}
+            else {const p=route.request().postDataJSON();plays.set(p.client_id,u.pathname.endsWith("/attendance")?{...p,kind:"attendance"}:p);await route.fulfill({status:201,json:{id:plays.size}});}
         } else await route.fulfill({json:snapshot()});
     });
     await page.goto('https://capture.test/');
@@ -89,6 +89,31 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('animateMotion').count(),0);
     role='player';await page.reload();await page.locator('#live-state[data-state="live"]').waitFor();
     assert.equal(await page.locator('#live-official-controls').isVisible(),false);
+    plays.clear();matchState='not_started';role='referee';await page.reload();
+    await page.locator('#live-state[data-state="not_started"]').waitFor();
+    await page.locator('#attendance-action').click();
+    await page.locator('[data-live-attendance="10"]').click();
+    await page.waitForFunction(()=>document.querySelector('#live-attendance').textContent.includes('Presente en este juego'));
+    assert.equal(matchState,'not_started');
+    assert.equal(plays.size,1);
+    assert.equal(await page.locator('#live-timeline').textContent().then(t=>t.includes('Asistencia')),false);
+    for(const width of [320,390,1280]) {
+        await page.setViewportSize({width,height:844});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
+        assert.equal(await page.locator('.attendance-player').first().evaluate(el=>el.getBoundingClientRect().width >= Math.min(280,el.parentElement.getBoundingClientRect().width)-1),true);
+    }
+    await page.setViewportSize({width:390,height:844});
+    await page.locator('#live-attendance-panel').screenshot({path:'mobile-attendance.png'});
+    role='league_admin';matchState='completed';await page.reload();
+    await page.locator('#live-state[data-state="completed"]').waitFor();
+    assert.equal(await page.locator('#attendance-action').isVisible(),true);
+    await page.locator('#attendance-action').click();
+    assert.equal(await page.locator('[data-live-attendance="7"]').isVisible(),true);
+    assert.equal(await page.locator('[data-attendance-void]').count(),1);
+    role='referee';await page.reload();
+    await page.locator('#live-state[data-state="completed"]').waitFor();
+    assert.equal(await page.locator('#attendance-action').isVisible(),false);
+    assert.equal(await page.locator('[data-live-attendance]').count(),0);
     assert.deepEqual(errors,[]);
     console.log('Mobile browser verified: one-tap pass, next play while offline, IndexedDB reload recovery, ordered upload, no duplicate plays, no optimistic public score, no overflow, private referee controls, no page errors.');
     await browser.close();

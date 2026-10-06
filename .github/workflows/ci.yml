@@ -154,6 +154,7 @@ jobs:
         with:
           name: live-capture-mobile
           path: |
+            mobile-attendance.png
             mobile-capture.png
             mobile-field-touchdown.png
             mobile-leaderboards.png
