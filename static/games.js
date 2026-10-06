@@ -155,12 +155,12 @@ function renderManualTeamSelect(select, searchInput) {
                 || team.branch === manualGameBranch.value
             )
             && (!category || team.category === category)
-            && (!search || normalizeSearchText(team.name).includes(search))
+            && (!search || search.split(/\s+/).every((term) => normalizeSearchText(`${team.name} ${team.branch} ${team.category} ${team.branch.slice(0, 1)}${team.category.replace(/^u/, "")}`).includes(term)))
         ))
         .sort(compareTeams);
     const placeholder = teams.length
         ? "Selecciona un equipo"
-        : "No hay equipos con estos filtros";
+        : friendly ? "Selecciona un equipo o agrega un invitado" : "No hay equipos con estos filtros";
 
     select.innerHTML = `
         <option value="">${placeholder}</option>
@@ -172,7 +172,15 @@ function renderManualTeamSelect(select, searchInput) {
         `).join("")}
     `;
     select.disabled = teams.length === 0 && !friendly;
-    if ((friendly && selectedTeamId === "guest") || teams.some((team) => String(team.id) === selectedTeamId)) {
+    if (friendly && search && teams.length === 0) {
+        select.value = "guest";
+        const side = select === homeTeamSelect ? "home" : "away";
+        const guest = gameForm.elements[side + "_guest_name"];
+        if (guest && (!guest.value.trim() || guest.value === guest.dataset.searchName)) {
+            guest.value = searchInput.value.trim();
+            guest.dataset.searchName = guest.value;
+        }
+    } else if ((friendly && selectedTeamId === "guest") || teams.some((team) => String(team.id) === selectedTeamId)) {
         select.value = selectedTeamId;
     }
 }
@@ -548,6 +556,7 @@ manualGameCategory.addEventListener("change", () => {
 });
 manualHomeTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
+    updateGuestFields();
 });
 manualAwayTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);

@@ -8,7 +8,8 @@
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,
-      "fix/vercel-fast-origin-transfer": true
+      "fix/vercel-fast-origin-transfer": true,
+      "fix/friendly-guest-search": true
     }
   },
   "functions": {

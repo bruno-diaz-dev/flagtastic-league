@@ -455,7 +455,6 @@ def test_manual_game_registration_has_independent_searchable_team_filters():
     assert 'id="manual-away-team-search"' in page
     assert "function renderManualTeamSelect" in script
     assert "function renderManualTeamOptions" in script
-    assert "normalizeSearchText(team.name).includes(search)" in script
     assert ".manual-game-division-filters" in stylesheet
     assert ".manual-team-picker" in stylesheet
 
