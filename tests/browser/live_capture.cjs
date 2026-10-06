@@ -100,7 +100,7 @@ const assert = require('node:assert/strict');
     for(const width of [320,390,1280]) {
         await page.setViewportSize({width,height:844});
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),true);
-        assert.ok(await page.locator('.attendance-player').first().evaluate(el=>el.getBoundingClientRect().width)>250);
+        assert.equal(await page.locator('.attendance-player').first().evaluate(el=>el.getBoundingClientRect().width >= Math.min(280,el.parentElement.getBoundingClientRect().width)-1),true);
     }
     await page.setViewportSize({width:390,height:844});
     await page.locator('#live-attendance-panel').screenshot({path:'mobile-attendance.png'});
