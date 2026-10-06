@@ -58,8 +58,9 @@ async function loadGameDetail() {
         <span class="matchup-versus">vs</span>
         <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
     `;
-    document.querySelector("#game-detail-meta").textContent = `Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}`;
+    document.querySelector("#game-detail-meta").textContent = ` ${game.is_friendly ? "Amistoso · " : ""}Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}`;
     document.querySelector("#game-score").innerHTML = `
+        ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso · No cuenta para la temporada</span>' : ""}
         <div class="game-detail-score">
             <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
             <strong>${game.home_score ?? "-"} · ${game.away_score ?? "-"}</strong>

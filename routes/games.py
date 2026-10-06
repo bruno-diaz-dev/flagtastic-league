@@ -70,31 +70,15 @@ def create_game(
     _user=Depends(require_league_admin)
 ):
     """Create a game after validating both participants."""
-    if game.home_team_id == game.away_team_id:
-        raise HTTPException(
-            status_code=409,
-            detail="A team cannot play against itself"
-        )
-
-    home_team = get_team_by_id(game.home_team_id)
-    away_team = get_team_by_id(game.away_team_id)
-
-    if home_team is None or away_team is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Team not found"
-        )
-
-    if not teams_share_game_division(home_team, away_team):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Los equipos deben pertenecer a la misma rama y categoria; "
-                "U8, U10 y U12 permiten cruces entre ramas"
-            )
-        )
-
-    return create_game_repository(game)
+    if game.home_team_id and game.home_team_id == game.away_team_id:
+        raise HTTPException(status_code=409, detail="A team cannot play against itself")
+    for team_id in (game.home_team_id, game.away_team_id):
+        if team_id and get_team_by_id(team_id) is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+    try:
+        return create_game_repository(game)
+    except ScheduleConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.get("")
@@ -167,22 +151,12 @@ def confirm_game_schedule(
 ):
     """Persist only game rows that an administrator reviewed."""
     slots = set()
-    teams_by_id = {team["id"]: team for team in get_all_teams()}
     for game in confirmation.games:
-        if game.home_team_id == game.away_team_id:
+        if game.home_team_id and game.home_team_id == game.away_team_id:
             raise HTTPException(status_code=409, detail="Un equipo no puede jugar contra si mismo")
-        home_team = teams_by_id.get(game.home_team_id)
-        away_team = teams_by_id.get(game.away_team_id)
-        if home_team is None or away_team is None:
-            raise HTTPException(status_code=404, detail="Equipo no encontrado")
-        if not teams_share_game_division(home_team, away_team):
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Los equipos deben pertenecer a la misma rama y categoria; "
-                    "U8, U10 y U12 permiten cruces entre ramas"
-                )
-            )
+        for team_id in (game.home_team_id, game.away_team_id):
+            if team_id and get_team_by_id(team_id) is None:
+                raise HTTPException(status_code=404, detail="Equipo no encontrado")
         slot = (game.week, game.field_number, game.start_time)
         if slot in slots:
             raise HTTPException(status_code=409, detail="El rol contiene dos partidos en el mismo horario y campo")

@@ -29,7 +29,7 @@ def import_statistics_workbook(weeks, games=None):
                 "individualmente para conservar su historial."
             )
         teams = connection.execute(
-            "SELECT id, name, branch, category FROM teams"
+            "SELECT id, name, branch, category FROM teams WHERE NOT is_guest"
         ).fetchall()
         teams_by_identity = {
             (*normalize_division(team["branch"], team["category"]),
@@ -120,7 +120,7 @@ def import_statistics_workbook(weeks, games=None):
             existing_candidates = connection.execute(
                 """
                 SELECT id FROM games
-                WHERE week = %s AND home_team_id = %s AND away_team_id = %s
+                WHERE week = %s AND home_team_id = %s AND away_team_id = %s AND NOT is_friendly
                 ORDER BY id
                 """,
                 (week, home_team_id, away_team_id)
@@ -185,7 +185,7 @@ def import_statistics_workbook(weeks, games=None):
             FROM (
                 SELECT stats_row.id AS stats_id, MIN(games.id) AS game_id
                 FROM player_week_stats AS stats_row
-                JOIN games ON games.week = stats_row.week
+                JOIN games ON games.week = stats_row.week AND NOT games.is_friendly
                   AND stats_row.team_id IN (
                       games.home_team_id, games.away_team_id
                   )

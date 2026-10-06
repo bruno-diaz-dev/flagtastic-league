@@ -216,3 +216,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Friendly fixtures use both a text label and a distinct blue accent. */
+.game-card.game-card-friendly { border-color: #60a5fa; border-left: 4px solid #60a5fa; background: linear-gradient(135deg, rgba(37,99,235,.16), #0e1a2d); }
+.game-friendly-badge { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid #60a5fa; border-radius: 999px; color: #bfdbfe; background: #17345c; font-size: 12px; font-weight: 700; line-height: 1.4; }

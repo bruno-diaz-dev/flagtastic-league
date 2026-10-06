@@ -47,7 +47,7 @@ def attendance_for(connection, game, roster):
     """Explicit check-ins, deduplicated by match; never infer from statistics."""
     rows = connection.execute("""
         SELECT e.team_id, e.player_id,
-               COUNT(DISTINCT e.game_id) FILTER (WHERE g.status = 'completed') AS attended,
+               COUNT(DISTINCT e.game_id) FILTER (WHERE g.status = 'completed' AND NOT g.is_friendly) AS attended,
                BOOL_OR(e.game_id = %s) AS present,
                MAX(e.id) FILTER (WHERE e.game_id = %s) AS entry_id
         FROM game_live_events e JOIN games g ON g.id = e.game_id
@@ -58,9 +58,9 @@ def attendance_for(connection, game, roster):
     records = {(r['team_id'], r['player_id']): r for r in rows}
     scheduled = connection.execute("""
         SELECT team_id, COUNT(*) AS total FROM (
-            SELECT home_team_id AS team_id FROM games WHERE home_team_id IN (%s, %s)
+            SELECT home_team_id AS team_id FROM games WHERE NOT is_friendly AND home_team_id IN (%s, %s)
             UNION ALL
-            SELECT away_team_id AS team_id FROM games WHERE away_team_id IN (%s, %s)
+            SELECT away_team_id AS team_id FROM games WHERE NOT is_friendly AND away_team_id IN (%s, %s)
         ) calendar GROUP BY team_id
     """, (game['home_team_id'], game['away_team_id']) * 2).fetchall()
     totals = {r['team_id']: r['total'] for r in scheduled}
@@ -106,7 +106,7 @@ def read_live_game(game_id):
         elif game["status"] == "postponed":
             state = "postponed"
         return {
-            "game_id": game_id, "state": state,
+            "game_id": game_id, "state": state, "is_friendly": game["is_friendly"],
             "version": session["version"] if session else 0,
             "started_at": session["started_at"] if session else None,
             "finished_at": session["finished_at"] if session else None,
@@ -168,7 +168,7 @@ def publish(connection, game):
     if scores[game["home_team_id"]] == scores[game["away_team_id"]]:
         raise LiveGameError("La liga no admite empates. Revisa las anotaciones antes de finalizar")
     connection.execute("DELETE FROM player_week_stats WHERE game_id = %s", (game["id"],))
-    for player in totals:
+    for player in ([] if game["is_friendly"] else totals):
         connection.execute("""
             INSERT INTO player_week_stats (week, game_id, player_id, team_id, points, receptions,
                 interceptions, sacks, tackles, passes_completed, passes_attempted)
@@ -217,4 +217,3 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
-

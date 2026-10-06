@@ -148,6 +148,7 @@ jobs:
         run: |
           node tests/browser/live_capture.cjs
           node tests/browser/leaderboards.cjs
+          node tests/browser/friendly_games.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -156,6 +157,7 @@ jobs:
             mobile-capture.png
             mobile-field-touchdown.png
             mobile-leaderboards.png
+            mobile-friendly-game.png
           retention-days: 3
 
 
