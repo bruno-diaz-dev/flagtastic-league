@@ -28,6 +28,16 @@ def normalize_team_text(value):
     return " ".join(re.sub(r"[^a-z0-9]+", " ", text).split())
 
 
+def normalize_team_upload_label(value):
+    """Normalize known Diablos color labels without changing team identity."""
+    text = normalize_team_text(value)
+    tokens = text.split()
+    if "diablos" in tokens:
+        colors = {"ama": "oro", "amarillo": "oro", "rojo": "tinto"}
+        tokens = [colors.get(token, token) for token in tokens]
+    return " ".join(tokens)
+
+
 def _name_tokens(value, strip_division=False):
     ignored = _NAME_STOP_WORDS | (_DIVISION_TOKENS if strip_division else set())
     return [
@@ -59,8 +69,13 @@ def team_name_match_score(label, registered_name):
     words are tolerated, but short generic labels remain ambiguous when more
     than one registered team fits them.
     """
-    label_tokens = _name_tokens(label, strip_division=True)
-    registered_tokens = _name_tokens(registered_name)
+    label_tokens = _name_tokens(normalize_team_upload_label(label), strip_division=True)
+    registered_tokens = _name_tokens(normalize_team_upload_label(registered_name))
+    if "diablos" in label_tokens:
+        source_colors = set(label_tokens) & {"oro", "tinto"}
+        target_colors = set(registered_tokens) & {"oro", "tinto"}
+        if source_colors and source_colors != target_colors:
+            return 0.0
     if not label_tokens or not registered_tokens:
         return 0.0
 
