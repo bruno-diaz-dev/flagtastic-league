@@ -42,6 +42,8 @@ const assert=require('node:assert/strict');
  await page.locator('#manual-away-team-search').fill('Lobos v16');
  assert.equal(await page.locator('[name=home_team_id]').inputValue(),'guest');
  assert.equal(await page.locator('[name=away_team_id]').inputValue(),'guest');
+ assert.equal(await page.locator('[name=home_guest_name]').isVisible(),true);
+ assert.equal(await page.locator('[name=home_guest_name]').isEnabled(),true);
  assert.equal(await page.locator('[name=home_guest_name]').inputValue(),'Pitbulls v16');
  assert.equal(await page.locator('[name=away_guest_name]').inputValue(),'Lobos v16');
  await page.locator('[name=home_guest_name]').fill('Pitbulls');

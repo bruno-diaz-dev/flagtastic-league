@@ -155,7 +155,7 @@ function renderManualTeamSelect(select, searchInput) {
                 || team.branch === manualGameBranch.value
             )
             && (!category || team.category === category)
-            && (!search || search.split(/\s+/).every((term) => normalizeSearchText(`${team.name} ${team.branch} ${team.category}`).includes(term)))
+            && (!search || search.split(/\s+/).every((term) => normalizeSearchText(`${team.name} ${team.branch} ${team.category} ${team.branch.slice(0, 1)}${team.category.replace(/^u/, "")}`).includes(term)))
         ))
         .sort(compareTeams);
     const placeholder = teams.length
@@ -556,6 +556,7 @@ manualGameCategory.addEventListener("change", () => {
 });
 manualHomeTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
+    updateGuestFields();
 });
 manualAwayTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);
