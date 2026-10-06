@@ -197,7 +197,7 @@ def get_games():
         {
             "id": row["id"],
             "home_team": {
-                "id": row["home_team_id"], "is_guest": row["home_is_guest"],
+                "id": row["home_team_id"], **({"is_guest": True} if row["home_is_guest"] else {}),
                 "name": row["home_team_name"],
                 "branch": row["home_team_branch"],
                 "category": row["home_team_category"],
@@ -208,7 +208,7 @@ def get_games():
             },
 
             "away_team": {
-                "id": row["away_team_id"], "is_guest": row["away_is_guest"],
+                "id": row["away_team_id"], **({"is_guest": True} if row["away_is_guest"] else {}),
                 "name": row["away_team_name"],
                 "branch": row["away_team_branch"],
                 "category": row["away_team_category"],
@@ -571,7 +571,7 @@ def get_games_for_referee(user_id):
         {
             "id": row["id"],
             "home_team": {
-                "id": row["home_team_id"], "is_guest": row["home_is_guest"],
+                "id": row["home_team_id"], **({"is_guest": True} if row["home_is_guest"] else {}),
                 "name": row["home_team_name"],
                 "branch": row["home_team_branch"],
                 "category": row["home_team_category"],
@@ -581,7 +581,7 @@ def get_games_for_referee(user_id):
                 )
             },
             "away_team": {
-                "id": row["away_team_id"], "is_guest": row["away_is_guest"],
+                "id": row["away_team_id"], **({"is_guest": True} if row["away_is_guest"] else {}),
                 "name": row["away_team_name"],
                 "branch": row["away_team_branch"],
                 "category": row["away_team_category"],

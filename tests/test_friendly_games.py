@@ -75,3 +75,28 @@ def test_guest_id_cannot_be_used_in_official_fixture():
     game=client.post('/api/games',json=fixture()).json()
     response=client.post('/api/games',json={'home_team_id':game['home_team_id'],'away_team_id':game['away_team_id'],'field_number':1})
     assert response.status_code==409
+
+
+def test_live_friendly_keeps_match_statistics_out_of_season_and_finals():
+    from uuid import uuid4
+    from models import UserCreate
+    from repositories.users import create_user
+    from repositories.live_games import start_live_game, append_event, read_live_game, finish_live_game
+    home,away=league_team('Captura A'),league_team('Captura B')
+    player=client.post(f'/api/teams/{home}/players',json={'name':'Jugador amistoso','curp':uuid4().hex[:18].upper(),'age':25,'jersey_number':1}).json()['id']
+    official=client.post('/api/games',json={'home_team_id':home,'away_team_id':away,'field_number':2}).json()['id']
+    friendly=client.post('/api/games',json=fixture(home_team_id=home,away_team_id=away,home_guest_name=None,away_guest_name=None)).json()['id']
+    user=create_user(UserCreate(name='Capturista',email=f'friendly-{uuid4().hex}@example.test',password='supersecret',role='referee'))['id']
+    start_live_game(friendly,user)
+    for kind in ('attendance','touchdown'):
+        append_event(friendly,{'client_id':uuid4(),'kind':kind,'team_id':home,'player_id':player,'receiver_id':None,'period':1,'minute':1,'second':0,'note':''},user)
+    live=read_live_game(friendly)
+    assert live['is_friendly'] is True
+    assert live['home_score']==6 and live['statistics'][0]['points']==6
+    finish_live_game(friendly,live['version'],user)
+    attendance=next(r for r in read_live_game(official)['attendance'] if r['player_id']==player)
+    assert attendance['scheduled_games']==1 and attendance['attended_games']==0
+    with get_connection() as connection:
+        assert connection.execute('SELECT COUNT(*) AS n FROM player_week_stats WHERE game_id=%s',(friendly,)).fetchone()['n']==0
+    leaders=client.get('/api/statistics/leaderboards?branch=mixto&category=libre').json()
+    assert all(not rows for rows in leaders.values())
