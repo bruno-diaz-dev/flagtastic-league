@@ -273,16 +273,19 @@ def test_user_administration_page_is_available():
     assert "user.display_name, user.name, user.aka" in script.text
 
 
-def test_youth_duplicate_audit_page_is_available():
+def test_all_divisions_duplicate_audit_page_is_available():
     response = client.get("/admin/team-duplicates")
     script = client.get("/static/admin_team_duplicates.js")
 
     assert response.status_code == 200
-    assert "Auditar equipos juveniles" in response.text
+    assert "Auditar equipos" in response.text
+    assert 'id="duplicate-branch-filter"' in response.text
+    for category in ("u6", "u8", "u10", "u12", "u14", "u16", "u18", "libre"):
+        assert f'value="{category}"' in response.text
     assert 'id="duplicate-name-filter"' in response.text
     assert 'id="duplicate-category-filter"' in response.text
     assert 'id="admin-team-audit-link"' in response.text
-    assert "getYouthDuplicateCandidates" in script.text
+    assert "getTeamDuplicateCandidates" in script.text
     assert 'href="/teams/${team.id}/manage"' in script.text
 
 

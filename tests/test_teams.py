@@ -642,3 +642,37 @@ def test_legacy_invalid_logo_still_displays_with_thumbnail_parameter():
     assert display.status_code == 200
     assert display.content == original
     assert display.headers["content-type"] == "image/png"
+
+@pytest.mark.parametrize("category", ["u6", "u8", "u10", "u12", "u14", "u16", "u18", "libre"])
+@pytest.mark.parametrize("branch", ["varonil", "femenil", "mixto"])
+def test_audit_covers_same_branch_duplicates_in_every_division(category, branch):
+    connection = get_connection()
+    connection.execute(
+        "INSERT INTO teams (name, branch, category, status) VALUES (%s, %s, %s, 'active'), (%s, %s, %s, 'pending')",
+        ("Águilas", branch, category, "Aguilas " + category.upper(), branch, category),
+    )
+    connection.commit()
+    connection.close()
+    response = client.get("/api/teams/duplicate-candidates")
+    assert response.status_code == 200
+    groups = response.json()
+    assert len(groups) == 1
+    assert groups[0]["category"] == category
+    assert len(groups[0]["teams"]) == 2
+    assert {team["branch"] for team in groups[0]["teams"]} == {branch}
+
+
+def test_audit_keeps_separate_categories_and_includes_cross_branch_names():
+    connection = get_connection()
+    connection.execute(
+        """INSERT INTO teams (name, branch, category, status) VALUES
+        ('Cuernos', 'mixto', 'libre', 'active'),
+        ('Cuernos Libre', 'femenil', 'libre', 'active'),
+        ('Cuernos', 'varonil', 'u14', 'active')"""
+    )
+    connection.commit()
+    connection.close()
+    groups = client.get("/api/teams/duplicate-candidates").json()
+    assert len(groups) == 1
+    assert groups[0]["category"] == "libre"
+    assert {team["branch"] for team in groups[0]["teams"]} == {"mixto", "femenil"}

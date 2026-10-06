@@ -9,7 +9,7 @@ from repositories.teams import (
     create_team,
     delete_team,
     get_all_teams,
-    get_youth_duplicate_candidates,
+    get_team_duplicate_candidates,
     get_team_representative_assignments,
     get_team_by_id,
     get_team_roster_detail,
@@ -68,9 +68,9 @@ def list_team_representative_assignments(
 
 
 @router.get("/duplicate-candidates")
-def list_youth_duplicate_candidates(_user=Depends(require_league_admin)):
-    """List possible cross-branch duplicate teams for administrator review."""
-    return get_youth_duplicate_candidates()
+def list_team_duplicate_candidates(_user=Depends(require_league_admin)):
+    """List possible duplicate teams in every division for administrator review."""
+    return get_team_duplicate_candidates()
 
 
 @router.get("/{team_id}")

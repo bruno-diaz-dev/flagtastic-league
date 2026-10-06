@@ -5,17 +5,17 @@
     <header class="section-header">
         <div>
             <p class="ui-kicker">FlagTastic · Administración</p>
-            <h2>Auditar equipos juveniles</h2>
-            <p>Revisa posibles registros repetidos de U8, U10 y U12 entre distintas ramas.</p>
+            <h2>Auditar equipos</h2>
+            <p>Revisa posibles registros repetidos en todas las ramas y categorías.</p>
         </div>
     </header>
 
     <section class="form-panel youth-division-rule">
-        <h3>Divisiones unificadas</h3>
+        <h3>Revisión de coincidencias</h3>
         <p>
-            En estas categorías todos los equipos pueden enfrentarse y aparecen en
-            una sola tabla. Esta vista solo señala coincidencias; no elimina ni
-            fusiona equipos automáticamente.
+            Los nombres coincidentes son casos para revisar: un mismo club puede tener
+            equipos válidos en varias ramas y categorías. U8, U10 y U12 son divisiones
+            unificadas. Esta vista no elimina ni fusiona equipos automáticamente.
         </p>
     </section>
 
@@ -27,10 +27,24 @@
         <label>
             Categoría
             <select id="duplicate-category-filter">
-                <option value="">U8, U10 y U12</option>
+                <option value="">Todas las categorías</option>
+                <option value="u6">U6</option>
                 <option value="u8">U8</option>
                 <option value="u10">U10</option>
                 <option value="u12">U12</option>
+                <option value="u14">U14</option>
+                <option value="u16">U16</option>
+                <option value="u18">U18</option>
+                <option value="libre">Libre</option>
+            </select>
+        </label>
+        <label>
+            Rama
+            <select id="duplicate-branch-filter">
+                <option value="">Todas las ramas</option>
+                <option value="varonil">Varonil</option>
+                <option value="femenil">Femenil</option>
+                <option value="mixto">Mixto</option>
             </select>
         </label>
     </section>
@@ -42,6 +56,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261001-1"></script>
-<script src="/static/admin_team_duplicates.js?v=20261001-1"></script>
+<script src="/static/api.js?v=20261006-1"></script>
+<script src="/static/admin_team_duplicates.js?v=20261006-1"></script>
 {% endblock %}
