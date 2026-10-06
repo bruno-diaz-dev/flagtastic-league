@@ -285,7 +285,7 @@ def test_all_divisions_duplicate_audit_page_is_available():
     assert 'id="duplicate-name-filter"' in response.text
     assert 'id="duplicate-category-filter"' in response.text
     assert 'id="admin-team-audit-link"' in response.text
-    assert "getYouthDuplicateCandidates" in script.text
+    assert "getTeamDuplicateCandidates" in script.text
     assert 'href="/teams/${team.id}/manage"' in script.text
 
 
