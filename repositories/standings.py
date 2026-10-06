@@ -68,9 +68,10 @@ def get_standings(branch, category):
             AND games.home_score IS NOT NULL
             AND games.away_score IS NOT NULL
             AND games.status = 'completed'
+            AND NOT games.is_friendly
         WHERE
             {branch_filter}
-            teams.category = %s
+            teams.category = %s AND NOT teams.is_guest
         GROUP BY
             teams.id
         ORDER BY

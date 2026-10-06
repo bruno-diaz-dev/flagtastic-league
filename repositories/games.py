@@ -11,49 +11,52 @@ class GameStateConflictError(ValueError):
     """The requested transition conflicts with the current game state."""
 
 
-def create_game(game):
-    """Create an unscored game between two validated teams."""
-    connection = get_connection()
-
-    try:
-        created_game = connection.execute(
-            """
-            INSERT INTO games (
-                home_team_id,
-                away_team_id,
-                week,
-                field_number,
-                start_time
-            )
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING
-                id,
-                home_team_id,
-                away_team_id,
-                week,
-                field_number,
-                start_time,
-                status
-            """,
-            (
-                game.home_team_id,
-                game.away_team_id,
-                game.week,
-                game.field_number,
-                game.start_time
-            )
+def resolve_game_participants(connection, game):
+    """Resolve invited identities inside the same transaction as the schedule."""
+    from services.divisions import teams_share_game_division
+    known = {}
+    for side in ("home", "away"):
+        team_id = getattr(game, side + "_team_id")
+        if team_id:
+            team = connection.execute("SELECT id, name, branch, category, is_guest FROM teams WHERE id = %s", (team_id,)).fetchone()
+            if team is None:
+                raise ScheduleConflictError("Equipo no encontrado")
+            if team["is_guest"] and not game.is_friendly:
+                raise ScheduleConflictError("Los invitados solo pueden participar en amistosos")
+            known[side] = dict(team)
+    if len(known) == 2 and not teams_share_game_division(known["home"], known["away"]):
+        raise ScheduleConflictError("Los equipos deben pertenecer a la misma rama y categoria; U8, U10 y U12 permiten cruces entre ramas")
+    reference = next(iter(known.values()), None)
+    branch = reference["branch"] if reference else game.branch
+    category = reference["category"] if reference else game.category
+    for side in ("home", "away"):
+        if side in known:
+            continue
+        name = getattr(game, side + "_guest_name")
+        row = connection.execute(
+            """INSERT INTO teams (name, branch, category, status, is_guest)
+               VALUES (%s, %s, %s, 'inactive', TRUE)
+               ON CONFLICT (LOWER(BTRIM(name)), branch, category) DO UPDATE SET name = teams.name
+               RETURNING id, name, branch, category, is_guest""",
+            (name, branch, category),
         ).fetchone()
+        known[side] = dict(row)
+    if known["home"]["id"] == known["away"]["id"]:
+        raise ScheduleConflictError("Un equipo no puede jugar contra si mismo")
+    return game.model_copy(update={"home_team_id": known["home"]["id"], "away_team_id": known["away"]["id"]})
 
-        connection.commit()
 
-        return dict(created_game)
-
-    except Exception:
-        connection.rollback()
-        raise
-
-    finally:
-        connection.close()
+def create_game(game):
+    """Create the fixture and any invited teams atomically."""
+    with get_connection() as connection:
+        game = resolve_game_participants(connection, game)
+        row = connection.execute(
+            """INSERT INTO games (home_team_id, away_team_id, week, field_number, start_time, is_friendly)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               RETURNING id, home_team_id, away_team_id, week, field_number, start_time, status, is_friendly""",
+            (game.home_team_id, game.away_team_id, game.week, game.field_number, game.start_time, game.is_friendly),
+        ).fetchone()
+        return dict(row)
 
 
 def import_game_schedule(games):
@@ -66,9 +69,10 @@ def import_game_schedule(games):
         # Serialize schedule imports, including empty slots, until commit.
         connection.execute("LOCK TABLE games IN SHARE ROW EXCLUSIVE MODE")
         for game in games:
+            game = resolve_game_participants(connection, game)
             existing = connection.execute(
                 """
-                SELECT id, home_team_id, away_team_id, home_score, away_score
+                SELECT id, home_team_id, away_team_id, home_score, away_score, is_friendly
                 FROM games
                 WHERE week = %s
                   AND field_number = %s
@@ -83,6 +87,7 @@ def import_game_schedule(games):
                 if (
                     existing["home_team_id"] == game.home_team_id
                     and existing["away_team_id"] == game.away_team_id
+                    and existing["is_friendly"] == game.is_friendly
                 ):
                     skipped += 1
                     continue
@@ -109,12 +114,13 @@ def import_game_schedule(games):
                     """
                     UPDATE games
                     SET home_team_id = %s,
-                        away_team_id = %s
+                        away_team_id = %s, is_friendly = %s
                     WHERE id = %s
                     """,
                     (
                         game.home_team_id,
                         game.away_team_id,
+                        game.is_friendly,
                         existing["id"],
                     ),
                 )
@@ -124,8 +130,8 @@ def import_game_schedule(games):
             connection.execute(
                 """
                 INSERT INTO games
-                    (home_team_id, away_team_id, week, field_number, start_time)
-                VALUES (%s, %s, %s, %s, %s)
+                    (home_team_id, away_team_id, week, field_number, start_time, is_friendly)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
                 (
                     game.home_team_id,
@@ -133,6 +139,7 @@ def import_game_schedule(games):
                     game.week,
                     game.field_number,
                     game.start_time,
+                    game.is_friendly,
                 ),
             )
             created += 1
@@ -162,11 +169,14 @@ def get_games():
             games.field_number,
             games.start_time,
             games.status,
+            games.is_friendly,
+            home_team.is_guest AS home_is_guest,
             home_team.id AS "home_team_id",
             home_team.name AS "home_team_name",
             home_team.branch AS "home_team_branch",
             home_team.category AS "home_team_category",
             home_team.logo_version AS "home_team_has_logo",
+            away_team.is_guest AS away_is_guest,
             away_team.id AS "away_team_id",
             away_team.name AS "away_team_name",
             away_team.branch AS "away_team_branch",
@@ -187,7 +197,7 @@ def get_games():
         {
             "id": row["id"],
             "home_team": {
-                "id": row["home_team_id"],
+                "id": row["home_team_id"], "is_guest": row["home_is_guest"],
                 "name": row["home_team_name"],
                 "branch": row["home_team_branch"],
                 "category": row["home_team_category"],
@@ -198,7 +208,7 @@ def get_games():
             },
 
             "away_team": {
-                "id": row["away_team_id"],
+                "id": row["away_team_id"], "is_guest": row["away_is_guest"],
                 "name": row["away_team_name"],
                 "branch": row["away_team_branch"],
                 "category": row["away_team_category"],
@@ -212,7 +222,7 @@ def get_games():
             "week": row["week"],
             "field_number": row["field_number"],
             "start_time": row["start_time"],
-            "status": row["status"]
+            "status": row["status"], "is_friendly": row["is_friendly"]
         }
         for row in rows
     ]
@@ -495,12 +505,15 @@ def get_games_for_referee(user_id):
             games.field_number,
             games.start_time,
             games.status,
+            games.is_friendly,
             game_referees.position AS official_position,
+            home_team.is_guest AS home_is_guest,
             home_team.id AS home_team_id,
             home_team.name AS home_team_name,
             home_team.branch AS home_team_branch,
             home_team.category AS home_team_category,
             home_team.logo_version AS home_team_has_logo,
+            away_team.is_guest AS away_is_guest,
             away_team.id AS away_team_id,
             away_team.name AS away_team_name,
             away_team.branch AS away_team_branch,
@@ -558,7 +571,7 @@ def get_games_for_referee(user_id):
         {
             "id": row["id"],
             "home_team": {
-                "id": row["home_team_id"],
+                "id": row["home_team_id"], "is_guest": row["home_is_guest"],
                 "name": row["home_team_name"],
                 "branch": row["home_team_branch"],
                 "category": row["home_team_category"],
@@ -568,7 +581,7 @@ def get_games_for_referee(user_id):
                 )
             },
             "away_team": {
-                "id": row["away_team_id"],
+                "id": row["away_team_id"], "is_guest": row["away_is_guest"],
                 "name": row["away_team_name"],
                 "branch": row["away_team_branch"],
                 "category": row["away_team_category"],
@@ -582,7 +595,7 @@ def get_games_for_referee(user_id):
             "week": row["week"],
             "field_number": row["field_number"],
             "start_time": row["start_time"],
-            "status": row["status"],
+            "status": row["status"], "is_friendly": row["is_friendly"],
             "official_position": row["official_position"],
             "officials": crew_by_game[row["id"]]
         }

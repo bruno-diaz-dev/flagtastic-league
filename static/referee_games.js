@@ -59,7 +59,8 @@ function refereeGameCard(game) {
     const isPending = state === "pending";
     const isPostponed = state === "postponed";
     return `
-        <article class="game-card referee-game-card">
+        <article class="game-card referee-game-card ${game.is_friendly ? "game-card-friendly" : ""}">
+            ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
             <div class="referee-game-copy">
                 <span class="game-state ${isPostponed ? "game-state-postponed" : isPending ? "game-state-pending" : "game-state-complete"}">${isPostponed ? "Pospuesto" : isPending ? "Pendiente" : "Finalizado"}</span>
                 <h4>

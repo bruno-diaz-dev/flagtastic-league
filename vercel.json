@@ -5,6 +5,7 @@
       "*": false,
       "main": true,
       "preview": true,
+      "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,
       "fix/vercel-fast-origin-transfer": true

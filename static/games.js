@@ -46,7 +46,7 @@ const officialPositionLabels = {
 
 
 function gameLabel(game) {
-    return `J${game.week}: ${game.home_team.name} vs ${game.away_team.name}`;
+    return `${game.is_friendly ? "Amistoso · " : ""}J${game.week}: ${game.home_team.name} vs ${game.away_team.name}`;
 }
 
 function gameTime(game) {
@@ -143,6 +143,7 @@ function updateGameFilterBranchControl() {
 
 function renderManualTeamSelect(select, searchInput) {
     const selectedTeamId = select.value;
+    const friendly = document.querySelector("#manual-game-type")?.value === "true";
     const search = normalizeSearchText(searchInput.value);
     const category = manualGameCategory.value;
     const unifiedYouthCategory = ["u8", "u10", "u12"].includes(category);
@@ -163,14 +164,15 @@ function renderManualTeamSelect(select, searchInput) {
 
     select.innerHTML = `
         <option value="">${placeholder}</option>
+        ${friendly ? '<option value="guest">Equipo invitado (escribir nombre)</option>' : ""}
         ${teams.map((team) => `
             <option value="${team.id}">
                 ${escapeHtml(team.name)} · ${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}
             </option>
         `).join("")}
     `;
-    select.disabled = teams.length === 0;
-    if (teams.some((team) => String(team.id) === selectedTeamId)) {
+    select.disabled = teams.length === 0 && !friendly;
+    if ((friendly && selectedTeamId === "guest") || teams.some((team) => String(team.id) === selectedTeamId)) {
         select.value = selectedTeamId;
     }
 }
@@ -178,7 +180,23 @@ function renderManualTeamSelect(select, searchInput) {
 function renderManualTeamOptions() {
     renderManualTeamSelect(homeTeamSelect, manualHomeTeamSearch);
     renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);
+    updateGuestFields();
 }
+
+function updateGuestFields() {
+    for (const side of ["home", "away"]) {
+        const select = gameForm.elements[side + "_team_id"];
+        const guest = gameForm.elements[side + "_guest_name"];
+        if (!guest) continue;
+        const active = document.querySelector("#manual-game-type")?.value === "true" && select.value === "guest";
+        document.querySelector("#" + side + "-guest-field").classList.toggle("hidden", !active);
+        guest.disabled = !active;
+        guest.required = active;
+    }
+}
+document.querySelector("#manual-game-type")?.addEventListener("change", renderManualTeamOptions);
+homeTeamSelect.addEventListener("change", updateGuestFields);
+awayTeamSelect.addEventListener("change", updateGuestFields);
 
 function renderGames(games) {
     gamesCount.textContent = `${games.length} partido${games.length === 1 ? "" : "s"}`;
@@ -239,10 +257,11 @@ function renderGames(games) {
                 : "";
 
             return `
-                <article class="game-card">
+                <article class="game-card ${game.is_friendly ? "game-card-friendly" : ""}">
                     <header class="game-card-header">
                         <span class="game-field">${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</span>
                         ${status}
+                        ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
                     </header>
                     <div class="game-teams">
                         ${gameTeamRow(game.home_team, "Local", game.home_score)}
@@ -404,8 +423,13 @@ async function registerGame(event) {
     const formData = new FormData(gameForm);
 
     const payload = {
-        home_team_id: Number(formData.get("home_team_id")),
-        away_team_id: Number(formData.get("away_team_id")),
+        home_team_id: formData.get("home_team_id") === "guest" ? null : Number(formData.get("home_team_id")),
+        away_team_id: formData.get("away_team_id") === "guest" ? null : Number(formData.get("away_team_id")),
+        is_friendly: formData.get("is_friendly") === "true",
+        home_guest_name: formData.get("home_guest_name") || null,
+        away_guest_name: formData.get("away_guest_name") || null,
+        branch: isUnifiedYouthCategory(manualGameCategory.value) ? "mixto" : (manualGameBranch.value || null),
+        category: manualGameCategory.value || null,
         week: Number(formData.get("week")),
         field_number: Number(formData.get("field_number")),
         start_time: formData.get("start_time") || null
@@ -417,7 +441,8 @@ async function registerGame(event) {
         const response = await createGame(payload);
 
         if (response.status === 409) {
-            gameFormMessage.textContent ="Un equipo no puede jugar contra si mismo.";
+            const body = await response.json();
+            gameFormMessage.textContent = body.detail || "Revisa los participantes del partido.";
             return;
         }
 
@@ -427,7 +452,8 @@ async function registerGame(event) {
         }
 
         if (!response.ok) {
-            gameFormMessage.textContent = "No se pudo registrar el partido.";
+            const body = await response.json().catch(() => ({}));
+            gameFormMessage.textContent = typeof body.detail === "string" ? body.detail : "Revisa los equipos, rama y categoría del partido.";
             return;
         }
 
@@ -525,6 +551,7 @@ manualHomeTeamSearch.addEventListener("input", () => {
 });
 manualAwayTeamSearch.addEventListener("input", () => {
     renderManualTeamSelect(awayTeamSelect, manualAwayTeamSearch);
+    updateGuestFields();
 });
 
 [gameFilterWeek, gameFilterBranch, gameFilterField].forEach((filter) => {
@@ -760,33 +787,35 @@ async function analyzeScheduleImageInBrowser(file, weekOverride) {
     }
 }
 
+function scheduleDivisionOptions(values, selected) {
+    return `<option value="">Seleccionar</option>` + values.map(value => `<option value="${value}" ${value === selected ? "selected" : ""}>${value.toUpperCase()}</option>`).join("");
+}
 function renderGameScheduleReview(result) {
     scheduleImportState = result;
     scheduleReview.classList.remove("hidden");
-    scheduleReviewHead.innerHTML = `
-<tr><th>Importar</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Local</th><th>Visitante</th><th>Rama / Categoría</th><th>Estado</th></tr>`;
+    scheduleReviewHead.innerHTML = `<tr><th>Importar</th><th>Amistoso</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Local</th><th>Visitante</th><th>Rama / Categoría</th><th>Estado</th></tr>`;
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
         <tr class="${proposal.ready ? "" : "schedule-row-warning"}">
-            <td><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"}></td>
-            <td>${proposal.week}</td>
-            <td>${proposal.field_number}</td>
+            <td><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"} aria-label="Importar partido ${index + 1}"></td>
+            <td><input type="checkbox" data-schedule-friendly="${index}" aria-label="Amistoso ${index + 1}"></td>
+            <td>${proposal.week}</td><td>${proposal.field_number}</td>
             <td><input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></td>
-            <td>${escapeHtml(proposal.home_match || proposal.home_team)}</td>
-            <td>${escapeHtml(proposal.away_match || proposal.away_team)}</td>
-            <td>${escapeHtml([
-                divisionBranchLabel(
-                    proposal.home_match_branch || proposal.away_match_branch,
-                    proposal.home_match_category || proposal.away_match_category
-                ),
-                proposal.home_match_category || proposal.away_match_category
-            ].filter(Boolean).join(" / "))}</td>
-            <td>${proposal.ready ? (proposal.start_time ? "Listo" : "Completa la hora") : `Sin coincidencia (${escapeHtml(proposal.source_row)})`}</td>
+            <td><input data-schedule-home="${index}" aria-label="Equipo local ${index + 1}" maxlength="120" value="${escapeHtml(proposal.home_match || proposal.home_team)}"></td>
+            <td><input data-schedule-away="${index}" aria-label="Equipo visitante ${index + 1}" maxlength="120" value="${escapeHtml(proposal.away_match || proposal.away_team)}"></td>
+            <td><select data-schedule-branch="${index}" aria-label="Rama ${index + 1}">${scheduleDivisionOptions(["varonil","femenil","mixto"],proposal.home_match_branch || proposal.away_match_branch)}</select>
+            <select data-schedule-category="${index}" aria-label="Categoría ${index + 1}">${scheduleDivisionOptions(["u6","u8","u10","u12","u14","u16","u18","libre"],proposal.home_match_category || proposal.away_match_category)}</select></td>
+            <td>${proposal.ready ? "Listo" : "Sin coincidencia: revisa o marca amistoso"}</td>
         </tr>`).join("");
-    confirmScheduleButton.disabled = result.matched === 0;
-    scheduleImportMessage.textContent = (
-        `${result.matched} partido(s) listos y ${result.unmatched} fila(s) por corregir.`
-    );
+    confirmScheduleButton.disabled = result.proposals.length === 0;
+    scheduleImportMessage.textContent = `${result.matched} partido(s) listos y ${result.unmatched} fila(s) por revisar. Los nombres editados o sin coincidencia se guardarán como invitados solo al marcar Amistoso.`;
 }
+scheduleReviewBody.addEventListener("change", event => {
+    const index = event.target.dataset.scheduleFriendly;
+    if (index === undefined) return;
+    const choice = scheduleReviewBody.querySelector(`[data-schedule-row="${index}"]`);
+    choice.disabled = !event.target.checked && !scheduleImportState.proposals[Number(index)].ready;
+    if (choice.disabled) choice.checked = false;
+});
 
 
 scheduleImportForm?.addEventListener("submit", async (event) => {
@@ -822,18 +851,24 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
 confirmScheduleButton?.addEventListener("click", async () => {
     if (!scheduleImportState) return;
     confirmScheduleButton.disabled = true;
-    const selected = [...scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked")]
-        .map((checkbox) => {
-            const index = Number(checkbox.dataset.scheduleRow);
-            return {...scheduleImportState.proposals[index], start_time: scheduleReviewBody.querySelector(`[data-schedule-time="${index}"]`).value};
-        })
-        .map((proposal) => ({
-            home_team_id: proposal.home_team_id,
-            away_team_id: proposal.away_team_id,
-            week: proposal.week,
-            field_number: proposal.field_number,
-            start_time: proposal.start_time
-        }));
+    const selected = [...scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked")].map(checkbox => {
+        const index = Number(checkbox.dataset.scheduleRow);
+        const proposal = scheduleImportState.proposals[index];
+        const field = name => scheduleReviewBody.querySelector(`[data-schedule-${name}="${index}"]`);
+        const homeName = field("home").value.trim(), awayName = field("away").value.trim();
+        const homeId = homeName === (proposal.home_match || proposal.home_team) ? proposal.home_team_id : null;
+        const awayId = awayName === (proposal.away_match || proposal.away_team) ? proposal.away_team_id : null;
+        return {home_team_id: homeId, away_team_id: awayId,
+            home_guest_name: homeId ? null : homeName, away_guest_name: awayId ? null : awayName,
+            is_friendly: field("friendly").checked,
+            branch: field("branch").value || null, category: field("category").value || null,
+            week: proposal.week, field_number: proposal.field_number, start_time: field("time").value};
+    });
+    if (selected.some(game => (!game.home_team_id || !game.away_team_id) && !game.is_friendly)) {
+        scheduleImportMessage.textContent = "Marca Amistoso para las filas con invitados o nombres editados.";
+        confirmScheduleButton.disabled = false;
+        return;
+    }
     if (!selected.length) {
         scheduleImportMessage.textContent = "Selecciona al menos un partido listo.";
         confirmScheduleButton.disabled = false;

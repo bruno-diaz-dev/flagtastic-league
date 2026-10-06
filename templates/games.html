@@ -15,6 +15,8 @@
         <details class="ui-disclosure"><summary>Registrar partido<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
 
         <form id="game-form" class="game-form">
+            <label>Tipo de partido<select id="manual-game-type" name="is_friendly"><option value="false">Oficial</option><option value="true">Amistoso</option></select></label>
+            <p class="form-help">Los amistosos no cuentan para posiciones, lideratos ni asistencia a finales.</p>
             <div class="manual-game-division-filters">
                 <label id="manual-game-branch-field">
                     Rama
@@ -61,6 +63,7 @@
                     Equipo local
                     <select name="home_team_id" required></select>
                 </label>
+                <label id="home-guest-field" class="hidden">Nombre del equipo invitado local<input name="home_guest_name" maxlength="120" placeholder="Nombre del invitado" disabled></label>
             </div>
 
             <div class="manual-team-picker">
@@ -77,6 +80,7 @@
                     Equipo visitante
                     <select name="away_team_id" required></select>
                 </label>
+                <label id="away-guest-field" class="hidden">Nombre del equipo invitado visitante<input name="away_guest_name" maxlength="120" placeholder="Nombre del invitado" disabled></label>
             </div>
 
             <label>
@@ -110,7 +114,7 @@
         <details class="ui-disclosure"><summary>Importar rol de juegos<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <p class="panel-description">
             Sube una imagen del rol o el calendario en XLSX o CSV. Podrás revisar
-            los partidos reconocidos antes de guardarlos.
+            los partidos reconocidos antes de guardarlos. Marca Amistoso para incluir invitados que no están registrados y revisa sus nombres, rama y categoría.
         </p>
         <form id="game-schedule-import-form" class="filter-form">
             <label>
@@ -260,5 +264,5 @@
 <script src="/static/ocr_loader.js?v=20261004-1"></script>
 <script src="/static/api.js?v=20261001-2"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20261004-7"></script>
+<script src="/static/games.js?v=20261006-friendly-1"></script>
 {% endblock %}

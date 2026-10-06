@@ -164,8 +164,42 @@ class RosterPlayerUpdate(PlayerCreate):
 
 class GameCreate(BaseModel):
     """Validate the two participants of a new game."""
-    home_team_id: int = Field(gt=0)
-    away_team_id: int = Field(gt=0)
+    home_team_id: int | None = Field(default=None, gt=0)
+    away_team_id: int | None = Field(default=None, gt=0)
+    is_friendly: bool = False
+    home_guest_name: str | None = Field(default=None, max_length=120)
+    away_guest_name: str | None = Field(default=None, max_length=120)
+    branch: str | None = None
+    category: str | None = None
+
+    @field_validator("home_guest_name", "away_guest_name")
+    @classmethod
+    def normalize_guest_name(cls, value):
+        return " ".join(value.split()) or None if value is not None else None
+
+    @field_validator("branch", "category")
+    @classmethod
+    def validate_friendly_division(cls, value, info):
+        if value is None:
+            return None
+        value = value.strip().lower()
+        allowed = ALLOWED_BRANCHES if info.field_name == "branch" else ALLOWED_CATEGORIES
+        if value not in allowed:
+            raise ValueError("Selecciona una rama y categoría válidas")
+        return value
+
+    @model_validator(mode="after")
+    def validate_participants(self):
+        for side in ("home", "away"):
+            team_id = getattr(self, side + "_team_id")
+            guest = getattr(self, side + "_guest_name")
+            if bool(team_id) == bool(guest):
+                raise ValueError("Selecciona un equipo o escribe un invitado para cada lado")
+            if guest and not self.is_friendly:
+                raise ValueError("Los invitados solo pueden participar en amistosos")
+        if self.home_team_id is None and self.away_team_id is None and not (self.branch and self.category):
+            raise ValueError("Selecciona la rama y categoría del amistoso")
+        return self
     week: int = Field(default=1, gt=0)
     field_number: int = Field(ge=1, le=8)
     start_time: time | None = None

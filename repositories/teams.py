@@ -81,6 +81,7 @@ def get_all_teams():
                logo_version IS NOT NULL AS has_logo,
                logo_version
         FROM teams
+        WHERE NOT is_guest
         ORDER BY
             CASE branch
                 WHEN 'varonil' THEN 1
@@ -119,6 +120,7 @@ def get_team_duplicate_candidates():
                logo_version IS NOT NULL AS has_logo,
                logo_version
         FROM teams
+        WHERE NOT is_guest
         ORDER BY category, LOWER(name), branch, id
         """
     ).fetchall()
