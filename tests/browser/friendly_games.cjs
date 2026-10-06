@@ -19,7 +19,7 @@ const assert=require('node:assert/strict');
   if(url.pathname==='/api/games/schedule/confirm'){imported=route.request().postDataJSON();return json({created:1,updated:0,skipped:0});}
   if(url.pathname.startsWith('/api/'))return json([]);
   let content=fs.readFileSync('templates/games.html','utf8').split('{% block content %}')[1].split('{% endblock %}')[0].replace(/{% for field_number in range\(1, 9\) %}[\s\S]*?{% endfor %}/g,'<option value="1">Campo 1</option>');
-  return route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body><main class="content">${content}</main><script src="/static/api.js"></script><script src="/static/games.js"></script></body></html>`});
+  return route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body class="role-league_admin"><main class="content">${content}</main><script>function escapeHtml(v){const el=document.createElement("span");el.textContent=String(v);return el.innerHTML.replace(/"/g,"&quot;");}</script><script src="/static/api.js"></script><script src="/static/games.js"></script></body></html>`});
  });
  await page.goto('https://friendly.test/');
  await page.locator('.game-card-friendly').waitFor();

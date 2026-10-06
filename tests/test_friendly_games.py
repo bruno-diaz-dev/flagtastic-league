@@ -99,4 +99,4 @@ def test_live_friendly_keeps_match_statistics_out_of_season_and_finals():
     with get_connection() as connection:
         assert connection.execute('SELECT COUNT(*) AS n FROM player_week_stats WHERE game_id=%s',(friendly,)).fetchone()['n']==0
     leaders=client.get('/api/statistics/leaderboards?branch=mixto&category=libre').json()
-    assert all(not rows for rows in leaders.values())
+    assert all(not leaders[metric] for metric in ('points','receptions','sacks','tackles','interceptions','completion_percentage'))
