@@ -13,7 +13,7 @@ import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
 from services.divisions import teams_share_game_division
-from services.team_matching import team_name_match_score
+from services.team_matching import normalize_team_upload_label, team_name_match_score
 
 
 class GameScheduleImportError(Exception):
@@ -675,9 +675,14 @@ def _name_token_score(label, team):
 
 
 def _team_candidate_score(label, team):
-    target = _normalize(label)
+    target = normalize_team_upload_label(label)
+    if "diablos" in target.split():
+        source_colors = set(target.split()) & {"oro", "tinto"}
+        target_colors = set(normalize_team_upload_label(team["name"]).split()) & {"oro", "tinto"}
+        if source_colors and source_colors != target_colors:
+            return 0.0
     alias_score = max(
-        SequenceMatcher(None, target, alias).ratio()
+        SequenceMatcher(None, target, normalize_team_upload_label(alias)).ratio()
         for alias in _team_aliases(team)
     )
     token_score = _name_token_score(label, team)

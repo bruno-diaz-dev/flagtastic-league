@@ -9,7 +9,8 @@
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,
       "fix/vercel-fast-origin-transfer": true,
-      "fix/friendly-guest-search": true
+      "fix/friendly-guest-search": true,
+      "fix/diablos-schedule-colors": true
     }
   },
   "functions": {

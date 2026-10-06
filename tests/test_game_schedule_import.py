@@ -422,3 +422,44 @@ def test_segmented_ocr_recovers_common_team_misreads():
     assert result["proposals"][0]["home_team_id"] == 1
     assert result["proposals"][0]["away_team_id"] == 2
     assert result["proposals"][1]["home_team_id"] == 5
+
+
+def test_diablos_color_aliases_keep_oro_and_tinto_separate():
+    from datetime import time
+
+    teams = [
+        {"id": 140, "name": "DIABLOS DEL SOL ORO", "branch": "mixto", "category": "u10"},
+        {"id": 141, "name": "DIABLOS DEL SOL TINTO", "branch": "mixto", "category": "u10"},
+        {"id": 47, "name": "Lobos", "branch": "mixto", "category": "u10"},
+        {"id": 3, "name": "Diablos del sol Tinto", "branch": "femenil", "category": "u18"},
+        {"id": 130, "name": "Diablos del Sol Amarillo", "branch": "femenil", "category": "u18"},
+        {"id": 131, "name": "UCA", "branch": "femenil", "category": "u18"},
+    ]
+    for label, expected, opponent in [
+        ("Diablos Ama U10", 140, "Lobos U10"),
+        ("Diablos Amarillo U10", 140, "Lobos U10"),
+        ("Diablos Rojo U10", 141, "Lobos U10"),
+        ("Diablos Rojo Fem 18", 3, "UCA Fem 18"),
+        ("Diablos Amarillo Fem 18", 130, "UCA Fem 18"),
+    ]:
+        result = parse_game_schedule_ocr_cells(2, [{
+            "field_number": 2, "start_time": time(13),
+            "home_team": opponent, "away_team": label,
+        }], teams)
+        assert result["proposals"][0]["away_team_id"] == expected
+        assert result["matched"] == 1
+
+
+def test_unknown_diablos_color_cannot_fall_back_to_another_color():
+    from datetime import time
+
+    teams = [
+        {"id": 140, "name": "Diablos del Sol Oro", "branch": "mixto", "category": "u10"},
+        {"id": 47, "name": "Lobos", "branch": "mixto", "category": "u10"},
+    ]
+    result = parse_game_schedule_ocr_cells(2, [{
+        "field_number": 2, "start_time": time(13),
+        "home_team": "Lobos U10", "away_team": "Diablos Rojo U10",
+    }], teams)
+    assert result["proposals"][0]["away_team_id"] is None
+    assert result["matched"] == 0
