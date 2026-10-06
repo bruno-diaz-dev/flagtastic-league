@@ -135,7 +135,7 @@ def start_live_game(game_id, user_id):
     return {"state": "live"}
 
 
-def append_event(game_id, payload, user_id):
+def append_event(game_id, payload, user_id, allow_completed_attendance=False):
     with get_connection() as connection:
         game = locked_game(connection, game_id)
         existing = connection.execute("SELECT * FROM game_live_events WHERE game_id = %s AND client_id = %s", (game_id, payload["client_id"])).fetchone()
@@ -143,7 +143,13 @@ def append_event(game_id, payload, user_id):
             if any(existing[key] != payload[key] for key in ("kind", "team_id", "player_id", "receiver_id", "period", "minute", "second", "note")):
                 raise LiveGameError("La clave de la jugada ya fue utilizada para otro contenido")
             return {"id": existing["id"], "duplicate": True}
-        require_live(game, session_for(connection, game_id))
+        if payload["kind"] == "attendance":
+            if game["status"] == "postponed":
+                raise LiveGameError("No puedes tomar asistencia de un partido pospuesto")
+            if game["status"] == "completed" and not allow_completed_attendance:
+                raise LiveGameError("Solo un administrador puede registrar asistencia después de finalizar", 403)
+        else:
+            require_live(game, session_for(connection, game_id))
         if payload["kind"] not in ("halftime", "two_minute_warning") and payload["team_id"] not in (game["home_team_id"], game["away_team_id"]):
             raise LiveGameError("El equipo no pertenece a este partido", 422)
         roster = {p["player_id"]: p for p in roster_for(connection, game) if p["team_id"] == payload["team_id"]}
@@ -195,25 +201,29 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
     with get_connection() as connection:
         game = locked_game(connection, game_id)
         session = session_for(connection, game_id)
-        if session is None:
-            raise LiveGameError("El partido no tiene captura en vivo")
-        if session["state"] == "completed":
-            if not is_admin:
-                raise LiveGameError("Solo un administrador puede corregir un partido finalizado", 403)
-        else:
-            if not is_referee:
-                raise LiveGameError("Solo árbitros pueden corregir la captura en vivo", 403)
-            require_live(game, session)
-        if session["version"] != payload["expected_version"]:
-            raise LiveGameError("Hay nuevas jugadas. Actualiza antes de corregir")
         event = connection.execute("SELECT id, voided_at, kind, team_id, player_id FROM game_live_events WHERE game_id = %s AND id = %s", (game_id, event_id)).fetchone()
         if event is None:
             raise LiveGameError("Jugada no encontrada", 404)
+        if event["kind"] == "attendance":
+            if not is_admin and (not is_referee or game["status"] != "scheduled"):
+                raise LiveGameError("Solo un administrador puede corregir asistencia después de finalizar", 403)
+        else:
+            if session is None:
+                raise LiveGameError("El partido no tiene captura en vivo")
+            if session["state"] == "completed":
+                if not is_admin:
+                    raise LiveGameError("Solo un administrador puede corregir un partido finalizado", 403)
+            else:
+                if not is_referee:
+                    raise LiveGameError("Solo árbitros pueden corregir la captura en vivo", 403)
+                require_live(game, session)
+        if (session["version"] if session else 0) != payload["expected_version"]:
+            raise LiveGameError("Hay nuevas jugadas. Actualiza antes de corregir")
         if event["voided_at"] is None:
             connection.execute("UPDATE game_live_events SET voided_at = NOW(), voided_by = %s, void_reason = %s WHERE id = %s", (user_id, payload["reason"].strip(), event_id))
             if event["kind"] == "attendance":
                 connection.execute("UPDATE game_live_events SET voided_at=NOW(), voided_by=%s, void_reason=%s WHERE game_id=%s AND team_id=%s AND player_id=%s AND kind='attendance' AND voided_at IS NULL", (user_id, payload["reason"].strip(), game_id, event["team_id"], event["player_id"]))
-            if session["state"] == "completed" and event["kind"] != "attendance":
+            if session and session["state"] == "completed" and event["kind"] != "attendance":
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}

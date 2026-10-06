@@ -251,3 +251,54 @@ def test_voided_play_contributes_no_score_or_player_statistics(kind):
                                     "receiver_id":11, "voided_at":"2026-10-05"}], 1, 2)
     assert scores == {1:0, 2:0}
     assert totals == []
+
+
+def test_attendance_before_live_capture_permissions_retry_and_correction():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    payload = {"client_id": str(uuid4()), "team_id": teams[0], "player_id": players[0][0]}
+    assert client.post(path + "/attendance", json=payload).status_code == 401
+    login(client, users["team_representative"])
+    assert client.post(path + "/attendance", json=payload).status_code == 403
+    login(client, users["referee"])
+    first = client.post(path + "/attendance", json=payload)
+    assert first.status_code == 201
+    retry = client.post(path + "/attendance", json=payload)
+    assert retry.json() == {"id": first.json()["id"], "duplicate": True}
+    snapshot = client.get(path).json()
+    assert snapshot["state"] == "not_started" and snapshot["version"] == 0
+    assert snapshot["events"] == [] and snapshot["statistics"] == []
+    assert snapshot["home_score"] == snapshot["away_score"] == 0
+    assert next(r for r in snapshot["attendance"] if r["player_id"] == players[0][0])["present"]
+    assert client.post(path + "/attendance", json={**payload, "client_id": str(uuid4()), "player_id": players[1][0]}).status_code == 422
+    assert client.post(path + f"/events/{first.json()['id']}/void", json={"reason": "Captura incorrecta", "expected_version": 0}).status_code == 200
+    assert not next(r for r in client.get(path).json()["attendance"] if r["player_id"] == players[0][0])["present"]
+    assert client.post(path + "/attendance", json={**payload, "client_id": str(uuid4())}).status_code == 201
+    assert client.post(path + "/start").status_code == 200
+    assert next(r for r in client.get(path).json()["attendance"] if r["player_id"] == players[0][0])["present"]
+
+
+def test_admin_attendance_after_manual_result_preserves_score_and_statistics():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    login(client, users["league_admin"])
+    assert client.patch(f"/api/games/{game_id}/score", json={"home_score": 19, "away_score": 6}).status_code == 200
+    payload = {"client_id": str(uuid4()), "team_id": teams[0], "player_id": players[0][0]}
+    first = client.post(path + "/attendance", json=payload)
+    assert first.status_code == 201
+    snapshot = client.get(path).json()
+    assert snapshot["state"] == "completed"
+    assert (snapshot["home_score"], snapshot["away_score"]) == (19, 6)
+    row = next(r for r in snapshot["attendance"] if r["player_id"] == players[0][0])
+    assert row["present"] and row["attended_games"] == 1
+    assert snapshot["events"] == [] and snapshot["statistics"] == []
+    assert client.post(path + "/events", json=event(teams[0], players[0][0])).status_code == 403
+    login(client, users["referee"])
+    assert client.post(path + "/attendance", json={**payload, "client_id": str(uuid4())}).status_code == 403
+    correction = {"reason": "Jugador ausente", "expected_version": snapshot["version"]}
+    assert client.post(path + f"/events/{first.json()['id']}/void", json=correction).status_code == 403
+    login(client, users["league_admin"])
+    assert client.post(path + f"/events/{first.json()['id']}/void", json=correction).status_code == 200
+    snapshot = client.get(path).json()
+    assert (snapshot["home_score"], snapshot["away_score"]) == (19, 6)
+    assert not next(r for r in snapshot["attendance"] if r["player_id"] == players[0][0])["present"]

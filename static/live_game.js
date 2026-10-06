@@ -243,9 +243,14 @@ function renderLive(data) {
 }
 
 function renderLiveAttendance(data, official) {
+    const attendanceEditor = liveHasRole("league_admin") || (official && data.state !== "completed");
+    const canTakeAttendance = attendanceEditor && data.state !== "postponed";
+    document.querySelector("#attendance-action").classList.toggle("hidden", !canTakeAttendance);
+    document.querySelector("#attendance-action").textContent = data.state === "completed" ? "Registrar o corregir asistencia" : "Tomar asistencia";
+    document.querySelector("#attendance-permission").textContent = canTakeAttendance ? "Usa Marcar presente junto a cada jugador. No necesitas iniciar la captura en vivo." : data.state === "completed" ? "Partido finalizado: solo un administrador puede registrar o corregir la asistencia." : data.state === "postponed" ? "El partido está pospuesto." : "Inicia sesión con una cuenta de árbitro o administrador para tomar asistencia.";
     document.querySelector("#live-attendance").innerHTML = [data.home_team, data.away_team].map(team =>
-        `<h4>${escapeHtml(team.name)}</h4><div class="live-player-buttons">${(data.attendance || []).filter(row => row.team_id === team.id).map(row =>
-            `<div><strong>#${row.jersey_number} ${escapeHtml(row.display_name)}</strong><p>${row.present ? "Presente en este juego" : "Sin asistencia registrada"} · ${row.attended_games}/${row.required_games} juegos requeridos · ${row.eligible ? "Cumple según calendario actual" : "Aún no cumple"}</p>${official && data.state === "live" && !row.present ? `<button type="button" class="secondary-button" data-live-attendance="${row.player_id}" data-live-attendance-team="${row.team_id}">Marcar presente</button>` : ""}${row.present && ((official && data.state === "live") || (liveHasRole("league_admin") && data.state === "completed")) ? `<button type="button" class="secondary-button" data-attendance-void="${row.entry_id}">Corregir asistencia</button>` : ""}</div>`
+        `<h4>${escapeHtml(team.name)}</h4><div class="attendance-roster">${(data.attendance || []).filter(row => row.team_id === team.id).map(row =>
+            `<div class="attendance-player"><strong>#${row.jersey_number} ${escapeHtml(row.display_name)}</strong><p>${row.present ? "Presente en este juego" : "Sin asistencia registrada"} · ${row.attended_games}/${row.required_games} juegos requeridos · ${row.eligible ? "Cumple según calendario actual" : "Aún no cumple"}</p>${canTakeAttendance && !row.present ? `<button type="button" class="secondary-button" data-live-attendance="${row.player_id}" data-live-attendance-team="${row.team_id}">Marcar presente</button>` : ""}${row.present && canTakeAttendance ? `<button type="button" class="secondary-button" data-attendance-void="${row.entry_id}">Corregir asistencia</button>` : ""}</div>`
         ).join("")}</div>`
     ).join("");
 }
@@ -276,9 +281,21 @@ document.querySelector("#live-moments").addEventListener("click", event => {
     const button = event.target.closest("[data-live-moment]");
     if (button) liveCaptureAdministrative(button.dataset.liveMoment);
 });
+document.querySelector("#attendance-action").addEventListener("click", () => {
+    document.querySelector("#live-attendance-panel").open = true;
+    document.querySelector("#live-attendance-panel").scrollIntoView({behavior:"smooth",block:"start"});
+});
 document.querySelector("#live-attendance").addEventListener("click", event => {
     const button = event.target.closest("[data-live-attendance]");
-    if (button) liveCaptureAdministrative("attendance", Number(button.dataset.liveAttendanceTeam), Number(button.dataset.liveAttendance));
+    if (button) {
+        liveOperation(async () => {
+            button.disabled = true;
+            try {
+                await liveWrite("attendance", {client_id:crypto.randomUUID(),team_id:Number(button.dataset.liveAttendanceTeam),player_id:Number(button.dataset.liveAttendance)});
+                liveMessage.textContent = "Asistencia registrada.";
+            } finally { button.disabled = false; }
+        });
+    }
     const correction = event.target.closest("[data-attendance-void]");
     if (!correction) return;
     const reason = window.prompt("Motivo de la corrección de asistencia (mínimo 3 caracteres).");
