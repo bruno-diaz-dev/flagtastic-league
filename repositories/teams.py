@@ -109,8 +109,8 @@ def get_all_teams():
     return [_public_team(row) for row in rows]
 
 
-def get_youth_duplicate_candidates():
-    """Group same-name U8-U12 teams registered under different branches."""
+def get_team_duplicate_candidates():
+    """Review normalized names across every category and branch."""
     connection = get_connection()
     rows = connection.execute(
         """
@@ -119,7 +119,6 @@ def get_youth_duplicate_candidates():
                logo_version IS NOT NULL AS has_logo,
                logo_version
         FROM teams
-        WHERE category IN ('u8', 'u10', 'u12')
         ORDER BY category, LOWER(name), branch, id
         """
     ).fetchall()
@@ -134,7 +133,7 @@ def get_youth_duplicate_candidates():
 
     candidates = []
     for (category, identity), teams in groups.items():
-        if len(teams) < 2 or len({team["branch"] for team in teams}) < 2:
+        if len(teams) < 2:
             continue
         candidates.append({
             "category": category,

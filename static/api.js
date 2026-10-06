@@ -19,7 +19,7 @@ function divisionBranchLabel(branch, category) {
     return isUnifiedYouthCategory(category) ? "Infantiles" : branch;
 }
 
-async function getYouthDuplicateCandidates() {
+async function getTeamDuplicateCandidates() {
     return fetch("/api/teams/duplicate-candidates");
 }
 

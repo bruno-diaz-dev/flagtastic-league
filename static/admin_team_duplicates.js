@@ -1,7 +1,8 @@
-// Administrator-only review for youth teams duplicated across legacy branches.
+// Administrator-only name-coincidence review across every division.
 
 const duplicateNameFilter = document.querySelector("#duplicate-name-filter");
 const duplicateCategoryFilter = document.querySelector("#duplicate-category-filter");
+const duplicateBranchFilter = document.querySelector("#duplicate-branch-filter");
 const duplicateAuditCount = document.querySelector("#duplicate-audit-count");
 const duplicateAuditMessage = document.querySelector("#duplicate-audit-message");
 const duplicateAuditResults = document.querySelector("#duplicate-audit-results");
@@ -16,8 +17,10 @@ function normalizeAuditText(value) {
 function renderDuplicateAudit() {
     const search = normalizeAuditText(duplicateNameFilter.value.trim());
     const category = duplicateCategoryFilter.value;
+    const branch = duplicateBranchFilter.value;
     const visible = duplicateGroups.filter((group) => (
         (!category || group.category === category)
+        && (!branch || group.teams.some(team => team.branch === branch))
         && (!search || group.teams.some((team) => (
             normalizeAuditText(team.name).includes(search)
         )))
@@ -28,7 +31,7 @@ function renderDuplicateAudit() {
         duplicateAuditResults.innerHTML = `
             <div class="empty-state">
                 <h3>Sin coincidencias</h3>
-                <p>No hay equipos repetidos entre ramas con estos filtros.</p>
+                <p>No hay coincidencias de nombres con estos filtros.</p>
             </div>`;
         return;
     }
@@ -63,7 +66,7 @@ function renderDuplicateAudit() {
 async function loadDuplicateAudit() {
     duplicateAuditMessage.textContent = "Buscando posibles duplicados...";
     try {
-        const response = await getYouthDuplicateCandidates();
+        const response = await getTeamDuplicateCandidates();
         if (response.status === 401) {
             window.location.assign("/login");
             return;
@@ -83,4 +86,5 @@ async function loadDuplicateAudit() {
 
 duplicateNameFilter.addEventListener("input", renderDuplicateAudit);
 duplicateCategoryFilter.addEventListener("change", renderDuplicateAudit);
+duplicateBranchFilter.addEventListener("change", renderDuplicateAudit);
 loadDuplicateAudit();
