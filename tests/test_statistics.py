@@ -285,7 +285,7 @@ def test_team_identity_includes_branch_and_category():
     ]
 
 
-def test_invalid_roster_row_does_not_replace_the_week_snapshot():
+def test_all_unknown_numbers_preserve_the_week_snapshot():
     create_rosters()
     assert upload_week(1, [
         ["varonil", "libre", "Tigres", 83, 12, 3, 0, 0, 1, 5, 10]
@@ -293,10 +293,62 @@ def test_invalid_roster_row_does_not_replace_the_week_snapshot():
     invalid = upload_week(1, [
         ["varonil", "libre", "Tigres", 999, 9, 9, 9, 9, 9, 5, 10]
     ])
-    assert invalid.status_code == 422
+    assert invalid.status_code == 200
+    assert invalid.json()["imported"] == 0
+    assert invalid.json()["skipped_count"] == 1
+    assert invalid.json()["skipped"][0]["jersey_number"] == 999
+    assert invalid.json()["preserved_weeks"] == [1]
     saved = client.get("/api/weeks/1/player-stats").json()
     assert len(saved) == 1
     assert saved[0]["points"] == 12
+
+
+def test_unknown_numbers_are_skipped_only_in_their_own_team():
+    create_rosters()
+    response = upload_week(1, [
+        ["varonil", "libre", "Tigres", 83, 12, 3, 0, 0, 1, 5, 10],
+        ["varonil", "libre", "Tigres", 12, 9, 9, 0, 0, 0, 0, 0],
+        ["varonil", "libre", "Ravens", 12, 6, 1, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 2
+    assert data["skipped_count"] == 1
+    assert data["preserved_weeks"] == []
+    assert data["skipped"][0]["team_name"] == "Tigres"
+    assert data["skipped"][0]["week"] == 1
+    assert data["skipped"][0]["jersey_number"] == 12
+    assert len(client.get("/api/weeks/1/player-stats").json()) == 2
+
+
+def test_official_import_reports_missing_numbers_and_keeps_valid_stats():
+    tigres = create_team("Tigres")
+    create_team("Ravens")
+    create_player(tigres, "Quarterback", "QBXX010101HASXX001", 83)
+    response = client.post(
+        "/api/statistics/import",
+        files={"file": ("stats.xlsx", create_official_workbook())},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["imported"] == 1
+    assert data["games"] == 1
+    assert {row["jersey_number"] for row in data["skipped"]} == {10, 22}
+    assert data["skipped_count"] == 2
+    assert len(client.get("/api/weeks/1/player-stats").json()) == 1
+
+
+def test_unknown_team_still_rolls_back_after_skipped_number():
+    create_rosters()
+    upload_week(1, [
+        ["varonil", "libre", "Tigres", 83, 12, 3, 0, 0, 1, 5, 10]
+    ])
+    response = upload_week(1, [
+        ["varonil", "libre", "Tigres", 999, 0, 0, 0, 0, 0, 0, 0],
+        ["varonil", "libre", "Unknown", 83, 6, 1, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 422
+    assert client.get("/api/weeks/1/player-stats").json()[0]["points"] == 12
 
 
 def test_a_new_upload_replaces_the_complete_week():

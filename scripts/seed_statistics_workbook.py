@@ -119,8 +119,9 @@ def seed_workbook(path):
         "teams_created": teams_created,
         "players_created": players_created,
         "existing_memberships": existing_memberships,
-        "statistics_imported": len(imported),
-        "games_imported": sum(len(rows) for rows in games.values())
+        "statistics_imported": imported["imported"],
+        "statistics_skipped": imported["skipped"],
+        "games_imported": imported["games"]
     }
 
 

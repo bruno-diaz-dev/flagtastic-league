@@ -26,3 +26,18 @@ Run `node --test tests/js/statistics_upload.test.cjs` for transport regressions.
 Browser verification should include a large official file and compare all
 imported source cells and parser results against the original. Never use
 production imports as a smoke test: successful imports replace existing data.
+
+## Unknown Jersey Numbers
+
+Both import endpoints skip player records whose jersey number does not exist
+in the resolved team's roster. They never create players or assign those stats
+to another team's player. Responses include `skipped`, `skipped_count` and
+`preserved_weeks`; each skipped record identifies its week, team, division,
+jersey number and game index. The page lists the omitted numbers after import,
+deduplicating the displayed week/team/number while counting all skipped records.
+
+Weeks with valid records retain complete-week replacement semantics. If every
+record in a week has an unknown number, its existing statistics and games remain
+unchanged. Unknown teams, duplicate valid players, malformed values and live-game
+conflicts still reject the transaction. Game scores are still taken from the
+workbook, including when an individual scorer's number is omitted.

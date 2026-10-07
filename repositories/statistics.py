@@ -53,6 +53,8 @@ def import_statistics_workbook(weeks, games=None):
                 category=division[1]
             )
         resolved_weeks = {}
+        skipped = []
+        preserved_weeks = []
         for week, rows in weeks.items():
             resolved_rows = []
             seen_memberships = set()
@@ -76,10 +78,15 @@ def import_statistics_workbook(weeks, games=None):
                     (team["id"], row["jersey_number"])
                 ).fetchone()
                 if player is None:
-                    raise StatisticsValidationError(
-                        f"Jornada {week}, fila {row_number}: no existe el "
-                        f"numero {row['jersey_number']} en {row['team']}"
-                    )
+                    skipped.append({
+                        "week": week, "team_id": team["id"],
+                        "team_name": team["name"], "branch": team["branch"],
+                        "category": team["category"],
+                        "jersey_number": row["jersey_number"],
+                        "game_index": row.get("game_index"),
+                        "reason": "jersey_number_not_found",
+                    })
+                    continue
                 membership = (
                     row.get("game_index"), player["id"], team["id"]
                 )
@@ -89,7 +96,10 @@ def import_statistics_workbook(weeks, games=None):
                     )
                 seen_memberships.add(membership)
                 resolved_rows.append((player, team, row))
-            resolved_weeks[week] = resolved_rows
+            if rows and not resolved_rows:
+                preserved_weeks.append(week)
+            else:
+                resolved_weeks[week] = resolved_rows
 
         resolved_games = []
         for week, week_games in (games or {}).items():
@@ -106,7 +116,8 @@ def import_statistics_workbook(weeks, games=None):
                     raise StatisticsValidationError(
                         f"Jornada {week}: no existe el equipo {missing} en esa division"
                     )
-                resolved_games.append((week, home["id"], away["id"], game))
+                if week not in preserved_weeks:
+                    resolved_games.append((week, home["id"], away["id"], game))
 
         # Validation finishes before deleting anything, so a bad row leaves all
         # previously published jornadas untouched.
@@ -198,7 +209,12 @@ def import_statistics_workbook(weeks, games=None):
             (list(resolved_weeks),)
         )
         connection.commit()
-        return imported
+        return {
+            "imported": len(imported), "rows": imported,
+            "skipped": skipped, "skipped_count": len(skipped),
+            "preserved_weeks": sorted(preserved_weeks),
+            "games": len(resolved_games),
+        }
     except Exception:
         connection.rollback()
         raise
