@@ -4,6 +4,7 @@ const leaderboardForm = document.querySelector("#leaderboard-form");
 const leaderboardsContainer = document.querySelector("#leaderboards");
 const statisticsImportForm = document.querySelector("#statistics-import-form");
 const statisticsImportMessage = document.querySelector("#statistics-import-message");
+const statisticsImportSkipped = document.querySelector("#statistics-import-skipped");
 const leaderboardBranch = document.querySelector("#leaderboard-branch");
 const leaderboardCategory = document.querySelector("#leaderboard-category");
 const leaderboardBranchField = document.querySelector("#leaderboard-branch-field");
@@ -89,12 +90,38 @@ function renderLeaderboards(leaderboards) {
 }
 
 
+function renderSkippedStatistics(data) {
+    statisticsImportSkipped.replaceChildren();
+    const skipped = data.skipped || [];
+    if (!skipped.length) return;
+    const heading = document.createElement("p");
+    heading.textContent = `${skipped.length} registros omitidos: número no registrado en el equipo.`;
+    const list = document.createElement("ul");
+    const identities = new Set();
+    for (const row of skipped) {
+        const identity = JSON.stringify([row.week, row.team_id, row.jersey_number]);
+        if (identities.has(identity)) continue;
+        identities.add(identity);
+        const item = document.createElement("li");
+        item.textContent = `Jornada ${row.week} · ${row.team_name} (${row.branch} / ${row.category}) · #${row.jersey_number}`;
+        list.append(item);
+    }
+    statisticsImportSkipped.append(heading, list);
+    if (data.preserved_weeks?.length) {
+        const notice = document.createElement("p");
+        notice.textContent = `Sin registros válidos en las jornadas ${data.preserved_weeks.join(", ")}. Se conservaron sus datos anteriores.`;
+        statisticsImportSkipped.append(notice);
+    }
+}
+
+
 async function submitStatisticsImport(event) {
     event.preventDefault();
     const fields = new FormData(statisticsImportForm);
     const submit = statisticsImportForm.querySelector('button[type="submit"]');
     if (submit.disabled) return;
     submit.disabled = true;
+    statisticsImportSkipped.replaceChildren();
     statisticsImportMessage.textContent = "Preparando archivo...";
     try {
         const file = await prepareStatisticsUpload(fields.get("file"));
@@ -103,6 +130,7 @@ async function submitStatisticsImport(event) {
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
         statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks.length} jornadas importados correctamente.`;
+        renderSkippedStatistics(data);
         await loadLeaderboards();
     } catch (error) {
         statisticsImportMessage.textContent = error instanceof TypeError
