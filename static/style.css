@@ -2259,6 +2259,65 @@ body.role-league_admin .week-admin-actions.admin-only {
     gap: 20px;
 }
 
+.payments-teams {
+    display: grid;
+    gap: 18px;
+}
+
+.payment-team-panel {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 18px;
+    display: grid;
+    gap: 16px;
+}
+
+.payment-team-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.payment-team-header h3 {
+    margin: 0 0 4px;
+}
+
+.payment-team-header p {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+.payment-team-header strong {
+    white-space: nowrap;
+    font-size: 1.1rem;
+}
+
+.payment-team-header .debt {
+    color: #b42318;
+}
+
+.payment-team-header .paid {
+    color: #067647;
+}
+
+.payment-admin-forms {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+    gap: 18px;
+}
+
+.payment-admin-forms form {
+    align-content: start;
+}
+
+.payments-history-table small {
+    display: block;
+    color: var(--color-muted);
+    margin-top: 4px;
+}
+
 .representative-team-panel {
     background: var(--color-surface-raised);
     border: 1px solid var(--color-border);
@@ -2508,6 +2567,15 @@ body.role-league_admin .week-admin-actions.admin-only {
 
     .representative-team-panel {
         padding: 16px;
+    }
+
+    .payment-team-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .payment-admin-forms {
+        grid-template-columns: 1fr;
     }
 
     .representative-team-metrics {

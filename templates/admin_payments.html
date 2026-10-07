@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="admin-payments-page league-page">
+    <header class="section-header">
+        <div>
+            <p class="ui-kicker">FlagTastic · Administración</p>
+            <h2>Pagos de equipos</h2>
+            <p>Control de inscripción, adeudos y pagos capturados por administración.</p>
+        </div>
+    </header>
+
+    <div id="payments-summary" class="stat-grid dashboard-summary-grid" aria-live="polite"></div>
+
+    <section class="filters-panel payments-filters" aria-label="Filtros de pagos">
+        <label>
+            Buscar equipo
+            <input id="payments-team-filter" type="search" placeholder="Nombre, rama o categoría" autocomplete="off">
+        </label>
+        <label>
+            Estado
+            <select id="payments-status-filter">
+                <option value="all">Todos</option>
+                <option value="debt">Con adeudo</option>
+                <option value="paid">Liquidados</option>
+                <option value="unset">Sin monto definido</option>
+            </select>
+        </label>
+        <p id="payments-count" class="results-count" aria-live="polite"></p>
+    </section>
+
+    <p id="payments-message" class="form-message" role="status"></p>
+    <div id="payments-teams" class="payments-teams" aria-live="polite"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20261007-1"></script>
+<script src="/static/admin_payments.js?v=20261007-1"></script>
+{% endblock %}

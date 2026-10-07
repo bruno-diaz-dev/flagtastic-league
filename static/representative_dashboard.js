@@ -6,11 +6,24 @@ function metric(label, value) {
     return `<div class="stat-item"><span>${label}</span><strong>${value ?? "-"}</strong></div>`;
 }
 
+function money(value) {
+    return Number(value || 0).toLocaleString("es-MX", {
+        style: "currency",
+        currency: "MXN"
+    });
+}
+
+function shortDate(value) {
+    if (!value) return "-";
+    return new Date(value).toLocaleDateString("es-MX", {dateStyle: "medium"});
+}
+
 function renderRepresentativeSummary(teams) {
     const rosterCount = teams.reduce((total, team) => total + team.roster_count, 0);
     const wins = teams.reduce((total, team) => total + team.standing.wins, 0);
     const losses = teams.reduce((total, team) => total + team.standing.losses, 0);
     const points = teams.reduce((total, team) => total + team.statistics.points, 0);
+    const balanceDue = teams.reduce((total, team) => total + team.finance.balance_due, 0);
     const rankedTeams = teams.filter((team) => team.standing.position !== null);
     const bestPosition = rankedTeams.length
         ? Math.min(...rankedTeams.map((team) => team.standing.position))
@@ -21,6 +34,7 @@ function renderRepresentativeSummary(teams) {
         metric("Jugadores activos", rosterCount),
         metric("Récord combinado", `${wins}-${losses}`),
         metric("Puntos anotados", points),
+        metric("Saldo pendiente", money(balanceDue)),
         metric("Mejor posición", bestPosition ? `#${bestPosition}` : "-")
     ].join("");
 }
@@ -52,6 +66,7 @@ function representativePlayerCard(player) {
 function renderRepresentativeTeam(team) {
     const standing = team.standing;
     const staff = [team.head_coach, team.coach, team.manager].filter(Boolean);
+    const finance = team.finance;
     return `
         <section class="representative-team-panel">
             <header class="representative-team-header">
@@ -70,11 +85,28 @@ function renderRepresentativeTeam(team) {
                 ${metric("Récord", `${standing.wins}-${standing.losses}`)}
                 ${metric("PF / PC", `${standing.points_for} / ${standing.points_against}`)}
                 ${metric("Jugadores", team.roster_count)}
+                ${metric("Inscripción", money(finance.registration_fee))}
+                ${metric("Pagado", money(finance.paid_amount))}
+                ${metric("Saldo", money(finance.balance_due))}
                 ${metric("Puntos", team.statistics.points)}
                 ${metric("Recepciones", team.statistics.receptions)}
                 ${metric("Tacleadas", team.statistics.tackles)}
                 ${metric("% pases", team.statistics.completion_percentage)}
             </div>
+            <details class="ui-disclosure representative-payment-history"><summary>Historial de pagos<span class="ui-disclosure-hint">${finance.payments.length}</span></summary><div class="ui-disclosure-body">
+                <div class="table-scroll"><table class="standings-data-table">
+                    <thead><tr><th>Fecha</th><th>Monto</th><th>Forma</th><th>Recibió</th><th>Referencia</th></tr></thead>
+                    <tbody>${finance.payments.length ? finance.payments.map((payment) => `
+                        <tr>
+                            <td>${shortDate(payment.received_at)}</td>
+                            <td>${money(payment.amount)}</td>
+                            <td>${payment.method === "cash" ? "Efectivo" : "Transferencia"}</td>
+                            <td>${escapeHtml(payment.receiver_name || "-")}</td>
+                            <td>${escapeHtml(payment.reference || "-")}</td>
+                        </tr>
+                    `).join("") : `<tr><td colspan="5">Sin pagos registrados.</td></tr>`}</tbody>
+                </table></div>
+            </div></details>
             <div class="table-scroll representative-player-table"><table class="standings-data-table"><thead><tr>
                 <th>Jugador</th><th>#</th><th>PTS</th><th>REC</th><th>INT</th><th>CAP</th><th>TAC</th><th>PC</th><th>PL</th><th>%</th>
             </tr></thead><tbody>${team.players.map((player) => `<tr>

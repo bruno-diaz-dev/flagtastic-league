@@ -1,6 +1,7 @@
 """Pydantic request contracts and league-wide input constraints."""
 
 from datetime import date, time
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
@@ -133,6 +134,28 @@ class TeamNameUpdate(BaseModel):
         if not normalized:
             raise ValueError("Team name cannot be empty")
         return normalized
+
+
+class TeamRegistrationFeeUpdate(BaseModel):
+    """Validate the inscription amount controlled by league administrators."""
+
+    amount: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+
+
+class TeamPaymentCreate(BaseModel):
+    """Validate an administrator-entered payment before persistence."""
+
+    amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    method: Literal["cash", "transfer"]
+    receiver_name: str | None = Field(default=None, max_length=120)
+    reference: str | None = Field(default=None, max_length=120)
+    notes: str | None = Field(default=None, max_length=500)
+
+    @field_validator("receiver_name", "reference", "notes")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        normalized = value.strip() if value is not None else ""
+        return normalized or None
 
 
 class PlayerCreate(BaseModel):
