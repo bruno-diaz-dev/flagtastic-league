@@ -118,12 +118,12 @@ function renderTeamPaymentPanel(team) {
                 </form>
             </div></details>
 
-            <div class="table-scroll">
+            ${finance.payments.length ? `<div class="table-scroll">
                 <table class="standings-data-table payments-history-table">
                     <thead><tr><th>Fecha</th><th>Monto</th><th>Forma</th><th>Recibió</th><th>Referencia</th><th>Comprobante</th></tr></thead>
                     <tbody>${paymentRows(finance.payments)}</tbody>
                 </table>
-            </div>
+            </div>` : `<p class="payments-empty">Sin pagos registrados.</p>`}
         </section>
     `;
 }
