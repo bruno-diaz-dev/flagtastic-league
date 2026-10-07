@@ -121,16 +121,33 @@ def _defensive_events(block):
     )
 
 
-def _parse_official_games(sheet, week):
-    """Read consecutive 15-row team blocks as inferred game results."""
-    rows = list(sheet.iter_rows(min_row=2, values_only=True))
+def _official_team_blocks(sheet):
+    """Ignore repeated print headers without shifting fixed-size team blocks."""
+    rows = [
+        (number, values)
+        for number, values in enumerate(
+            sheet.iter_rows(min_row=2, max_col=53, values_only=True), 2
+        )
+        if tuple(_normalized_text(value) for value in values[:3])
+        != ("equipo", "categoria", "estadistica")
+    ]
     blocks = []
     for start in range(0, len(rows), 15):
-        block = rows[start:start + 15]
-        if len(block) < 15 or not block[0][0]:
+        section = rows[start:start + 15]
+        if not section or not section[0][1][0]:
             continue
+        if len(section) != 15:
+            raise StatisticsFileError(f"{sheet.title}, fila {section[0][0]}: bloque de equipo incompleto")
+        blocks.append((section[0][0], [values for _, values in section]))
+    return blocks
+
+
+def _parse_official_games(sheet, week):
+    """Read consecutive 15-row team blocks as inferred game results."""
+    blocks = []
+    for row_number, block in _official_team_blocks(sheet):
         branch, category = _division_from_official_category(
-            block[0][1], sheet.title, start + 2
+            block[0][1], sheet.title, row_number
         )
         blocks.append({
             "branch": branch,
@@ -179,17 +196,13 @@ def _parse_official_week_sheet(sheet, week):
         "sacks": 0, "tackles": 0, "passes_completed": 0,
         "passes_attempted": 0
     }))
-    source_rows = list(sheet.iter_rows(min_row=2, values_only=True))
-    blocks = [
-        source_rows[start:start + 15]
-        for start in range(0, len(source_rows), 15)
-        if len(source_rows[start:start + 15]) == 15
-        and source_rows[start:start + 15][0][0]
-    ]
-    for block_index, block in enumerate(blocks):
+    blocks = _official_team_blocks(sheet)
+    if not blocks:
+        return []
+    for block_index, (row_number, block) in enumerate(blocks):
         team = str(block[0][0]).strip()
         branch, category = _division_from_official_category(
-            block[0][1], sheet.title, block_index * 15 + 2
+            block[0][1], sheet.title, row_number
         )
         game_index = block_index // 2
         for values in block:
@@ -298,6 +311,7 @@ def parse_statistics_workbook(content, selected_week=None):
                 for week, sheet in week_sheets
                 if selected_week is None or week == selected_week
             }
+            parsed = {week: rows for week, rows in parsed.items() if rows}
             if not parsed:
                 raise StatisticsFileError(
                     f"El archivo no contiene la jornada {selected_week}"
@@ -329,7 +343,9 @@ def parse_games_workbook(content, selected_week=None):
                 continue
             week = int(match.group(1))
             if selected_week is None or week == selected_week:
-                parsed[week] = _parse_official_games(sheet, week)
+                games = _parse_official_games(sheet, week)
+                if games:
+                    parsed[week] = games
         if not parsed:
             raise StatisticsFileError("El archivo no contiene partidos por jornada")
         return parsed
