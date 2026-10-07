@@ -92,19 +92,24 @@ function renderLeaderboards(leaderboards) {
 async function submitStatisticsImport(event) {
     event.preventDefault();
     const fields = new FormData(statisticsImportForm);
-    statisticsImportMessage.textContent = "Importando estadísticas...";
+    const submit = statisticsImportForm.querySelector('button[type="submit"]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    statisticsImportMessage.textContent = "Preparando archivo...";
     try {
-        const response = await importOfficialStatistics(fields.get("file"));
-        const data = await response.json();
-        if (!response.ok) {
-            statisticsImportMessage.textContent = data.detail || "No se pudo importar el archivo.";
-            return;
-        }
+        const file = await prepareStatisticsUpload(fields.get("file"));
+        statisticsImportMessage.textContent = "Importando estadísticas...";
+        const response = await importOfficialStatistics(file);
+        const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
         statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks.length} jornadas importados correctamente.`;
         await loadLeaderboards();
     } catch (error) {
-        statisticsImportMessage.textContent = "No se pudo conectar con el servidor.";
+        statisticsImportMessage.textContent = error instanceof TypeError
+            ? "No se pudo conectar con el servidor."
+            : error.message || "No se pudo importar el archivo.";
+    } finally {
+        submit.disabled = false;
     }
 }
 
