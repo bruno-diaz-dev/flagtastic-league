@@ -298,9 +298,17 @@ Candidate scope, ordered only after league validation:
 - Optional account or assignment notifications.
 
 Before implementation, each candidate requires a written rule, owner, data
-model impact, authorization matrix, and acceptance test. Payment workflows and
-framework rewrites remain out of scope until the league identifies a concrete
-need.
+model impact, authorization matrix, and acceptance test. Framework rewrites
+remain out of scope until the league identifies a concrete need.
+
+### Administrative Payment Preview
+
+Manual administrator capture, optional proof, assigned-team representative
+history and mobile layouts are implemented on `feat/admin-team-payments` and
+available in Preview. Production rollout remains pending. See
+[`team-payments.md`](team-payments.md) for migration behavior and permissions.
+Excel import, original-date capture, payment correction and delinquency
+enforcement remain pending; they are not part of the implemented release.
 
 ## Known Risks and Controls
 

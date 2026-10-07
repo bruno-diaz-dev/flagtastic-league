@@ -1,5 +1,10 @@
 # Flagtastic Architecture
 
+The Preview-only administrative payment ledger, API permissions, database
+migrations and responsive histories are documented in
+[`team-payments.md`](team-payments.md). Representative dashboard responses now
+include finance summaries scoped to explicitly assigned teams.
+
 Flagtastic is a platform for managing a flag football league. The current application focuses on registering teams, managing rosters, validating basic eligibility rules, and creating games between teams.
 
 The project follows a deliberately lightweight layered architecture. The current priority is to keep the domain clear, preserve data integrity, and allow the system to grow without introducing premature abstractions.
