@@ -67,12 +67,12 @@ function paymentRows(payments) {
     }
     return payments.map((payment) => `
         <tr>
-            <td>${shortDate(payment.received_at)}</td>
-            <td>${money(payment.amount)}</td>
-            <td>${methodLabels[payment.method] || payment.method}</td>
-            <td>${escapeHtml(payment.receiver_name || payment.recorded_by_name || "-")}</td>
-            <td>${escapeHtml(payment.reference || "-")}</td>
-            <td>${payment.has_proof
+            <td data-label="Fecha">${shortDate(payment.received_at)}</td>
+            <td data-label="Monto">${money(payment.amount)}</td>
+            <td data-label="Forma">${methodLabels[payment.method] || payment.method}</td>
+            <td data-label="Recibió">${escapeHtml(payment.receiver_name || payment.recorded_by_name || "-")}</td>
+            <td data-label="Referencia">${escapeHtml(payment.reference || "-")}</td>
+            <td data-label="Comprobante">${payment.has_proof
                 ? `<a href="/api/admin/payments/${payment.id}/proof" target="_blank" rel="noopener">Ver</a>`
                 : "-"}${payment.notes ? `<small>${escapeHtml(payment.notes)}</small>` : ""}</td>
         </tr>

@@ -94,18 +94,18 @@ function renderRepresentativeTeam(team) {
                 ${metric("% pases", team.statistics.completion_percentage)}
             </div>
             <details class="ui-disclosure representative-payment-history"><summary>Historial de pagos<span class="ui-disclosure-hint">${finance.payments.length}</span></summary><div class="ui-disclosure-body">
-                <div class="table-scroll"><table class="standings-data-table">
+                ${finance.payments.length ? `<div class="table-scroll"><table class="standings-data-table payments-history-table">
                     <thead><tr><th>Fecha</th><th>Monto</th><th>Forma</th><th>Recibió</th><th>Referencia</th></tr></thead>
                     <tbody>${finance.payments.length ? finance.payments.map((payment) => `
                         <tr>
-                            <td>${shortDate(payment.received_at)}</td>
-                            <td>${money(payment.amount)}</td>
-                            <td>${payment.method === "cash" ? "Efectivo" : "Transferencia"}</td>
-                            <td>${escapeHtml(payment.receiver_name || "-")}</td>
-                            <td>${escapeHtml(payment.reference || "-")}</td>
+                            <td data-label="Fecha">${shortDate(payment.received_at)}</td>
+                            <td data-label="Monto">${money(payment.amount)}</td>
+                            <td data-label="Forma">${payment.method === "cash" ? "Efectivo" : "Transferencia"}</td>
+                            <td data-label="Recibió">${escapeHtml(payment.receiver_name || "-")}</td>
+                            <td data-label="Referencia">${escapeHtml(payment.reference || "-")}</td>
                         </tr>
                     `).join("") : `<tr><td colspan="5">Sin pagos registrados.</td></tr>`}</tbody>
-                </table></div>
+                </table></div>` : `<p class="payments-empty">Sin pagos registrados.</p>`}
             </div></details>
             <div class="table-scroll representative-player-table"><table class="standings-data-table"><thead><tr>
                 <th>Jugador</th><th>#</th><th>PTS</th><th>REC</th><th>INT</th><th>CAP</th><th>TAC</th><th>PC</th><th>PL</th><th>%</th>
