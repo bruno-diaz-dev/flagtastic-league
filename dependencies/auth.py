@@ -1,9 +1,10 @@
 """Authentication and least-privilege authorization dependencies."""
 
-from fastapi import Cookie, Depends, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException, Request
 
 from repositories.users import user_represents_team
 from services.auth import get_authenticated_user
+from services.roster_policy import ROSTER_CLOSED_MESSAGE, roster_is_closed
 from settings import SESSION_COOKIE_NAME
 
 
@@ -92,6 +93,7 @@ def require_team_representative(user=Depends(require_authenticated_user)):
 
 
 def require_team_manager(
+    request: Request,
     team_id: int,
     user=Depends(require_authenticated_user)
 ):
@@ -102,6 +104,8 @@ def require_team_manager(
         user_has_role(user, "team_representative")
         and user_represents_team(user["id"], team_id)
     ):
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and roster_is_closed():
+            raise HTTPException(status_code=403, detail=ROSTER_CLOSED_MESSAGE)
         return user
     raise HTTPException(status_code=403, detail="Acceso no autorizado")
 

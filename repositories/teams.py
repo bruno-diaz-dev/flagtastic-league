@@ -1,6 +1,7 @@
 """Persistence operations for league teams."""
 
 from database import get_connection
+from services.roster_policy import ROSTER_CLOSES_AT, roster_is_closed
 from services.team_matching import normalize_team_identity
 
 def create_team(team, representative_user_id=None):
@@ -211,9 +212,12 @@ def get_team_roster_detail(team_id, user_id=None, is_admin=False):
         ).fetchone() is not None
     connection.close()
 
+    closed = roster_is_closed()
     return {
         **_public_team(team_row),
-        "can_manage": is_admin or represents_team,
+        "can_manage": is_admin or (represents_team and not closed),
+        "roster_closed": closed,
+        "roster_closes_at": ROSTER_CLOSES_AT.isoformat(),
         "players": [dict(player) for player in players]
     }
 
