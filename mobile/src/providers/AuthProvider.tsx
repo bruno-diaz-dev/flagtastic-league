@@ -1,6 +1,6 @@
-import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { loadCurrentUser, mobileLogin } from '@/lib/api';
+import { loadCurrentUser, mobileLogin, mobileLogout } from '@/lib/api';
 import { clearToken, getStoredToken, saveToken } from '@/lib/storage';
 import type { User } from '@/types';
 
@@ -51,11 +51,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
-  async function signOut() {
+  const signOut = useCallback(async () => {
+    if (token) await mobileLogout(token).catch(() => undefined);
     await clearToken();
     setToken(null);
     setUser(null);
-  }
+  }, [token]);
 
   const value = useMemo(
     () => ({token, user, loading, error, signIn, signOut}),
@@ -69,4 +70,3 @@ export function useAuth() {
   if (!value) throw new Error('useAuth must be used inside AuthProvider');
   return value;
 }
-

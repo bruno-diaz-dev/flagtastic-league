@@ -11,11 +11,10 @@ function formatTime(value: string | null) {
 }
 
 export default function HomeScreen() {
-  const {dashboard, games, loading, standings} = useLeagueData();
+  const {dashboard, games, loading, standings, activeTeam: team} = useLeagueData();
   if (loading && !dashboard) return <Screen title="Inicio"><EmptyState title="Cargando temporada" copy="Estamos preparando tu información." /></Screen>;
   if (!dashboard) return <Screen title="Inicio"><EmptyState title="Sin dashboard" copy="Tu cuenta todavía no tiene un perfil de jugador vinculado." /></Screen>;
 
-  const team = dashboard.teams[0];
   const teamStanding = standings.find((row) => row.team_id === team?.team_id);
   const relevantGames = team ? games.filter((game) => game.home_team.id === team.team_id || game.away_team.id === team.team_id) : [];
   const nextGame = relevantGames

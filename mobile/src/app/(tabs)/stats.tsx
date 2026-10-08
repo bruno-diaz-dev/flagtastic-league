@@ -7,10 +7,9 @@ import { useLeagueData } from '@/providers/LeagueDataProvider';
 import { colors, font } from '@/theme';
 
 export default function StatsScreen() {
-  const {dashboard} = useLeagueData();
+  const {dashboard, activeTeam: team} = useLeagueData();
   const [mode, setMode] = useState<'offense' | 'defense'>('offense');
   if (!dashboard) return <Screen title="Mis Stats"><EmptyState title="Sin estadísticas" copy="No encontramos un perfil de jugador vinculado." /></Screen>;
-  const team = dashboard.teams[0];
   const stats = dashboard.statistics;
 
   return (
