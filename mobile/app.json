@@ -48,7 +48,12 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://flagtastic.online"
-    }
+      "apiBaseUrl": "https://flagtastic.online",
+      "router": {},
+      "eas": {
+        "projectId": "49015503-598d-4ba6-98de-51126bdf83f3"
+      }
+    },
+    "owner": "brucies-team"
   }
 }
