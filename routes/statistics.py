@@ -94,7 +94,7 @@ async def import_statistics(
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
-    return {"imported": len(imported), "rows": imported}
+    return imported
 
 
 @router.post("/api/statistics/import")
@@ -116,9 +116,7 @@ async def import_official_statistics(
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {
         "weeks": sorted(weeks),
-        "imported": len(imported),
-        "games": sum(len(rows) for rows in games.values()),
-        "rows": imported
+        **imported,
     }
 
 
