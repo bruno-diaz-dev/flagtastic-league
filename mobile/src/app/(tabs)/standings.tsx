@@ -6,8 +6,7 @@ import { useLeagueData } from '@/providers/LeagueDataProvider';
 import { colors, font } from '@/theme';
 
 export default function StandingsScreen() {
-  const {dashboard, standings} = useLeagueData();
-  const team = dashboard?.teams[0];
+  const {standings, activeTeam: team} = useLeagueData();
   if (!team) return <Screen title="Posiciones"><EmptyState title="Sin división" copy="Únete a un equipo para consultar su tabla." /></Screen>;
 
   return (

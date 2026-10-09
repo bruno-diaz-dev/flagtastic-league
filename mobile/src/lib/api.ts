@@ -4,13 +4,20 @@ import type { Game, Leaderboards, PlayerDashboard, Standing, User } from '@/type
 
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL
   || Constants.expoConfig?.extra?.apiBaseUrl
-  || 'https://flagtastic-league.vercel.app';
+  || 'https://flagtastic.online';
 
 export const apiBaseUrl = String(configuredUrl).replace(/\/$/, '');
 
 export function absoluteMediaUrl(path?: string | null) {
   if (!path) return null;
   return path.startsWith('http') ? path : `${apiBaseUrl}${path}`;
+}
+
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
 async function parseError(response: Response) {
@@ -25,7 +32,7 @@ export async function apiRequest<T>(path: string, token?: string | null, init: R
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body && typeof init.body === 'string') headers.set('Content-Type', 'application/json');
   const response = await fetch(`${apiBaseUrl}${path}`, {...init, headers});
-  if (!response.ok) throw new Error(await parseError(response));
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
@@ -46,6 +53,10 @@ export function loadCurrentUser(token: string) {
   return apiRequest<User>('/api/auth/me', token);
 }
 
+export function mobileLogout(token: string) {
+  return apiRequest<void>('/api/auth/logout', token, {method: 'POST'});
+}
+
 export function loadDashboard(token: string) {
   return apiRequest<PlayerDashboard>('/api/me/dashboard', token);
 }
@@ -63,4 +74,3 @@ export function loadLeaderboards(branch: string, category: string) {
   const query = new URLSearchParams({branch, category}).toString();
   return apiRequest<Leaderboards>(`/api/statistics/leaderboards?${query}`);
 }
-

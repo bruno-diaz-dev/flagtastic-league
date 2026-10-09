@@ -2,6 +2,7 @@
   "expo": {
     "name": "Flagtastic League",
     "slug": "flagtastic-league-mobile",
+    "description": "Resultados, posiciones y estadísticas personales de Flagtastic Football League.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,17 +11,20 @@
     "backgroundColor": "#041329",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.flagtastic.league"
+      "bundleIdentifier": "com.flagtastic.league",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#041329",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.flagtastic.league"
+      "package": "com.flagtastic.league",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,13 +34,26 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-font",
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#041329"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://flagtastic-league.vercel.app"
-    }
+      "apiBaseUrl": "https://flagtastic.online",
+      "router": {},
+      "eas": {
+        "projectId": "49015503-598d-4ba6-98de-51126bdf83f3"
+      }
+    },
+    "owner": "brucies-team"
   }
 }

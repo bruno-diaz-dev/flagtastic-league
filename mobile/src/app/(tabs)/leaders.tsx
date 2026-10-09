@@ -16,11 +16,10 @@ const metrics = [
 ] as const;
 
 export default function LeadersScreen() {
-  const {dashboard, leaderboards} = useLeagueData();
+  const {leaderboards, activeTeam: team} = useLeagueData();
   const [selected, setSelected] = useState<(typeof metrics)[number]['key']>('points');
   const metric = useMemo(() => metrics.find((item) => item.key === selected)!, [selected]);
   const leaders = leaderboards[selected] || [];
-  const team = dashboard?.teams[0];
 
   return (
     <Screen title="Líderes">
