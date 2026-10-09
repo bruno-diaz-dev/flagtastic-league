@@ -8,8 +8,12 @@ import { useAuth } from '@/providers/AuthProvider';
 import { colors, font, webBaseUrl } from '@/theme';
 
 export function Screen({ title, children, refreshControl }: PropsWithChildren<{title: string; refreshControl?: {refresh: () => Promise<void>; refreshing: boolean; error: string}}>) {
-  const {refresh, refreshing, error, dashboard, activeTeam, selectTeam} = useLeagueData();
-  const {signOut} = useAuth();
+  const {refresh, refreshing, error, dashboard, representativeDashboard, activeTeam, selectTeam} = useLeagueData();
+  const {signOut, mode} = useAuth();
+  const teams = mode === 'representative'
+    ? (representativeDashboard?.teams.map(team => ({team_id: team.id, team_name: team.name, category: team.category})) || [])
+    : (dashboard?.teams || []);
+  const profilePath = mode === 'representative' ? '/representative-dashboard' : mode === 'referee' ? '/referee/games' : '/dashboard';
   const control = refreshControl || {refresh, refreshing, error};
   return (
     <View style={styles.root}>
@@ -19,16 +23,16 @@ export function Screen({ title, children, refreshControl }: PropsWithChildren<{t
           <View style={styles.brandRow}><Text style={styles.brand}>FLAGTASTIC</Text><View style={styles.liveDot} /></View>
           <Text style={styles.title}>{title}</Text>
         </View>
-        <Pressable accessibilityLabel="Abrir perfil web" onPress={() => void WebBrowser.openBrowserAsync(`${webBaseUrl}/dashboard`)} style={styles.headerButton}>
+        <Pressable accessibilityLabel="Abrir perfil web" onPress={() => void WebBrowser.openBrowserAsync(`${webBaseUrl}${profilePath}`)} style={styles.headerButton}>
           <Ionicons name="person-outline" size={21} color={colors.gold} />
         </Pressable>
         <Pressable accessibilityLabel="Cerrar sesión" onPress={() => void signOut()} style={styles.headerButton}>
           <Ionicons name="log-out-outline" size={21} color={colors.text} />
         </Pressable>
       </View>
-      {dashboard && dashboard.teams.length > 1 ? (
+      {teams.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.teamSwitcher} contentContainerStyle={styles.teamSwitcherContent}>
-          {dashboard.teams.map((team) => {
+          {teams.map((team) => {
             const selected = team.team_id === activeTeam?.team_id;
             return (
               <Pressable key={team.team_id} onPress={() => void selectTeam(team.team_id)} style={[styles.teamChoice, selected && styles.teamChoiceActive]}>

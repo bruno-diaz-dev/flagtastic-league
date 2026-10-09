@@ -128,7 +128,7 @@ least 30 attempts to qualify for the passing leaderboard.
 ## Architecture
 
 The application is a layered FastAPI monolith with a server-rendered frontend
-and a focused Expo player client:
+and an Expo client for players, referees, and team representatives:
 
 ```text
 Browser (Jinja, CSS, vanilla JavaScript)
@@ -141,7 +141,7 @@ Browser (Jinja, CSS, vanilla JavaScript)
                   |
           PostgreSQL (Supabase)
 
-Expo mobile app (four player views)
+Expo mobile app (player, referee and representative views)
                   |
       Bearer session + same FastAPI API
 ```
@@ -153,8 +153,8 @@ Expo mobile app (four player views)
 - `models.py` contains Pydantic contracts.
 - `migrations/` is the authoritative Alembic schema history.
 - `templates/` and `static/` implement the responsive interface.
-- `mobile/` implements the four native player views with Expo Router. All
-  other workflows deliberately open the existing web application.
+- `mobile/` implements player, referee, and team-representative views with
+  Expo Router. Team/roster editing opens the existing web application.
 
 Profile photos and team logos are stored in PostgreSQL so they remain available
 across stateless Vercel deployments. The ignored local `uploads/` directory is
@@ -213,7 +213,8 @@ flagtastic-league/
 ### Mobile application
 
 The mobile client provides player views (`Inicio`, `Posiciones`, `Lideres`,
-`Mis Stats`) and referee views (`Inicio`, `Mi agenda`, `Historial`). `Mi perfil`
+`Mis Stats`), referee views (`Inicio`, `Mi agenda`, `Historial`), and
+representative views (`Inicio`, `Mis equipos`, `Partidos`, `Posiciones`). `Mi perfil`
 supports switching between assigned roles and signing out. Full game details
 and profile administration open the web application. It reads the
 same games, standings, statistics, media, and player dashboard data as the web

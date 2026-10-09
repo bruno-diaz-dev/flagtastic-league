@@ -26,7 +26,7 @@ export function LoginGate({ children }: PropsWithChildren) {
         <Image source={require('../../assets/flagtastic.jpeg')} style={styles.logo} />
         <Text style={styles.eyebrow}>FLAGTASTIC LEAGUE</Text>
         <Text style={styles.title}>Tu temporada, en el bolsillo.</Text>
-        <Text style={styles.copy}>Entra con tu cuenta de jugador o árbitro de la liga.</Text>
+        <Text style={styles.copy}>Entra con tu cuenta de jugador, árbitro o representante de la liga.</Text>
       </View>
       <View style={styles.panel}>
         <Text style={styles.label}>CORREO</Text>

@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-import type { Game, Leaderboards, PlayerDashboard, RefereeGame, RefereeProfile, Standing, User } from '@/types';
+import type { Game, Leaderboards, PlayerDashboard, RefereeGame, RefereeProfile, RepresentativeDashboard, Standing, User } from '@/types';
 
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL
   || Constants.expoConfig?.extra?.apiBaseUrl
@@ -90,4 +90,8 @@ export function loadStandings(branch: string, category: string) {
 export function loadLeaderboards(branch: string, category: string) {
   const query = new URLSearchParams({branch, category}).toString();
   return apiRequest<Leaderboards>(`/api/statistics/leaderboards?${query}`);
+}
+
+export function loadRepresentativeDashboard(token: string) {
+  return apiRequest<RepresentativeDashboard>('/api/me/representative-dashboard', token);
 }

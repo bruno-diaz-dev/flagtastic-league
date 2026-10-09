@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 from main import app
 
 
-@pytest.mark.parametrize("roles", [["referee"], ["player"], ["player", "referee"]])
+@pytest.mark.parametrize("roles", [["referee"], ["player"], ["player", "referee"], ["team_representative"],
+    ["team_representative", "player"], ["team_representative", "referee"],
+    ["team_representative", "player", "referee"]])
 def test_mobile_roles_can_login_and_restore_session(monkeypatch, roles):
     user = {"id": 73, "name": "Official", "roles": roles}
     monkeypatch.setattr("routes.auth.authenticate_user", lambda *args: user)
@@ -60,3 +62,25 @@ def test_player_cannot_read_referee_assignments(monkeypatch):
     with TestClient(app) as client:
         assert client.get("/api/games/mine/referee", headers={"Authorization": "Bearer player-token"}).status_code == 403
     games.assert_not_called()
+
+
+def test_bearer_representative_dashboard_uses_session_identity(monkeypatch):
+    lookup = Mock(return_value={"id": 73, "roles": ["team_representative"]})
+    dashboard = Mock(return_value={"teams": []})
+    monkeypatch.setattr("dependencies.auth.get_authenticated_user", lookup)
+    monkeypatch.setattr("routes.dashboard.get_representative_dashboard", dashboard)
+    with TestClient(app) as client:
+        response = client.get("/api/me/representative-dashboard?user_id=99", headers={"Authorization": "Bearer rep-token"})
+        assert response.status_code == 200
+        assert response.json() == {"teams": []}
+    lookup.assert_called_once_with("rep-token")
+    dashboard.assert_called_once_with(73)
+
+
+def test_player_cannot_read_private_representative_dashboard(monkeypatch):
+    monkeypatch.setattr("dependencies.auth.get_authenticated_user", lambda token: {"id": 73, "roles": ["player"]})
+    dashboard = Mock()
+    monkeypatch.setattr("routes.dashboard.get_representative_dashboard", dashboard)
+    with TestClient(app) as client:
+        assert client.get("/api/me/representative-dashboard", headers={"Authorization": "Bearer player-token"}).status_code == 403
+    dashboard.assert_not_called()

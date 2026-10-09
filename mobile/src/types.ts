@@ -10,7 +10,7 @@ export type TeamSummary = {
   team_name: string;
   branch: string;
   category: string;
-  jersey_number: number;
+  jersey_number?: number;
   standing_position: number | null;
   division_team_count: number;
 };
@@ -95,3 +95,27 @@ export type Leaderboards = Record<string, Leader[]> & {
   passing_qualification?: {latest_week: number; minimum_attempts: number};
 };
 
+
+export type RepresentativePlayer = Omit<PlayerStatistics, 'weeks'> & {
+  player_id: number;
+  player_name: string;
+  player_aka: string | null;
+  jersey_number: number;
+};
+
+export type ManagedTeam = {
+  id: number;
+  name: string;
+  branch: string;
+  category: string;
+  logo_url: string | null;
+  roster_count: number;
+  head_coach: string | null;
+  coach: string | null;
+  manager: string | null;
+  standing: Omit<Standing, 'team_id' | 'team_name' | 'team_logo_url'> & {position: number | null; division_team_count: number};
+  statistics: Omit<PlayerStatistics, 'weeks'>;
+  players: RepresentativePlayer[];
+};
+
+export type RepresentativeDashboard = {teams: ManagedTeam[]};
