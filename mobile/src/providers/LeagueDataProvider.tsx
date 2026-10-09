@@ -1,10 +1,12 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { loadDashboard, loadGames, loadLeaderboards, loadStandings } from '@/lib/api';
+import { loadDashboard, loadGames, loadLeaderboards, loadStandings, loadRefereeGames, loadRefereeProfile } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
-import type { Game, Leaderboards, PlayerDashboard, Standing } from '@/types';
+import type { Game, Leaderboards, PlayerDashboard, RefereeGame, RefereeProfile, Standing } from '@/types';
 
 type LeagueDataValue = {
+  refereeGames: RefereeGame[];
+  refereeProfile: RefereeProfile | null;
   dashboard: PlayerDashboard | null;
   games: Game[];
   standings: Standing[];
@@ -18,7 +20,10 @@ type LeagueDataValue = {
 const LeagueDataContext = createContext<LeagueDataValue | null>(null);
 
 export function LeagueDataProvider({ children }: PropsWithChildren) {
-  const { token } = useAuth();
+  const { token, mode } = useAuth();
+  const [refereeGames, setRefereeGames] = useState<RefereeGame[]>([]);
+  const [refereeProfile, setRefereeProfile] = useState<RefereeProfile | null>(null);
+  const requestId = useRef(0);
   const [dashboard, setDashboard] = useState<PlayerDashboard | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
@@ -29,13 +34,22 @@ export function LeagueDataProvider({ children }: PropsWithChildren) {
 
   const refresh = useCallback(async () => {
     if (!token) return;
+    const id = ++requestId.current;
     setRefreshing(true);
     setError('');
     try {
+      if (mode === 'referee') {
+        const [assignments, profile] = await Promise.all([loadRefereeGames(token), loadRefereeProfile(token)]);
+        if (id !== requestId.current) return;
+        setRefereeGames(assignments);
+        setRefereeProfile(profile);
+        return;
+      }
       const [nextDashboard, nextGames] = await Promise.all([
         loadDashboard(token),
         loadGames(token),
       ]);
+      if (id !== requestId.current) return;
       setDashboard(nextDashboard);
       setGames(nextGames);
       const team = nextDashboard.teams[0];
@@ -44,6 +58,7 @@ export function LeagueDataProvider({ children }: PropsWithChildren) {
           loadStandings(team.branch, team.category),
           loadLeaderboards(team.branch, team.category),
         ]);
+        if (id !== requestId.current) return;
         setStandings(nextStandings);
         setLeaderboards(nextLeaderboards);
       } else {
@@ -51,25 +66,35 @@ export function LeagueDataProvider({ children }: PropsWithChildren) {
         setLeaderboards({});
       }
     } catch (caught) {
+      if (id !== requestId.current) return;
       setError(caught instanceof Error ? caught.message : 'No se pudieron cargar los datos.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (id === requestId.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [token]);
+  }, [token, mode]);
 
   useEffect(() => {
+    setDashboard(null);
+    setRefereeGames([]);
+    setRefereeProfile(null);
+    setGames([]);
+    setStandings([]);
+    setLeaderboards({});
     if (!token) {
       setDashboard(null);
       return;
     }
     setLoading(true);
     void refresh();
+    return () => { requestId.current += 1; };
   }, [token, refresh]);
 
   const value = useMemo(
-    () => ({dashboard, games, standings, leaderboards, loading, refreshing, error, refresh}),
-    [dashboard, games, standings, leaderboards, loading, refreshing, error, refresh],
+    () => ({dashboard, games, standings, leaderboards, refereeGames, refereeProfile, loading, refreshing, error, refresh}),
+    [dashboard, games, standings, leaderboards, refereeGames, refereeProfile, loading, refreshing, error, refresh],
   );
   return <LeagueDataContext.Provider value={value}>{children}</LeagueDataContext.Provider>;
 }

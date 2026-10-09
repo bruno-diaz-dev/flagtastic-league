@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/LeagueUI';
 import { EmptyState, Panel, Pill, Screen } from '@/components/Screen';
-import { useLeagueData } from '@/providers/LeagueDataProvider';
+import { DivisionFilter } from '@/components/DivisionFilter';
+import { useDivisionData } from '@/lib/useDivisionData';
+import { loadLeaderboards } from '@/lib/api';
 import { colors, font } from '@/theme';
 
 const metrics = [
@@ -16,18 +18,20 @@ const metrics = [
 ] as const;
 
 export default function LeadersScreen() {
-  const {dashboard, leaderboards} = useLeagueData();
+  const query = useDivisionData(loadLeaderboards);
+  const {division, setDivision, team, data: leaderboards = {}, refreshing, error} = query;
   const [selected, setSelected] = useState<(typeof metrics)[number]['key']>('points');
   const metric = useMemo(() => metrics.find((item) => item.key === selected)!, [selected]);
   const leaders = leaderboards[selected] || [];
-  const team = dashboard?.teams[0];
 
   return (
-    <Screen title="Líderes">
-      <View style={styles.heading}><View><Text style={styles.kicker}>TOP 5 DE LA LIGA</Text><Text style={styles.title}>{metric.title}</Text></View>{team ? <Pill>{team.branch.toUpperCase()} · {team.category.toUpperCase()}</Pill> : null}</View>
+    <Screen title="Líderes" refreshControl={query}>
+      <DivisionFilter division={division} onChange={setDivision} team={team} />
+      <View style={styles.heading}><View><Text style={styles.kicker}>TOP 5 DE LA DIVISIÓN</Text><Text style={styles.title}>{metric.title}</Text></View><Pill>{division.branch.toUpperCase()} · {division.category.toUpperCase()}</Pill></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         {metrics.map((item) => <Pressable key={item.key} onPress={() => setSelected(item.key)} style={[styles.tab, selected === item.key && styles.tabActive]}><Text style={[styles.tabText, selected === item.key && styles.tabTextActive]}>{item.label}</Text></Pressable>)}
       </ScrollView>
+      {refreshing ? <ActivityIndicator accessibilityLabel="Cargando estadísticas" color={colors.gold} /> : null}
       {leaders.length ? (
         <>
           <View style={styles.podium}>
@@ -53,7 +57,7 @@ export default function LeadersScreen() {
           </Panel>
           {selected === 'completion_percentage' && leaderboards.passing_qualification ? <Text style={styles.note}>Desde la jornada 4 se requieren {leaderboards.passing_qualification.minimum_attempts} pases lanzados para clasificar.</Text> : null}
         </>
-      ) : <EmptyState title="Aún no hay líderes" copy="La clasificación aparecerá cuando se carguen estadísticas para esta división." />}
+      ) : !refreshing && !error ? <EmptyState title="Aún no hay líderes" copy="La clasificación aparecerá cuando se carguen estadísticas para esta división." /> : null}
     </Screen>
   );
 }

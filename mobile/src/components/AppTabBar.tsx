@@ -1,25 +1,30 @@
 import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs/types';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, font, webBaseUrl } from '@/theme';
+import { colors, font } from '@/theme';
+import { useAuth } from '@/providers/AuthProvider';
 
 const metadata: Record<string, {label: string; icon: keyof typeof Ionicons.glyphMap}> = {
   index: {label: 'Inicio', icon: 'american-football-outline'},
   standings: {label: 'Posiciones', icon: 'bar-chart-outline'},
   leaders: {label: 'Líderes', icon: 'trophy-outline'},
   stats: {label: 'Mis Stats', icon: 'stats-chart-outline'},
+  assignments: {label: 'Mi agenda', icon: 'calendar-outline'},
+  history: {label: 'Historial', icon: 'time-outline'},
+  profile: {label: 'Mi perfil', icon: 'person-circle-outline'},
 };
 
 export function AppTabBar({state, navigation}: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const {mode} = useAuth();
+  const visible = mode === 'referee' ? ['index', 'assignments', 'history', 'profile'] : ['index', 'standings', 'leaders', 'stats', 'profile'];
   return (
     <View style={[styles.bar, {paddingBottom: Math.max(insets.bottom, 8)}]}>
       {state.routes.map((route, index) => {
         const item = metadata[route.name];
-        if (!item) return null;
+        if (!item || !visible.includes(route.name)) return null;
         const focused = state.index === index;
         return (
           <Pressable
@@ -34,15 +39,6 @@ export function AppTabBar({state, navigation}: BottomTabBarProps) {
           </Pressable>
         );
       })}
-      <Pressable
-        accessibilityLabel="Abrir perfil en la versión web"
-        accessibilityRole="link"
-        onPress={() => void WebBrowser.openBrowserAsync(`${webBaseUrl}/dashboard`)}
-        style={styles.item}
-      >
-        <Ionicons name="person-circle-outline" size={23} color={colors.muted} />
-        <Text style={styles.label}>Perfil</Text>
-      </Pressable>
     </View>
   );
 }

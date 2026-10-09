@@ -36,7 +36,18 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://flagtastic-league.vercel.app"
+      "apiBaseUrl": "https://flagtastic.online",
+      "router": {},
+      "eas": {
+        "projectId": "6d0704a1-3b9a-4e30-a4fc-1005afac5140"
+      }
+    },
+    "owner": "brucie",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6d0704a1-3b9a-4e30-a4fc-1005afac5140"
     }
   }
 }

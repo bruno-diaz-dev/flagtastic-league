@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLeagueData } from '@/providers/LeagueDataProvider';
 import { colors, font } from '@/theme';
 
-export function Screen({ title, children }: PropsWithChildren<{title: string}>) {
+export function Screen({ title, children, refreshControl }: PropsWithChildren<{title: string; refreshControl?: {refresh: () => Promise<void>; refreshing: boolean; error: string}}>) {
   const {refresh, refreshing, error} = useLeagueData();
+  const control = refreshControl || {refresh, refreshing, error};
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -20,10 +21,10 @@ export function Screen({ title, children }: PropsWithChildren<{title: string}>) 
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.gold} />}
+        refreshControl={<RefreshControl refreshing={control.refreshing} onRefresh={() => void control.refresh()} tintColor={colors.gold} />}
         showsVerticalScrollIndicator={false}
       >
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {control.error ? <Text style={styles.error}>{control.error}</Text> : null}
         {children}
       </ScrollView>
     </View>

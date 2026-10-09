@@ -216,9 +216,10 @@ flagtastic-league/
 
 ### Mobile application
 
-The mobile client exposes only `Inicio`, `Posiciones`, `Lideres`, and
-`Mis Stats`, matching the approved mobile designs. `Perfil` and every workflow
-outside those four screens open the production web application. It reads the
+The mobile client provides player views (`Inicio`, `Posiciones`, `Lideres`,
+`Mis Stats`) and referee views (`Inicio`, `Mi agenda`, `Historial`). `Mi perfil`
+supports switching between assigned roles and signing out. Full game details
+and profile administration open the web application. It reads the
 same games, standings, statistics, media, and player dashboard data as the web
 client; it never maintains a second database or synthetic competition data.
 

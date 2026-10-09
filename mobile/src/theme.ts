@@ -22,5 +22,5 @@ export const font = {
   displayBold: 'SpaceGrotesk_700Bold',
 };
 
-export const webBaseUrl = 'https://flagtastic-league.vercel.app';
+export const webBaseUrl = 'https://flagtastic.online';
 

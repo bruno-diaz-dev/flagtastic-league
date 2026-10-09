@@ -1,27 +1,31 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { TeamLogo } from '@/components/LeagueUI';
 import { EmptyState, Panel, Pill, Screen } from '@/components/Screen';
-import { useLeagueData } from '@/providers/LeagueDataProvider';
+import { DivisionFilter } from '@/components/DivisionFilter';
+import { useDivisionData } from '@/lib/useDivisionData';
+import { loadStandings } from '@/lib/api';
 import { colors, font } from '@/theme';
 
 export default function StandingsScreen() {
-  const {dashboard, standings} = useLeagueData();
-  const team = dashboard?.teams[0];
-  if (!team) return <Screen title="Posiciones"><EmptyState title="Sin división" copy="Únete a un equipo para consultar su tabla." /></Screen>;
+  const query = useDivisionData(loadStandings);
+  const {division, setDivision, team, data: standings = [], refreshing, error} = query;
 
   return (
-    <Screen title="Posiciones">
+    <Screen title="Posiciones" refreshControl={query}>
+      <DivisionFilter division={division} onChange={setDivision} team={team} />
       <Panel style={styles.division}>
-        <View><Text style={styles.kicker}>DIVISIÓN ACTUAL</Text><Text style={styles.title}>{team.branch.toUpperCase()} · {team.category.toUpperCase()}</Text></View>
+        <View><Text style={styles.kicker}>DIVISIÓN SELECCIONADA</Text><Text style={styles.title}>{division.branch.toUpperCase()} · {division.category.toUpperCase()}</Text></View>
         <Pill>JORNADA ACTUAL</Pill>
       </Panel>
-      <View style={styles.table}>
+      {refreshing ? <ActivityIndicator accessibilityLabel="Cargando posiciones" color={colors.gold} /> : null}
+      {!refreshing && !error && !standings.length ? <EmptyState title="Sin resultados" copy="Aún no hay posiciones para esta rama y categoría." /> : null}
+      {standings.length > 0 ? <View style={styles.table}>
         <View style={styles.headerRow}>
           <Text style={[styles.headerText, styles.rank]}>#</Text><Text style={[styles.headerText, styles.club]}>EQUIPO</Text><Text style={styles.headerText}>G</Text><Text style={styles.headerText}>P</Text><Text style={styles.headerText}>DIF</Text>
         </View>
         {standings.map((row, index) => {
-          const current = row.team_id === team.team_id;
+          const current = row.team_id === team?.team_id;
           return (
             <View key={row.team_id} style={[styles.row, current && styles.current]}>
               <View style={styles.rankCell}><Text style={[styles.rankValue, current && styles.currentText]}>{index + 1}</Text></View>
@@ -33,7 +37,7 @@ export default function StandingsScreen() {
             </View>
           );
         })}
-      </View>
+      </View> : null}
       <Panel>
         <Text style={styles.rulesTitle}>CRITERIOS DE DESEMPATE</Text>
         <Text style={styles.rules}>1. Partidos ganados  ·  2. Diferencia de puntos  ·  3. Puntos anotados  ·  4. Menos derrotas</Text>

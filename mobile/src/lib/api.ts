@@ -1,10 +1,10 @@
 import Constants from 'expo-constants';
 
-import type { Game, Leaderboards, PlayerDashboard, Standing, User } from '@/types';
+import type { Game, Leaderboards, PlayerDashboard, RefereeGame, RefereeProfile, Standing, User } from '@/types';
 
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL
   || Constants.expoConfig?.extra?.apiBaseUrl
-  || 'https://flagtastic-league.vercel.app';
+  || 'https://flagtastic.online';
 
 export const apiBaseUrl = String(configuredUrl).replace(/\/$/, '');
 
@@ -24,10 +24,19 @@ export async function apiRequest<T>(path: string, token?: string | null, init: R
   headers.set('Accept', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init.body && typeof init.body === 'string') headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${apiBaseUrl}${path}`, {...init, headers});
-  if (!response.ok) throw new Error(await parseError(response));
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {...init, headers, signal: controller.signal});
+    if (!response.ok) throw new Error(await parseError(response));
+    if (response.status === 204) return undefined as T;
+    return await response.json() as T;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('El servidor tardó demasiado en responder. Revisa tu conexión e intenta de nuevo.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function mobileLogin(email: string, password: string) {
@@ -52,6 +61,14 @@ export function loadDashboard(token: string) {
 
 export function loadGames(token: string) {
   return apiRequest<Game[]>('/api/games', token);
+}
+
+export function loadRefereeGames(token: string) {
+  return apiRequest<RefereeGame[]>('/api/games/mine/referee', token);
+}
+
+export function loadRefereeProfile(token: string) {
+  return apiRequest<RefereeProfile>('/api/referees/me', token);
 }
 
 export function loadStandings(branch: string, category: string) {
