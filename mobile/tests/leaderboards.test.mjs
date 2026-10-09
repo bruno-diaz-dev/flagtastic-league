@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {podiumLeaders, rankLeaders} from '../src/lib/leaderboards.ts';
 
-test('podium puts third on the left, first in the center and second on the right', () => {
-  assert.deepEqual(podiumLeaders([1, 2, 3, 4, 5]), [3, 1, 2]);
-  assert.deepEqual(podiumLeaders([1, 2]), [1, 2]);
+test('podium puts second on the left, first in the center and third on the right', () => {
+  assert.deepEqual(podiumLeaders([1, 2, 3, 4, 5]), [2, 1, 3]);
+  assert.deepEqual(podiumLeaders([1, 2]), [2, 1]);
 });
 
 test('equal totals share competition places throughout the list', () => {
