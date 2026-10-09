@@ -109,7 +109,7 @@ def test_mobile_login_returns_bearer_token_for_player_requests():
     assert dashboard.status_code == 200
 
 
-def test_mobile_login_rejects_accounts_without_player_role():
+def test_mobile_login_rejects_accounts_without_mobile_role():
     create_user(UserCreate(
         email="mobile-admin@example.com",
         name="Mobile Admin",
@@ -123,7 +123,7 @@ def test_mobile_login_rejects_accounts_without_player_role():
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "La app móvil está disponible para jugadores"
+    assert response.json()["detail"] == "La app móvil está disponible para jugadores y árbitros"
 
 def test_login_rejects_invalid_credentials_without_cookie():
     create_user(
