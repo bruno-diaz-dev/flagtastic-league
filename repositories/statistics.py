@@ -1,5 +1,7 @@
 """Persistence and aggregate queries for weekly player statistics."""
 
+from fractions import Fraction
+
 from database import get_connection
 from services.divisions import (
     category_allows_cross_branch_games,
@@ -325,6 +327,25 @@ def get_game_statistics(game_id, team_ids=None, player_id=None):
     return results
 
 
+def _rank_leaders(rows, score, limit):
+    """Competition ranks: equal scores share a place (1, 1, 3).
+
+    Include everyone tied at the last qualifying place.
+    """
+    ranked = []
+    previous = None
+    rank = 0
+    for index, row in enumerate(rows):
+        value = score(row)
+        if value != previous:
+            rank = index + 1
+        if rank > limit:
+            break
+        ranked.append({**row, "rank": rank})
+        previous = value
+    return ranked
+
+
 def get_leaderboards(branch, category, limit=5):
     """Return the leading players for every supported division metric."""
     connection = get_connection()
@@ -368,13 +389,15 @@ def get_leaderboards(branch, category, limit=5):
             (row for row in rows if row[metric] > 0),
             key=lambda row: (-row[metric], row["player_name"].casefold(),
                              row["team_name"].casefold())
-        )[:limit]
+        )
+        ranked = _rank_leaders(ranked, lambda row: row[metric], limit)
         result[metric] = [
             {"player_id": row["player_id"], "player_name": row["player_name"],
              "player_aka": row["player_aka"],
              "profile_photo_url": row["profile_photo_url"],
              "team_id": row["team_id"], "team_name": row["team_name"],
-             "jersey_number": row["jersey_number"], "value": row[metric]}
+             "jersey_number": row["jersey_number"], "value": row[metric],
+             "rank": row["rank"]}
             for row in ranked
         ]
 
@@ -383,9 +406,14 @@ def get_leaderboards(branch, category, limit=5):
     passing_ranked = sorted(
         (row for row in rows if row["passes_attempted"] > 0
          and row["passes_attempted"] >= minimum_attempts),
-        key=lambda row: (-(row["passes_completed"] / row["passes_attempted"]),
+        key=lambda row: (-Fraction(row["passes_completed"], row["passes_attempted"]),
                          -row["passes_attempted"], row["player_name"].casefold())
-    )[:limit]
+    )
+    passing_ranked = _rank_leaders(
+        passing_ranked,
+        lambda row: Fraction(row["passes_completed"], row["passes_attempted"]),
+        limit,
+    )
     result["completion_percentage"] = [
         {"player_id": row["player_id"], "player_name": row["player_name"],
          "player_aka": row["player_aka"],
@@ -394,7 +422,7 @@ def get_leaderboards(branch, category, limit=5):
          "jersey_number": row["jersey_number"],
          "value": round(row["passes_completed"] * 100 / row["passes_attempted"], 2),
          "passes_completed": row["passes_completed"],
-         "passes_attempted": row["passes_attempted"]}
+         "passes_attempted": row["passes_attempted"], "rank": row["rank"]}
         for row in passing_ranked
     ]
     result["passing_qualification"] = {

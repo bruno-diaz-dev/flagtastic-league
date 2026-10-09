@@ -5,6 +5,7 @@ import { Avatar } from '@/components/LeagueUI';
 import { EmptyState, Panel, Pill, Screen } from '@/components/Screen';
 import { DivisionFilter } from '@/components/DivisionFilter';
 import { useDivisionData } from '@/lib/useDivisionData';
+import { podiumLeaders, rankLeaders } from '@/lib/leaderboards';
 import { loadLeaderboards } from '@/lib/api';
 import { colors, font } from '@/theme';
 
@@ -22,7 +23,7 @@ export default function LeadersScreen() {
   const {division, setDivision, team, data: leaderboards = {}, refreshing, error} = query;
   const [selected, setSelected] = useState<(typeof metrics)[number]['key']>('points');
   const metric = useMemo(() => metrics.find((item) => item.key === selected)!, [selected]);
-  const leaders = leaderboards[selected] || [];
+  const leaders = rankLeaders(leaderboards[selected] || [], selected);
 
   return (
     <Screen title="Líderes" refreshControl={query}>
@@ -35,21 +36,22 @@ export default function LeadersScreen() {
       {leaders.length ? (
         <>
           <View style={styles.podium}>
-            {leaders.slice(0, 3).map((leader, index) => (
-              <View key={`${leader.player_id}-${leader.team_id}`} style={[styles.podiumItem, index === 0 && styles.first]}>
-                <Text style={styles.place}>{index + 1}</Text>
-                <Avatar name={leader.player_name} url={leader.profile_photo_url} size={index === 0 ? 72 : 58} />
+            {podiumLeaders(leaders).map((leader) => (
+              <View key={`${leader.player_id}-${leader.team_id}`} style={[styles.podiumItem, leader.rank === 1 && styles.first]}>
+                <Text style={styles.place}>{leader.rank}</Text>
+                <Avatar name={leader.player_name} url={leader.profile_photo_url} size={leader.rank === 1 ? 72 : 58} />
                 <Text numberOfLines={1} style={styles.player}>{leader.player_aka || leader.player_name}</Text>
                 <Text numberOfLines={1} style={styles.team}>{leader.team_name} · #{leader.jersey_number}</Text>
                 <Text style={styles.score}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
                 <Text style={styles.unit}>{metric.unit}</Text>
+                {selected === 'completion_percentage' && leader.passes_attempted != null ? <Text style={styles.team}>{leader.passes_completed}/{leader.passes_attempted} C/I</Text> : null}
               </View>
             ))}
           </View>
           <Panel style={styles.list}>
-            {leaders.slice(3).map((leader, index) => (
+            {leaders.slice(3).map((leader) => (
               <View key={`${leader.player_id}-${leader.team_id}`} style={styles.listRow}>
-                <Text style={styles.listPlace}>{index + 4}</Text><Avatar name={leader.player_name} url={leader.profile_photo_url} size={40} />
+                <Text style={styles.listPlace}>{leader.rank}</Text><Avatar name={leader.player_name} url={leader.profile_photo_url} size={40} />
                 <View style={styles.listCopy}><Text style={styles.listName}>{leader.player_aka || leader.player_name}</Text><Text style={styles.listTeam}>{leader.team_name} · #{leader.jersey_number}</Text></View>
                 <Text style={styles.listValue}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
               </View>

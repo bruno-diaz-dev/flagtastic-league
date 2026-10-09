@@ -78,6 +78,9 @@ export type Standing = {
 };
 
 export type Leader = {
+  rank?: number;
+  passes_completed?: number;
+  passes_attempted?: number;
   player_id: number;
   player_name: string;
   player_aka: string | null;

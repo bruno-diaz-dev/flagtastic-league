@@ -444,3 +444,22 @@ def test_youth_leaderboards_combine_legacy_branches():
     assert [leader["player_name"] for leader in leaders["points"]] == [
         "Legacy Leader", "Canonical Leader"
     ]
+
+
+def test_leaderboards_share_places_and_keep_ties_at_cutoff():
+    team = create_team('Tied Leaders')
+    rows = []
+    for index, (points, completed, attempted) in enumerate([
+        (10, 1, 2), (10, 2, 4), (8, 3, 6),
+        (6, 1, 3), (4, 1, 4), (4, 2, 8),
+    ], 1):
+        create_player(team, f'Tied Player {index}', f'TIED{index:014d}', index)
+        rows.append(['varonil', 'libre', 'Tied Leaders', index,
+                     points, 0, 0, 0, 0, completed, attempted])
+    assert upload_week(1, rows).status_code == 200
+    leaders = client.get(
+        '/api/statistics/leaderboards?branch=varonil&category=libre'
+    ).json()
+    assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
+    assert [row['rank'] for row in leaders['completion_percentage']] == [1, 1, 1, 4, 5, 5]
+    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [6, 4, 2]
