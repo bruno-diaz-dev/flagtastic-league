@@ -124,7 +124,7 @@ def login(credentials: LoginRequest, response: Response):
 
 @router.post("/mobile/login")
 def mobile_login(credentials: LoginRequest):
-    """Issue a revocable Bearer session to player and referee accounts."""
+    """Issue a revocable Bearer session to supported mobile roles."""
     user = authenticate_user(
         credentials.email,
         credentials.password.get_secret_value(),
@@ -134,10 +134,10 @@ def mobile_login(credentials: LoginRequest):
             status_code=401,
             detail="Correo o contraseña incorrectos",
         )
-    if not {"player", "referee"}.intersection(user.get("roles", [user.get("role")])):
+    if not {"player", "referee", "team_representative"}.intersection(user.get("roles", [user.get("role")])):
         raise HTTPException(
             status_code=403,
-            detail="La app móvil está disponible para jugadores y árbitros",
+            detail="La app móvil está disponible para jugadores, árbitros y representantes",
         )
     if user.get("must_change_password"):
         raise HTTPException(

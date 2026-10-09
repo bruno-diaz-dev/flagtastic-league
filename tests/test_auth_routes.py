@@ -123,7 +123,7 @@ def test_mobile_login_rejects_accounts_without_mobile_role():
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "La app móvil está disponible para jugadores y árbitros"
+    assert response.json()["detail"] == "La app móvil está disponible para jugadores, árbitros y representantes"
 
 def test_login_rejects_invalid_credentials_without_cookie():
     create_user(

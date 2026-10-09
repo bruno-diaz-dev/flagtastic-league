@@ -1,6 +1,6 @@
 # Flagtastic League Mobile
 
-Expo application for players and referees. Player mode includes:
+Expo application for players, referees, and team representatives. Player mode includes:
 
 1. `Inicio`: team position, next game, season summary, and shortcuts.
 2. `Posiciones`: the signed-in player's division standings.
@@ -10,14 +10,24 @@ Expo application for players and referees. Player mode includes:
 Referee mode includes `Inicio` (next assignment and totals), `Mi agenda`
 (pending/postponed games, time, field, position and crew), and `Historial`
 (completed assignments, results and participation by position/jornada).
-`Mi perfil` supports logout and switching modes for accounts with both roles.
+Representative mode includes `Inicio` (assigned teams and next game),
+`Mis equipos` (active roster, staff and season statistics), `Partidos`
+(upcoming games, results and postponements across one or all managed teams),
+and `Posiciones`. Division leaderboards are available from the home shortcut.
+Team/roster changes use the existing web administration links; the browser may
+require its own login. Representatives only see teams explicitly assigned to
+them through `/api/me/representative-dashboard`; no player profile is required.
+
+`Mi perfil` supports logout and switching among every supported role on the
+account. Representative-only and player/representative accounts start in
+representative mode; accounts with a referee role retain referee mode by default.
 Referees start in referee mode, including after restoring a saved session.
 Game detail and profile administration open the web application, where a
 separate browser login may be required.
 
 Assignments use the protected `/api/games/mine/referee` endpoint and profile
 data comes from `/api/referees/me`. Deploy the updated `/api/auth/mobile/login`
-backend before testing referee-only sign-in against production. For local
+backend before testing referee-only or representative-only sign-in against production. For local
 testing, point `EXPO_PUBLIC_API_URL` to the reachable development backend.
 
 ## Local development
@@ -35,13 +45,14 @@ computer's LAN address for `EXPO_PUBLIC_API_URL` in that case.
 
 The default API URL is `https://flagtastic.online`, the canonical domain, so
 native login requests do not require a cross-domain redirect. Authentication
-uses the normal player or referee email and password. The API issues a revocable 12-hour
+uses the normal player, referee or representative email and password. The API issues a revocable 12-hour
 Bearer session, which the native client keeps in the platform secure store.
 
 ## Validation and builds
 
 ```powershell
 npm run typecheck
+node --test tests/*.test.mjs
 npx expo-doctor
 npx eas-cli build --platform android --profile preview
 npx eas-cli build --platform ios --profile preview
@@ -92,3 +103,13 @@ and create a new APK whenever native dependencies, permissions, SDK version,
 or native configuration change. Do not send incompatible native changes to
 an existing runtime. Use the `preview` profile/channel to test updates before
 publishing them to `production`.
+
+## Representative navigation smoke test
+
+Start Metro with `npx expo start --web --localhost --port 8081` and run
+`node tests/representative.browser.cjs` with Playwright available to Node.
+The test mocks API responses (no real accounts or production writes), exercises
+representative-only session restoration, switching teams and rosters, scoped
+agenda/results, empty assignments and all three role modes.
+Set `MOBILE_TEST_URL` for another Metro address and
+`MOBILE_BROWSER_EXECUTABLE` for an existing Chromium binary if needed.
