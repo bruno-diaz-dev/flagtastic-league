@@ -1,6 +1,7 @@
 """Read model for representatives monitoring their assigned teams."""
 
 from database import get_connection
+from repositories.payments import get_representative_team_finances
 from repositories.standings import get_standings
 
 
@@ -63,6 +64,7 @@ def get_representative_dashboard(user_id):
             if player["passes_attempted"] else None
         )
         players_by_team[player.pop("team_id")].append(player)
+    finances_by_team = get_representative_team_finances(team_ids)
 
     result = []
     for raw_team in teams:
@@ -89,6 +91,13 @@ def get_representative_dashboard(user_id):
         }
         team["players"] = players_by_team[team["id"]]
         team["statistics"] = _sum_player_statistics(team["players"])
+        team["finance"] = finances_by_team.get(team["id"], {
+            "registration_fee": 0,
+            "paid_amount": 0,
+            "balance_due": 0,
+            "is_paid": False,
+            "payments": [],
+        })
         result.append(team)
     return {"teams": result}
 

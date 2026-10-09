@@ -17,6 +17,7 @@ from routes.dashboard import router as dashboard_router
 from routes.admin import router as admin_router
 from routes.referees import router as referees_router
 from routes.live_games import router as live_games_router
+from routes.payments import router as payments_router
 
 logger = configure_observability()
 
@@ -49,6 +50,7 @@ app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(referees_router)
 app.include_router(live_games_router)
+app.include_router(payments_router)
 
 
 @app.get("/media/profiles/{filename}")
@@ -251,6 +253,12 @@ def user_administration_page(request: Request):
 def team_duplicate_audit_page(request: Request):
     """Render the youth cross-branch duplicate audit shell."""
     return templates.TemplateResponse(request, "admin_team_duplicates.html")
+
+
+@app.get("/admin/payments")
+def payments_administration_page(request: Request):
+    """Render the administrator-only team payment ledger."""
+    return templates.TemplateResponse(request, "admin_payments.html")
 
 
 @app.get("/referee/games")

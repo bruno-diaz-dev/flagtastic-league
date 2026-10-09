@@ -10,6 +10,7 @@ representatives, referees, and league administrators.
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Release plan: [`docs/release-plan.md`](docs/release-plan.md)
 - Operations: [`docs/observability.md`](docs/observability.md)
+- Administrative records: [`docs/team-payments.md`](docs/team-payments.md)
 
 ## Product Capabilities
 
@@ -48,6 +49,8 @@ representatives, referees, and league administrators.
 - View team standings, records, roster totals, and player statistics.
 - Use a responsive team dashboard whose mobile player cards avoid wide
   statistics tables while preserving the complete desktop table.
+- Consult read-only administrative records for assigned teams, with mobile
+  layouts that keep every record field visible.
 
 ### Referees
 
@@ -79,6 +82,9 @@ representatives, referees, and league administrators.
 - Correct recognized times in the review table and import only selected rows
   whose teams, jornada, field, and time are complete.
 - Import jornada statistics and inspect both teams in game-level statistics.
+- Maintain private team administrative records and optional supporting
+  documents. This workflow is currently available in Preview; see the
+  [operational documentation](docs/team-payments.md) for scope and limitations.
 
 Schedule image recognition is an administrative aid, not an authoritative data
 source. The current league grid is segmented in the browser by hour, field, and

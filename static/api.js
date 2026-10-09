@@ -23,6 +23,25 @@ async function getTeamDuplicateCandidates() {
     return fetch("/api/teams/duplicate-candidates");
 }
 
+async function getAdminTeamPayments() {
+    return fetch("/api/admin/payments/teams");
+}
+
+async function updateTeamRegistrationFee(teamId, amount) {
+    return fetch(`/api/admin/payments/teams/${teamId}/fee`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({amount})
+    });
+}
+
+async function createTeamPayment(teamId, formData) {
+    return fetch(`/api/admin/payments/teams/${teamId}/payments`, {
+        method: "POST",
+        body: formData
+    });
+}
+
 async function createTeam(payload) {
     const response = await fetch("/api/teams", {
         method: "POST",
