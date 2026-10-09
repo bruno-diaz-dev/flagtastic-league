@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, font } from '@/theme';
+import {visibleTabs} from '@/lib/mobileRoles';
 import { useAuth } from '@/providers/AuthProvider';
 
 const metadata: Record<string, {label: string; icon: keyof typeof Ionicons.glyphMap}> = {
@@ -13,19 +14,22 @@ const metadata: Record<string, {label: string; icon: keyof typeof Ionicons.glyph
   stats: {label: 'Mis Stats', icon: 'stats-chart-outline'},
   assignments: {label: 'Mi agenda', icon: 'calendar-outline'},
   history: {label: 'Historial', icon: 'time-outline'},
+  teams: {label: 'Mis equipos', icon: 'people-outline'},
+  'team-games': {label: 'Partidos', icon: 'calendar-outline'},
   profile: {label: 'Mi perfil', icon: 'person-circle-outline'},
 };
 
 export function AppTabBar({state, navigation}: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const {mode} = useAuth();
-  const visible = mode === 'referee' ? ['index', 'assignments', 'history', 'profile'] : ['index', 'standings', 'leaders', 'stats', 'profile'];
+  const visible = visibleTabs(mode);
   return (
     <View style={[styles.bar, {paddingBottom: Math.max(insets.bottom, 8)}]}>
-      {state.routes.map((route, index) => {
+      {state.routes.filter(route => visible.includes(route.name))
+        .sort((a, b) => visible.indexOf(a.name) - visible.indexOf(b.name)).map((route) => {
         const item = metadata[route.name];
         if (!item || !visible.includes(route.name)) return null;
-        const focused = state.index === index;
+        const focused = state.routes[state.index]?.key === route.key;
         return (
           <Pressable
             accessibilityRole="tab"

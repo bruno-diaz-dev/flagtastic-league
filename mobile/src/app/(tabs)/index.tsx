@@ -5,6 +5,7 @@ import { EmptyState, Panel, Pill, Screen, SectionTitle } from '@/components/Scre
 import { useLeagueData } from '@/providers/LeagueDataProvider';
 import { colors, font } from '@/theme';
 import { useAuth } from '@/providers/AuthProvider';
+import { RepresentativeHome } from '@/components/RepresentativeScreens';
 import { RefereeHome } from '@/components/RefereeScreens';
 
 function formatTime(value: string | null) {
@@ -14,7 +15,7 @@ function formatTime(value: string | null) {
 
 export default function HomeScreen() {
   const {mode} = useAuth();
-  return mode === 'referee' ? <RefereeHome /> : <PlayerHome />;
+  return mode === 'referee' ? <RefereeHome /> : mode === 'representative' ? <RepresentativeHome /> : <PlayerHome />;
 }
 
 function PlayerHome() {
