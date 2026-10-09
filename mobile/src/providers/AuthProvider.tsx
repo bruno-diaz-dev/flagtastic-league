@@ -9,6 +9,8 @@ type AuthValue = {
   user: User | null;
   loading: boolean;
   error: string;
+  mode: 'player' | 'referee';
+  setMode: (mode: 'player' | 'referee') => void;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -20,19 +22,35 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState<'player' | 'referee'>('player');
 
   useEffect(() => {
-    getStoredToken().then(async (storedToken) => {
-      if (!storedToken) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      if (!active) return;
+      active = false;
+      setError('No se pudo recuperar la sesión a tiempo. Puedes iniciar sesión de nuevo.');
+      setLoading(false);
+    }, 20000);
+    async function restoreSession() {
       try {
+        const storedToken = await getStoredToken();
+        if (!storedToken || !active) return;
         const currentUser = await loadCurrentUser(storedToken);
-        if (!(currentUser.roles || []).includes('player')) throw new Error('Cuenta sin perfil de jugador.');
+        if (!active) return;
+        if (!currentUser.roles?.some(role => role === 'player' || role === 'referee')) throw new Error('Cuenta sin acceso móvil.');
+        setMode(currentUser.roles.includes('referee') ? 'referee' : 'player');
         setToken(storedToken);
         setUser(currentUser);
-      } catch {
-        await clearToken();
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : 'No se pudo recuperar la sesión. Intenta iniciar sesión de nuevo.');
+      } finally {
+        clearTimeout(timer);
+        if (active) setLoading(false);
       }
-    }).finally(() => setLoading(false));
+    }
+    void restoreSession();
+    return () => {active = false; clearTimeout(timer);};
   }, []);
 
   async function signIn(email: string, password: string) {
@@ -43,6 +61,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await saveToken(result.access_token);
       setToken(result.access_token);
       setUser(result.user);
+      setMode(result.user.roles.includes('referee') ? 'referee' : 'player');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo iniciar sesión.');
       throw caught;
@@ -59,8 +78,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [token]);
 
   const value = useMemo(
-    () => ({token, user, loading, error, signIn, signOut}),
-    [token, user, loading, error],
+    () => ({token, user, loading, error, mode, setMode, signIn, signOut}),
+    [token, user, loading, error, mode],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -58,6 +58,14 @@ export type Game = {
   status: string;
 };
 
+export type RefereeGame = Game & {
+  official_position: string;
+  is_friendly: boolean;
+  officials: {user_id: number; display_name: string; position: string; profile_photo_url: string | null}[];
+};
+
+export type RefereeProfile = {id: number; name: string; display_name: string; profile_photo_url: string | null};
+
 export type Standing = {
   team_id: number;
   team_name: string;

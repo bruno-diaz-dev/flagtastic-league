@@ -16,7 +16,7 @@ export function LoginGate({ children }: PropsWithChildren) {
   }
 
   if (loading && !token) {
-    return <View style={styles.center}><ActivityIndicator color={colors.gold} size="large" /></View>;
+    return <View style={styles.center}><ActivityIndicator color={colors.gold} size="large" /><Text style={[styles.copy, {marginTop: 16}]}>Conectando con tu cuenta…</Text></View>;
   }
   if (token) return children;
 
@@ -26,7 +26,7 @@ export function LoginGate({ children }: PropsWithChildren) {
         <Image source={require('../../assets/flagtastic.jpeg')} style={styles.logo} />
         <Text style={styles.eyebrow}>FLAGTASTIC LEAGUE</Text>
         <Text style={styles.title}>Tu temporada, en el bolsillo.</Text>
-        <Text style={styles.copy}>Entra con la misma cuenta de jugador que usas en la liga.</Text>
+        <Text style={styles.copy}>Entra con tu cuenta de jugador o árbitro de la liga.</Text>
       </View>
       <View style={styles.panel}>
         <Text style={styles.label}>CORREO</Text>
@@ -35,7 +35,7 @@ export function LoginGate({ children }: PropsWithChildren) {
           autoComplete="email"
           keyboardType="email-address"
           onChangeText={setEmail}
-          placeholder="jugador@correo.com"
+          placeholder="tu@correo.com"
           placeholderTextColor="#556f91"
           style={styles.input}
           value={email}

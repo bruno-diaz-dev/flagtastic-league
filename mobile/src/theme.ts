@@ -23,3 +23,4 @@ export const font = {
 };
 
 export const webBaseUrl = 'https://flagtastic.online';
+

@@ -4,6 +4,8 @@ import { Avatar, Metric, TeamLogo, WebLink } from '@/components/LeagueUI';
 import { EmptyState, Panel, Pill, Screen, SectionTitle } from '@/components/Screen';
 import { useLeagueData } from '@/providers/LeagueDataProvider';
 import { colors, font } from '@/theme';
+import { useAuth } from '@/providers/AuthProvider';
+import { RefereeHome } from '@/components/RefereeScreens';
 
 function formatTime(value: string | null) {
   if (!value) return 'Por confirmar';
@@ -11,6 +13,11 @@ function formatTime(value: string | null) {
 }
 
 export default function HomeScreen() {
+  const {mode} = useAuth();
+  return mode === 'referee' ? <RefereeHome /> : <PlayerHome />;
+}
+
+function PlayerHome() {
   const {dashboard, games, loading, standings, activeTeam: team} = useLeagueData();
   if (loading && !dashboard) return <Screen title="Inicio"><EmptyState title="Cargando temporada" copy="Estamos preparando tu información." /></Screen>;
   if (!dashboard) return <Screen title="Inicio"><EmptyState title="Sin dashboard" copy="Tu cuenta todavía no tiene un perfil de jugador vinculado." /></Screen>;

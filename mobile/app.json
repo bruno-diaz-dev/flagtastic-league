@@ -54,6 +54,12 @@
         "projectId": "49015503-598d-4ba6-98de-51126bdf83f3"
       }
     },
-    "owner": "brucies-team"
+    "owner": "brucies-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/49015503-598d-4ba6-98de-51126bdf83f3"
+    }
   }
 }
