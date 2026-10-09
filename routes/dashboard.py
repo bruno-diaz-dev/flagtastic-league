@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg.errors import UniqueViolation
 
-from dependencies.auth import require_player, require_team_representative
+from dependencies.auth import require_player, require_team_representative, user_has_role
+from services.roster_policy import ROSTER_CLOSED_MESSAGE, roster_is_closed
 from models import PlayerProfileUpdate, TeamMembershipCreate
 from repositories.dashboard import get_player_dashboard, update_player_aka
 from repositories.players import join_team, PlayerAlreadyRegisteredInDivision
@@ -45,6 +46,12 @@ def register_my_team(
     user=Depends(require_player)
 ):
     """Let a player join one team per branch and category."""
+    if (
+        user_has_role(user, "team_representative")
+        and not user_has_role(user, "league_admin")
+        and roster_is_closed()
+    ):
+        raise HTTPException(status_code=403, detail=ROSTER_CLOSED_MESSAGE)
     team = get_team_by_id(team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")

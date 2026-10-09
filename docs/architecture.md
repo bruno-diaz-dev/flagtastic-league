@@ -887,6 +887,26 @@ imports, staff/logo updates, and player-photo controls only for teams linked to
 them in `team_representatives`. League administrators retain league-wide
 management access, while every roster remains publicly readable.
 
+Representative roster writes close at **October 16, 2026, 00:00** in
+`America/Mexico_City` (06:00 UTC). The full day of October 15 remains open.
+`services/roster_policy.py` defines this season-specific cutoff; server time,
+not the browser clock, decides whether it has passed. No scheduled job or
+database migration is required. Updating the deadline for another season
+requires an explicit code change and deployment.
+
+After the cutoff, `require_team_manager` returns HTTP 403 for representative
+POST/PUT/PATCH/DELETE requests, including manual registration, existing-player
+membership, CSV/XLSX imports, edits, deactivation, player photos, staff and logos.
+Read requests remain authorized as before. Administrators, including accounts
+with both roles, retain write access. A representative with an additional player
+role cannot bypass the cutoff through the self-service membership endpoint.
+Player-only self-service and representative team creation are outside this rule.
+
+Team detail responses expose `roster_closed` and `roster_closes_at`; `can_manage`
+becomes false for representatives after closure. The roster page shows the
+deadline or closed status and hides mutation controls on load. Requests from a
+page left open across midnight are still rejected by the server.
+
 Assigned representatives can correct a roster player's legal name, CURP, and
 jersey number. A roster removal is a soft deactivation of `team_players`, not a
 player deletion: the identity, login, and historical statistics remain intact,

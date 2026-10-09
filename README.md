@@ -37,6 +37,8 @@ representatives, referees, and league administrators.
 
 - Create teams and become their representative automatically.
 - Manage only explicitly assigned teams.
+- Roster changes close for representatives on October 16, 2026 at 00:00
+  in `America/Mexico_City`; administrators retain editing access.
 - Update team logos and staff: Head Coach, Coach, and Manager.
 - Add, edit, deactivate, and photograph roster players.
 - Search all existing player profiles by legal name or AKA, including minors

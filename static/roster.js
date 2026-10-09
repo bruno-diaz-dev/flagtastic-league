@@ -219,6 +219,9 @@ async function loadRoster() {
     // A representative role does not grant league-wide access. The API
     // resolves whether this user manages this particular team.
     document.body.classList.toggle("can-manage-team", team.can_manage === true);
+    document.querySelector("#roster-deadline-message").textContent = team.roster_closed
+        ? "Roster cerrado para representantes. Solo administradores pueden realizar cambios."
+        : "Cierre de roster: 16 de octubre de 2026, 00:00 (hora de Ciudad de México).";
     renderRoster(team);
 }
 
