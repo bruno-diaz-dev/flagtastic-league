@@ -36,10 +36,11 @@ export default function LeadersScreen() {
       {leaders.length ? (
         <>
           <View style={styles.podium}>
+            {leaders.length === 1 ? <View style={styles.podiumSpacer} /> : null}
             {podiumLeaders(leaders).map((leader) => (
-              <View key={`${leader.player_id}-${leader.team_id}`} style={[styles.podiumItem, leader.rank === 1 && styles.first]}>
+              <View key={`${leader.player_id}-${leader.team_id}`} style={[styles.podiumItem, leader.rank === 1 ? styles.first : leader.rank === 2 ? styles.second : styles.third]}>
                 <Text style={styles.place}>{leader.rank}</Text>
-                <Avatar name={leader.player_name} url={leader.profile_photo_url} size={leader.rank === 1 ? 72 : 58} />
+                <Avatar name={leader.player_name} url={leader.profile_photo_url} size={leader.rank === 1 ? 72 : leader.rank === 2 ? 64 : 56} />
                 <Text numberOfLines={1} style={styles.player}>{leader.player_aka || leader.player_name}</Text>
                 <Text numberOfLines={1} style={styles.team}>{leader.team_name} · #{leader.jersey_number}</Text>
                 <Text style={styles.score}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
@@ -47,6 +48,7 @@ export default function LeadersScreen() {
                 {selected === 'completion_percentage' && leader.passes_attempted != null ? <Text style={styles.team}>{leader.passes_completed}/{leader.passes_attempted} C/I</Text> : null}
               </View>
             ))}
+            {leaders.length < 3 ? <View style={styles.podiumSpacer} /> : null}
           </View>
           <Panel style={styles.list}>
             {leaders.slice(3).map((leader) => (
@@ -75,7 +77,10 @@ const styles = StyleSheet.create({
   tabTextActive: {color: colors.base},
   podium: {flexDirection: 'row', alignItems: 'flex-end', gap: 7, minHeight: 235},
   podiumItem: {flex: 1, minWidth: 0, alignItems: 'center', padding: 8, paddingTop: 13, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border},
-  first: {paddingTop: 19, paddingBottom: 17, borderColor: '#7a6515', backgroundColor: '#182b40'},
+  podiumSpacer: {flex: 1},
+  second: {minHeight: 230},
+  third: {minHeight: 200},
+  first: {minHeight: 260, paddingTop: 19, paddingBottom: 17, borderColor: '#7a6515', backgroundColor: '#182b40'},
   place: {fontFamily: font.displayBold, color: colors.gold, fontSize: 15, marginBottom: 7},
   player: {width: '100%', fontFamily: font.displayBold, color: colors.white, fontSize: 12, textAlign: 'center', marginTop: 8},
   team: {width: '100%', fontFamily: font.body, color: colors.muted, fontSize: 9, textAlign: 'center', marginTop: 2},

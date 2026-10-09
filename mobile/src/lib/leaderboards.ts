@@ -19,5 +19,5 @@ export function rankLeaders(leaders: Leader[], metric: string): (Leader & {rank:
 
 export function podiumLeaders<T>(leaders: T[]): T[] {
   const top = leaders.slice(0, 3);
-  return top.length === 3 ? [top[2], top[0], top[1]] : top;
+  return top.length >= 2 ? [top[1], top[0], ...top.slice(2)] : top;
 }
