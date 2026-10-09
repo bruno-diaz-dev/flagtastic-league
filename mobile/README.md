@@ -113,3 +113,21 @@ representative-only session restoration, switching teams and rosters, scoped
 agenda/results, empty assignments and all three role modes.
 Set `MOBILE_TEST_URL` for another Metro address and
 `MOBILE_BROWSER_EXECUTABLE` for an existing Chromium binary if needed.
+
+To update the already shared `@brucie` APK, explicitly select its embedded
+project (`6d0704a1-3b9a-4e30-a4fc-1005afac5140`). The default configuration
+continues to target `@brucies-team` for league-owned builds and updates.
+
+```powershell
+$env:FLAGTASTIC_UPDATE_TARGET="legacy-apk"
+try {
+  npx eas-cli update --channel production --environment production --message "Representantes y podio corregido"
+} finally {
+  Remove-Item Env:FLAGTASTIC_UPDATE_TARGET
+}
+```
+
+In Bash, prefix the update command with `FLAGTASTIC_UPDATE_TARGET=legacy-apk`.
+Publish only after the representative-login API has deployed. This selector
+changes the update project/owner; it does not change the app runtime version
+or native dependencies, or publish anything by itself.
