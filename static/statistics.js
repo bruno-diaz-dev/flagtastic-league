@@ -63,7 +63,7 @@ function renderLeaderboards(leaderboards) {
             const rows = leaders.length
                 ? leaders.map((leader, index) => `
                     <tr>
-                        <td class="rank-cell">${index + 1}</td>
+                        <td class="rank-cell">${leader.rank ?? index + 1}</td>
                         <td>${leaderboardIdentity(leader)}</td>
                         <td class="stat-value">${
                             metric === "completion_percentage"
