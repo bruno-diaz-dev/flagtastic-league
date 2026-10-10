@@ -5,6 +5,7 @@ from psycopg.errors import UniqueViolation
 
 from dependencies.auth import require_league_admin
 from models import (
+    AdminAccountRecovery,
     RefereeProfileUpdate,
     StaffAccountCreate,
     UserRoleUpdate,
@@ -108,6 +109,24 @@ def reset_user_password(
         )
 
     result = reset_user_password_by_admin(user_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return result
+
+
+@router.post("/{user_id}/recover-account")
+def recover_account(
+    user_id: int,
+    recovery: AdminAccountRecovery,
+    admin=Depends(require_league_admin),
+):
+    """Replace a compromised email and credentials in a single transaction."""
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=409, detail="No puedes recuperar tu propia cuenta desde este panel")
+    try:
+        result = reset_user_password_by_admin(user_id, replacement_email=recovery.email)
+    except UniqueViolation as error:
+        raise HTTPException(status_code=409, detail="El correo ya esta registrado") from error
     if result is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return result

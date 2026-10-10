@@ -429,7 +429,7 @@ def change_user_password(user_id, current_password, new_password):
         connection.close()
 
 
-def reset_user_password_by_admin(user_id):
+def reset_user_password_by_admin(user_id, *, replacement_email=None):
     """Set a one-time temporary password and force a change on next login."""
     connection = get_connection()
     temporary_password = secrets.token_urlsafe(12)
@@ -451,10 +451,11 @@ def reset_user_password_by_admin(user_id):
             """
             UPDATE users
             SET password_hash = %s,
+                email = COALESCE(%s, email),
                 must_change_password = true
             WHERE id = %s
             """,
-            (hash_password(temporary_password), user_id)
+            (hash_password(temporary_password), replacement_email, user_id)
         )
         connection.execute(
             """
@@ -478,7 +479,7 @@ def reset_user_password_by_admin(user_id):
 
         return {
             "id": user["id"],
-            "email": user["email"],
+            "email": replacement_email or user["email"],
             "name": user["name"],
             "temporary_password": temporary_password,
             "must_change_password": True,

@@ -735,3 +735,55 @@ def test_admin_cannot_reset_own_password_from_user_admin():
     )
 
     assert response.status_code == 409
+
+
+def test_account_recovery_replaces_email_revokes_access_and_preserves_identity(monkeypatch):
+    from urllib.parse import urlparse, parse_qs
+    from repositories.users import get_user_by_id, get_user_by_email
+    from repositories.sessions import create_session
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("recovery-admin")
+    create_user(UserCreate(email=admin_email, name="Admin", password="adminsecret", role="league_admin"))
+    _, old_email = unique_identity("compromised")
+    target = create_user(UserCreate(email=old_email, name="Target", password="oldsecret", role="referee"))
+    session = create_session(target["id"])
+    delivered_links = []
+    monkeypatch.setattr("routes.auth.send_password_reset_email", lambda email, url: delivered_links.append(url))
+    assert client.post("/api/auth/forgot-password", json={"email": old_email}).status_code == 202
+    recovery_token = parse_qs(urlparse(delivered_links[0]).query)["token"][0]
+    before = get_user_by_id(target["id"])
+    _, new_email = unique_identity("replacement")
+    assert login(admin_email, "adminsecret").status_code == 200
+    response = client.post(f"/api/admin/users/{target['id']}/recover-account", json={"email": f" {new_email.upper()} ", "identity_confirmed": True})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["email"] == new_email
+    after = get_user_by_id(target["id"])
+    for key in ("id", "name", "roles", "player_id"):
+        assert after.get(key) == before.get(key)
+    assert get_user_by_email(old_email) is None
+    assert client.post("/api/auth/reset-password", json={"token": recovery_token, "new_password": "attackerpassword"}).status_code == 400
+    assert TestClient(app).get("/api/auth/me", headers={"Authorization": f"Bearer {session['token']}"}).status_code == 401
+    assert login(new_email, "oldsecret").status_code == 401
+    assert login(new_email, body["temporary_password"]).json()["must_change_password"] is True
+
+
+def test_account_recovery_conflict_rolls_back_and_requires_confirmation():
+    from repositories.users import get_user_by_id
+    disable_test_authorization_override()
+    _, admin_email = unique_identity("recovery-conflict-admin")
+    admin = create_user(UserCreate(email=admin_email, name="Admin", password="adminsecret", role="league_admin"))
+    _, old_email = unique_identity("recovery-conflict-target")
+    target = create_user(UserCreate(email=old_email, name="Target", password="oldsecret", role="referee"))
+    assert login(admin_email, "adminsecret").status_code == 200
+    endpoint = f"/api/admin/users/{target['id']}/recover-account"
+    for payload in ({"email": "new@example.test"}, {"email": "new@example.test", "identity_confirmed": False}, {"email": "invalid", "identity_confirmed": True}):
+        assert client.post(endpoint, json=payload).status_code == 422
+    assert client.post(endpoint, json={"email": admin_email, "identity_confirmed": True}).status_code == 409
+    assert get_user_by_id(target["id"])["email"] == old_email
+    assert client.post(f"/api/admin/users/{admin['id']}/recover-account", json={"email": "new@example.test", "identity_confirmed": True}).status_code == 409
+    assert client.post('/api/admin/users/2147483647/recover-account', json={"email": "new@example.test", "identity_confirmed": True}).status_code == 404
+    assert login(old_email, "oldsecret").status_code == 200
+    assert client.post(endpoint, json={"email": "new@example.test", "identity_confirmed": True}).status_code == 403
+    client.cookies.clear()
+    assert client.post(endpoint, json={"email": "new@example.test", "identity_confirmed": True}).status_code == 401
