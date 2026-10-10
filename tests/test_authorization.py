@@ -737,8 +737,8 @@ def test_admin_cannot_reset_own_password_from_user_admin():
     assert response.status_code == 409
 
 
-def test_account_recovery_replaces_email_revokes_access_and_preserves_identity():
-    from repositories.password_resets import create_password_reset, consume_password_reset
+def test_account_recovery_replaces_email_revokes_access_and_preserves_identity(monkeypatch):
+    from urllib.parse import urlparse, parse_qs
     from repositories.users import get_user_by_id, get_user_by_email
     from repositories.sessions import create_session
     disable_test_authorization_override()
@@ -747,7 +747,10 @@ def test_account_recovery_replaces_email_revokes_access_and_preserves_identity()
     _, old_email = unique_identity("compromised")
     target = create_user(UserCreate(email=old_email, name="Target", password="oldsecret", role="referee"))
     session = create_session(target["id"])
-    reset = create_password_reset(old_email)
+    delivered_links = []
+    monkeypatch.setattr("routes.auth.send_password_reset_email", lambda email, url: delivered_links.append(url))
+    assert client.post("/api/auth/forgot-password", json={"email": old_email}).status_code == 202
+    recovery_token = parse_qs(urlparse(delivered_links[0]).query)["token"][0]
     before = get_user_by_id(target["id"])
     _, new_email = unique_identity("replacement")
     assert login(admin_email, "adminsecret").status_code == 200
@@ -759,7 +762,7 @@ def test_account_recovery_replaces_email_revokes_access_and_preserves_identity()
     for key in ("id", "name", "roles", "player_id"):
         assert after.get(key) == before.get(key)
     assert get_user_by_email(old_email) is None
-    assert consume_password_reset(reset["token"], "attackerpassword") is False
+    assert client.post("/api/auth/reset-password", json={"token": recovery_token, "new_password": "attackerpassword"}).status_code == 400
     assert TestClient(app).get("/api/auth/me", headers={"Authorization": f"Bearer {session['token']}"}).status_code == 401
     assert login(new_email, "oldsecret").status_code == 401
     assert login(new_email, body["temporary_password"]).json()["must_change_password"] is True
