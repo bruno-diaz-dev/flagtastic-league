@@ -70,6 +70,7 @@ function renderUsers() {
                 : (user.status === "active" ? "Activo" : "Inactivo")}</td>
             <td class="user-actions">
                 <button class="save-role-button" type="button">Guardar</button>
+                <button class="recover-account-button" type="button">Recuperar cuenta</button>
                 <button class="reset-password-button" type="button">Reiniciar contraseña</button>
                 <button class="delete-user-button" type="button">Eliminar</button>
             </td>
@@ -92,6 +93,36 @@ async function loadUsers() {
 
 usersBody.addEventListener("click", async (event) => {
     const row = event.target.closest("tr");
+    if (event.target.classList.contains("recover-account-button")) {
+        const name = row.querySelector("strong").textContent;
+        const email = window.prompt(`Nuevo correo de ${name}:`);
+        if (!email || !email.trim()) return;
+        if (!window.confirm(
+            `¿Confirmaste la identidad de ${name} personalmente o por un teléfono conocido y que controla ${email.trim()}? Se cambiará el correo, se cerrarán todas sus sesiones y se invalidarán sus enlaces de recuperación.`
+        )) return;
+        const button = event.target;
+        button.disabled = true;
+        try {
+            const response = await recoverAdminUserAccount(row.dataset.userId, email.trim());
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                usersMessage.textContent = typeof body.detail === "string"
+                    ? body.detail : "No se pudo recuperar la cuenta. Revisa el correo ingresado.";
+                return;
+            }
+            usersMessage.textContent = `Cuenta de ${name} recuperada con ${body.email}. Debe cambiar la contraseña en la web antes de usar la app.`;
+            window.prompt(
+                "Copia la contraseña temporal y entrégala por el medio confirmado, nunca al correo anterior. No volverá a mostrarse:",
+                body.temporary_password
+            );
+            await loadUsers();
+        } catch {
+            usersMessage.textContent = "No se pudo confirmar el resultado. Recarga los usuarios antes de volver a intentar.";
+        } finally {
+            button.disabled = false;
+        }
+        return;
+    }
     if (event.target.classList.contains("reset-password-button")) {
         const name = row.querySelector("strong").textContent;
         if (!window.confirm(

@@ -281,6 +281,13 @@ class PasswordResetRequest(BaseModel):
         return normalized
 
 
+class AdminAccountRecovery(PasswordResetRequest):
+    """Require independent identity confirmation before replacing a login email."""
+
+    email: str = Field(min_length=3, max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    identity_confirmed: Literal[True]
+
+
 class PasswordResetConfirmation(BaseModel):
     """Validate a one-time reset token and replacement password."""
 
