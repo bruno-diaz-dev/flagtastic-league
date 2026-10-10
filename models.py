@@ -287,6 +287,11 @@ class AdminAccountRecovery(PasswordResetRequest):
     email: str = Field(min_length=3, max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
     identity_confirmed: Literal[True]
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def trim_recovery_email(cls, value):
+        return value.strip().lower() if isinstance(value, str) else value
+
 
 class PasswordResetConfirmation(BaseModel):
     """Validate a one-time reset token and replacement password."""
