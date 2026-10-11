@@ -7,7 +7,9 @@ from services.divisions import (
     category_allows_cross_branch_games,
     normalize_division,
 )
-from services.team_matching import match_team_name, normalize_team_text
+from services.team_matching import (
+    match_team_name, normalize_team_text, rank_team_matches,
+)
 
 
 class StatisticsValidationError(Exception):
@@ -39,26 +41,12 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             for team in teams
         }
 
-        # League worksheets often use display variations of registered
-        # names. Restrict aliases to one division and prefer exact matches so
-        # legitimate teams in other divisions are never redirected.
-        upload_team_aliases = {
-            ("femenil", "u14", "black mambas"): "blackmamba",
-            ("femenil", "u14", "eagles flag"): "eaglesflag",
-            ("femenil", "u14", "diablos"): "diablos del sol",
-        }
-
         def resolve_team(label, branch, category):
             division = normalize_division(branch, category)
             team_name = normalize_team_text(label)
             exact = teams_by_identity.get((*division, team_name))
             if exact:
                 return exact
-            alias_name = upload_team_aliases.get((*division, team_name))
-            if alias_name:
-                aliased = teams_by_identity.get((*division, alias_name))
-                if aliased:
-                    return aliased
             return match_team_name(
                 label,
                 teams,
@@ -80,10 +68,22 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     row["team"], row["branch"], row["category"]
                 )
                 if team is None:
+                    possibilities = rank_team_matches(
+                        row["team"], teams, row["branch"], row["category"]
+                    )
+                    suggestions = [
+                        candidate["name"] for confidence, candidate
+                        in possibilities if confidence >= 0.65
+                    ][:3]
+                    hint = (
+                        " Posibles equipos: " + ", ".join(suggestions)
+                        + ". Confirma cuál corresponde."
+                        if suggestions else ""
+                    )
                     raise StatisticsValidationError(
-                        f"Jornada {week}, registro {row_number}: no se encontró "
-                        f"el equipo '{row['team']}' en {row['branch']} "
-                        f"{row['category']}."
+                        f"Jornada {week}, registro {row_number}: no se pudo "
+                        f"identificar con seguridad el equipo '{row['team']}' "
+                        f"en {row['branch']} {row['category']}." + hint
                     )
                 player = connection.execute(
                     """
