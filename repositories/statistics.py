@@ -39,12 +39,27 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             for team in teams
         }
 
+        # League worksheets often use display variations of registered
+        # names. Restrict aliases to one division and prefer exact matches so
+        # legitimate teams in other divisions are never redirected.
+        upload_team_aliases = {
+            ("femenil", "u14", "black mambas"): "blackmamba",
+            ("femenil", "u14", "eagles flag"): "eaglesflag",
+            ("femenil", "u14", "diablos"): "diablos del sol",
+        }
+
         def resolve_team(label, branch, category):
             division = normalize_division(branch, category)
-            exact = teams_by_identity.get(
-                (*division, normalize_team_text(label))
-            )
-            return exact or match_team_name(
+            team_name = normalize_team_text(label)
+            exact = teams_by_identity.get((*division, team_name))
+            if exact:
+                return exact
+            alias_name = upload_team_aliases.get((*division, team_name))
+            if alias_name:
+                aliased = teams_by_identity.get((*division, alias_name))
+                if aliased:
+                    return aliased
+            return match_team_name(
                 label,
                 teams,
                 branch=(
@@ -66,8 +81,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 )
                 if team is None:
                     raise StatisticsValidationError(
-                        f"Jornada {week}, fila {row_number}: no existe "
-                        "el equipo en esa rama y categoria"
+                        f"Jornada {week}, registro {row_number}: no se encontró "
+                        f"el equipo '{row['team']}' en {row['branch']} "
+                        f"{row['category']}."
                     )
                 player = connection.execute(
                     """
