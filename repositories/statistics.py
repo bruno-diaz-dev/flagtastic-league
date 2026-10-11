@@ -15,7 +15,7 @@ class StatisticsValidationError(Exception):
 
 
 def import_statistics_workbook(weeks, games=None):
-    """Atomically replace included weekly statistics and inferred games."""
+    """Merge weekly player stats without duplicating a player-game on reimport."""
     connection = get_connection()
     try:
         # Serialize with live start/finish before replacing any weekly rows.
@@ -134,38 +134,9 @@ def import_statistics_workbook(weeks, games=None):
                 if game_division in imported_divisions:
                     resolved_games.append((week, home["id"], away["id"], game))
 
-        # Replace only the divisions represented by valid rows in this file.
-        # A partial upload must never clear other categories from the week.
-        # Unified youth divisions (U8/U10/U12) span all legacy branches.
-        for week, resolved_rows in resolved_weeks.items():
-            divisions = {
-                (team["category"],
-                 None if category_allows_cross_branch_games(team["category"])
-                 else team["branch"])
-                for _, team, _ in resolved_rows
-            }
-            for category, branch in divisions:
-                if branch is None:
-                    connection.execute(
-                        """
-                        DELETE FROM player_week_stats
-                        WHERE week = %s AND team_id IN (
-                            SELECT id FROM teams WHERE category = %s
-                        )
-                        """,
-                        (week, category),
-                    )
-                else:
-                    connection.execute(
-                        """
-                        DELETE FROM player_week_stats
-                        WHERE week = %s AND team_id IN (
-                            SELECT id FROM teams
-                            WHERE category = %s AND branch = %s
-                        )
-                        """,
-                        (week, category, branch),
-                    )
+        # Never delete all statistics for a week or division. A file may
+        # contain only one team, or even one player. Reimports update exact
+        # player/game snapshots below; other records and weeks stay intact.
         game_ids = {}
         used_existing_game_ids = set()
         for week, home_team_id, away_team_id, game in resolved_games:
@@ -210,52 +181,103 @@ def import_statistics_workbook(weeks, games=None):
             used_existing_game_ids.add(saved_game["id"])
             game_ids[(week, game["game_index"])] = saved_game["id"]
         imported = []
+        updated_count = 0
         for week, resolved_rows in resolved_weeks.items():
+            if not (games or {}).get(week):
+                # Official Wk sheets may contain multiple games by one player.
+                # Without game mapping these rows cannot be safely identified
+                # in the database. Do not silently combine or overwrite them.
+                player_counts = {}
+                for player, team, row in resolved_rows:
+                    key = (player["id"], team["id"])
+                    player_counts[key] = player_counts.get(key, 0) + 1
+                if any(count > 1 for count in player_counts.values()):
+                    raise StatisticsValidationError(
+                        f"Jornada {week}: el archivo contiene un jugador en "
+                        "varios partidos. Usa Archivo completo con hojas Wk "
+                        "para identificar cada encuentro."
+                    )
             for player, team, row in resolved_rows:
                 game_id = game_ids.get((week, row.get("game_index")))
-                created = connection.execute(
+                existing_rows = connection.execute(
                     """
-                    INSERT INTO player_week_stats (
-                        week, game_id, player_id, team_id, points, receptions,
-                        interceptions, sacks, tackles, passes_completed,
-                        passes_attempted
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING *
+                    SELECT id, game_id FROM player_week_stats
+                    WHERE week = %s AND team_id = %s AND player_id = %s
+                      AND (%s IS NULL OR game_id = %s OR game_id IS NULL)
+                    ORDER BY id FOR UPDATE
                     """,
-                    (week, game_id, player["id"], team["id"], row["points"],
-                     row["receptions"], row["interceptions"], row["sacks"],
-                     row["tackles"], row["passes_completed"],
-                     row["passes_attempted"])
-                ).fetchone()
+                    (week, team["id"], player["id"], game_id, game_id)
+                ).fetchall()
+                if len(existing_rows) > 1:
+                    raise StatisticsValidationError(
+                        f"Jornada {week}, equipo {team['name']}, jugador "
+                        f"#{row['jersey_number']}: hay varios partidos "
+                        "registrados. Importa el Excel oficial completo "
+                        "para evitar mezclar estadísticas."
+                    )
+                values = (
+                    row["points"], row["receptions"], row["interceptions"],
+                    row["sacks"], row["tackles"], row["passes_completed"],
+                    row["passes_attempted"]
+                )
+                if existing_rows:
+                    saved = connection.execute(
+                        """
+                        UPDATE player_week_stats
+                        SET game_id = COALESCE(%s, game_id),
+                            points = %s, receptions = %s, interceptions = %s,
+                            sacks = %s, tackles = %s, passes_completed = %s,
+                            passes_attempted = %s
+                        WHERE id = %s RETURNING *
+                        """,
+                        (game_id, *values, existing_rows[0]["id"])
+                    ).fetchone()
+                    updated_count += 1
+                else:
+                    saved = connection.execute(
+                        """
+                        INSERT INTO player_week_stats (
+                            week, game_id, player_id, team_id, points, receptions,
+                            interceptions, sacks, tackles, passes_completed,
+                            passes_attempted
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *
+                        """,
+                        (week, game_id, player["id"], team["id"], *values)
+                    ).fetchone()
                 imported.append({
-                    **dict(created), "player_name": player["name"],
+                    **dict(saved), "player_name": player["name"],
                     "team_name": team["name"], "branch": team["branch"],
                     "category": team["category"]
                 })
-        # Associate rows only when a team has one unambiguous game that week.
-        connection.execute(
-            """
-            UPDATE player_week_stats AS stats
-            SET game_id = matched.game_id
-            FROM (
-                SELECT stats_row.id AS stats_id, MIN(games.id) AS game_id
-                FROM player_week_stats AS stats_row
-                JOIN games ON games.week = stats_row.week AND NOT games.is_friendly
-                  AND stats_row.team_id IN (
-                      games.home_team_id, games.away_team_id
-                  )
-                WHERE stats_row.week = ANY(%s)
-                GROUP BY stats_row.id
-                HAVING COUNT(games.id) = 1
-            ) AS matched
-            WHERE stats.id = matched.stats_id
-            """,
-            (list(resolved_weeks),)
-        )
+        # Associate only imported rows when exactly one registered match fits.
+        if imported:
+            connection.execute(
+                """
+                UPDATE player_week_stats AS stats
+                SET game_id = matched.game_id
+                FROM (
+                    SELECT stats_row.id AS stats_id, MIN(games.id) AS game_id
+                    FROM player_week_stats AS stats_row
+                    JOIN games ON games.week = stats_row.week
+                      AND NOT games.is_friendly
+                      AND stats_row.team_id IN (
+                          games.home_team_id, games.away_team_id
+                      )
+                    WHERE stats_row.id = ANY(%s)
+                      AND stats_row.game_id IS NULL
+                    GROUP BY stats_row.id
+                    HAVING COUNT(games.id) = 1
+                ) AS matched
+                WHERE stats.id = matched.stats_id
+                """,
+                ([saved["id"] for saved in imported],)
+            )
         connection.commit()
         return {
-            "imported": len(imported), "rows": imported,
+            "imported": len(imported), "updated": updated_count,
+            "created": len(imported) - updated_count, "rows": imported,
             "skipped": skipped, "skipped_count": len(skipped),
             "preserved_weeks": sorted(preserved_weeks),
             "games": len(resolved_games),
@@ -445,7 +467,7 @@ def get_leaderboards(branch, category, limit=5):
         ]
 
     latest_week = max((row["latest_week"] for row in rows), default=0)
-    minimum_attempts = 0 if latest_week <= 3 else 30
+    minimum_attempts = 15  # Total completed + incomplete attempts over all weeks
     passing_ranked = sorted(
         (row for row in rows if row["passes_attempted"] > 0
          and row["passes_attempted"] >= minimum_attempts),
