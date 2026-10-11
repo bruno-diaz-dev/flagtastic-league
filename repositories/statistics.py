@@ -7,7 +7,9 @@ from services.divisions import (
     category_allows_cross_branch_games,
     normalize_division,
 )
-from services.team_matching import match_team_name, normalize_team_text
+from services.team_matching import (
+    match_team_name, normalize_team_text, rank_team_matches,
+)
 
 
 class StatisticsValidationError(Exception):
@@ -41,10 +43,11 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
 
         def resolve_team(label, branch, category):
             division = normalize_division(branch, category)
-            exact = teams_by_identity.get(
-                (*division, normalize_team_text(label))
-            )
-            return exact or match_team_name(
+            team_name = normalize_team_text(label)
+            exact = teams_by_identity.get((*division, team_name))
+            if exact:
+                return exact
+            return match_team_name(
                 label,
                 teams,
                 branch=(
@@ -65,9 +68,22 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     row["team"], row["branch"], row["category"]
                 )
                 if team is None:
+                    possibilities = rank_team_matches(
+                        row["team"], teams, row["branch"], row["category"]
+                    )
+                    suggestions = [
+                        candidate["name"] for confidence, candidate
+                        in possibilities if confidence >= 0.65
+                    ][:3]
+                    hint = (
+                        " Posibles equipos: " + ", ".join(suggestions)
+                        + ". Confirma cuál corresponde."
+                        if suggestions else ""
+                    )
                     raise StatisticsValidationError(
-                        f"Jornada {week}, fila {row_number}: no existe "
-                        "el equipo en esa rama y categoria"
+                        f"Jornada {week}, registro {row_number}: no se pudo "
+                        f"identificar con seguridad el equipo '{row['team']}' "
+                        f"en {row['branch']} {row['category']}." + hint
                     )
                 player = connection.execute(
                     """

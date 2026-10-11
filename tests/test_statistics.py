@@ -740,3 +740,60 @@ def test_single_sheet_week2_fails_when_matches_only_exist_in_week1():
     )
     assert imported.status_code == 422, imported.text
     assert client.get("/api/weeks/2/player-stats").json() == []
+
+
+def test_generic_team_name_variants_match_registered_teams():
+    """Resolve real worksheet labels before validating jersey membership."""
+    blackmamba = create_team("BlackMamba", "femenil", "u14")
+    eagles = create_team("EaglesFlag", "femenil", "u14")
+    diablos = create_team("DIABLOS DEL SOL", "femenil", "u14")
+    create_player(blackmamba, "Black Player", "BLAK010101MASXX001", 1)
+    create_player(eagles, "Eagles Player", "EAGL010101MASXX002", 2)
+    create_player(diablos, "Diablos Player", "DIAB010101MASXX003", 3)
+
+    response = upload_week(1, [
+        ["femenil", "u14", "Black Mambas", 1, 6, 1, 0, 0, 0, 0, 0],
+        ["femenil", "u14", "Eagles Flag", 2, 6, 1, 0, 0, 0, 0, 0],
+        ["femenil", "u14", "Diablos", 3, 6, 1, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200, response.text
+    rows = client.get("/api/weeks/1/player-stats").json()
+    assert {row["team_name"] for row in rows} == {
+        "BlackMamba", "EaglesFlag", "DIABLOS DEL SOL"
+    }
+
+
+def test_team_name_variants_do_not_change_other_divisions():
+    """An actual team named Diablos in another branch still resolves exactly."""
+    original = create_team("Diablos", "varonil", "u14")
+    create_player(original, "Different Diablos", "DIFD010101HASXX004", 7)
+    response = upload_week(1, [
+        ["varonil", "u14", "Diablos", 7, 6, 0, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200, response.text
+    assert client.get("/api/weeks/1/player-stats").json()[0]["team_name"] == "Diablos"
+
+
+def test_spacing_and_plural_matching_applies_to_other_categories():
+    """A novel spelling variant must work without a per-category alias."""
+    team = create_team("BlackMamba", "femenil", "u16")
+    create_player(team, "Athlete", "BLMB010101MASXX005", 11)
+    response = upload_week(2, [
+        ["femenil", "u16", "Black Mambas", 11, 6, 1, 0, 0, 0, 0, 0]
+    ])
+    assert response.status_code == 200, response.text
+    assert client.get("/api/weeks/2/player-stats").json()[0]["team_name"] == "BlackMamba"
+
+
+def test_ambiguous_team_name_stops_import_instead_of_guessing():
+    """Similar teams in one division require an explicit choice."""
+    first = create_team("BlackMamba", "femenil", "u14")
+    second = create_team("Black Mambas", "femenil", "u14")
+    create_player(first, "Player One", "PMBA010101MASXX006", 7)
+    create_player(second, "Player Two", "PMBB010101MASXX007", 7)
+    response = upload_week(1, [
+        ["femenil", "u14", "Black Mamba", 7, 6, 0, 0, 0, 0, 0, 0]
+    ])
+    assert response.status_code == 422, response.text
+    assert "Black Mamba" in response.json()["detail"]
+    assert client.get("/api/weeks/1/player-stats").json() == []

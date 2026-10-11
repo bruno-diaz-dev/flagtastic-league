@@ -51,6 +51,37 @@ def normalize_team_identity(value):
     return " ".join(_name_tokens(value, strip_division=True))
 
 
+def _compact_name_variants(value):
+    """Normalize spacing and a final simple plural for safe exact comparison.
+
+    Examples: "Eagles Flag" -> "eaglesflag", "Black Mambas" ->
+    "blackmamba". This is only used when the result uniquely identifies
+    a team within the requested division.
+    """
+    joined = "".join(_name_tokens(value, strip_division=True))
+    if not joined:
+        return set()
+    variants = {joined}
+    if len(joined) > 5:
+        if joined.endswith("s") and not joined.endswith("ss"):
+            variants.add(joined[:-1])
+        elif not joined.endswith("s"):
+            variants.add(joined + "s")
+    return variants
+
+
+def _same_requested_division(team, branch, category):
+    actual_branch, actual_category = normalize_division(
+        team["branch"], team["category"]
+    )
+    if category and actual_category != category:
+        return False
+    if (branch and not category_allows_cross_branch_games(category)
+            and actual_branch != branch):
+        return False
+    return True
+
+
 def _token_score(source, target):
     if source == target:
         return 1.0
@@ -134,7 +165,23 @@ def rank_team_matches(label, teams, branch=None, category=None):
 
 
 def match_team_name(label, teams, branch=None, category=None):
-    """Return one confident team match, never guessing an ambiguous label."""
+    """Match natural name variants within a division, never guessing ties."""
+    normalized_branch, normalized_category = normalize_division(
+        branch, category
+    )
+    variants = _compact_name_variants(label)
+    compact_matches = [
+        team for team in teams
+        if _same_requested_division(
+            team, normalized_branch, normalized_category
+        ) and variants.intersection(_compact_name_variants(team["name"]))
+    ]
+    if len(compact_matches) == 1:
+        return compact_matches[0]
+    if len(compact_matches) > 1:
+        # Two teams with indistinguishable names need admin confirmation.
+        return None
+
     ranked = rank_team_matches(label, teams, branch, category)
     if not ranked or ranked[0][0] < 0.76:
         return None
