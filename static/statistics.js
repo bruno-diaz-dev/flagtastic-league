@@ -5,6 +5,14 @@ const leaderboardsContainer = document.querySelector("#leaderboards");
 const statisticsImportForm = document.querySelector("#statistics-import-form");
 const statisticsImportMessage = document.querySelector("#statistics-import-message");
 const statisticsImportSkipped = document.querySelector("#statistics-import-skipped");
+const statisticsImportMode = document.querySelector("#statistics-import-mode");
+const statisticsDivisionFields = document.querySelector("#statistics-division-fields");
+const statisticsAllFields = document.querySelector("#statistics-all-fields");
+const statisticsWeekInput = document.querySelector("#statistics-import-week");
+const statisticsBranchInput = document.querySelector("#statistics-import-branch");
+const statisticsCategoryInput = document.querySelector("#statistics-import-category");
+const statisticsAllWeekInput = document.querySelector("#statistics-import-all-week");
+
 const leaderboardBranch = document.querySelector("#leaderboard-branch");
 const leaderboardCategory = document.querySelector("#leaderboard-category");
 const leaderboardBranchField = document.querySelector("#leaderboard-branch-field");
@@ -115,6 +123,16 @@ function renderSkippedStatistics(data) {
 }
 
 
+function updateStatisticsImportMode() {
+    const singleDivision = statisticsImportMode.value === "division";
+    statisticsDivisionFields.hidden = !singleDivision;
+    statisticsAllFields.hidden = singleDivision;
+    for (const input of [statisticsWeekInput, statisticsBranchInput, statisticsCategoryInput]) {
+        input.disabled = !singleDivision;
+    }
+    statisticsAllWeekInput.disabled = singleDivision;
+}
+
 async function submitStatisticsImport(event) {
     event.preventDefault();
     const fields = new FormData(statisticsImportForm);
@@ -126,10 +144,24 @@ async function submitStatisticsImport(event) {
     try {
         const file = await prepareStatisticsUpload(fields.get("file"));
         statisticsImportMessage.textContent = "Importando estadísticas...";
-        const response = await importOfficialStatistics(file);
+        const mode = statisticsImportMode.value;
+        let response;
+        if (mode === "division") {
+            response = await importDivisionStatistics(
+                Number(statisticsWeekInput.value),
+                statisticsBranchInput.value,
+                statisticsCategoryInput.value,
+                file
+            );
+        } else if (statisticsAllWeekInput.value) {
+            response = await importWeekStatistics(Number(statisticsAllWeekInput.value), file);
+        } else {
+            response = await importOfficialStatistics(file);
+        }
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
-        statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks.length} jornadas importados correctamente.`;
+        updateStatisticsImportMode();
+        statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks?.length ?? 1} jornada(s) importados correctamente.`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
     } catch (error) {
@@ -166,6 +198,8 @@ leaderboardForm.addEventListener("submit", loadLeaderboards);
 leaderboardCategory.addEventListener("change", updateLeaderboardBranchControl);
 if (statisticsImportForm) {
     statisticsImportForm.addEventListener("submit", submitStatisticsImport);
+    statisticsImportMode.addEventListener("change", updateStatisticsImportMode);
+    updateStatisticsImportMode();
 }
 updateLeaderboardBranchControl();
 loadLeaderboards();
