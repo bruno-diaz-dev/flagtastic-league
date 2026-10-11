@@ -797,3 +797,110 @@ def test_ambiguous_team_name_stops_import_instead_of_guessing():
     assert response.status_code == 422, response.text
     assert "Black Mamba" in response.json()["detail"]
     assert client.get("/api/weeks/1/player-stats").json() == []
+
+
+def test_u12_same_name_in_two_branches_uses_registered_match():
+    """The official opponent disambiguates Fem vs Mix U12 Nómadas."""
+    eagles = create_team("Eagles Flag", "mixto", "u12")
+    vikingos = create_team("Vikingos", "mixto", "u12")
+    mictlan = create_team("Mictlán Bats", "mixto", "u12")
+    rancheros = create_team("Rancheros", "mixto", "u12")
+    nomadas_mixto = create_team("Nómadas", "mixto", "u12")
+    # Legacy PROD has both names, but the public team creation API now
+    # normalizes unified U12 requests to "mixto". Reproduce the historic
+    # Femenil record directly, without loosening production validations.
+    connection = get_connection()
+    nomadas_fem = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category, status)
+        VALUES ('Nómadas', 'femenil', 'u12', 'active')
+        RETURNING id
+        """
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+    pitbulls = create_team("Pitbulls", "mixto", "u12")
+    diablos = create_team("Diablos del Sol", "mixto", "u12")
+    for team, jersey, label in [
+        (eagles, 28, "Eagles"),
+        (vikingos, 14, "Vikingos"),
+        (mictlan, 10, "Mictlan"),
+        (rancheros, 2, "Rancheros"),
+        (nomadas_mixto, 16, "Wrong Nomadas"),
+        (nomadas_fem, 15, "Right Nomadas"),
+        (pitbulls, 13, "Pitbulls"),
+        (diablos, 88, "Diablos"),
+    ]:
+        create_player(team, label, f"TESA010101HASXX{team % 1000:03d}", jersey)
+
+    pairs = [
+        (eagles, vikingos, 19, 41),
+        (mictlan, rancheros, 0, 12),
+        (nomadas_fem, pitbulls, 14, 0),
+        (diablos, rancheros, 18, 13),
+    ]
+    connection = get_connection()
+    for home, away, score_home, score_away in pairs:
+        connection.execute(
+            """
+            INSERT INTO games
+                (home_team_id, away_team_id, week, status, home_score, away_score)
+            VALUES (%s, %s, 1, 'completed', %s, %s)
+            """,
+            (home, away, score_home, score_away)
+        )
+    connection.commit()
+    connection.close()
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Hoja1"
+    sheet.append(["Equipo", "Categoría", "Estadística", 1])
+    labels = [
+        "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
+        "6 Puntos", "2 Puntos", "1 Puntos", "Intercepciones Pase",
+        "TD", "Conv 1", "Conv 2", "Sacks", "Tacleo",
+        "Intercepciones Def", "Asistencia"
+    ]
+    for name, jersey in [
+        ("Eagles Flag", 28), ("Vikingos", 14),
+        ("Mictlan Bats", 10), ("Rancheros", 2),
+        ("Nomadas", 15), ("Pitbulls", 13),
+        ("Diablos", 88), ("Rancheros", 2),
+    ]:
+        for label in labels:
+            sheet.append([
+                name, "U12", label,
+                jersey if label in ("Asistencia", "TD") else None,
+            ])
+    stream = BytesIO()
+    workbook.save(stream)
+    workbook.close()
+
+    for attempt in range(2):
+        response = client.post(
+            "/api/weeks/1/player-stats/import-division",
+            data={"branch": "mixto", "category": "u12"},
+            files={"file": ("Week 1 U12.xlsx", stream.getvalue())},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["imported"] == 8
+        assert response.json()["updated"] == (0 if attempt == 0 else 8)
+
+    stats = client.get("/api/weeks/1/player-stats").json()
+    assert len(stats) == 8
+    assert len([row for row in stats if row["team_name"] == "Rancheros"]) == 2
+    nomadas_rows = [row for row in stats if row["team_name"] == "Nómadas"]
+    assert len(nomadas_rows) == 1
+    assert nomadas_rows[0]["team_id"] == nomadas_fem
+    assert nomadas_rows[0]["jersey_number"] == 15
+    assert not any(row["team_id"] == nomadas_mixto for row in stats)
+
+    connection = get_connection()
+    scores = connection.execute(
+        "SELECT home_score, away_score FROM games WHERE week = 1 ORDER BY id"
+    ).fetchall()
+    connection.close()
+    assert [(game["home_score"], game["away_score"]) for game in scores] == [
+        (19, 41), (0, 12), (14, 0), (18, 13)
+    ]

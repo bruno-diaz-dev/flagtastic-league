@@ -57,6 +57,96 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 ),
                 category=division[1]
             )
+        # An official game pair is stronger evidence than the branch assumed
+        # from an unqualified Excel label ("U12" defaults to "mixto").
+        # Resolve both opponents against registered matches for that week;
+        # this disambiguates homonymous cross-branch youth teams such as the
+        # two U12 Nómadas, without changing either team or the Excel.
+        recorded_game_pairs = {}
+        if link_existing_games_only and games:
+            teams_by_id = {team["id"]: team for team in teams}
+            registered_games = connection.execute(
+                """
+                SELECT id, week, home_team_id, away_team_id
+                FROM games
+                WHERE week = ANY(%s) AND NOT is_friendly
+                ORDER BY id
+                """,
+                (list(games),),
+            ).fetchall()
+            claimed_games = set()
+            for week, source_games in games.items():
+                for game_index, source_game in enumerate(source_games):
+                    category = source_game["category"]
+                    branch = (
+                        None if category_allows_cross_branch_games(category)
+                        else source_game["branch"]
+                    )
+                    candidates = []
+                    for official_game in registered_games:
+                        if (official_game["week"] != week
+                                or official_game["id"] in claimed_games
+                                or official_game["home_team_id"] not in teams_by_id
+                                or official_game["away_team_id"] not in teams_by_id):
+                            continue
+                        participants = [
+                            teams_by_id[official_game["home_team_id"]],
+                            teams_by_id[official_game["away_team_id"]],
+                        ]
+                        home = match_team_name(
+                            source_game["home_team"], participants,
+                            branch=branch, category=category,
+                        )
+                        away = match_team_name(
+                            source_game["away_team"], participants,
+                            branch=branch, category=category,
+                        )
+                        if home and away and home["id"] != away["id"]:
+                            candidates.append((official_game, home, away))
+                    if not candidates:
+                        raise StatisticsValidationError(
+                            f"Jornada {week}: el partido #{game_index + 1} "
+                            f"({source_game['home_team']} vs "
+                            f"{source_game['away_team']}) no coincide con un "
+                            "encuentro registrado. No se modificaron datos."
+                        )
+                    distinct_pairs = {
+                        tuple(sorted((home["id"], away["id"])))
+                        for _, home, away in candidates
+                    }
+                    if len(distinct_pairs) > 1:
+                        raise StatisticsValidationError(
+                            f"Jornada {week}: el partido #{game_index + 1} "
+                            "coincide con varios encuentros distintos. "
+                            "Revisa el rol oficial antes de importar."
+                        )
+                    official_game, home, away = candidates[0]
+                    claimed_games.add(official_game["id"])
+                    recorded_game_pairs[(week, game_index)] = (home, away)
+
+        def resolve_stats_team(row, week):
+            game_index = row.get("game_index")
+            pair = recorded_game_pairs.get((week, game_index))
+            if pair:
+                branch = (
+                    None if category_allows_cross_branch_games(row["category"])
+                    else row["branch"]
+                )
+                matched = match_team_name(
+                    row["team"], pair,
+                    branch=branch, category=row["category"],
+                )
+                if matched:
+                    return matched
+                raise StatisticsValidationError(
+                    f"Jornada {week}, partido #{game_index + 1}: "
+                    f"no se pudo identificar '{row['team']}' "
+                    "entre los dos equipos del encuentro registrado."
+                )
+            return resolve_team(
+                row["team"], row["branch"], row["category"]
+            )
+
         resolved_weeks = {}
         skipped = []
         preserved_weeks = []
@@ -64,9 +154,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             resolved_rows = []
             seen_memberships = set()
             for row_number, row in enumerate(rows, start=2):
-                team = resolve_team(
-                    row["team"], row["branch"], row["category"]
-                )
+                team = resolve_stats_team(row, week)
                 if team is None:
                     possibilities = rank_team_matches(
                         row["team"], teams, row["branch"], row["category"]
@@ -123,12 +211,16 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         for week, week_games in (games or {}).items():
             for game_index, game in enumerate(week_games):
                 game = {**game, "game_index": game_index}
-                home = resolve_team(
-                    game["home_team"], game["branch"], game["category"]
-                )
-                away = resolve_team(
-                    game["away_team"], game["branch"], game["category"]
-                )
+                pair = recorded_game_pairs.get((week, game_index))
+                if pair:
+                    home, away = pair
+                else:
+                    home = resolve_team(
+                        game["home_team"], game["branch"], game["category"]
+                    )
+                    away = resolve_team(
+                        game["away_team"], game["branch"], game["category"]
+                    )
                 if home is None or away is None:
                     missing = game["home_team"] if home is None else game["away_team"]
                     raise StatisticsValidationError(
