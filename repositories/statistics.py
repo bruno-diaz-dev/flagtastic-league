@@ -203,7 +203,7 @@ def import_statistics_workbook(weeks, games=None):
                     """
                     SELECT id, game_id FROM player_week_stats
                     WHERE week = %s AND team_id = %s AND player_id = %s
-                      AND (%s IS NULL OR game_id = %s OR game_id IS NULL)
+                      AND (%s::integer IS NULL OR game_id = %s OR game_id IS NULL)
                     ORDER BY id FOR UPDATE
                     """,
                     (week, team["id"], player["id"], game_id, game_id)
