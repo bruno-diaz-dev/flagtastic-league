@@ -85,7 +85,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     candidates = []
                     for official_game in registered_games:
                         if (official_game["week"] != week
-                                or official_game["id"] in claimed_games):
+                                or official_game["id"] in claimed_games
+                                or official_game["home_team_id"] not in teams_by_id
+                                or official_game["away_team_id"] not in teams_by_id):
                             continue
                         participants = [
                             teams_by_id[official_game["home_team_id"]],
