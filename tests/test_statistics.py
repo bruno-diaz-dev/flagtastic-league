@@ -634,3 +634,109 @@ def test_official_workbook_does_not_overwrite_completed_game_scores():
     game = client.get("/api/games").json()[0]
     assert game["home_score"] == 21
     assert game["away_score"] == 0
+
+
+def create_single_sheet_u14_workbook():
+    """Real-file shape: Hoja1 with 15 events per team, category U14 Fem."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Hoja1"
+    sheet.append(["Equipo", "Categoría", "Estadística", 1, 2, 3])
+    labels = [
+        "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
+        "6 Puntos", "2 Puntos", "1 Puntos", "Intercepciones Pase",
+        "TD", "Conv 1", "Conv 2", "Sacks", "Tacleo",
+        "Intercepciones Def", "Asistencia"
+    ]
+    for team, jersey, touchdowns in (
+        ("Lobos", 7, 1), ("Ducks", 4, 0),
+        ("Lobos", 7, 2), ("Pitbulls", 9, 0)
+    ):
+        for label in labels:
+            events = (
+                [jersey] * touchdowns if label == "TD"
+                else [jersey] if label == "Asistencia"
+                else [jersey, jersey] if label == "Intentos Pase"
+                else []
+            )
+            sheet.append([team, "U14 Fem", label, *events])
+    data = BytesIO()
+    workbook.save(data)
+    workbook.close()
+    return data.getvalue()
+
+
+def test_single_sheet_week1_fem_u14_links_existing_games_without_changing_scores():
+    lobos = create_team("Lobos", "femenil", "u14")
+    ducks = create_team("Ducks", "femenil", "u14")
+    pitbulls = create_team("Pitbulls", "femenil", "u14")
+    create_player(lobos, "Lobos QB", "LQBB010101MASXX004", 7)
+    create_player(ducks, "Ducks Player", "DUPC010101MASXX005", 4)
+    create_player(pitbulls, "Pitbulls Player", "PITC010101MASXX006", 9)
+    connection = get_connection()
+    first_id = connection.execute(
+        """INSERT INTO games (home_team_id, away_team_id, week, status,
+             home_score, away_score) VALUES (%s, %s, 1, 'completed', 21, 6)
+             RETURNING id""", (lobos, ducks)
+    ).fetchone()["id"]
+    second_id = connection.execute(
+        """INSERT INTO games (home_team_id, away_team_id, week, status,
+             home_score, away_score) VALUES (%s, %s, 1, 'completed', 12, 13)
+             RETURNING id""", (pitbulls, lobos)
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+
+    content = create_single_sheet_u14_workbook()
+    for attempt in range(2):
+        imported = client.post(
+            "/api/weeks/1/player-stats/import-division",
+            data={"branch": "femenil", "category": "u14"},
+            files={"file": ("Week 1 U14 Femenil.xlsx", content)},
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["imported"] == 4
+        assert imported.json()["updated"] == (0 if attempt == 0 else 4)
+
+    saved = client.get("/api/weeks/1/player-stats").json()
+    lobos_rows = [row for row in saved if row["player_name"] == "Lobos QB"]
+    assert len(lobos_rows) == 2
+    assert {row["game_id"] for row in lobos_rows} == {first_id, second_id}
+    assert sum(row["points"] for row in lobos_rows) == 18
+    assert sum(row["passes_attempted"] for row in lobos_rows) == 4
+
+    connection = get_connection()
+    games = connection.execute(
+        "SELECT id, home_score, away_score FROM games ORDER BY id"
+    ).fetchall()
+    connection.close()
+    assert [(g["id"], g["home_score"], g["away_score"]) for g in games] == [
+        (first_id, 21, 6), (second_id, 12, 13)
+    ]
+
+
+def test_single_sheet_week2_fails_when_matches_only_exist_in_week1():
+    lobos = create_team("Lobos", "femenil", "u14")
+    ducks = create_team("Ducks", "femenil", "u14")
+    pitbulls = create_team("Pitbulls", "femenil", "u14")
+    create_player(lobos, "Lobos QB", "LQBB010101MASXX004", 7)
+    create_player(ducks, "Ducks Player", "DUPC010101MASXX005", 4)
+    create_player(pitbulls, "Pitbulls Player", "PITC010101MASXX006", 9)
+    connection = get_connection()
+    connection.execute(
+        "INSERT INTO games (home_team_id, away_team_id, week) VALUES (%s, %s, 1)",
+        (lobos, ducks)
+    )
+    connection.execute(
+        "INSERT INTO games (home_team_id, away_team_id, week) VALUES (%s, %s, 1)",
+        (pitbulls, lobos)
+    )
+    connection.commit()
+    connection.close()
+    imported = client.post(
+        "/api/weeks/2/player-stats/import-division",
+        data={"branch": "femenil", "category": "u14"},
+        files={"file": ("Week 1 U14 Femenil.xlsx", create_single_sheet_u14_workbook())},
+    )
+    assert imported.status_code == 422, imported.text
+    assert client.get("/api/weeks/2/player-stats").json() == []
