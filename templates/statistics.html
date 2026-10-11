@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/statistics.css?v=20261005-1">
+<link rel="stylesheet" href="/static/statistics.css?v=20261011-1">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -15,14 +15,60 @@
         <details class="ui-disclosure"><summary>Cargar estadísticas individuales<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="statistics-import-form" class="stats-import-form">
             <label>
-                Archivo oficial de estadísticas (.xlsx)
+                Tipo de carga
+                <select id="statistics-import-mode" name="mode">
+                    <option value="division">Una rama y categoría</option>
+                    <option value="all">Archivo completo (varias categorías)</option>
+                </select>
+            </label>
+            <div id="statistics-division-fields" class="stats-import-options">
+                <label>
+                    Jornada
+                    <input id="statistics-import-week" name="week" type="number" min="1" step="1" value="2" required>
+                </label>
+                <label>
+                    Rama
+                    <select id="statistics-import-branch" name="branch" required>
+                        <option value="femenil">Femenil</option>
+                        <option value="varonil">Varonil</option>
+                        <option value="mixto">Mixto</option>
+                    </select>
+                </label>
+                <label>
+                    Categoría
+                    <select id="statistics-import-category" name="category" required>
+                        <option value="u6">U6</option>
+                        <option value="u8">U8</option>
+                        <option value="u10">U10</option>
+                        <option value="u12">U12</option>
+                        <option value="u14" selected>U14</option>
+                        <option value="u16">U16</option>
+                        <option value="u18">U18</option>
+                        <option value="libre">Libre</option>
+                    </select>
+                </label>
+                <p class="form-help">
+                    Solo se sustituirán las estadísticas de esta rama y categoría durante la jornada seleccionada.
+                    En U8, U10 y U12 se considera la categoría unificada.
+                </p>
+            </div>
+            <div id="statistics-all-fields" class="stats-import-options" hidden>
+                <label>
+                    Jornada (solo para plantillas compactas)
+                    <input id="statistics-import-all-week" name="all_week" type="number" min="1" step="1" placeholder="Opcional">
+                </label>
+                <p class="form-help">
+                    Para un Excel oficial con hojas Wk1, Wk2, etc., deja la jornada vacía.
+                    Si tienes una plantilla compacta con varias categorías, indica su jornada.
+                    Las categorías no incluidas conservarán sus estadísticas anteriores.
+                </p>
+            </div>
+            <label>
+                Archivo de estadísticas (.xlsx)
                 <input name="file" type="file" accept=".xlsx" required>
             </label>
             <button type="submit">Importar estadísticas</button>
         </form>
-        <p class="form-help">
-            Se importarán todas las hojas Wk y se sustituirán esas jornadas.
-        </p>
         <a class="secondary-action" href="/api/statistics/import-template">
             Descargar plantilla Excel
         </a>
@@ -69,8 +115,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261001-2"></script>
+<script src="/static/api.js?v=20261011-1"></script>
 <script src="/static/statistics_upload.js?v=20261007-1"></script>
-<script src="/static/statistics.js?v=20261007-2"></script>
+<script src="/static/statistics.js?v=20261011-1"></script>
 {% endblock %}
 
