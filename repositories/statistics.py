@@ -118,7 +118,20 @@ def import_statistics_workbook(weeks, games=None):
                     raise StatisticsValidationError(
                         f"Jornada {week}: no existe el equipo {missing} en esa division"
                     )
-                if week not in preserved_weeks:
+                # Only import games for divisions with valid statistics.
+                # A missing jersey in another division must not alter its games.
+                game_division = (
+                    home["category"],
+                    None if category_allows_cross_branch_games(home["category"])
+                    else home["branch"],
+                )
+                imported_divisions = {
+                    (team["category"],
+                     None if category_allows_cross_branch_games(team["category"])
+                     else team["branch"])
+                    for _, team, _ in resolved_weeks.get(week, [])
+                }
+                if game_division in imported_divisions:
                     resolved_games.append((week, home["id"], away["id"], game))
 
         # Replace only the divisions represented by valid rows in this file.
@@ -182,10 +195,14 @@ def import_statistics_workbook(weeks, games=None):
                      game["away_score"], week)
                 ).fetchone()
             else:
+                # Never overwrite an official completed scoreboard when importing
+                # player statistics; the referee/admin result remains authoritative.
                 saved_game = connection.execute(
                     """
                     UPDATE games
-                    SET home_score = %s, away_score = %s, status = 'completed'
+                    SET home_score = CASE WHEN status = 'completed' THEN home_score ELSE %s END,
+                        away_score = CASE WHEN status = 'completed' THEN away_score ELSE %s END,
+                        status = 'completed'
                     WHERE id = %s RETURNING id
                     """,
                     (game["home_score"], game["away_score"], existing["id"])
