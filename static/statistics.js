@@ -80,7 +80,9 @@ function renderLeaderboards(leaderboards) {
                         }</td>
                     </tr>
                 `).join("")
-                : `<tr><td colspan="3">Sin estadísticas registradas.</td></tr>`;
+                : `<tr><td colspan="3">${metric === "completion_percentage"
+                    ? `Sin pasadores con ${leaderboards.passing_qualification?.minimum_attempts ?? 15} intentos acumulados.`
+                    : "Sin estadísticas registradas."}</td></tr>`;
 
             return `
                 <section class="leaderboard-panel">
@@ -161,7 +163,7 @@ async function submitStatisticsImport(event) {
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
         updateStatisticsImportMode();
-        statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks?.length ?? 1} jornada(s) importados correctamente.`;
+        statisticsImportMessage.textContent = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados) en ${data.weeks?.length ?? 1} jornada(s).`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
     } catch (error) {
