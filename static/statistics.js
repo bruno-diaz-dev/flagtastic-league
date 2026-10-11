@@ -75,7 +75,7 @@ function renderLeaderboards(leaderboards) {
                         <td>${leaderboardIdentity(leader)}</td>
                         <td class="stat-value">${
                             metric === "completion_percentage"
-                                ? `<strong>${leader.value}%</strong><small class="leaderboard-pass-detail">${leader.passes_completed}/${leader.passes_attempted} C/I</small>`
+                                ? `<strong>${leader.value}%</strong><small class="leaderboard-pass-detail">${leader.passes_completed}/${leader.passes_attempted} completos/intentos</small>`
                                 : `<strong>${leader.value}</strong>`
                         }</td>
                     </tr>
