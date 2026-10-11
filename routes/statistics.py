@@ -2,7 +2,7 @@
 
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 
@@ -21,6 +21,8 @@ from services.statistics_import import (
     parse_statistics_workbook
 )
 from dependencies.auth import require_league_admin
+from models import ALLOWED_BRANCHES, ALLOWED_CATEGORIES
+from services.divisions import category_allows_cross_branch_games
 
 
 router = APIRouter(tags=["statistics"])
@@ -95,6 +97,49 @@ async def import_statistics(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
     return imported
+
+
+@router.post("/api/weeks/{week}/player-stats/import-division")
+async def import_division_statistics(
+    week: int,
+    branch: str = Form(...),
+    category: str = Form(...),
+    file: UploadFile = File(...),
+    _user=Depends(require_league_admin),
+):
+    """Replace just one division of a week, leaving other divisions intact."""
+    branch = branch.strip().lower()
+    category = category.strip().lower()
+    if week < 1:
+        raise HTTPException(status_code=422, detail="La jornada debe ser mayor a cero")
+    if branch not in ALLOWED_BRANCHES or category not in ALLOWED_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Rama o categoría inválida")
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=415, detail="Se requiere un archivo .xlsx")
+
+    content = await file.read(MAX_WORKBOOK_BYTES + 1)
+    if len(content) > MAX_WORKBOOK_BYTES:
+        raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
+    try:
+        weeks = parse_statistics_workbook(content, selected_week=week)
+        rows = weeks[week]
+        if any(
+            row["category"] != category
+            or (
+                not category_allows_cross_branch_games(category)
+                and row["branch"] != branch
+            )
+            for row in rows
+        ):
+            raise StatisticsFileError(
+                "El archivo contiene otras categorías o ramas. "
+                "Usa Archivo completo o selecciona la división correcta."
+            )
+        # Statistics-only: never infer or overwrite match scores from this form.
+        imported = import_week_statistics(week, rows)
+    except (StatisticsFileError, StatisticsValidationError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"weeks": [week], **imported}
 
 
 @router.post("/api/statistics/import")
