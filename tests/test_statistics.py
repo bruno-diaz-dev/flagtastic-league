@@ -516,14 +516,14 @@ def test_leaderboards_share_places_and_keep_ties_at_cutoff():
     ], 1):
         create_player(team, f'Tied Player {index}', f'TIED{index:014d}', index)
         rows.append(['varonil', 'libre', 'Tied Leaders', index,
-                     points, 0, 0, 0, 0, completed, attempted])
+                     points, 0, 0, 0, 0, completed * 8, attempted * 8])
     assert upload_week(1, rows).status_code == 200
     leaders = client.get(
         '/api/statistics/leaderboards?branch=varonil&category=libre'
     ).json()
     assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
     assert [row['rank'] for row in leaders['completion_percentage']] == [1, 1, 1, 4, 5, 5]
-    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [6, 4, 2]
+    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [48, 32, 16]
 
 
 def test_single_division_upload_preserves_other_divisions_in_same_week():
@@ -575,7 +575,7 @@ def test_single_division_rejects_mixed_file_without_deleting_stats():
     assert saved[0]["points"] == 6
 
 
-def test_compact_bulk_upload_only_replaces_included_divisions():
+def test_compact_bulk_upload_preserves_unmentioned_divisions():
     create_rosters()
     assert upload_week(2, [
         ["femenil", "u18", "Panteras", 7, 6, 1, 0, 0, 0, 0, 0],
