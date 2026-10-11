@@ -14,8 +14,8 @@ class StatisticsValidationError(Exception):
     """Raised when imported statistics conflict with league data."""
 
 
-def import_statistics_workbook(weeks, games=None):
-    """Merge weekly player stats without duplicating a player-game on reimport."""
+def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=False):
+    """Merge player-game stats; optional stats-only mode keeps games unchanged."""
     connection = get_connection()
     try:
         # Serialize with live start/finish before replacing any weekly rows.
@@ -140,20 +140,42 @@ def import_statistics_workbook(weeks, games=None):
         game_ids = {}
         used_existing_game_ids = set()
         for week, home_team_id, away_team_id, game in resolved_games:
-            existing_candidates = connection.execute(
-                """
-                SELECT id FROM games
-                WHERE week = %s AND home_team_id = %s AND away_team_id = %s AND NOT is_friendly
-                ORDER BY id
-                """,
-                (week, home_team_id, away_team_id)
-            ).fetchall()
+            if link_existing_games_only:
+                # A statistics upload must link to an existing match without
+                # creating games or guessing/overwriting its final score.
+                existing_candidates = connection.execute(
+                    """
+                    SELECT id FROM games
+                    WHERE week = %s AND NOT is_friendly
+                      AND ((home_team_id = %s AND away_team_id = %s)
+                        OR (home_team_id = %s AND away_team_id = %s))
+                    ORDER BY id
+                    """,
+                    (week, home_team_id, away_team_id,
+                     away_team_id, home_team_id)
+                ).fetchall()
+            else:
+                existing_candidates = connection.execute(
+                    """
+                    SELECT id FROM games
+                    WHERE week = %s AND home_team_id = %s
+                      AND away_team_id = %s AND NOT is_friendly
+                    ORDER BY id
+                    """,
+                    (week, home_team_id, away_team_id)
+                ).fetchall()
             existing = next(
                 (candidate for candidate in existing_candidates
                  if candidate["id"] not in used_existing_game_ids),
                 None
             )
             if existing is None:
+                if link_existing_games_only:
+                    raise StatisticsValidationError(
+                        f"Jornada {week}: el partido #{game['game_index'] + 1} "
+                        "no coincide con un encuentro registrado. "
+                        "No se crearon partidos ni se cambiaron marcadores."
+                    )
                 saved_game = connection.execute(
                     """
                     INSERT INTO games (
@@ -165,6 +187,8 @@ def import_statistics_workbook(weeks, games=None):
                     (home_team_id, away_team_id, game["home_score"],
                      game["away_score"], week)
                 ).fetchone()
+            elif link_existing_games_only:
+                saved_game = existing
             else:
                 # Never overwrite an official completed scoreboard when importing
                 # player statistics; the referee/admin result remains authoritative.
@@ -289,11 +313,12 @@ def import_statistics_workbook(weeks, games=None):
         connection.close()
 
 
-def import_week_statistics(week, rows, games=None):
-    """Compatibility wrapper for a compact single-jornada workbook."""
+def import_week_statistics(week, rows, games=None, *, link_existing_games_only=False):
+    """Import one jornada; match existing games for stats-only official sheets."""
     return import_statistics_workbook(
         {week: rows},
-        {week: games} if games is not None else None
+        {week: games} if games is not None else None,
+        link_existing_games_only=link_existing_games_only,
     )
 
 
