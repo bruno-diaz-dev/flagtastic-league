@@ -135,8 +135,19 @@ async def import_division_statistics(
                 "El archivo contiene otras categorías o ramas. "
                 "Usa Archivo completo o selecciona la división correcta."
             )
-        # Statistics-only: never infer or overwrite match scores from this form.
-        imported = import_week_statistics(week, rows)
+        # Official Wk or Hoja1 blocks identify individual games, including
+        # doubleheaders. Compact files have no game blocks and remain valid.
+        try:
+            games = parse_games_workbook(content, selected_week=week)
+        except StatisticsFileError as error:
+            if str(error) != "El archivo no contiene partidos por jornada":
+                raise
+            games = None
+        imported = import_week_statistics(
+            week, rows,
+            games[week] if games else None,
+            link_existing_games_only=True,
+        )
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {"weeks": [week], **imported}
