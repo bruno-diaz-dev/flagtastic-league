@@ -806,7 +806,19 @@ def test_u12_same_name_in_two_branches_uses_registered_match():
     mictlan = create_team("Mictlán Bats", "mixto", "u12")
     rancheros = create_team("Rancheros", "mixto", "u12")
     nomadas_mixto = create_team("Nómadas", "mixto", "u12")
-    nomadas_fem = create_team("Nómadas", "femenil", "u12")
+    # Legacy PROD has both names, but the public team creation API now
+    # normalizes unified U12 requests to "mixto". Reproduce the historic
+    # Femenil record directly, without loosening production validations.
+    connection = get_connection()
+    nomadas_fem = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category, status)
+        VALUES ('Nómadas', 'femenil', 'u12', 'active')
+        RETURNING id
+        """
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
     pitbulls = create_team("Pitbulls", "mixto", "u12")
     diablos = create_team("Diablos del Sol", "mixto", "u12")
     for team, jersey, label in [
