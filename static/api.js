@@ -269,6 +269,17 @@ async function importWeekStatistics(week, file) {
     });
 }
 
+async function importDivisionStatistics(week, branch, category, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("branch", branch);
+    formData.append("category", category);
+    return fetch(`/api/weeks/${week}/player-stats/import-division`, {
+        method: "POST",
+        body: formData
+    });
+}
+
 async function importOfficialStatistics(file) {
     const formData = new FormData();
     formData.append("file", file);

@@ -18,3 +18,10 @@
     .leaderboard-table .leaderboard-photo { width: 30px; height: 30px; margin: 0; }
     .leaderboard-table .leaderboard-team { margin-left: 0; font-size: 11px; line-height: 1.4; }
 }
+
+/* Both statistics import modes remain usable on narrow phone screens. */
+.stats-import-options { display: grid; gap: 12px; min-width: 0; }
+.stats-import-options[hidden] { display: none; }
+.stats-import-options label { min-width: 0; }
+.stats-import-options input,
+.stats-import-options select { width: 100%; max-width: 100%; }

@@ -34,6 +34,9 @@ async function readStatisticsImportResponse(response) {
     if (!response.ok) {
         throw new Error(typeof data?.detail === 'string' ? data.detail : 'No se pudo importar el archivo. Intenta nuevamente.');
     }
-    if (!data || !Array.isArray(data.weeks)) throw new Error('El servidor devolvio una respuesta inesperada.');
+    if (!data || !Number.isInteger(data.imported) ||
+        (data.weeks !== undefined && !Array.isArray(data.weeks))) {
+        throw new Error('El servidor devolvio una respuesta inesperada.');
+    }
     return data;
 }
