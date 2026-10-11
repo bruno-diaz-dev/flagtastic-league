@@ -302,3 +302,45 @@ def test_admin_attendance_after_manual_result_preserves_score_and_statistics():
     snapshot = client.get(path).json()
     assert (snapshot["home_score"], snapshot["away_score"]) == (19, 6)
     assert not next(r for r in snapshot["attendance"] if r["player_id"] == players[0][0])["present"]
+
+
+def test_started_game_can_be_postponed_without_losing_capture_and_resumed():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    login(client, users["referee"])
+    assert client.post(path + "/start").status_code == 200
+    play = event(teams[0], players[0][0])
+    assert client.post(path + "/events", json=play).status_code == 201
+    before = client.get(path).json()
+    login(client, users["league_admin"])
+    assert client.patch(f"/api/games/{game_id}/status", json={"status": "postponed"}).status_code == 200
+    suspended = client.get(path).json()
+    assert suspended["state"] == "postponed"
+    assert suspended["home_score"] == before["home_score"]
+    assert suspended["version"] == before["version"] + 1
+    login(client, users["referee"])
+    assert client.post(path + "/events", json=event(teams[1], players[1][0])).status_code == 409
+    assert client.post(path + "/finish", json={"expected_version": suspended["version"]}).status_code == 409
+    login(client, users["league_admin"])
+    assert client.patch(f"/api/games/{game_id}/status", json={"status": "scheduled"}).status_code == 200
+    resumed = client.get(path).json()
+    assert resumed["state"] == "live"
+    assert resumed["version"] == before["version"] + 2
+    assert resumed["home_score"] == before["home_score"]
+    login(client, users["referee"])
+    assert client.post(path + "/finish", json={"expected_version": before["version"]}).status_code == 409
+    assert client.post(path + "/events", json=event(teams[1], players[1][0])).status_code == 201
+
+
+def test_week_postponement_includes_started_games():
+    client, game_id, teams, players, users = setup_match()
+    path = f"/api/games/{game_id}/live"
+    with get_connection() as connection:
+        connection.execute("UPDATE games SET week = 9876 WHERE id = %s", (game_id,))
+    login(client, users["referee"])
+    assert client.post(path + "/start").status_code == 200
+    login(client, users["league_admin"])
+    response = client.patch('/api/games/week/9876/status', json={"status": "postponed"})
+    assert response.status_code == 200
+    assert response.json()["updated"] == 1
+    assert client.get(path).json()["state"] == "postponed"

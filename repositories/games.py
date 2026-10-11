@@ -307,16 +307,9 @@ def update_game_status(game_id, status):
     connection = get_connection()
     try:
         connection.execute("SELECT id FROM games WHERE id = %s FOR UPDATE", (game_id,))
-        if connection.execute(
-            "SELECT 1 FROM game_live_sessions WHERE game_id = %s AND state = 'live'",
-            (game_id,),
-        ).fetchone():
-            raise GameStateConflictError(
-                "El partido está en vivo. Usa la captura en vivo para finalizarlo."
-            )
         game = connection.execute(
             """
-            SELECT id, home_score, away_score
+            SELECT id, status, home_score, away_score
             FROM games
             WHERE id = %s
             FOR UPDATE
@@ -334,6 +327,11 @@ def update_game_status(game_id, status):
             "UPDATE games SET status = %s WHERE id = %s RETURNING id, status",
             (status, game_id),
         ).fetchone()
+        if game["status"] != status:
+            connection.execute(
+                "UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s AND state = 'live'",
+                (game_id,),
+            )
         connection.commit()
         return dict(updated)
     except Exception:
@@ -378,11 +376,11 @@ def delete_games_by_week(week):
 
 
 def update_games_status_by_week(week, status):
-    """Change every unplayed game in a jornada without altering final results."""
+    """Change unfinished games, including live capture, without altering results."""
     connection = get_connection()
     try:
-        # A concurrent live start must become visible before deciding which
-        # games may be postponed; serialize the bulk operation with capture.
+        # Serialize postponement/restoration with capture and final publication.
+        # Live events remain intact; postponed games reject further writes.
         connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
         existing = connection.execute(
             "SELECT COUNT(*) AS total FROM games WHERE week = %s",
@@ -398,14 +396,16 @@ def update_games_status_by_week(week, status):
             WHERE week = %s
               AND home_score IS NULL
               AND away_score IS NULL
-              AND NOT EXISTS (
-                  SELECT 1 FROM game_live_sessions live
-                  WHERE live.game_id = games.id AND live.state = 'live'
-              )
+              AND status <> %s
             RETURNING id
             """,
-            (status, week),
+            (status, week, status),
         ).fetchall()
+        if updated:
+            connection.execute(
+                "UPDATE game_live_sessions SET version = version + 1 WHERE game_id = ANY(%s) AND state = 'live'",
+                ([row["id"] for row in updated],),
+            )
         connection.commit()
         return len(updated)
     except Exception:
