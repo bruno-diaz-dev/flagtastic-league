@@ -351,7 +351,7 @@ def test_unknown_team_still_rolls_back_after_skipped_number():
     assert client.get("/api/weeks/1/player-stats").json()[0]["points"] == 12
 
 
-def test_a_new_upload_replaces_the_complete_week():
+def test_reimport_updates_one_player_without_clearing_teammates_or_rivals():
     create_rosters()
     upload_week(1, [
         ["varonil", "libre", "Tigres", 83, 6, 1, 0, 0, 0, 1, 2],
@@ -361,9 +361,69 @@ def test_a_new_upload_replaces_the_complete_week():
         ["varonil", "libre", "Tigres", 83, 18, 3, 0, 0, 0, 2, 3]
     ])
     saved = client.get("/api/weeks/1/player-stats").json()
-    assert len(saved) == 1
-    assert saved[0]["player_name"] == "Bruno Diaz"
-    assert saved[0]["points"] == 18
+    assert len(saved) == 2
+    assert {row["player_name"]: row["points"] for row in saved} == {
+        "Bruno Diaz": 18, "Jose Perez": 6
+    }
+
+
+def test_import_accumulates_across_weeks_and_repeated_file_is_idempotent():
+    player_id, _, _ = create_rosters()
+    first = [["varonil", "libre", "Tigres", 83, 12, 2, 0, 0, 0, 7, 14]]
+    second = [["varonil", "libre", "Tigres", 83, 18, 3, 0, 0, 0, 1, 1]]
+    assert upload_week(1, first).status_code == 200
+    assert upload_week(2, second).status_code == 200
+
+    passing_url = "/api/statistics/leaderboards?branch=varonil&category=libre"
+    before = client.get(passing_url).json()
+    assert before["passing_qualification"]["minimum_attempts"] == 15
+    assert before["completion_percentage"][0]["passes_attempted"] == 15
+    assert before["completion_percentage"][0]["passes_completed"] == 8
+    assert before["points"][0]["value"] == 30
+
+    duplicate = upload_week(2, second)
+    assert duplicate.status_code == 200
+    assert duplicate.json()["updated"] == 1
+    assert duplicate.json()["created"] == 0
+    saved = client.get(f"/api/players/{player_id}/stats").json()
+    assert saved["points"] == 30
+    assert saved["passes_attempted"] == 15
+    assert len(client.get("/api/weeks/2/player-stats").json()) == 1
+
+
+def test_passers_under_fifteen_total_attempts_are_not_ranked():
+    team = create_team("Lobos", "varonil", "libre")
+    create_player(team, "Few Attempts", "FEWA010101HASXX001", 4)
+    create_player(team, "Eligible", "ELIG010101HASXX002", 5)
+    assert upload_week(1, [
+        ["varonil", "libre", "Lobos", 4, 6, 0, 0, 0, 0, 14, 14],
+        ["varonil", "libre", "Lobos", 5, 6, 0, 0, 0, 0, 10, 15],
+    ]).status_code == 200
+    result = client.get(
+        "/api/statistics/leaderboards?branch=varonil&category=libre"
+    ).json()
+    assert [row["player_name"] for row in result["completion_percentage"]] == [
+        "Eligible"
+    ]
+    assert result["passing_qualification"]["minimum_attempts"] == 15
+
+
+def test_reimport_official_workbook_keeps_doubleheader_games_distinct():
+    kittys = create_team("Kittys", "mixto", "libre")
+    diablos = create_team("Diablos", "mixto", "libre")
+    apxgp = create_team("APXGP", "mixto", "libre")
+    create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
+    create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
+    create_player(apxgp, "APXGP Three", "APXX010101HASXX003", 3)
+    excel = create_doubleheader_workbook()
+    for _ in range(2):
+        response = client.post(
+            "/api/statistics/import", files={"file": ("week5.xlsx", excel)}
+        )
+        assert response.status_code == 200, response.text
+    stats = client.get("/api/weeks/5/player-stats").json()
+    assert len([row for row in stats if row["player_name"] == "Diablos Two"]) == 2
+    assert len(stats) == 4
 
 
 def test_import_rejects_non_excel_file_and_invalid_week():
@@ -402,7 +462,8 @@ def test_leaderboards_limit_results_and_apply_passing_threshold():
         "/api/statistics/leaderboards?branch=varonil&category=libre"
     ).json()
     assert len(leaders["points"]) == 5
-    assert leaders["passing_qualification"]["minimum_attempts"] == 0
+    assert leaders["passing_qualification"]["minimum_attempts"] == 15
+    assert leaders["completion_percentage"] == []
 
     qualifying = rows[0].copy()
     qualifying[-2:] = [29, 38]
@@ -411,7 +472,7 @@ def test_leaderboards_limit_results_and_apply_passing_threshold():
         "/api/statistics/leaderboards?branch=varonil&category=libre"
     ).json()
     assert leaders["passing_qualification"] == {
-        "latest_week": 4, "minimum_attempts": 30
+        "latest_week": 4, "minimum_attempts": 15
     }
     assert leaders["completion_percentage"][0]["player_name"] == "Player 1"
     assert "player_aka" in leaders["completion_percentage"][0]
