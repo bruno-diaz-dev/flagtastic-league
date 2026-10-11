@@ -121,12 +121,38 @@ def import_statistics_workbook(weeks, games=None):
                 if week not in preserved_weeks:
                     resolved_games.append((week, home["id"], away["id"], game))
 
-        # Validation finishes before deleting anything, so a bad row leaves all
-        # previously published jornadas untouched.
-        connection.execute(
-            "DELETE FROM player_week_stats WHERE week = ANY(%s)",
-            (list(resolved_weeks),)
-        )
+        # Replace only the divisions represented by valid rows in this file.
+        # A partial upload must never clear other categories from the week.
+        # Unified youth divisions (U8/U10/U12) span all legacy branches.
+        for week, resolved_rows in resolved_weeks.items():
+            divisions = {
+                (team["category"],
+                 None if category_allows_cross_branch_games(team["category"])
+                 else team["branch"])
+                for _, team, _ in resolved_rows
+            }
+            for category, branch in divisions:
+                if branch is None:
+                    connection.execute(
+                        """
+                        DELETE FROM player_week_stats
+                        WHERE week = %s AND team_id IN (
+                            SELECT id FROM teams WHERE category = %s
+                        )
+                        """,
+                        (week, category),
+                    )
+                else:
+                    connection.execute(
+                        """
+                        DELETE FROM player_week_stats
+                        WHERE week = %s AND team_id IN (
+                            SELECT id FROM teams
+                            WHERE category = %s AND branch = %s
+                        )
+                        """,
+                        (week, category, branch),
+                    )
         game_ids = {}
         used_existing_game_ids = set()
         for week, home_team_id, away_team_id, game in resolved_games:
