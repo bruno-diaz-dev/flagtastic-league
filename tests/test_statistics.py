@@ -463,3 +463,113 @@ def test_leaderboards_share_places_and_keep_ties_at_cutoff():
     assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
     assert [row['rank'] for row in leaders['completion_percentage']] == [1, 1, 1, 4, 5, 5]
     assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [6, 4, 2]
+
+
+def test_single_division_upload_preserves_other_divisions_in_same_week():
+    """Uploading Fem U14 stats must not clear other divisions in that week."""
+    fem_team = create_team("Cuernos", "femenil", "u14")
+    var_team = create_team("Lobos", "varonil", "u14")
+    create_player(fem_team, "Fem Player", "FEMU010101MASXX001", 4)
+    create_player(var_team, "Var Player", "VARU010101HASXX001", 9)
+    initial = upload_week(2, [
+        ["femenil", "u14", "Cuernos", 4, 6, 1, 0, 0, 0, 0, 0],
+        ["varonil", "u14", "Lobos", 9, 12, 1, 0, 0, 0, 0, 0],
+    ])
+    assert initial.status_code == 200
+
+    response = client.post(
+        "/api/weeks/2/player-stats/import-division",
+        data={"branch": "femenil", "category": "u14"},
+        files={"file": ("fem-u14.xlsx", create_workbook([
+            ["femenil", "u14", "Cuernos", 4, 18, 3, 0, 0, 0, 0, 0]
+        ]))},
+    )
+    assert response.status_code == 200
+    assert response.json()["weeks"] == [2]
+    stats = client.get("/api/weeks/2/player-stats").json()
+    assert len(stats) == 2
+    assert {row["team_name"]: row["points"] for row in stats} == {
+        "Cuernos": 18,
+        "Lobos": 12,
+    }
+
+
+def test_single_division_rejects_mixed_file_without_deleting_stats():
+    create_rosters()
+    assert upload_week(1, [
+        ["femenil", "u18", "Panteras", 7, 6, 1, 0, 0, 0, 0, 0]
+    ]).status_code == 200
+
+    response = client.post(
+        "/api/weeks/1/player-stats/import-division",
+        data={"branch": "femenil", "category": "u18"},
+        files={"file": ("mixed.xlsx", create_workbook([
+            ["femenil", "u18", "Panteras", 7, 18, 0, 0, 0, 0, 0, 0],
+            ["varonil", "libre", "Tigres", 83, 12, 0, 0, 0, 0, 0, 0],
+        ]))},
+    )
+    assert response.status_code == 422
+    saved = client.get("/api/weeks/1/player-stats").json()
+    assert len(saved) == 1
+    assert saved[0]["points"] == 6
+
+
+def test_compact_bulk_upload_only_replaces_included_divisions():
+    create_rosters()
+    assert upload_week(2, [
+        ["femenil", "u18", "Panteras", 7, 6, 1, 0, 0, 0, 0, 0],
+        ["varonil", "libre", "Tigres", 83, 12, 2, 0, 0, 0, 0, 0],
+    ]).status_code == 200
+
+    response = upload_week(2, [
+        ["varonil", "libre", "Tigres", 83, 24, 3, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200
+    saved = client.get("/api/weeks/2/player-stats").json()
+    assert {row["team_name"]: row["points"] for row in saved} == {
+        "Tigres": 24,
+        "Panteras": 6,
+    }
+
+
+def test_official_workbook_preserves_unmentioned_categories():
+    create_rosters()
+    assert upload_week(1, [
+        ["femenil", "u18", "Panteras", 7, 18, 1, 0, 0, 0, 0, 0]
+    ]).status_code == 200
+
+    response = client.post(
+        "/api/statistics/import",
+        files={"file": ("all.xlsx", create_official_workbook())},
+    )
+    assert response.status_code == 200
+    saved = client.get("/api/weeks/1/player-stats").json()
+    assert any(
+        row["team_name"] == "Panteras" and row["points"] == 18
+        for row in saved
+    )
+
+
+def test_official_workbook_does_not_overwrite_completed_game_scores():
+    create_rosters()
+    first = client.post(
+        "/api/statistics/import",
+        files={"file": ("all.xlsx", create_official_workbook())},
+    )
+    assert first.status_code == 200
+    game_id = client.get("/api/games").json()[0]["id"]
+
+    changed = client.patch(
+        f"/api/games/{game_id}/score",
+        json={"home_score": 21, "away_score": 0},
+    )
+    assert changed.status_code == 200
+
+    imported = client.post(
+        "/api/statistics/import",
+        files={"file": ("all.xlsx", create_official_workbook())},
+    )
+    assert imported.status_code == 200
+    game = client.get("/api/games").json()[0]
+    assert game["home_score"] == 21
+    assert game["away_score"] == 0
