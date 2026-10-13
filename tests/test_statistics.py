@@ -945,3 +945,23 @@ def test_append_official_reupload_preserves_scores_and_does_not_duplicate():
     assert second.json()['retained_count'] == len(before)
     assert client.get('/api/weeks/1/player-stats').json() == before
     assert client.get('/api/games').json() == games_before
+
+
+def test_preserving_import_does_not_touch_unrelated_live_capture():
+    home = create_team('Live Home', category='u8')
+    away = create_team('Live Away', category='u8')
+    create_player(home, 'Live Player', 'FFFF000101HAGRRN06', 1)
+    game = client.post('/api/games', json={'home_team_id': home, 'away_team_id': away, 'field_number': 1, 'week': 1}).json()['id']
+    with get_connection() as connection:
+        connection.execute('INSERT INTO game_live_sessions (game_id) VALUES (%s)', (game,))
+    other = create_team('Separate Libre')
+    create_player(other, 'Separate Player', 'GGGG000101HAGRRN07', 9)
+    rows = [['varonil', 'libre', 'Separate Libre', 9, 6, 0, 0, 0, 0, 0, 0]]
+    endpoint = '/api/weeks/1/player-stats/import'
+    response = client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('new.xlsx', create_workbook(rows))})
+    assert response.status_code == 200
+    related = [['mixto', 'u8', 'Live Home', 1, 6, 0, 0, 0, 0, 0, 0]]
+    assert client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('live.xlsx', create_workbook(related))}).status_code == 422
+    assert len(client.get('/api/weeks/1/player-stats').json()) == 1
+    with get_connection() as connection:
+        assert connection.execute('SELECT state FROM game_live_sessions WHERE game_id = %s', (game,)).fetchone()['state'] == 'live'
