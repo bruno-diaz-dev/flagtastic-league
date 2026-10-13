@@ -3,7 +3,7 @@
 from io import BytesIO
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, Form
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 
@@ -22,6 +22,8 @@ from services.statistics_import import (
     parse_statistics_workbook
 )
 from dependencies.auth import require_league_admin
+from models import ALLOWED_BRANCHES, ALLOWED_CATEGORIES
+from services.divisions import category_allows_cross_branch_games
 
 
 router = APIRouter(tags=["statistics"])
@@ -68,7 +70,7 @@ def statistics_import_template(_user=Depends(require_league_admin)):
 async def import_statistics(
     week: int,
     file: UploadFile = File(...),
-    mode: Literal["append", "replace"] = Form("replace"),
+    existing_records: Literal["preserve", "update"] = Form("update"),
     _user=Depends(require_league_admin)
 ):
     """Replace a complete week's statistics from one validated workbook."""
@@ -92,7 +94,7 @@ async def import_statistics(
             week,
             weeks[week],
             games[week] if games is not None else None,
-            mode=mode
+            existing_records=existing_records
         )
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -100,10 +102,66 @@ async def import_statistics(
     return imported
 
 
+@router.post("/api/weeks/{week}/player-stats/import-division")
+async def import_division_statistics(
+    week: int,
+    branch: str = Form(...),
+    category: str = Form(...),
+    file: UploadFile = File(...),
+    existing_records: Literal["preserve", "update"] = Form("update"),
+    _user=Depends(require_league_admin),
+):
+    """Replace just one division of a week, leaving other divisions intact."""
+    branch = branch.strip().lower()
+    category = category.strip().lower()
+    if week < 1:
+        raise HTTPException(status_code=422, detail="La jornada debe ser mayor a cero")
+    if branch not in ALLOWED_BRANCHES or category not in ALLOWED_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Rama o categoría inválida")
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=415, detail="Se requiere un archivo .xlsx")
+
+    content = await file.read(MAX_WORKBOOK_BYTES + 1)
+    if len(content) > MAX_WORKBOOK_BYTES:
+        raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
+    try:
+        weeks = parse_statistics_workbook(content, selected_week=week)
+        rows = weeks[week]
+        if any(
+            row["category"] != category
+            or (
+                not category_allows_cross_branch_games(category)
+                and row["branch"] != branch
+            )
+            for row in rows
+        ):
+            raise StatisticsFileError(
+                "El archivo contiene otras categorías o ramas. "
+                "Usa Archivo completo o selecciona la división correcta."
+            )
+        # Official Wk or Hoja1 blocks identify individual games, including
+        # doubleheaders. Compact files have no game blocks and remain valid.
+        try:
+            games = parse_games_workbook(content, selected_week=week)
+        except StatisticsFileError as error:
+            if str(error) != "El archivo no contiene partidos por jornada":
+                raise
+            games = None
+        imported = import_week_statistics(
+            week, rows,
+            games[week] if games else None,
+            link_existing_games_only=True,
+            existing_records=existing_records,
+        )
+    except (StatisticsFileError, StatisticsValidationError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {"weeks": [week], **imported}
+
+
 @router.post("/api/statistics/import")
 async def import_official_statistics(
     file: UploadFile = File(...),
-    mode: Literal["append", "replace"] = Form("replace"),
+    existing_records: Literal["preserve", "update"] = Form("update"),
     _user=Depends(require_league_admin)
 ):
     """Import every `Wk` sheet found in the official league workbook."""
@@ -115,7 +173,7 @@ async def import_official_statistics(
     try:
         weeks = parse_statistics_workbook(content)
         games = parse_games_workbook(content)
-        imported = import_statistics_workbook(weeks, games, mode=mode)
+        imported = import_statistics_workbook(weeks, games, existing_records=existing_records)
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {

@@ -70,18 +70,22 @@ def _normalize_header(value):
 def _division_from_official_category(value, sheet_name, row_number):
     """Map compact workbook categories onto the application's division fields."""
     category = _normalized_text(value).replace(" ", "")
-    aliases = {"femenil": "fem", "femenino": "fem", "varonil": "var", "masculino": "var", "mixto": "mix"}
-    for label, short in aliases.items():
-        category = category.replace(label, short)
-    match = re.fullmatch(r"(?:(fem|var|mix))?u?(6|8|10|12|14|16|18|libre)(fem|var|mix)?", category)
-    if not match:
-        raise StatisticsFileError(
-            f"{sheet_name}, fila {row_number}: categoria desconocida: {value}"
+    for full, short in (("femenil", "fem"), ("femenino", "fem"), ("varonil", "var"), ("masculino", "var"), ("mixto", "mix")):
+        category = category.replace(full, short)
+    match = re.fullmatch(r"(fem|var|mix)?u?(6|8|10|12|14|16|18|libre)", category)
+    if match:
+        prefix, age = match.groups()
+    else:
+        # Regional sheets also write the branch after the age: "U14 Fem".
+        suffix = re.fullmatch(
+            r"u?(6|8|10|12|14|16|18|libre)(fem|var|mix)",
+            category
         )
-    prefix, age, suffix = match.groups()
-    if prefix and suffix and prefix != suffix:
-        raise StatisticsFileError(f"{sheet_name}, fila {row_number}: rama contradictoria: {value}")
-    prefix = prefix or suffix
+        if not suffix:
+            raise StatisticsFileError(
+                f"{sheet_name}, fila {row_number}: categoria desconocida: {value}"
+            )
+        age, prefix = suffix.groups()
     branch = {"fem": "femenil", "var": "varonil", "mix": "mixto"}.get(
         prefix,
         "mixto"
@@ -327,6 +331,19 @@ def parse_statistics_workbook(content, selected_week=None):
             raise StatisticsFileError(
                 "La plantilla compacta requiere seleccionar una jornada"
             )
+        # Real league spreadsheets sometimes have a single "Hoja1" sheet
+        # containing official 15-row team blocks instead of a named Wk sheet.
+        # Require the admin-selected week: never guess one from a filename.
+        if len(workbook.worksheets) == 1:
+            active = workbook.active
+            headers = next(
+                active.iter_rows(min_row=1, max_row=1, max_col=3, values_only=True),
+                ()
+            )
+            if tuple(_normalized_text(v) for v in headers) == (
+                "equipo", "categoria", "estadistica"
+            ):
+                return {selected_week: _parse_official_week_sheet(active, selected_week)}
         rows = _parse_flat_sheet(workbook.active)
         if not rows:
             raise StatisticsFileError("El archivo no contiene estadisticas")
@@ -352,6 +369,16 @@ def parse_games_workbook(content, selected_week=None):
                 games = _parse_official_games(sheet, week)
                 if games:
                     parsed[week] = games
+        if not parsed and selected_week is not None and len(workbook.worksheets) == 1:
+            active = workbook.active
+            headers = next(
+                active.iter_rows(min_row=1, max_row=1, max_col=3, values_only=True),
+                ()
+            )
+            if tuple(_normalized_text(v) for v in headers) == (
+                "equipo", "categoria", "estadistica"
+            ):
+                parsed[selected_week] = _parse_official_games(active, selected_week)
         if not parsed:
             raise StatisticsFileError("El archivo no contiene partidos por jornada")
         return parsed

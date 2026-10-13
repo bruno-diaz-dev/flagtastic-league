@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/statistics.css?v=20261013-1">
+<link rel="stylesheet" href="/static/statistics.css?v=20261013-2">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -15,20 +15,66 @@
         <details class="ui-disclosure"><summary>Cargar estadísticas individuales<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
         <form id="statistics-import-form" class="stats-import-form">
             <label>
-                Archivo oficial de estadísticas (.xlsx)
+                Tipo de carga
+                <select id="statistics-import-mode" name="mode">
+                    <option value="division">Una rama y categoría</option>
+                    <option value="all">Archivo completo (varias categorías)</option>
+                </select>
+            </label>
+            <div id="statistics-division-fields" class="stats-import-options">
+                <label>
+                    Jornada
+                    <input id="statistics-import-week" name="week" type="number" min="1" step="1" value="2" required>
+                </label>
+                <label>
+                    Rama
+                    <select id="statistics-import-branch" name="branch" required>
+                        <option value="femenil">Femenil</option>
+                        <option value="varonil">Varonil</option>
+                        <option value="mixto">Mixto</option>
+                    </select>
+                </label>
+                <label>
+                    Categoría
+                    <select id="statistics-import-category" name="category" required>
+                        <option value="u6">U6</option>
+                        <option value="u8">U8</option>
+                        <option value="u10">U10</option>
+                        <option value="u12">U12</option>
+                        <option value="u14" selected>U14</option>
+                        <option value="u16">U16</option>
+                        <option value="u18">U18</option>
+                        <option value="libre">Libre</option>
+                    </select>
+                </label>
+                <p class="form-help">
+                    Se agregarán los registros nuevos sin borrar estadísticas de otros equipos ni jornadas. Puedes conservar o actualizar los registros ya publicados.
+                    En U8, U10 y U12 se considera la categoría unificada.
+                </p>
+            </div>
+            <div id="statistics-all-fields" class="stats-import-options" hidden>
+                <label>
+                    Jornada (solo para plantillas compactas)
+                    <input id="statistics-import-all-week" name="all_week" type="number" min="1" step="1" placeholder="Opcional">
+                </label>
+                <p class="form-help">
+                    Para un Excel oficial con hojas Wk1, Wk2, etc., deja la jornada vacía.
+                    Si tienes una plantilla compacta con varias categorías, indica su jornada.
+                    Por defecto se conservan los registros ya publicados. Para corregir cifras, selecciona Actualizar los incluidos en el archivo.
+                </p>
+            </div>
+            <label>
+                Archivo de estadísticas (.xlsx)
                 <input name="file" type="file" accept=".xlsx" required>
             </label>
-            <label>Modo de carga
-                <select name="mode">
-                    <option value="append">Agregar y conservar lo publicado</option>
-                    <option value="replace">Reemplazar las jornadas del archivo</option>
+            <label>Registros ya publicados
+                <select name="existing_records">
+                    <option value="preserve">Conservar y agregar solo nuevos</option>
+                    <option value="update">Actualizar los incluidos en el archivo</option>
                 </select>
             </label>
             <button type="submit">Importar estadísticas</button>
         </form>
-        <p class="form-help">
-            Agregar conserva los registros existentes y omite los repetidos. Reemplazar borra las estadísticas anteriores de las jornadas incluidas.
-        </p>
         <a class="secondary-action" href="/api/statistics/import-template">
             Descargar plantilla Excel
         </a>
@@ -75,8 +121,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261013-1"></script>
-<script src="/static/statistics_upload.js?v=20261013-1"></script>
-<script src="/static/statistics.js?v=20261013-1"></script>
+<script src="/static/api.js?v=20261013-2"></script>
+<script src="/static/statistics_upload.js?v=20261013-2"></script>
+<script src="/static/statistics.js?v=20261013-2"></script>
 {% endblock %}
 

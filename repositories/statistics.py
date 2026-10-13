@@ -7,22 +7,24 @@ from services.divisions import (
     category_allows_cross_branch_games,
     normalize_division,
 )
-from services.team_matching import match_team_name, normalize_team_text
+from services.team_matching import (
+    match_team_name, normalize_team_text, rank_team_matches,
+)
 
 
 class StatisticsValidationError(Exception):
     """Raised when imported statistics conflict with league data."""
 
 
-def import_statistics_workbook(weeks, games=None, mode="replace"):
-    if mode not in ("append", "replace"):
-        raise StatisticsValidationError("Modo de importación inválido")
-    """Atomically replace included weekly statistics and inferred games."""
+def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=False, existing_records="update"):
+    """Merge player-game stats; optional stats-only mode keeps games unchanged."""
+    if existing_records not in ("preserve", "update"):
+        raise StatisticsValidationError("Modo de registros existentes inválido")
     connection = get_connection()
     try:
         # Serialize with live start/finish before replacing any weekly rows.
         connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
-        if mode == "replace" and connection.execute(
+        if existing_records == "update" and connection.execute(
             """SELECT 1 FROM game_live_sessions live
                JOIN games ON games.id = live.game_id
                WHERE games.week = ANY(%s) LIMIT 1""",
@@ -43,10 +45,11 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
 
         def resolve_team(label, branch, category):
             division = normalize_division(branch, category)
-            exact = teams_by_identity.get(
-                (*division, normalize_team_text(label))
-            )
-            return exact or match_team_name(
+            team_name = normalize_team_text(label)
+            exact = teams_by_identity.get((*division, team_name))
+            if exact:
+                return exact
+            return match_team_name(
                 label,
                 teams,
                 branch=(
@@ -56,6 +59,96 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
                 ),
                 category=division[1]
             )
+        # An official game pair is stronger evidence than the branch assumed
+        # from an unqualified Excel label ("U12" defaults to "mixto").
+        # Resolve both opponents against registered matches for that week;
+        # this disambiguates homonymous cross-branch youth teams such as the
+        # two U12 Nómadas, without changing either team or the Excel.
+        recorded_game_pairs = {}
+        if link_existing_games_only and games:
+            teams_by_id = {team["id"]: team for team in teams}
+            registered_games = connection.execute(
+                """
+                SELECT id, week, home_team_id, away_team_id
+                FROM games
+                WHERE week = ANY(%s) AND NOT is_friendly
+                ORDER BY id
+                """,
+                (list(games),),
+            ).fetchall()
+            claimed_games = set()
+            for week, source_games in games.items():
+                for game_index, source_game in enumerate(source_games):
+                    category = source_game["category"]
+                    branch = (
+                        None if category_allows_cross_branch_games(category)
+                        else source_game["branch"]
+                    )
+                    candidates = []
+                    for official_game in registered_games:
+                        if (official_game["week"] != week
+                                or official_game["id"] in claimed_games
+                                or official_game["home_team_id"] not in teams_by_id
+                                or official_game["away_team_id"] not in teams_by_id):
+                            continue
+                        participants = [
+                            teams_by_id[official_game["home_team_id"]],
+                            teams_by_id[official_game["away_team_id"]],
+                        ]
+                        home = match_team_name(
+                            source_game["home_team"], participants,
+                            branch=branch, category=category,
+                        )
+                        away = match_team_name(
+                            source_game["away_team"], participants,
+                            branch=branch, category=category,
+                        )
+                        if home and away and home["id"] != away["id"]:
+                            candidates.append((official_game, home, away))
+                    if not candidates:
+                        raise StatisticsValidationError(
+                            f"Jornada {week}: el partido #{game_index + 1} "
+                            f"({source_game['home_team']} vs "
+                            f"{source_game['away_team']}) no coincide con un "
+                            "encuentro registrado. No se modificaron datos."
+                        )
+                    distinct_pairs = {
+                        tuple(sorted((home["id"], away["id"])))
+                        for _, home, away in candidates
+                    }
+                    if len(distinct_pairs) > 1:
+                        raise StatisticsValidationError(
+                            f"Jornada {week}: el partido #{game_index + 1} "
+                            "coincide con varios encuentros distintos. "
+                            "Revisa el rol oficial antes de importar."
+                        )
+                    official_game, home, away = candidates[0]
+                    claimed_games.add(official_game["id"])
+                    recorded_game_pairs[(week, game_index)] = (home, away)
+
+        def resolve_stats_team(row, week):
+            game_index = row.get("game_index")
+            pair = recorded_game_pairs.get((week, game_index))
+            if pair:
+                branch = (
+                    None if category_allows_cross_branch_games(row["category"])
+                    else row["branch"]
+                )
+                matched = match_team_name(
+                    row["team"], pair,
+                    branch=branch, category=row["category"],
+                )
+                if matched:
+                    return matched
+                raise StatisticsValidationError(
+                    f"Jornada {week}, partido #{game_index + 1}: "
+                    f"no se pudo identificar '{row['team']}' "
+                    "entre los dos equipos del encuentro registrado."
+                )
+            return resolve_team(
+                row["team"], row["branch"], row["category"]
+            )
+
         resolved_weeks = {}
         skipped = []
         preserved_weeks = []
@@ -63,13 +156,24 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
             resolved_rows = []
             seen_memberships = set()
             for row_number, row in enumerate(rows, start=2):
-                team = resolve_team(
-                    row["team"], row["branch"], row["category"]
-                )
+                team = resolve_stats_team(row, week)
                 if team is None:
+                    possibilities = rank_team_matches(
+                        row["team"], teams, row["branch"], row["category"]
+                    )
+                    suggestions = [
+                        candidate["name"] for confidence, candidate
+                        in possibilities if confidence >= 0.65
+                    ][:3]
+                    hint = (
+                        " Posibles equipos: " + ", ".join(suggestions)
+                        + ". Confirma cuál corresponde."
+                        if suggestions else ""
+                    )
                     raise StatisticsValidationError(
-                        f"Jornada {week}, fila {row_number}: no existe "
-                        "el equipo en esa rama y categoria"
+                        f"Jornada {week}, registro {row_number}: no se pudo "
+                        f"identificar con seguridad el equipo '{row['team']}' "
+                        f"en {row['branch']} {row['category']}." + hint
                     )
                 player = connection.execute(
                     """
@@ -109,56 +213,89 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
         for week, week_games in (games or {}).items():
             for game_index, game in enumerate(week_games):
                 game = {**game, "game_index": game_index}
-                home = resolve_team(
-                    game["home_team"], game["branch"], game["category"]
-                )
-                away = resolve_team(
-                    game["away_team"], game["branch"], game["category"]
-                )
+                pair = recorded_game_pairs.get((week, game_index))
+                if pair:
+                    home, away = pair
+                else:
+                    home = resolve_team(
+                        game["home_team"], game["branch"], game["category"]
+                    )
+                    away = resolve_team(
+                        game["away_team"], game["branch"], game["category"]
+                    )
                 if home is None or away is None:
                     missing = game["home_team"] if home is None else game["away_team"]
                     raise StatisticsValidationError(
                         f"Jornada {week}: no existe el equipo {missing} en esa division"
                     )
-                if week not in preserved_weeks:
+                # Only import games for divisions with valid statistics.
+                # A missing jersey in another division must not alter its games.
+                game_division = (
+                    home["category"],
+                    None if category_allows_cross_branch_games(home["category"])
+                    else home["branch"],
+                )
+                imported_divisions = {
+                    (team["category"],
+                     None if category_allows_cross_branch_games(team["category"])
+                     else team["branch"])
+                    for _, team, _ in resolved_weeks.get(week, [])
+                }
+                if game_division in imported_divisions:
                     resolved_games.append((week, home["id"], away["id"], game))
 
-        # Validation finishes before deleting anything, so a bad row leaves all
-        # previously published jornadas untouched.
-        if mode == "append":
-            for week in set(weeks) | set(games or {}):
-                team_ids = {team["id"] for _, team, _ in resolved_weeks.get(week, [])}
-                for game_week, home, away, _ in resolved_games:
-                    if game_week == week:
-                        team_ids.update((home, away))
+        if existing_records == "preserve":
+            for week, resolved_rows in resolved_weeks.items():
+                team_ids = list({team["id"] for _, team, _ in resolved_rows})
                 if team_ids and connection.execute(
                     """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
                     WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s)) LIMIT 1""",
-                    (week, list(team_ids), list(team_ids)),
+                    (week, team_ids, team_ids),
                 ).fetchone():
                     raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
-        else:
-            connection.execute(
-                "DELETE FROM player_week_stats WHERE week = ANY(%s)",
-                (list(resolved_weeks),)
-            )
+
+        # Never delete all statistics for a week or division. A file may
+        # contain only one team, or even one player. Reimports update exact
+        # player/game snapshots below; other records and weeks stay intact.
         game_ids = {}
         used_existing_game_ids = set()
         for week, home_team_id, away_team_id, game in resolved_games:
-            existing_candidates = connection.execute(
-                """
-                SELECT id FROM games
-                WHERE week = %s AND home_team_id = %s AND away_team_id = %s AND NOT is_friendly
-                ORDER BY id
-                """,
-                (week, home_team_id, away_team_id)
-            ).fetchall()
+            if link_existing_games_only:
+                # A statistics upload must link to an existing match without
+                # creating games or guessing/overwriting its final score.
+                existing_candidates = connection.execute(
+                    """
+                    SELECT id FROM games
+                    WHERE week = %s AND NOT is_friendly
+                      AND ((home_team_id = %s AND away_team_id = %s)
+                        OR (home_team_id = %s AND away_team_id = %s))
+                    ORDER BY id
+                    """,
+                    (week, home_team_id, away_team_id,
+                     away_team_id, home_team_id)
+                ).fetchall()
+            else:
+                existing_candidates = connection.execute(
+                    """
+                    SELECT id FROM games
+                    WHERE week = %s AND home_team_id = %s
+                      AND away_team_id = %s AND NOT is_friendly
+                    ORDER BY id
+                    """,
+                    (week, home_team_id, away_team_id)
+                ).fetchall()
             existing = next(
                 (candidate for candidate in existing_candidates
                  if candidate["id"] not in used_existing_game_ids),
                 None
             )
             if existing is None:
+                if link_existing_games_only:
+                    raise StatisticsValidationError(
+                        f"Jornada {week}: el partido #{game['game_index'] + 1} "
+                        "no coincide con un encuentro registrado. "
+                        "No se crearon partidos ni se cambiaron marcadores."
+                    )
                 saved_game = connection.execute(
                     """
                     INSERT INTO games (
@@ -170,13 +307,17 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
                     (home_team_id, away_team_id, game["home_score"],
                      game["away_score"], week)
                 ).fetchone()
-            elif mode == "append":
+            elif link_existing_games_only:
                 saved_game = existing
             else:
+                # Never overwrite an official completed scoreboard when importing
+                # player statistics; the referee/admin result remains authoritative.
                 saved_game = connection.execute(
                     """
                     UPDATE games
-                    SET home_score = %s, away_score = %s, status = 'completed'
+                    SET home_score = CASE WHEN status = 'completed' THEN home_score ELSE %s END,
+                        away_score = CASE WHEN status = 'completed' THEN away_score ELSE %s END,
+                        status = 'completed'
                     WHERE id = %s RETURNING id
                     """,
                     (game["home_score"], game["away_score"], existing["id"])
@@ -184,62 +325,108 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
             used_existing_game_ids.add(saved_game["id"])
             game_ids[(week, game["game_index"])] = saved_game["id"]
         imported = []
+        updated_count = 0
         retained_count = 0
         for week, resolved_rows in resolved_weeks.items():
+            if not (games or {}).get(week):
+                # Official Wk sheets may contain multiple games by one player.
+                # Without game mapping these rows cannot be safely identified
+                # in the database. Do not silently combine or overwrite them.
+                player_counts = {}
+                for player, team, row in resolved_rows:
+                    key = (player["id"], team["id"])
+                    player_counts[key] = player_counts.get(key, 0) + 1
+                if any(count > 1 for count in player_counts.values()):
+                    raise StatisticsValidationError(
+                        f"Jornada {week}: el archivo contiene un jugador en "
+                        "varios partidos. Usa Archivo completo con hojas Wk "
+                        "para identificar cada encuentro."
+                    )
             for player, team, row in resolved_rows:
                 game_id = game_ids.get((week, row.get("game_index")))
-                if mode == "append" and connection.execute(
-                    """SELECT 1 FROM player_week_stats WHERE week = %s AND player_id = %s AND team_id = %s
-                    AND (%s::integer IS NULL OR game_id IS NULL OR game_id = %s) LIMIT 1""",
-                    (week, player["id"], team["id"], game_id, game_id),
-                ).fetchone():
+                existing_rows = connection.execute(
+                    """
+                    SELECT id, game_id FROM player_week_stats
+                    WHERE week = %s AND team_id = %s AND player_id = %s
+                      AND (%s::integer IS NULL OR game_id = %s OR game_id IS NULL)
+                    ORDER BY id FOR UPDATE
+                    """,
+                    (week, team["id"], player["id"], game_id, game_id)
+                ).fetchall()
+                if existing_rows and existing_records == "preserve":
                     retained_count += 1
                     continue
-                created = connection.execute(
-                    """
-                    INSERT INTO player_week_stats (
-                        week, game_id, player_id, team_id, points, receptions,
-                        interceptions, sacks, tackles, passes_completed,
-                        passes_attempted
+                if len(existing_rows) > 1:
+                    raise StatisticsValidationError(
+                        f"Jornada {week}, equipo {team['name']}, jugador "
+                        f"#{row['jersey_number']}: hay varios partidos "
+                        "registrados. Importa el Excel oficial completo "
+                        "para evitar mezclar estadísticas."
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING *
-                    """,
-                    (week, game_id, player["id"], team["id"], row["points"],
-                     row["receptions"], row["interceptions"], row["sacks"],
-                     row["tackles"], row["passes_completed"],
-                     row["passes_attempted"])
-                ).fetchone()
+                values = (
+                    row["points"], row["receptions"], row["interceptions"],
+                    row["sacks"], row["tackles"], row["passes_completed"],
+                    row["passes_attempted"]
+                )
+                if existing_rows:
+                    saved = connection.execute(
+                        """
+                        UPDATE player_week_stats
+                        SET game_id = COALESCE(%s, game_id),
+                            points = %s, receptions = %s, interceptions = %s,
+                            sacks = %s, tackles = %s, passes_completed = %s,
+                            passes_attempted = %s
+                        WHERE id = %s RETURNING *
+                        """,
+                        (game_id, *values, existing_rows[0]["id"])
+                    ).fetchone()
+                    updated_count += 1
+                else:
+                    saved = connection.execute(
+                        """
+                        INSERT INTO player_week_stats (
+                            week, game_id, player_id, team_id, points, receptions,
+                            interceptions, sacks, tackles, passes_completed,
+                            passes_attempted
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *
+                        """,
+                        (week, game_id, player["id"], team["id"], *values)
+                    ).fetchone()
                 imported.append({
-                    **dict(created), "player_name": player["name"],
+                    **dict(saved), "player_name": player["name"],
                     "team_name": team["name"], "branch": team["branch"],
                     "category": team["category"]
                 })
-        # Associate rows only when a team has one unambiguous game that week.
-        connection.execute(
-            """
-            UPDATE player_week_stats AS stats
-            SET game_id = matched.game_id
-            FROM (
-                SELECT stats_row.id AS stats_id, MIN(games.id) AS game_id
-                FROM player_week_stats AS stats_row
-                JOIN games ON games.week = stats_row.week AND NOT games.is_friendly
-                  AND stats_row.team_id IN (
-                      games.home_team_id, games.away_team_id
-                  )
-                WHERE stats_row.week = ANY(%s)
-                GROUP BY stats_row.id
-                HAVING COUNT(games.id) = 1
-            ) AS matched
-            WHERE stats.id = matched.stats_id
-              AND (%s OR stats.id = ANY(%s))
-            """,
-            (list(resolved_weeks), mode == "replace", [row["id"] for row in imported])
-        )
+        # Associate only imported rows when exactly one registered match fits.
+        if imported:
+            connection.execute(
+                """
+                UPDATE player_week_stats AS stats
+                SET game_id = matched.game_id
+                FROM (
+                    SELECT stats_row.id AS stats_id, MIN(games.id) AS game_id
+                    FROM player_week_stats AS stats_row
+                    JOIN games ON games.week = stats_row.week
+                      AND NOT games.is_friendly
+                      AND stats_row.team_id IN (
+                          games.home_team_id, games.away_team_id
+                      )
+                    WHERE stats_row.id = ANY(%s)
+                      AND stats_row.game_id IS NULL
+                    GROUP BY stats_row.id
+                    HAVING COUNT(games.id) = 1
+                ) AS matched
+                WHERE stats.id = matched.stats_id
+                """,
+                ([saved["id"] for saved in imported],)
+            )
         connection.commit()
         return {
-            "imported": len(imported), "rows": imported,
-            "mode": mode, "retained_count": retained_count,
+            "imported": len(imported), "updated": updated_count,
+            "retained_count": retained_count,
+            "created": len(imported) - updated_count, "rows": imported,
             "skipped": skipped, "skipped_count": len(skipped),
             "preserved_weeks": sorted(preserved_weeks),
             "games": len(resolved_games),
@@ -251,12 +438,13 @@ def import_statistics_workbook(weeks, games=None, mode="replace"):
         connection.close()
 
 
-def import_week_statistics(week, rows, games=None, mode="replace"):
-    """Compatibility wrapper for a compact single-jornada workbook."""
+def import_week_statistics(week, rows, games=None, *, link_existing_games_only=False, existing_records="update"):
+    """Import one jornada; match existing games for stats-only official sheets."""
     return import_statistics_workbook(
         {week: rows},
         {week: games} if games is not None else None,
-        mode=mode
+        link_existing_games_only=link_existing_games_only,
+        existing_records=existing_records,
     )
 
 
@@ -430,7 +618,7 @@ def get_leaderboards(branch, category, limit=5):
         ]
 
     latest_week = max((row["latest_week"] for row in rows), default=0)
-    minimum_attempts = 0 if latest_week <= 3 else 30
+    minimum_attempts = 15  # Total completed + incomplete attempts over all weeks
     passing_ranked = sorted(
         (row for row in rows if row["passes_attempted"] > 0
          and row["passes_attempted"] >= minimum_attempts),

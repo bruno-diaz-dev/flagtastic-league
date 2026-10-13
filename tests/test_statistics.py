@@ -351,7 +351,7 @@ def test_unknown_team_still_rolls_back_after_skipped_number():
     assert client.get("/api/weeks/1/player-stats").json()[0]["points"] == 12
 
 
-def test_a_new_upload_replaces_the_complete_week():
+def test_reimport_updates_one_player_without_clearing_teammates_or_rivals():
     create_rosters()
     upload_week(1, [
         ["varonil", "libre", "Tigres", 83, 6, 1, 0, 0, 0, 1, 2],
@@ -361,9 +361,69 @@ def test_a_new_upload_replaces_the_complete_week():
         ["varonil", "libre", "Tigres", 83, 18, 3, 0, 0, 0, 2, 3]
     ])
     saved = client.get("/api/weeks/1/player-stats").json()
-    assert len(saved) == 1
-    assert saved[0]["player_name"] == "Bruno Diaz"
-    assert saved[0]["points"] == 18
+    assert len(saved) == 2
+    assert {row["player_name"]: row["points"] for row in saved} == {
+        "Bruno Diaz": 18, "Jose Perez": 6
+    }
+
+
+def test_import_accumulates_across_weeks_and_repeated_file_is_idempotent():
+    player_id, _, _ = create_rosters()
+    first = [["varonil", "libre", "Tigres", 83, 12, 2, 0, 0, 0, 7, 14]]
+    second = [["varonil", "libre", "Tigres", 83, 18, 3, 0, 0, 0, 1, 1]]
+    assert upload_week(1, first).status_code == 200
+    assert upload_week(2, second).status_code == 200
+
+    passing_url = "/api/statistics/leaderboards?branch=varonil&category=libre"
+    before = client.get(passing_url).json()
+    assert before["passing_qualification"]["minimum_attempts"] == 15
+    assert before["completion_percentage"][0]["passes_attempted"] == 15
+    assert before["completion_percentage"][0]["passes_completed"] == 8
+    assert before["points"][0]["value"] == 30
+
+    duplicate = upload_week(2, second)
+    assert duplicate.status_code == 200
+    assert duplicate.json()["updated"] == 1
+    assert duplicate.json()["created"] == 0
+    saved = client.get(f"/api/players/{player_id}/stats").json()
+    assert saved["points"] == 30
+    assert saved["passes_attempted"] == 15
+    assert len(client.get("/api/weeks/2/player-stats").json()) == 1
+
+
+def test_passers_under_fifteen_total_attempts_are_not_ranked():
+    team = create_team("Lobos", "varonil", "libre")
+    create_player(team, "Few Attempts", "FEWA010101HASXX001", 4)
+    create_player(team, "Eligible", "ELIG010101HASXX002", 5)
+    assert upload_week(1, [
+        ["varonil", "libre", "Lobos", 4, 6, 0, 0, 0, 0, 14, 14],
+        ["varonil", "libre", "Lobos", 5, 6, 0, 0, 0, 0, 10, 15],
+    ]).status_code == 200
+    result = client.get(
+        "/api/statistics/leaderboards?branch=varonil&category=libre"
+    ).json()
+    assert [row["player_name"] for row in result["completion_percentage"]] == [
+        "Eligible"
+    ]
+    assert result["passing_qualification"]["minimum_attempts"] == 15
+
+
+def test_reimport_official_workbook_keeps_doubleheader_games_distinct():
+    kittys = create_team("Kittys", "mixto", "libre")
+    diablos = create_team("Diablos", "mixto", "libre")
+    apxgp = create_team("APXGP", "mixto", "libre")
+    create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
+    create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
+    create_player(apxgp, "APXGP Three", "APXX010101HASXX003", 3)
+    excel = create_doubleheader_workbook()
+    for _ in range(2):
+        response = client.post(
+            "/api/statistics/import", files={"file": ("week5.xlsx", excel)}
+        )
+        assert response.status_code == 200, response.text
+    stats = client.get("/api/weeks/5/player-stats").json()
+    assert len([row for row in stats if row["player_name"] == "Diablos Two"]) == 2
+    assert len(stats) == 4
 
 
 def test_import_rejects_non_excel_file_and_invalid_week():
@@ -402,7 +462,8 @@ def test_leaderboards_limit_results_and_apply_passing_threshold():
         "/api/statistics/leaderboards?branch=varonil&category=libre"
     ).json()
     assert len(leaders["points"]) == 5
-    assert leaders["passing_qualification"]["minimum_attempts"] == 0
+    assert leaders["passing_qualification"]["minimum_attempts"] == 15
+    assert leaders["completion_percentage"] == []
 
     qualifying = rows[0].copy()
     qualifying[-2:] = [29, 38]
@@ -411,7 +472,7 @@ def test_leaderboards_limit_results_and_apply_passing_threshold():
         "/api/statistics/leaderboards?branch=varonil&category=libre"
     ).json()
     assert leaders["passing_qualification"] == {
-        "latest_week": 4, "minimum_attempts": 30
+        "latest_week": 4, "minimum_attempts": 15
     }
     assert leaders["completion_percentage"][0]["player_name"] == "Player 1"
     assert "player_aka" in leaders["completion_percentage"][0]
@@ -455,15 +516,394 @@ def test_leaderboards_share_places_and_keep_ties_at_cutoff():
     ], 1):
         create_player(team, f'Tied Player {index}', f'TIED{index:014d}', index)
         rows.append(['varonil', 'libre', 'Tied Leaders', index,
-                     points, 0, 0, 0, 0, completed, attempted])
+                     points, 0, 0, 0, 0, completed * 8, attempted * 8])
     assert upload_week(1, rows).status_code == 200
     leaders = client.get(
         '/api/statistics/leaderboards?branch=varonil&category=libre'
     ).json()
     assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
     assert [row['rank'] for row in leaders['completion_percentage']] == [1, 1, 1, 4, 5, 5]
-    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [6, 4, 2]
+    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [48, 32, 16]
 
+
+def test_single_division_upload_preserves_other_divisions_in_same_week():
+    """Uploading Fem U14 stats must not clear other divisions in that week."""
+    fem_team = create_team("Cuernos", "femenil", "u14")
+    var_team = create_team("Lobos", "varonil", "u14")
+    create_player(fem_team, "Fem Player", "FEMU010101MASXX001", 4)
+    create_player(var_team, "Var Player", "VARU010101HASXX001", 9)
+    initial = upload_week(2, [
+        ["femenil", "u14", "Cuernos", 4, 6, 1, 0, 0, 0, 0, 0],
+        ["varonil", "u14", "Lobos", 9, 12, 1, 0, 0, 0, 0, 0],
+    ])
+    assert initial.status_code == 200
+
+    response = client.post(
+        "/api/weeks/2/player-stats/import-division",
+        data={"branch": "femenil", "category": "u14"},
+        files={"file": ("fem-u14.xlsx", create_workbook([
+            ["femenil", "u14", "Cuernos", 4, 18, 3, 0, 0, 0, 0, 0]
+        ]))},
+    )
+    assert response.status_code == 200
+    assert response.json()["weeks"] == [2]
+    stats = client.get("/api/weeks/2/player-stats").json()
+    assert len(stats) == 2
+    assert {row["team_name"]: row["points"] for row in stats} == {
+        "Cuernos": 18,
+        "Lobos": 12,
+    }
+
+
+def test_single_division_rejects_mixed_file_without_deleting_stats():
+    create_rosters()
+    assert upload_week(1, [
+        ["femenil", "u18", "Panteras", 7, 6, 1, 0, 0, 0, 0, 0]
+    ]).status_code == 200
+
+    response = client.post(
+        "/api/weeks/1/player-stats/import-division",
+        data={"branch": "femenil", "category": "u18"},
+        files={"file": ("mixed.xlsx", create_workbook([
+            ["femenil", "u18", "Panteras", 7, 18, 0, 0, 0, 0, 0, 0],
+            ["varonil", "libre", "Tigres", 83, 12, 0, 0, 0, 0, 0, 0],
+        ]))},
+    )
+    assert response.status_code == 422
+    saved = client.get("/api/weeks/1/player-stats").json()
+    assert len(saved) == 1
+    assert saved[0]["points"] == 6
+
+
+def test_compact_bulk_upload_preserves_unmentioned_divisions():
+    create_rosters()
+    assert upload_week(2, [
+        ["femenil", "u18", "Panteras", 7, 6, 1, 0, 0, 0, 0, 0],
+        ["varonil", "libre", "Tigres", 83, 12, 2, 0, 0, 0, 0, 0],
+    ]).status_code == 200
+
+    response = upload_week(2, [
+        ["varonil", "libre", "Tigres", 83, 24, 3, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200
+    saved = client.get("/api/weeks/2/player-stats").json()
+    assert {row["team_name"]: row["points"] for row in saved} == {
+        "Tigres": 24,
+        "Panteras": 6,
+    }
+
+
+def test_official_workbook_preserves_unmentioned_categories():
+    create_rosters()
+    assert upload_week(1, [
+        ["femenil", "u18", "Panteras", 7, 18, 1, 0, 0, 0, 0, 0]
+    ]).status_code == 200
+
+    response = client.post(
+        "/api/statistics/import",
+        files={"file": ("all.xlsx", create_official_workbook())},
+    )
+    assert response.status_code == 200
+    saved = client.get("/api/weeks/1/player-stats").json()
+    assert any(
+        row["team_name"] == "Panteras" and row["points"] == 18
+        for row in saved
+    )
+
+
+def test_official_workbook_does_not_overwrite_completed_game_scores():
+    create_rosters()
+    first = client.post(
+        "/api/statistics/import",
+        files={"file": ("all.xlsx", create_official_workbook())},
+    )
+    assert first.status_code == 200
+    game_id = client.get("/api/games").json()[0]["id"]
+
+    changed = client.patch(
+        f"/api/games/{game_id}/score",
+        json={"home_score": 21, "away_score": 0},
+    )
+    assert changed.status_code == 200
+
+    imported = client.post(
+        "/api/statistics/import",
+        files={"file": ("all.xlsx", create_official_workbook())},
+    )
+    assert imported.status_code == 200
+    game = client.get("/api/games").json()[0]
+    assert game["home_score"] == 21
+    assert game["away_score"] == 0
+
+
+def create_single_sheet_u14_workbook():
+    """Real-file shape: Hoja1 with 15 events per team, category U14 Fem."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Hoja1"
+    sheet.append(["Equipo", "Categoría", "Estadística", 1, 2, 3])
+    labels = [
+        "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
+        "6 Puntos", "2 Puntos", "1 Puntos", "Intercepciones Pase",
+        "TD", "Conv 1", "Conv 2", "Sacks", "Tacleo",
+        "Intercepciones Def", "Asistencia"
+    ]
+    for team, jersey, touchdowns in (
+        ("Lobos", 7, 1), ("Ducks", 4, 0),
+        ("Lobos", 7, 2), ("Pitbulls", 9, 0)
+    ):
+        for label in labels:
+            events = (
+                [jersey] * touchdowns if label == "TD"
+                else [jersey] if label == "Asistencia"
+                else [jersey, jersey] if label == "Intentos Pase"
+                else []
+            )
+            sheet.append([team, "U14 Fem", label, *events])
+    data = BytesIO()
+    workbook.save(data)
+    workbook.close()
+    return data.getvalue()
+
+
+def test_single_sheet_week1_fem_u14_links_existing_games_without_changing_scores():
+    lobos = create_team("Lobos", "femenil", "u14")
+    ducks = create_team("Ducks", "femenil", "u14")
+    pitbulls = create_team("Pitbulls", "femenil", "u14")
+    create_player(lobos, "Lobos QB", "LQBB010101MASXX004", 7)
+    create_player(ducks, "Ducks Player", "DUPC010101MASXX005", 4)
+    create_player(pitbulls, "Pitbulls Player", "PITC010101MASXX006", 9)
+    connection = get_connection()
+    first_id = connection.execute(
+        """INSERT INTO games (home_team_id, away_team_id, week, status,
+             home_score, away_score) VALUES (%s, %s, 1, 'completed', 21, 6)
+             RETURNING id""", (lobos, ducks)
+    ).fetchone()["id"]
+    second_id = connection.execute(
+        """INSERT INTO games (home_team_id, away_team_id, week, status,
+             home_score, away_score) VALUES (%s, %s, 1, 'completed', 12, 13)
+             RETURNING id""", (pitbulls, lobos)
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+
+    content = create_single_sheet_u14_workbook()
+    for attempt in range(2):
+        imported = client.post(
+            "/api/weeks/1/player-stats/import-division",
+            data={"branch": "femenil", "category": "u14"},
+            files={"file": ("Week 1 U14 Femenil.xlsx", content)},
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["imported"] == 4
+        assert imported.json()["updated"] == (0 if attempt == 0 else 4)
+
+    saved = client.get("/api/weeks/1/player-stats").json()
+    lobos_rows = [row for row in saved if row["player_name"] == "Lobos QB"]
+    assert len(lobos_rows) == 2
+    assert {row["game_id"] for row in lobos_rows} == {first_id, second_id}
+    assert sum(row["points"] for row in lobos_rows) == 18
+    assert sum(row["passes_attempted"] for row in lobos_rows) == 4
+
+    connection = get_connection()
+    games = connection.execute(
+        "SELECT id, home_score, away_score FROM games ORDER BY id"
+    ).fetchall()
+    connection.close()
+    assert [(g["id"], g["home_score"], g["away_score"]) for g in games] == [
+        (first_id, 21, 6), (second_id, 12, 13)
+    ]
+
+
+def test_single_sheet_week2_fails_when_matches_only_exist_in_week1():
+    lobos = create_team("Lobos", "femenil", "u14")
+    ducks = create_team("Ducks", "femenil", "u14")
+    pitbulls = create_team("Pitbulls", "femenil", "u14")
+    create_player(lobos, "Lobos QB", "LQBB010101MASXX004", 7)
+    create_player(ducks, "Ducks Player", "DUPC010101MASXX005", 4)
+    create_player(pitbulls, "Pitbulls Player", "PITC010101MASXX006", 9)
+    connection = get_connection()
+    connection.execute(
+        "INSERT INTO games (home_team_id, away_team_id, week) VALUES (%s, %s, 1)",
+        (lobos, ducks)
+    )
+    connection.execute(
+        "INSERT INTO games (home_team_id, away_team_id, week) VALUES (%s, %s, 1)",
+        (pitbulls, lobos)
+    )
+    connection.commit()
+    connection.close()
+    imported = client.post(
+        "/api/weeks/2/player-stats/import-division",
+        data={"branch": "femenil", "category": "u14"},
+        files={"file": ("Week 1 U14 Femenil.xlsx", create_single_sheet_u14_workbook())},
+    )
+    assert imported.status_code == 422, imported.text
+    assert client.get("/api/weeks/2/player-stats").json() == []
+
+
+def test_generic_team_name_variants_match_registered_teams():
+    """Resolve real worksheet labels before validating jersey membership."""
+    blackmamba = create_team("BlackMamba", "femenil", "u14")
+    eagles = create_team("EaglesFlag", "femenil", "u14")
+    diablos = create_team("DIABLOS DEL SOL", "femenil", "u14")
+    create_player(blackmamba, "Black Player", "BLAK010101MASXX001", 1)
+    create_player(eagles, "Eagles Player", "EAGL010101MASXX002", 2)
+    create_player(diablos, "Diablos Player", "DIAB010101MASXX003", 3)
+
+    response = upload_week(1, [
+        ["femenil", "u14", "Black Mambas", 1, 6, 1, 0, 0, 0, 0, 0],
+        ["femenil", "u14", "Eagles Flag", 2, 6, 1, 0, 0, 0, 0, 0],
+        ["femenil", "u14", "Diablos", 3, 6, 1, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200, response.text
+    rows = client.get("/api/weeks/1/player-stats").json()
+    assert {row["team_name"] for row in rows} == {
+        "BlackMamba", "EaglesFlag", "DIABLOS DEL SOL"
+    }
+
+
+def test_team_name_variants_do_not_change_other_divisions():
+    """An actual team named Diablos in another branch still resolves exactly."""
+    original = create_team("Diablos", "varonil", "u14")
+    create_player(original, "Different Diablos", "DIFD010101HASXX004", 7)
+    response = upload_week(1, [
+        ["varonil", "u14", "Diablos", 7, 6, 0, 0, 0, 0, 0, 0],
+    ])
+    assert response.status_code == 200, response.text
+    assert client.get("/api/weeks/1/player-stats").json()[0]["team_name"] == "Diablos"
+
+
+def test_spacing_and_plural_matching_applies_to_other_categories():
+    """A novel spelling variant must work without a per-category alias."""
+    team = create_team("BlackMamba", "femenil", "u16")
+    create_player(team, "Athlete", "BLMB010101MASXX005", 11)
+    response = upload_week(2, [
+        ["femenil", "u16", "Black Mambas", 11, 6, 1, 0, 0, 0, 0, 0]
+    ])
+    assert response.status_code == 200, response.text
+    assert client.get("/api/weeks/2/player-stats").json()[0]["team_name"] == "BlackMamba"
+
+
+def test_ambiguous_team_name_stops_import_instead_of_guessing():
+    """Similar teams in one division require an explicit choice."""
+    first = create_team("BlackMamba", "femenil", "u14")
+    second = create_team("Black Mambas", "femenil", "u14")
+    create_player(first, "Player One", "PMBA010101MASXX006", 7)
+    create_player(second, "Player Two", "PMBB010101MASXX007", 7)
+    response = upload_week(1, [
+        ["femenil", "u14", "Black Mamba", 7, 6, 0, 0, 0, 0, 0, 0]
+    ])
+    assert response.status_code == 422, response.text
+    assert "Black Mamba" in response.json()["detail"]
+    assert client.get("/api/weeks/1/player-stats").json() == []
+
+
+def test_u12_same_name_in_two_branches_uses_registered_match():
+    """The official opponent disambiguates Fem vs Mix U12 Nómadas."""
+    eagles = create_team("Eagles Flag", "mixto", "u12")
+    vikingos = create_team("Vikingos", "mixto", "u12")
+    mictlan = create_team("Mictlán Bats", "mixto", "u12")
+    rancheros = create_team("Rancheros", "mixto", "u12")
+    nomadas_mixto = create_team("Nómadas", "mixto", "u12")
+    # Legacy PROD has both names, but the public team creation API now
+    # normalizes unified U12 requests to "mixto". Reproduce the historic
+    # Femenil record directly, without loosening production validations.
+    connection = get_connection()
+    nomadas_fem = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category, status)
+        VALUES ('Nómadas', 'femenil', 'u12', 'active')
+        RETURNING id
+        """
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+    pitbulls = create_team("Pitbulls", "mixto", "u12")
+    diablos = create_team("Diablos del Sol", "mixto", "u12")
+    for team, jersey, label in [
+        (eagles, 28, "Eagles"),
+        (vikingos, 14, "Vikingos"),
+        (mictlan, 10, "Mictlan"),
+        (rancheros, 2, "Rancheros"),
+        (nomadas_mixto, 16, "Wrong Nomadas"),
+        (nomadas_fem, 15, "Right Nomadas"),
+        (pitbulls, 13, "Pitbulls"),
+        (diablos, 88, "Diablos"),
+    ]:
+        create_player(team, label, f"TESA010101HASXX{team % 1000:03d}", jersey)
+
+    pairs = [
+        (eagles, vikingos, 19, 41),
+        (mictlan, rancheros, 0, 12),
+        (nomadas_fem, pitbulls, 14, 0),
+        (diablos, rancheros, 18, 13),
+    ]
+    connection = get_connection()
+    for home, away, score_home, score_away in pairs:
+        connection.execute(
+            """
+            INSERT INTO games
+                (home_team_id, away_team_id, week, status, home_score, away_score)
+            VALUES (%s, %s, 1, 'completed', %s, %s)
+            """,
+            (home, away, score_home, score_away)
+        )
+    connection.commit()
+    connection.close()
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Hoja1"
+    sheet.append(["Equipo", "Categoría", "Estadística", 1])
+    labels = [
+        "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
+        "6 Puntos", "2 Puntos", "1 Puntos", "Intercepciones Pase",
+        "TD", "Conv 1", "Conv 2", "Sacks", "Tacleo",
+        "Intercepciones Def", "Asistencia"
+    ]
+    for name, jersey in [
+        ("Eagles Flag", 28), ("Vikingos", 14),
+        ("Mictlan Bats", 10), ("Rancheros", 2),
+        ("Nomadas", 15), ("Pitbulls", 13),
+        ("Diablos", 88), ("Rancheros", 2),
+    ]:
+        for label in labels:
+            sheet.append([
+                name, "U12", label,
+                jersey if label in ("Asistencia", "TD") else None,
+            ])
+    stream = BytesIO()
+    workbook.save(stream)
+    workbook.close()
+
+    for attempt in range(2):
+        response = client.post(
+            "/api/weeks/1/player-stats/import-division",
+            data={"branch": "mixto", "category": "u12"},
+            files={"file": ("Week 1 U12.xlsx", stream.getvalue())},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["imported"] == 8
+        assert response.json()["updated"] == (0 if attempt == 0 else 8)
+
+    stats = client.get("/api/weeks/1/player-stats").json()
+    assert len(stats) == 8
+    assert len([row for row in stats if row["team_name"] == "Rancheros"]) == 2
+    nomadas_rows = [row for row in stats if row["team_name"] == "Nómadas"]
+    assert len(nomadas_rows) == 1
+    assert nomadas_rows[0]["team_id"] == nomadas_fem
+    assert nomadas_rows[0]["jersey_number"] == 15
+    assert not any(row["team_id"] == nomadas_mixto for row in stats)
+
+    connection = get_connection()
+    scores = connection.execute(
+        "SELECT home_score, away_score FROM games WHERE week = 1 ORDER BY id"
+    ).fetchall()
+    connection.close()
+    assert [(game["home_score"], game["away_score"]) for game in scores] == [
+        (19, 41), (0, 12), (14, 0), (18, 13)
+    ]
 
 def test_append_import_preserves_other_categories_and_is_idempotent():
     old_team = create_team('Existing U8', category='u8')
@@ -475,7 +915,7 @@ def test_append_import_preserves_other_categories_and_is_idempotent():
     path = '/api/weeks/1/player-stats/import'
     assert client.post(path, files={'file': ('old.xlsx', create_workbook(old_rows))}).status_code == 200
     for expected in (1, 0):
-        response = client.post(path, data={'mode': 'append'}, files={'file': ('new.xlsx', create_workbook(new_rows))})
+        response = client.post(path, data={'existing_records': 'preserve'}, files={'file': ('new.xlsx', create_workbook(new_rows))})
         assert response.status_code == 200
         assert response.json()['imported'] == expected
         assert response.json()['retained_count'] == 1 - expected
@@ -483,9 +923,9 @@ def test_append_import_preserves_other_categories_and_is_idempotent():
         assert len(rows) == 2
         assert sorted(row['points'] for row in rows) == [6, 12]
     conflicting = [['varonil', 'libre', 'New Libre', 9, 99, 2, 0, 0, 1, 0, 0]]
-    assert client.post(path, data={'mode': 'append'}, files={'file': ('changed.xlsx', create_workbook(conflicting))}).json()['imported'] == 0
+    assert client.post(path, data={'existing_records': 'preserve'}, files={'file': ('changed.xlsx', create_workbook(conflicting))}).json()['imported'] == 0
     assert sorted(row['points'] for row in client.get('/api/weeks/1/player-stats').json()) == [6, 12]
-    assert client.post(path, data={'mode': 'invalid'}, files={'file': ('bad.xlsx', create_workbook(new_rows))}).status_code == 422
+    assert client.post(path, data={'existing_records': 'invalid'}, files={'file': ('bad.xlsx', create_workbook(new_rows))}).status_code == 422
 
 
 def test_append_official_reupload_preserves_scores_and_does_not_duplicate():
@@ -495,11 +935,11 @@ def test_append_official_reupload_preserves_scores_and_does_not_duplicate():
         create_player(team, name, curp, number)
     payload = create_official_workbook()
     path = '/api/statistics/import'
-    first = client.post(path, data={'mode': 'append'}, files={'file': ('official.xlsx', payload)})
+    first = client.post(path, data={'existing_records': 'preserve'}, files={'file': ('official.xlsx', payload)})
     assert first.status_code == 200
     before = client.get('/api/weeks/1/player-stats').json()
     games_before = client.get('/api/games').json()
-    second = client.post(path, data={'mode': 'append'}, files={'file': ('official.xlsx', payload)})
+    second = client.post(path, data={'existing_records': 'preserve'}, files={'file': ('official.xlsx', payload)})
     assert second.status_code == 200
     assert second.json()['imported'] == 0
     assert second.json()['retained_count'] == len(before)

@@ -260,20 +260,32 @@ async function getLeaderboards(branch, category) {
     );
 }
 
-async function importWeekStatistics(week, file) {
+async function importWeekStatistics(week, file, existingRecords = "preserve") {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("existing_records", existingRecords);
     return fetch(`/api/weeks/${week}/player-stats/import`, {
         method: "POST",
         body: formData
     });
 }
 
-async function importOfficialStatistics(file, mode = "append") {
-
+async function importDivisionStatistics(week, branch, category, file, existingRecords = "preserve") {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("mode", mode);
+    formData.append("existing_records", existingRecords);
+    formData.append("branch", branch);
+    formData.append("category", category);
+    return fetch(`/api/weeks/${week}/player-stats/import-division`, {
+        method: "POST",
+        body: formData
+    });
+}
+
+async function importOfficialStatistics(file, existingRecords = "preserve") {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("existing_records", existingRecords);
     return fetch("/api/statistics/import", {
         method: "POST",
         body: formData
