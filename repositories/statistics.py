@@ -24,16 +24,6 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
     try:
         # Serialize with live start/finish before replacing any weekly rows.
         connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
-        if existing_records == "update" and connection.execute(
-            """SELECT 1 FROM game_live_sessions live
-               JOIN games ON games.id = live.game_id
-               WHERE games.week = ANY(%s) LIMIT 1""",
-            (list(set(weeks) | set(games or {})),),
-        ).fetchone():
-            raise StatisticsValidationError(
-                "La jornada incluye captura en vivo. Corrige esos partidos "
-                "individualmente para conservar su historial."
-            )
         teams = connection.execute(
             "SELECT id, name, branch, category FROM teams WHERE NOT is_guest"
         ).fetchall()
@@ -244,15 +234,14 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 if game_division in imported_divisions:
                     resolved_games.append((week, home["id"], away["id"], game))
 
-        if existing_records == "preserve":
-            for week, resolved_rows in resolved_weeks.items():
-                team_ids = list({team["id"] for _, team, _ in resolved_rows})
-                if team_ids and connection.execute(
-                    """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
-                    WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s)) LIMIT 1""",
-                    (week, team_ids, team_ids),
-                ).fetchone():
-                    raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
+        for week, resolved_rows in resolved_weeks.items():
+            team_ids = list({team["id"] for _, team, _ in resolved_rows})
+            if team_ids and connection.execute(
+                """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
+                WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s)) LIMIT 1""",
+                (week, team_ids, team_ids),
+            ).fetchone():
+                raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
 
         # Never delete all statistics for a week or division. A file may
         # contain only one team, or even one player. Reimports update exact
@@ -562,6 +551,28 @@ def _rank_leaders(rows, score, limit):
     return ranked
 
 
+LEADER_TIEBREAKERS = {
+    "points": "Mismos puntos: lugar compartido; faltan touchdowns y participaciones verificables.",
+    "receptions": "Mismas recepciones: lugar compartido; faltan touchdowns por recepción y participaciones verificables.",
+    "tackles": "Más tacleadas; después más capturas y más intercepciones.",
+    "interceptions": "Más intercepciones; después más tacleadas.",
+    "sacks": "Más capturas; después más tacleadas.",
+    "completion_percentage": "Porcentaje exacto; después más intentos y más pases completos. Mínimo: 15 intentos acumulados.",
+}
+
+
+def _leader_score(row, metric):
+    if metric == "completion_percentage":
+        return (Fraction(row["passes_completed"], row["passes_attempted"]),
+                row["passes_attempted"], row["passes_completed"])
+    secondary = {
+        "tackles": ("sacks", "interceptions"),
+        "interceptions": ("tackles",),
+        "sacks": ("tackles",),
+    }.get(metric, ())
+    return tuple(row[key] for key in (metric, *secondary))
+
+
 def get_leaderboards(branch, category, limit=5):
     """Return the leading players for every supported division metric."""
     connection = get_connection()
@@ -603,10 +614,10 @@ def get_leaderboards(branch, category, limit=5):
     for metric in ("receptions", "points", "tackles", "interceptions", "sacks"):
         ranked = sorted(
             (row for row in rows if row[metric] > 0),
-            key=lambda row: (-row[metric], row["player_name"].casefold(),
-                             row["team_name"].casefold())
+            key=lambda row: (tuple(-value for value in _leader_score(row, metric)),
+                             row["player_name"].casefold(), row["team_name"].casefold())
         )
-        ranked = _rank_leaders(ranked, lambda row: row[metric], limit)
+        ranked = _rank_leaders(ranked, lambda row: _leader_score(row, metric), limit)
         result[metric] = [
             {"player_id": row["player_id"], "player_name": row["player_name"],
              "player_aka": row["player_aka"],
@@ -627,7 +638,7 @@ def get_leaderboards(branch, category, limit=5):
     )
     passing_ranked = _rank_leaders(
         passing_ranked,
-        lambda row: Fraction(row["passes_completed"], row["passes_attempted"]),
+        lambda row: _leader_score(row, "completion_percentage"),
         limit,
     )
     result["completion_percentage"] = [
@@ -641,6 +652,7 @@ def get_leaderboards(branch, category, limit=5):
          "passes_attempted": row["passes_attempted"], "rank": row["rank"]}
         for row in passing_ranked
     ]
+    result["tie_breakers"] = LEADER_TIEBREAKERS
     result["passing_qualification"] = {
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }

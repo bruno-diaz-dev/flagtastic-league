@@ -46,15 +46,13 @@ EVENT_METRICS = {
     "intercepciones def": ("interceptions", 1),
     "sacks": ("sacks", 1),
     "tacleo": ("tackles", 1),
-    "6 puntos": ("points", 6),
-    "2 puntos": ("points", 2),
-    "1 puntos": ("points", 1),
     "td": ("points", 6),
     "conv 1": ("points", 1),
     "conv 2": ("points", 2)
 }
 IDENTITY_EVENT_LABELS = set(EVENT_METRICS) | {
-    "asistencia", "puntos pase", "intercepciones pase", "para % pases"
+    "asistencia", "puntos pase", "intercepciones pase", "para % pases",
+    "6 puntos", "2 puntos", "1 puntos"
 }
 
 

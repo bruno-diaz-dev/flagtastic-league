@@ -192,6 +192,7 @@ def test_imports_the_official_horizontal_workbook_format():
     totals = client.get(f"/api/players/{quarterback}/stats").json()
     assert totals["passes_attempted"] == 3
     assert totals["passes_completed"] == 2
+    assert totals["points"] == 0
     leaders = client.get(
         "/api/statistics/leaderboards?branch=varonil&category=libre"
     ).json()
@@ -522,7 +523,7 @@ def test_leaderboards_share_places_and_keep_ties_at_cutoff():
         '/api/statistics/leaderboards?branch=varonil&category=libre'
     ).json()
     assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
-    assert [row['rank'] for row in leaders['completion_percentage']] == [1, 1, 1, 4, 5, 5]
+    assert [row['rank'] for row in leaders['completion_percentage']] == [1, 2, 3, 4, 5]
     assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [48, 32, 16]
 
 
@@ -986,3 +987,16 @@ def test_original_official_team_labels_match_joined_registered_names():
     assert len(rows) == 3
     assert {row['team_id'] for row in rows} == {team}
     assert {row['team_name'] for row in rows} == {'SelAgsFemU14'}
+
+
+def test_defensive_ranks_use_secondary_metrics_and_preserve_exact_ties():
+    from repositories.statistics import _leader_score, _rank_leaders
+    rows = [
+        {"tackles": 10, "sacks": 3, "interceptions": 2},
+        {"tackles": 10, "sacks": 3, "interceptions": 1},
+        {"tackles": 10, "sacks": 2, "interceptions": 5},
+        {"tackles": 10, "sacks": 2, "interceptions": 5},
+    ]
+    assert [r["rank"] for r in _rank_leaders(rows, lambda r: _leader_score(r, "tackles"), 5)] == [1, 2, 3, 3]
+    assert _leader_score(rows[0], "sacks") == (3, 10)
+    assert _leader_score(rows[0], "interceptions") == (2, 10)
