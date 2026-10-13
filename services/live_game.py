@@ -44,7 +44,7 @@ def project_events(events, home_id, away_id):
                 actor["passing_points"] += 6
         if kind == "passing_touchdown" and receiver:
             receiver["points"] += points
-        elif points and actor:
+        elif points and actor and kind != "passing_touchdown":
             actor["points"] += points
         metric = {"sack": "sacks", "flag": "tackles", "interception": "interceptions"}.get(kind)
         if metric and actor:

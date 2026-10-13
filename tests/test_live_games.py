@@ -344,3 +344,9 @@ def test_week_postponement_includes_started_games():
     assert response.status_code == 200
     assert response.json()["updated"] == 1
     assert client.get(path).json()["state"] == "postponed"
+
+
+def test_passing_touchdown_never_credits_qb_personal_points_without_receiver():
+    _, rows = project_events([{'kind': 'passing_touchdown', 'team_id': 1, 'player_id': 5, 'receiver_id': None}], 1, 2)
+    assert rows[0]['points'] == 0
+    assert rows[0]['passing_points'] == 6

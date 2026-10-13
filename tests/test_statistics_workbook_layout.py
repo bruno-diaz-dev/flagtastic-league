@@ -63,3 +63,25 @@ def test_selected_empty_week_still_reports_an_error():
 def test_official_category_accepts_full_names_and_suffixes(label, expected):
     from services.statistics_import import _division_from_official_category
     assert _division_from_official_category(label, 'Wk 1', 182) == expected
+
+
+def test_passing_points_are_not_personal_scoring_but_rushing_td_is():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 1'
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    values = {'6 Puntos': [5] * 7, '2 Puntos': [5] * 7, 'TD': [17, 5], 'Conv 2': [17], 'Asistencia': [5, 17]}
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    for label in labels:
+        sheet.append(['Diablos', 'Libre Femenil', label, *values.get(label, [])])
+    for label in labels:
+        sheet.append(['Rivals', 'Libre Femenil', label])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    rows = parse_statistics_workbook(output.getvalue())[1]
+    by_number = {row['jersey_number']: row for row in rows}
+    assert by_number[5]['points'] == 6  # Only her actual rushing touchdown.
+    assert by_number[17]['points'] == 8

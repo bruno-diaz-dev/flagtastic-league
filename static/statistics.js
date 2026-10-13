@@ -86,6 +86,7 @@ function renderLeaderboards(leaderboards) {
 
             return `
                 <section class="leaderboard-panel">
+                    <p class="form-help">${escapeHtml(leaderboards.tie_breakers?.[metric] || "")}</p>
                     <h3>${definition.title}</h3>
                     <p class="leaderboard-statistic">${definition.statistic}</p>
                     <table class="leaderboard-table">
