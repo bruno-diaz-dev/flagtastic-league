@@ -508,7 +508,7 @@ def test_youth_leaderboards_combine_legacy_branches():
     ]
 
 
-def test_leaderboards_share_places_and_keep_ties_at_cutoff():
+def test_leaderboards_use_unique_places_and_limit_to_five():
     team = create_team('Tied Leaders')
     rows = []
     for index, (points, completed, attempted) in enumerate([
@@ -522,7 +522,7 @@ def test_leaderboards_share_places_and_keep_ties_at_cutoff():
     leaders = client.get(
         '/api/statistics/leaderboards?branch=varonil&category=libre'
     ).json()
-    assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
+    assert [row['rank'] for row in leaders['points']] == [1, 2, 3, 4, 5]
     assert [row['rank'] for row in leaders['completion_percentage']] == [1, 2, 3, 4, 5]
     assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [48, 32, 16]
 
@@ -989,7 +989,7 @@ def test_original_official_team_labels_match_joined_registered_names():
     assert {row['team_name'] for row in rows} == {'SelAgsFemU14'}
 
 
-def test_defensive_ranks_use_secondary_metrics_and_preserve_exact_ties():
+def test_defensive_ranks_use_secondary_metrics_then_ids():
     from repositories.statistics import _leader_score, _rank_leaders
     rows = [
         {"tackles": 10, "sacks": 3, "interceptions": 2},
@@ -997,6 +997,32 @@ def test_defensive_ranks_use_secondary_metrics_and_preserve_exact_ties():
         {"tackles": 10, "sacks": 2, "interceptions": 5},
         {"tackles": 10, "sacks": 2, "interceptions": 5},
     ]
-    assert [r["rank"] for r in _rank_leaders(rows, lambda r: _leader_score(r, "tackles"), 5)] == [1, 2, 3, 3]
+    rows = [{**row, "player_id": index, "team_id": 1} for index, row in enumerate(rows, 1)]
+    assert [r["rank"] for r in _rank_leaders(rows, lambda r: _leader_score(r, "tackles"), 5)] == [1, 2, 3, 4]
     assert _leader_score(rows[0], "sacks") == (3, 10)
     assert _leader_score(rows[0], "interceptions") == (2, 10)
+
+
+def test_all_leaderboards_have_unique_stable_places_even_with_identical_stats():
+    team = create_team('Exact Ties')
+    rows = []
+    players = []
+    for index in range(1, 7):
+        players.append(create_player(team, f'Player {7-index}', f'UNIQ{index:014d}', index))
+        rows.append(['varonil', 'libre', 'Exact Ties', index, 6, 2, 1, 1, 3, 10, 20])
+    assert upload_week(1, rows).status_code == 200
+    leaders = client.get('/api/statistics/leaderboards?branch=varonil&category=libre').json()
+    for metric in ('points', 'receptions', 'tackles', 'interceptions', 'sacks', 'completion_percentage'):
+        assert [row['rank'] for row in leaders[metric]] == [1, 2, 3, 4, 5]
+        assert [row['player_id'] for row in leaders[metric]] == sorted(players)[:5]
+
+
+def test_sporting_tiebreakers_precede_player_and_team_ids():
+    from repositories.statistics import _leader_score, _rank_leaders
+    rows = [
+        {'player_id': 1, 'team_id': 1, 'points': 6, 'receptions': 2},
+        {'player_id': 2, 'team_id': 2, 'points': 8, 'receptions': 2},
+        {'player_id': 2, 'team_id': 1, 'points': 8, 'receptions': 2},
+    ]
+    ordered = _rank_leaders(rows, lambda r: _leader_score(r, 'receptions'), 5)
+    assert [(r['player_id'], r['team_id']) for r in ordered] == [(2, 1), (2, 2), (1, 1)]

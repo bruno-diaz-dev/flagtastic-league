@@ -533,27 +533,17 @@ def get_game_statistics(game_id, team_ids=None, player_id=None):
 
 
 def _rank_leaders(rows, score, limit):
-    """Competition ranks: equal scores share a place (1, 1, 3).
-
-    Include everyone tied at the last qualifying place.
-    """
-    ranked = []
-    previous = None
-    rank = 0
-    for index, row in enumerate(rows):
-        value = score(row)
-        if value != previous:
-            rank = index + 1
-        if rank > limit:
-            break
-        ranked.append({**row, "rank": rank})
-        previous = value
-    return ranked
+    """Unique places: sporting metrics first, then stable administrative IDs."""
+    ordered = sorted(rows, key=lambda row: (
+        tuple(-value for value in score(row)),
+        row["player_id"], row["team_id"],
+    ))
+    return [{**row, "rank": index + 1} for index, row in enumerate(ordered[:limit])]
 
 
 LEADER_TIEBREAKERS = {
-    "points": "Mismos puntos: lugar compartido; faltan touchdowns y participaciones verificables.",
-    "receptions": "Mismas recepciones: lugar compartido; faltan touchdowns por recepción y participaciones verificables.",
+    "points": "Más puntos; después más recepciones.",
+    "receptions": "Más recepciones; después más puntos personales.",
     "tackles": "Más tacleadas; después más capturas y más intercepciones.",
     "interceptions": "Más intercepciones; después más tacleadas.",
     "sacks": "Más capturas; después más tacleadas.",
@@ -566,6 +556,8 @@ def _leader_score(row, metric):
         return (Fraction(row["passes_completed"], row["passes_attempted"]),
                 row["passes_attempted"], row["passes_completed"])
     secondary = {
+        "points": ("receptions",),
+        "receptions": ("points",),
         "tackles": ("sacks", "interceptions"),
         "interceptions": ("tackles",),
         "sacks": ("tackles",),
@@ -612,12 +604,10 @@ def get_leaderboards(branch, category, limit=5):
 
     result = {}
     for metric in ("receptions", "points", "tackles", "interceptions", "sacks"):
-        ranked = sorted(
+        ranked = _rank_leaders(
             (row for row in rows if row[metric] > 0),
-            key=lambda row: (tuple(-value for value in _leader_score(row, metric)),
-                             row["player_name"].casefold(), row["team_name"].casefold())
+            lambda row: _leader_score(row, metric), limit,
         )
-        ranked = _rank_leaders(ranked, lambda row: _leader_score(row, metric), limit)
         result[metric] = [
             {"player_id": row["player_id"], "player_name": row["player_name"],
              "player_aka": row["player_aka"],
@@ -630,14 +620,9 @@ def get_leaderboards(branch, category, limit=5):
 
     latest_week = max((row["latest_week"] for row in rows), default=0)
     minimum_attempts = 15  # Total completed + incomplete attempts over all weeks
-    passing_ranked = sorted(
+    passing_ranked = _rank_leaders(
         (row for row in rows if row["passes_attempted"] > 0
          and row["passes_attempted"] >= minimum_attempts),
-        key=lambda row: (-Fraction(row["passes_completed"], row["passes_attempted"]),
-                         -row["passes_attempted"], row["player_name"].casefold())
-    )
-    passing_ranked = _rank_leaders(
-        passing_ranked,
         lambda row: _leader_score(row, "completion_percentage"),
         limit,
     )
@@ -652,7 +637,10 @@ def get_leaderboards(branch, category, limit=5):
          "passes_attempted": row["passes_attempted"], "rank": row["rank"]}
         for row in passing_ranked
     ]
-    result["tie_breakers"] = LEADER_TIEBREAKERS
+    result["tie_breakers"] = {
+        metric: rule + " Si persiste igualdad: menor ID del jugador y después del equipo, como orden administrativo."
+        for metric, rule in LEADER_TIEBREAKERS.items()
+    }
     result["passing_qualification"] = {
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }
