@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/statistics.css?v=20261005-1">
+<link rel="stylesheet" href="/static/statistics.css?v=20261013-1">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -18,10 +18,16 @@
                 Archivo oficial de estadísticas (.xlsx)
                 <input name="file" type="file" accept=".xlsx" required>
             </label>
+            <label>Modo de carga
+                <select name="mode">
+                    <option value="append">Agregar y conservar lo publicado</option>
+                    <option value="replace">Reemplazar las jornadas del archivo</option>
+                </select>
+            </label>
             <button type="submit">Importar estadísticas</button>
         </form>
         <p class="form-help">
-            Se importarán todas las hojas Wk y se sustituirán esas jornadas.
+            Agregar conserva los registros existentes y omite los repetidos. Reemplazar borra las estadísticas anteriores de las jornadas incluidas.
         </p>
         <a class="secondary-action" href="/api/statistics/import-template">
             Descargar plantilla Excel
@@ -69,8 +75,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/statistics_upload.js?v=20261007-1"></script>
-<script src="/static/statistics.js?v=20261007-2"></script>
+<script src="/static/api.js?v=20261013-1"></script>
+<script src="/static/statistics_upload.js?v=20261013-1"></script>
+<script src="/static/statistics.js?v=20261013-1"></script>
 {% endblock %}
 

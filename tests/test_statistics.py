@@ -463,3 +463,45 @@ def test_leaderboards_share_places_and_keep_ties_at_cutoff():
     assert [row['rank'] for row in leaders['points']] == [1, 1, 3, 4, 5, 5]
     assert [row['rank'] for row in leaders['completion_percentage']] == [1, 1, 1, 4, 5, 5]
     assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [6, 4, 2]
+
+
+def test_append_import_preserves_other_categories_and_is_idempotent():
+    old_team = create_team('Existing U8', category='u8')
+    create_player(old_team, 'Existing Player', 'AAAA000101HAGRRN01', 7)
+    new_team = create_team('New Libre')
+    create_player(new_team, 'New Player', 'BBBB000101HAGRRN02', 9)
+    old_rows = [['mixto', 'u8', 'Existing U8', 7, 12, 1, 0, 0, 0, 0, 0]]
+    new_rows = [['varonil', 'libre', 'New Libre', 9, 6, 2, 0, 0, 1, 0, 0]]
+    path = '/api/weeks/1/player-stats/import'
+    assert client.post(path, files={'file': ('old.xlsx', create_workbook(old_rows))}).status_code == 200
+    for expected in (1, 0):
+        response = client.post(path, data={'mode': 'append'}, files={'file': ('new.xlsx', create_workbook(new_rows))})
+        assert response.status_code == 200
+        assert response.json()['imported'] == expected
+        assert response.json()['retained_count'] == 1 - expected
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 2
+        assert sorted(row['points'] for row in rows) == [6, 12]
+    conflicting = [['varonil', 'libre', 'New Libre', 9, 99, 2, 0, 0, 1, 0, 0]]
+    assert client.post(path, data={'mode': 'append'}, files={'file': ('changed.xlsx', create_workbook(conflicting))}).json()['imported'] == 0
+    assert sorted(row['points'] for row in client.get('/api/weeks/1/player-stats').json()) == [6, 12]
+    assert client.post(path, data={'mode': 'invalid'}, files={'file': ('bad.xlsx', create_workbook(new_rows))}).status_code == 422
+
+
+def test_append_official_reupload_preserves_scores_and_does_not_duplicate():
+    team = create_team('Tigres')
+    create_team('Ravens')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'), (10, 'Receiver', 'DDDD000101HAGRRN04'), (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(team, name, curp, number)
+    payload = create_official_workbook()
+    path = '/api/statistics/import'
+    first = client.post(path, data={'mode': 'append'}, files={'file': ('official.xlsx', payload)})
+    assert first.status_code == 200
+    before = client.get('/api/weeks/1/player-stats').json()
+    games_before = client.get('/api/games').json()
+    second = client.post(path, data={'mode': 'append'}, files={'file': ('official.xlsx', payload)})
+    assert second.status_code == 200
+    assert second.json()['imported'] == 0
+    assert second.json()['retained_count'] == len(before)
+    assert client.get('/api/weeks/1/player-stats').json() == before
+    assert client.get('/api/games').json() == games_before

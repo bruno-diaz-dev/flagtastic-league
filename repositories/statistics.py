@@ -14,13 +14,15 @@ class StatisticsValidationError(Exception):
     """Raised when imported statistics conflict with league data."""
 
 
-def import_statistics_workbook(weeks, games=None):
+def import_statistics_workbook(weeks, games=None, mode="replace"):
+    if mode not in ("append", "replace"):
+        raise StatisticsValidationError("Modo de importación inválido")
     """Atomically replace included weekly statistics and inferred games."""
     connection = get_connection()
     try:
         # Serialize with live start/finish before replacing any weekly rows.
         connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
-        if connection.execute(
+        if mode == "replace" and connection.execute(
             """SELECT 1 FROM game_live_sessions live
                JOIN games ON games.id = live.game_id
                WHERE games.week = ANY(%s) LIMIT 1""",
@@ -123,10 +125,23 @@ def import_statistics_workbook(weeks, games=None):
 
         # Validation finishes before deleting anything, so a bad row leaves all
         # previously published jornadas untouched.
-        connection.execute(
-            "DELETE FROM player_week_stats WHERE week = ANY(%s)",
-            (list(resolved_weeks),)
-        )
+        if mode == "append":
+            for week in set(weeks) | set(games or {}):
+                team_ids = {team["id"] for _, team, _ in resolved_weeks.get(week, [])}
+                for game_week, home, away, _ in resolved_games:
+                    if game_week == week:
+                        team_ids.update((home, away))
+                if team_ids and connection.execute(
+                    """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
+                    WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s)) LIMIT 1""",
+                    (week, list(team_ids), list(team_ids)),
+                ).fetchone():
+                    raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
+        else:
+            connection.execute(
+                "DELETE FROM player_week_stats WHERE week = ANY(%s)",
+                (list(resolved_weeks),)
+            )
         game_ids = {}
         used_existing_game_ids = set()
         for week, home_team_id, away_team_id, game in resolved_games:
@@ -155,6 +170,8 @@ def import_statistics_workbook(weeks, games=None):
                     (home_team_id, away_team_id, game["home_score"],
                      game["away_score"], week)
                 ).fetchone()
+            elif mode == "append":
+                saved_game = existing
             else:
                 saved_game = connection.execute(
                     """
@@ -167,9 +184,17 @@ def import_statistics_workbook(weeks, games=None):
             used_existing_game_ids.add(saved_game["id"])
             game_ids[(week, game["game_index"])] = saved_game["id"]
         imported = []
+        retained_count = 0
         for week, resolved_rows in resolved_weeks.items():
             for player, team, row in resolved_rows:
                 game_id = game_ids.get((week, row.get("game_index")))
+                if mode == "append" and connection.execute(
+                    """SELECT 1 FROM player_week_stats WHERE week = %s AND player_id = %s AND team_id = %s
+                    AND (%s::integer IS NULL OR game_id IS NULL OR game_id = %s) LIMIT 1""",
+                    (week, player["id"], team["id"], game_id, game_id),
+                ).fetchone():
+                    retained_count += 1
+                    continue
                 created = connection.execute(
                     """
                     INSERT INTO player_week_stats (
@@ -207,12 +232,14 @@ def import_statistics_workbook(weeks, games=None):
                 HAVING COUNT(games.id) = 1
             ) AS matched
             WHERE stats.id = matched.stats_id
+              AND (%s OR stats.id = ANY(%s))
             """,
-            (list(resolved_weeks),)
+            (list(resolved_weeks), mode == "replace", [row["id"] for row in imported])
         )
         connection.commit()
         return {
             "imported": len(imported), "rows": imported,
+            "mode": mode, "retained_count": retained_count,
             "skipped": skipped, "skipped_count": len(skipped),
             "preserved_weeks": sorted(preserved_weeks),
             "games": len(resolved_games),
@@ -224,11 +251,12 @@ def import_statistics_workbook(weeks, games=None):
         connection.close()
 
 
-def import_week_statistics(week, rows, games=None):
+def import_week_statistics(week, rows, games=None, mode="replace"):
     """Compatibility wrapper for a compact single-jornada workbook."""
     return import_statistics_workbook(
         {week: rows},
-        {week: games} if games is not None else None
+        {week: games} if games is not None else None,
+        mode=mode
     )
 
 

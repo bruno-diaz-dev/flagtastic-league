@@ -70,12 +70,18 @@ def _normalize_header(value):
 def _division_from_official_category(value, sheet_name, row_number):
     """Map compact workbook categories onto the application's division fields."""
     category = _normalized_text(value).replace(" ", "")
-    match = re.fullmatch(r"(fem|var|mix)?u?(6|8|10|12|14|16|18|libre)", category)
+    aliases = {"femenil": "fem", "femenino": "fem", "varonil": "var", "masculino": "var", "mixto": "mix"}
+    for label, short in aliases.items():
+        category = category.replace(label, short)
+    match = re.fullmatch(r"(?:(fem|var|mix))?u?(6|8|10|12|14|16|18|libre)(fem|var|mix)?", category)
     if not match:
         raise StatisticsFileError(
             f"{sheet_name}, fila {row_number}: categoria desconocida: {value}"
         )
-    prefix, age = match.groups()
+    prefix, age, suffix = match.groups()
+    if prefix and suffix and prefix != suffix:
+        raise StatisticsFileError(f"{sheet_name}, fila {row_number}: rama contradictoria: {value}")
+    prefix = prefix or suffix
     branch = {"fem": "femenil", "var": "varonil", "mix": "mixto"}.get(
         prefix,
         "mixto"

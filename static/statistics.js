@@ -118,6 +118,8 @@ function renderSkippedStatistics(data) {
 async function submitStatisticsImport(event) {
     event.preventDefault();
     const fields = new FormData(statisticsImportForm);
+    const mode = fields.get("mode") || "append";
+    if (mode === "replace" && !window.confirm("Se borrarán las estadísticas anteriores de las jornadas incluidas. ¿Reemplazar?")) return;
     const submit = statisticsImportForm.querySelector('button[type="submit"]');
     if (submit.disabled) return;
     submit.disabled = true;
@@ -126,10 +128,10 @@ async function submitStatisticsImport(event) {
     try {
         const file = await prepareStatisticsUpload(fields.get("file"));
         statisticsImportMessage.textContent = "Importando estadísticas...";
-        const response = await importOfficialStatistics(file);
+        const response = await importOfficialStatistics(file, mode);
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
-        statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks.length} jornadas importados correctamente.`;
+        statisticsImportMessage.textContent = `${data.imported} registros de ${data.weeks.length} jornadas importados. ${data.retained_count || 0} registros existentes conservados.`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
     } catch (error) {

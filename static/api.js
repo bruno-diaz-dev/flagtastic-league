@@ -269,9 +269,11 @@ async function importWeekStatistics(week, file) {
     });
 }
 
-async function importOfficialStatistics(file) {
+async function importOfficialStatistics(file, mode = "append") {
+
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("mode", mode);
     return fetch("/api/statistics/import", {
         method: "POST",
         body: formData
