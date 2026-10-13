@@ -1,6 +1,7 @@
 """HTTP endpoints for Excel imports and public player statistics."""
 
 from io import BytesIO
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
@@ -69,6 +70,7 @@ def statistics_import_template(_user=Depends(require_league_admin)):
 async def import_statistics(
     week: int,
     file: UploadFile = File(...),
+    existing_records: Literal["preserve", "update"] = Form("update"),
     _user=Depends(require_league_admin)
 ):
     """Replace a complete week's statistics from one validated workbook."""
@@ -91,7 +93,8 @@ async def import_statistics(
         imported = import_week_statistics(
             week,
             weeks[week],
-            games[week] if games is not None else None
+            games[week] if games is not None else None,
+            existing_records=existing_records
         )
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -105,6 +108,7 @@ async def import_division_statistics(
     branch: str = Form(...),
     category: str = Form(...),
     file: UploadFile = File(...),
+    existing_records: Literal["preserve", "update"] = Form("update"),
     _user=Depends(require_league_admin),
 ):
     """Replace just one division of a week, leaving other divisions intact."""
@@ -147,6 +151,7 @@ async def import_division_statistics(
             week, rows,
             games[week] if games else None,
             link_existing_games_only=True,
+            existing_records=existing_records,
         )
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -156,6 +161,7 @@ async def import_division_statistics(
 @router.post("/api/statistics/import")
 async def import_official_statistics(
     file: UploadFile = File(...),
+    existing_records: Literal["preserve", "update"] = Form("update"),
     _user=Depends(require_league_admin)
 ):
     """Import every `Wk` sheet found in the official league workbook."""
@@ -167,7 +173,7 @@ async def import_official_statistics(
     try:
         weeks = parse_statistics_workbook(content)
         games = parse_games_workbook(content)
-        imported = import_statistics_workbook(weeks, games)
+        imported = import_statistics_workbook(weeks, games, existing_records=existing_records)
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {

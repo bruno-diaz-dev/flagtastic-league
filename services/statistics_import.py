@@ -70,6 +70,8 @@ def _normalize_header(value):
 def _division_from_official_category(value, sheet_name, row_number):
     """Map compact workbook categories onto the application's division fields."""
     category = _normalized_text(value).replace(" ", "")
+    for full, short in (("femenil", "fem"), ("femenino", "fem"), ("varonil", "var"), ("masculino", "var"), ("mixto", "mix")):
+        category = category.replace(full, short)
     match = re.fullmatch(r"(fem|var|mix)?u?(6|8|10|12|14|16|18|libre)", category)
     if match:
         prefix, age = match.groups()

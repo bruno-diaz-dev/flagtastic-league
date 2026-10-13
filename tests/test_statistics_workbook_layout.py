@@ -51,3 +51,15 @@ def test_invalid_populated_week_is_not_silently_skipped():
 def test_selected_empty_week_still_reports_an_error():
     with pytest.raises(StatisticsFileError, match='jornada 2'):
         parse_statistics_workbook(workbook_bytes(empty_week=True), selected_week=2)
+
+
+@pytest.mark.parametrize('label,expected', [
+    ('U14 Varonil', ('varonil', 'u14')),
+    ('U14 Femenil', ('femenil', 'u14')),
+    ('Libre Mixto', ('mixto', 'libre')),
+    ('Var Libre', ('varonil', 'libre')),
+    ('FemU12', ('femenil', 'u12')),
+])
+def test_official_category_accepts_full_names_and_suffixes(label, expected):
+    from services.statistics_import import _division_from_official_category
+    assert _division_from_official_category(label, 'Wk 1', 182) == expected

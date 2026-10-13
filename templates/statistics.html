@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/statistics.css?v=20261011-1">
+<link rel="stylesheet" href="/static/statistics.css?v=20261013-2">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -48,7 +48,7 @@
                     </select>
                 </label>
                 <p class="form-help">
-                    Se agregarán nuevos jugadores y se actualizarán los ya importados del mismo partido, sin borrar las estadísticas de otros equipos ni jornadas.
+                    Se agregarán los registros nuevos sin borrar estadísticas de otros equipos ni jornadas. Puedes conservar o actualizar los registros ya publicados.
                     En U8, U10 y U12 se considera la categoría unificada.
                 </p>
             </div>
@@ -60,12 +60,18 @@
                 <p class="form-help">
                     Para un Excel oficial con hojas Wk1, Wk2, etc., deja la jornada vacía.
                     Si tienes una plantilla compacta con varias categorías, indica su jornada.
-                    Los registros ya importados se actualizarán, sin duplicarse; los demás se conservarán.
+                    Por defecto se conservan los registros ya publicados. Para corregir cifras, selecciona Actualizar los incluidos en el archivo.
                 </p>
             </div>
             <label>
                 Archivo de estadísticas (.xlsx)
                 <input name="file" type="file" accept=".xlsx" required>
+            </label>
+            <label>Registros ya publicados
+                <select name="existing_records">
+                    <option value="preserve">Conservar y agregar solo nuevos</option>
+                    <option value="update">Actualizar los incluidos en el archivo</option>
+                </select>
             </label>
             <button type="submit">Importar estadísticas</button>
         </form>
@@ -115,8 +121,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261011-1"></script>
-<script src="/static/statistics_upload.js?v=20261011-1"></script>
-<script src="/static/statistics.js?v=20261011-1"></script>
+<script src="/static/api.js?v=20261013-2"></script>
+<script src="/static/statistics_upload.js?v=20261013-2"></script>
+<script src="/static/statistics.js?v=20261013-2"></script>
 {% endblock %}
 

@@ -904,3 +904,64 @@ def test_u12_same_name_in_two_branches_uses_registered_match():
     assert [(game["home_score"], game["away_score"]) for game in scores] == [
         (19, 41), (0, 12), (14, 0), (18, 13)
     ]
+
+def test_append_import_preserves_other_categories_and_is_idempotent():
+    old_team = create_team('Existing U8', category='u8')
+    create_player(old_team, 'Existing Player', 'AAAA000101HAGRRN01', 7)
+    new_team = create_team('New Libre')
+    create_player(new_team, 'New Player', 'BBBB000101HAGRRN02', 9)
+    old_rows = [['mixto', 'u8', 'Existing U8', 7, 12, 1, 0, 0, 0, 0, 0]]
+    new_rows = [['varonil', 'libre', 'New Libre', 9, 6, 2, 0, 0, 1, 0, 0]]
+    path = '/api/weeks/1/player-stats/import'
+    assert client.post(path, files={'file': ('old.xlsx', create_workbook(old_rows))}).status_code == 200
+    for expected in (1, 0):
+        response = client.post(path, data={'existing_records': 'preserve'}, files={'file': ('new.xlsx', create_workbook(new_rows))})
+        assert response.status_code == 200
+        assert response.json()['imported'] == expected
+        assert response.json()['retained_count'] == 1 - expected
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 2
+        assert sorted(row['points'] for row in rows) == [6, 12]
+    conflicting = [['varonil', 'libre', 'New Libre', 9, 99, 2, 0, 0, 1, 0, 0]]
+    assert client.post(path, data={'existing_records': 'preserve'}, files={'file': ('changed.xlsx', create_workbook(conflicting))}).json()['imported'] == 0
+    assert sorted(row['points'] for row in client.get('/api/weeks/1/player-stats').json()) == [6, 12]
+    assert client.post(path, data={'existing_records': 'invalid'}, files={'file': ('bad.xlsx', create_workbook(new_rows))}).status_code == 422
+
+
+def test_append_official_reupload_preserves_scores_and_does_not_duplicate():
+    team = create_team('Tigres')
+    create_team('Ravens')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'), (10, 'Receiver', 'DDDD000101HAGRRN04'), (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(team, name, curp, number)
+    payload = create_official_workbook()
+    path = '/api/statistics/import'
+    first = client.post(path, data={'existing_records': 'preserve'}, files={'file': ('official.xlsx', payload)})
+    assert first.status_code == 200
+    before = client.get('/api/weeks/1/player-stats').json()
+    games_before = client.get('/api/games').json()
+    second = client.post(path, data={'existing_records': 'preserve'}, files={'file': ('official.xlsx', payload)})
+    assert second.status_code == 200
+    assert second.json()['imported'] == 0
+    assert second.json()['retained_count'] == len(before)
+    assert client.get('/api/weeks/1/player-stats').json() == before
+    assert client.get('/api/games').json() == games_before
+
+
+def test_preserving_import_does_not_touch_unrelated_live_capture():
+    home = create_team('Live Home', category='u8')
+    away = create_team('Live Away', category='u8')
+    create_player(home, 'Live Player', 'FFFF000101HAGRRN06', 1)
+    game = client.post('/api/games', json={'home_team_id': home, 'away_team_id': away, 'field_number': 1, 'week': 1}).json()['id']
+    with get_connection() as connection:
+        connection.execute('INSERT INTO game_live_sessions (game_id) VALUES (%s)', (game,))
+    other = create_team('Separate Libre')
+    create_player(other, 'Separate Player', 'GGGG000101HAGRRN07', 9)
+    rows = [['varonil', 'libre', 'Separate Libre', 9, 6, 0, 0, 0, 0, 0, 0]]
+    endpoint = '/api/weeks/1/player-stats/import'
+    response = client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('new.xlsx', create_workbook(rows))})
+    assert response.status_code == 200
+    related = [['mixto', 'u8', 'Live Home', 1, 6, 0, 0, 0, 0, 0, 0]]
+    assert client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('live.xlsx', create_workbook(related))}).status_code == 422
+    assert len(client.get('/api/weeks/1/player-stats').json()) == 1
+    with get_connection() as connection:
+        assert connection.execute('SELECT state FROM game_live_sessions WHERE game_id = %s', (game,)).fetchone()['state'] == 'live'

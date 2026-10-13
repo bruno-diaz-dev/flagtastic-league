@@ -138,6 +138,7 @@ function updateStatisticsImportMode() {
 async function submitStatisticsImport(event) {
     event.preventDefault();
     const fields = new FormData(statisticsImportForm);
+    const existingRecords = fields.get("existing_records") || "preserve";
     const submit = statisticsImportForm.querySelector('button[type="submit"]');
     if (submit.disabled) return;
     submit.disabled = true;
@@ -153,17 +154,17 @@ async function submitStatisticsImport(event) {
                 Number(statisticsWeekInput.value),
                 statisticsBranchInput.value,
                 statisticsCategoryInput.value,
-                file
+                file, existingRecords
             );
         } else if (statisticsAllWeekInput.value) {
-            response = await importWeekStatistics(Number(statisticsAllWeekInput.value), file);
+            response = await importWeekStatistics(Number(statisticsAllWeekInput.value), file, existingRecords);
         } else {
-            response = await importOfficialStatistics(file);
+            response = await importOfficialStatistics(file, existingRecords);
         }
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
         updateStatisticsImportMode();
-        statisticsImportMessage.textContent = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados) en ${data.weeks?.length ?? 1} jornada(s).`;
+        statisticsImportMessage.textContent = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados, ${data.retained_count || 0} existentes conservados) en ${data.weeks?.length ?? 1} jornada(s).`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
     } catch (error) {

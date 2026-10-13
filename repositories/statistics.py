@@ -16,13 +16,15 @@ class StatisticsValidationError(Exception):
     """Raised when imported statistics conflict with league data."""
 
 
-def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=False):
+def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=False, existing_records="update"):
     """Merge player-game stats; optional stats-only mode keeps games unchanged."""
+    if existing_records not in ("preserve", "update"):
+        raise StatisticsValidationError("Modo de registros existentes inválido")
     connection = get_connection()
     try:
         # Serialize with live start/finish before replacing any weekly rows.
         connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
-        if connection.execute(
+        if existing_records == "update" and connection.execute(
             """SELECT 1 FROM game_live_sessions live
                JOIN games ON games.id = live.game_id
                WHERE games.week = ANY(%s) LIMIT 1""",
@@ -242,6 +244,16 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 if game_division in imported_divisions:
                     resolved_games.append((week, home["id"], away["id"], game))
 
+        if existing_records == "preserve":
+            for week, resolved_rows in resolved_weeks.items():
+                team_ids = list({team["id"] for _, team, _ in resolved_rows})
+                if team_ids and connection.execute(
+                    """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
+                    WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s)) LIMIT 1""",
+                    (week, team_ids, team_ids),
+                ).fetchone():
+                    raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
+
         # Never delete all statistics for a week or division. A file may
         # contain only one team, or even one player. Reimports update exact
         # player/game snapshots below; other records and weeks stay intact.
@@ -314,6 +326,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             game_ids[(week, game["game_index"])] = saved_game["id"]
         imported = []
         updated_count = 0
+        retained_count = 0
         for week, resolved_rows in resolved_weeks.items():
             if not (games or {}).get(week):
                 # Official Wk sheets may contain multiple games by one player.
@@ -340,6 +353,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     """,
                     (week, team["id"], player["id"], game_id, game_id)
                 ).fetchall()
+                if existing_rows and existing_records == "preserve":
+                    retained_count += 1
+                    continue
                 if len(existing_rows) > 1:
                     raise StatisticsValidationError(
                         f"Jornada {week}, equipo {team['name']}, jugador "
@@ -409,6 +425,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         connection.commit()
         return {
             "imported": len(imported), "updated": updated_count,
+            "retained_count": retained_count,
             "created": len(imported) - updated_count, "rows": imported,
             "skipped": skipped, "skipped_count": len(skipped),
             "preserved_weeks": sorted(preserved_weeks),
@@ -421,12 +438,13 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         connection.close()
 
 
-def import_week_statistics(week, rows, games=None, *, link_existing_games_only=False):
+def import_week_statistics(week, rows, games=None, *, link_existing_games_only=False, existing_records="update"):
     """Import one jornada; match existing games for stats-only official sheets."""
     return import_statistics_workbook(
         {week: rows},
         {week: games} if games is not None else None,
         link_existing_games_only=link_existing_games_only,
+        existing_records=existing_records,
     )
 
 
