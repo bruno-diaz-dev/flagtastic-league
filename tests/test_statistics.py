@@ -965,3 +965,24 @@ def test_preserving_import_does_not_touch_unrelated_live_capture():
     assert len(client.get('/api/weeks/1/player-stats').json()) == 1
     with get_connection() as connection:
         assert connection.execute('SELECT state FROM game_live_sessions WHERE game_id = %s', (game,)).fetchone()['state'] == 'live'
+
+
+def test_original_official_team_labels_match_joined_registered_names():
+    team = create_team('SelAgsFemU14', 'femenil', 'libre')
+    create_team('Ravens', 'femenil', 'libre')
+    for number, name, curp in ((83, 'Passer', 'HHHH000101HAGRRN08'), (10, 'Receiver', 'IIII000101HAGRRN09'), (22, 'Defender', 'JJJJ000101HAGRRN10')):
+        create_player(team, name, curp, number)
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    for row in workbook['Wk 1'].iter_rows(min_row=2):
+        if row[0].value == 'Tigres':
+            row[0].value = 'Sel Ags U14'
+        row[1].value = 'Libre Femenil'
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    response = client.post('/api/statistics/import', data={'existing_records': 'preserve'}, files={'file': ('original.xlsx', output.getvalue())})
+    assert response.status_code == 200
+    rows = client.get('/api/weeks/1/player-stats').json()
+    assert len(rows) == 3
+    assert {row['team_id'] for row in rows} == {team}
+    assert {row['team_name'] for row in rows} == {'SelAgsFemU14'}

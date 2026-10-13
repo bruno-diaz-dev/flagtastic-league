@@ -39,6 +39,9 @@ def normalize_team_upload_label(value):
 
 
 def _name_tokens(value, strip_division=False):
+    # Split joined registered words before removing division tokens, without
+    # changing the persisted/exact identity normalization used elsewhere.
+    value = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", str(value or ""))
     ignored = _NAME_STOP_WORDS | (_DIVISION_TOKENS if strip_division else set())
     return [
         token for token in normalize_team_text(value).split()
