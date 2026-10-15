@@ -15,7 +15,7 @@ class RosterImportError(Exception):
 
 
 HEADER_ALIASES = {
-    "name": {"name", "nombre", "jugador", "player"},
+    "name": {"name", "nombre", "jugador", "jugadora", "player", "nombre_completo", "nombre_de_la_jugadora", "nombre_del_jugador"},
     "curp": {"curp"},
     "age": {"age", "edad"},
     "jersey_number": {
@@ -78,19 +78,29 @@ def _read_xlsx(content):
         raise RosterImportError("No se pudo leer el archivo .xlsx") from error
 
     try:
-        sheet = workbook.active
-        rows = sheet.iter_rows(values_only=True)
-        headers = next(rows, None)
-        if headers is None:
-            raise RosterImportError("El archivo no contiene encabezados")
-
-        header_map = _map_headers(headers)
+        candidates = []
+        for sheet in workbook.worksheets:
+            for row_number, headers in enumerate(
+                sheet.iter_rows(max_row=30, values_only=True), start=1
+            ):
+                try:
+                    header_map = _map_headers(headers)
+                except RosterImportError:
+                    continue
+                candidates.append((sheet, row_number, header_map))
+                break
+        if not candidates:
+            raise RosterImportError("Faltan columnas requeridas: nombre, curp y numero. No se encontraron encabezados en las primeras 30 filas.")
+        if len(candidates) > 1:
+            raise RosterImportError("El archivo contiene varias hojas de roster. Sube un equipo por archivo.")
+        sheet, header_row, header_map = candidates[0]
+        rows = sheet.iter_rows(min_row=header_row + 1, values_only=True)
         parsed_rows = []
-        for index, row in enumerate(rows, start=2):
+        for index, row in enumerate(rows, start=header_row + 1):
             parsed_rows.append({
                 "row_number": index,
                 "values": {
-                    field: _cell_to_text(row[column_index])
+                    field: _cell_to_text(row[column_index] if column_index < len(row) else None)
                     for field, column_index in header_map.items()
                 },
             })
