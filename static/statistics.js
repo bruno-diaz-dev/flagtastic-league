@@ -145,8 +145,10 @@ async function submitStatisticsImport(event) {
     submit.disabled = true;
     statisticsImportSkipped.replaceChildren();
     statisticsImportMessage.textContent = "Preparando archivo...";
+    let stage = "prepare";
     try {
         const file = await prepareStatisticsUpload(fields.get("file"));
+        stage = "send";
         statisticsImportMessage.textContent = "Importando estadísticas...";
         const mode = statisticsImportMode.value;
         let response;
@@ -162,6 +164,7 @@ async function submitStatisticsImport(event) {
         } else {
             response = await importOfficialStatistics(file, existingRecords);
         }
+        stage = "response";
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
         updateStatisticsImportMode();
@@ -170,7 +173,11 @@ async function submitStatisticsImport(event) {
         await loadLeaderboards();
     } catch (error) {
         statisticsImportMessage.textContent = error instanceof TypeError
-            ? "No se pudo conectar con el servidor."
+            ? (stage === "send"
+                ? "Se interrumpió el envío del Excel y no se pudo confirmar el resultado. Comprueba la conexión y vuelve a intentar con el mismo archivo y modo."
+                : stage === "prepare"
+                    ? "No se pudo preparar el archivo en este navegador. Vuelve a seleccionarlo e inténtalo de nuevo."
+                    : "No se pudo procesar la respuesta del servidor. Revisa las estadísticas antes de repetir la carga.")
             : error.message || "No se pudo importar el archivo.";
     } finally {
         submit.disabled = false;
