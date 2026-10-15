@@ -226,13 +226,19 @@ def _parse_official_week_sheet(sheet, week):
                 for jersey_number, count in Counter(numbers).items():
                     players[(game_index, branch, category, team, jersey_number)][metric_name] += count * multiplier
             elif label == "para % pases":
+                # The workbook counts attempts separately (including completed
+                # passes). These QB markers supply completions only.
                 for jersey_number, count in Counter(numbers).items():
                     identity = (game_index, branch, category, team, jersey_number)
                     players[identity]["passes_completed"] += count
-                    players[identity]["passes_attempted"] += count
 
     rows = []
     for (game_index, branch, category, team, jersey_number), metrics in players.items():
+        if metrics["passes_completed"] > metrics["passes_attempted"]:
+            raise StatisticsFileError(
+                f"{sheet.title}, equipo {team}, jersey {jersey_number}: "
+                "los pases completos exceden los intentos registrados"
+            )
         rows.append({
             "branch": branch,
             "category": category,

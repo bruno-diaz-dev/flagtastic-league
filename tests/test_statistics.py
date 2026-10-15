@@ -70,7 +70,7 @@ def create_official_workbook():
         "Asistencia"
     ]
     tigres_events = {
-        "Intentos Pase": [83], "Completos Pase": [10, 10],
+        "Intentos Pase": [83, 83, 83], "Completos Pase": [10, 10],
         "Para % pases": [83, 83], "6 Puntos": [83], "TD": [10],
         "Sacks": [22, 22], "Tacleo": [22, 10],
         "Intercepciones Def": [22]

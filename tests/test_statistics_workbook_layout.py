@@ -85,3 +85,40 @@ def test_passing_points_are_not_personal_scoring_but_rushing_td_is():
     by_number = {row['jersey_number']: row for row in rows}
     assert by_number[5]['points'] == 6  # Only her actual rushing touchdown.
     assert by_number[17]['points'] == 8
+
+
+@pytest.mark.parametrize('attempts,completions', [(26, 14), (14, 14), (26, 0), (0, 0)])
+def test_official_attempts_already_include_completed_passes(attempts, completions):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 1'
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    for label in labels:
+        values = [8] * attempts if label == 'Intentos Pase' else [8] * completions if label == 'Para % pases' else [8] if label == 'Asistencia' else []
+        sheet.append(['Storms', 'Mix Libre', label, *values])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    row = parse_statistics_workbook(output.getvalue())[1][0]
+    assert row['passes_attempted'] == attempts
+    assert row['passes_completed'] == completions
+
+
+def test_official_completions_exceeding_attempts_are_rejected():
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 1'
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    for label in labels:
+        sheet.append(['Example', 'Mix Libre', label, *([8] if label == 'Para % pases' else [])])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    with pytest.raises(StatisticsFileError, match='completos exceden'):
+        parse_statistics_workbook(output.getvalue())
