@@ -2996,3 +2996,15 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 @media (max-width: 360px) {
     #public-referee-profile .referee-profile-hero { flex-direction: column; align-items: flex-start; }
 }
+
+#game-calendar-management .schedule-source-name {
+    display: block;
+    color: var(--muted, #94a3b8);
+    overflow-wrap: anywhere;
+    margin-bottom: .35rem;
+}
+#game-calendar-management [data-schedule-home],
+#game-calendar-management [data-schedule-away] {
+    margin-top: .35rem;
+}
+#game-calendar-management [hidden] { display: none; }

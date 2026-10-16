@@ -184,6 +184,8 @@ class GameCreate(BaseModel):
             return None
         value = value.strip().lower()
         allowed = ALLOWED_BRANCHES if info.field_name == "branch" else ALLOWED_CATEGORIES
+        if info.field_name == "category" and info.data.get("is_friendly"):
+            allowed = allowed | {"u7"}
         if value not in allowed:
             raise ValueError("Selecciona una rama y categoría válidas")
         return value

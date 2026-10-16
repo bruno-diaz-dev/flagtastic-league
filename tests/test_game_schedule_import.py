@@ -463,3 +463,73 @@ def test_unknown_diablos_color_cannot_fall_back_to_another_color():
     }], teams)
     assert result["proposals"][0]["away_team_id"] is None
     assert result["matched"] == 0
+
+
+def _csv_pair(home, away, teams):
+    content = f"jornada;campo;hora;local;visitante\n3;7;18:00;{home};{away}\n".encode()
+    return parse_game_schedule_file("rol.csv", content, teams)["proposals"][0]
+
+
+def test_spreadsheet_requires_name_evidence_not_shared_division_suffixes():
+    teams = [
+        {"id": 1, "name": "AZTECAS", "branch": "femenil", "category": "u14"},
+        {"id": 2, "name": "EaglesFlag", "branch": "femenil", "category": "u14"},
+    ]
+    row = _csv_pair("ECA Fem14", "Eagles Flag Fem14", teams)
+    assert row["home_team_id"] is None
+    assert row["away_team_id"] == 2
+    assert not row["ready"]
+
+
+def test_spreadsheet_preserves_explicit_category_and_branch():
+    teams = [
+        {"id": 1, "name": "Pitbulls", "branch": "femenil", "category": "u16"},
+        {"id": 2, "name": "Lobos", "branch": "femenil", "category": "u16"},
+        {"id": 3, "name": "Cuernos", "branch": "mixto", "category": "u8"},
+    ]
+    row = _csv_pair("Pitbulls U16 Var", "Lobos U16 Var", teams)
+    assert row["home_team_id"] is None
+    assert row["away_team_id"] is None
+    assert not row["ready"]
+    for age in (7, 9, 19):
+        row = _csv_pair(f"Cuernos U{age}", "Lobos U16 Var", teams)
+        assert row["home_team_id"] is None
+        assert row["suggested_category"] == f"u{age}"
+
+
+def test_spreadsheet_distinguishes_explicit_branch_in_unified_youth():
+    teams = [
+        {"id": 1, "name": "Nómadas", "branch": "femenil", "category": "u12"},
+        {"id": 2, "name": "Nómadas", "branch": "mixto", "category": "u12"},
+        {"id": 3, "name": "Mictlán Bats", "branch": "mixto", "category": "u12"},
+    ]
+    assert _csv_pair("Nómadas U12 Fem", "Mictlan Bats U12", teams)["home_team_id"] == 1
+    assert _csv_pair("Nómadas U12", "Mictlan Bats U12", teams)["home_team_id"] is None
+
+
+def test_spreadsheet_known_lobos_infantil_alias_selects_kids():
+    teams = [
+        {"id": 1, "name": "Lobos", "branch": "varonil", "category": "libre"},
+        {"id": 2, "name": "Lobos Kids", "branch": "varonil", "category": "libre"},
+        {"id": 3, "name": "Vikingos", "branch": "varonil", "category": "libre"},
+    ]
+    row = _csv_pair("Lobos Inf Var Libre", "Vikingos Var Libre", teams)
+    assert row["home_team_id"] == 2
+    assert row["ready"]
+
+
+def test_recognized_teams_in_different_categories_need_review():
+    teams = [
+        {"id": 1, "name": "Ducks", "branch": "femenil", "category": "u12"},
+        {"id": 2, "name": "Eagles Flag", "branch": "femenil", "category": "u14"},
+    ]
+    row = _csv_pair("Ducks Fem12", "Eagles Flag Fem14", teams)
+    assert row["home_team_id"] == 1
+    assert row["away_team_id"] == 2
+    assert not row["ready"]
+
+
+def test_numeric_u18_is_not_read_as_ocr_u8():
+    from services.game_schedule_import import _ocr_category_hint
+    assert _ocr_category_hint("Diablos Ama Fem18") == "u18"
+    assert _ocr_category_hint("Cuernos U6") == "u6"

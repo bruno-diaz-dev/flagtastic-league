@@ -6,6 +6,7 @@ const assert=require('node:assert/strict');
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  const team={id:1,name:'Local de la liga',branch:'mixto',category:'libre'};
+ const secondTeam={id:3,name:'Nómadas',branch:'mixto',category:'libre'};
  const guest={id:2,name:'Invitados de otra liga',branch:'mixto',category:'libre',is_guest:true};
  const game={id:1,home_team:team,away_team:guest,is_friendly:true,week:1,field_number:1,start_time:'10:00',status:'scheduled',home_score:null,away_score:null};
  let created,imported;
@@ -13,7 +14,7 @@ const assert=require('node:assert/strict');
   const url=new URL(route.request().url()),method=route.request().method();
   if(url.pathname.startsWith('/static/'))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
   const json=body=>route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
-  if(url.pathname==='/api/teams')return json([team]);
+  if(url.pathname==='/api/teams')return json([team,secondTeam]);
   if(url.pathname==='/api/games'&&method==='GET')return json([game]);
   if(url.pathname==='/api/games'&&method==='POST'){created=route.request().postDataJSON();return route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({id:2})});}
   if(url.pathname==='/api/games/schedule/confirm'){imported=route.request().postDataJSON();return json({created:1,updated:0,skipped:0});}
@@ -60,6 +61,21 @@ const assert=require('node:assert/strict');
  await page.locator('#confirm-game-schedule').click();
  await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
  assert.equal(imported.games[0].is_friendly,true);assert.equal(imported.games[0].home_guest_name,'Invitados A');assert.equal(imported.games[0].away_guest_name,'Invitados B');assert.equal(imported.games[0].category,'libre');
+ // An unresolved label can be assigned to an actual team without becoming a guest.
+ await page.evaluate(()=>renderGameScheduleReview({matched:0,unmatched:1,proposals:[{week:3,field_number:7,start_time:'18:00',home_team:'Local abreviado',away_team:'Nomadas',ready:false}]}));
+ await page.locator('[data-schedule-home-id="0"]').selectOption('1');
+ assert.equal(await page.locator('[data-schedule-row="0"]').isDisabled(),true);
+ await page.locator('[data-schedule-away-id="0"]').selectOption('1');
+ assert.equal(await page.locator('[data-schedule-row="0"]').isDisabled(),true);
+ await page.locator('[data-schedule-away-id="0"]').selectOption('3');
+ assert.equal(await page.locator('[data-schedule-row="0"]').isChecked(),true);
+ assert.equal(await page.locator('[data-schedule-home="0"]').isVisible(),false);
+ await page.locator('#confirm-game-schedule').click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
+ assert.equal(imported.games[0].home_team_id,1);
+ assert.equal(imported.games[0].away_team_id,3);
+ assert.equal(imported.games[0].home_guest_name,null);
+ assert.equal(imported.games[0].is_friendly,false);
  await page.evaluate(()=>renderGameScheduleReview({matched:1,unmatched:1,proposals:[
   {week:3,field_number:1,start_time:'19:00',home_team:'Seleccion Aguascalientes',away_team:'Diablos del Sol',home_match_branch:'femenil',home_match_category:'libre',ready:true},
   {week:3,field_number:7,start_time:'19:00',home_team:'Lobos del Norte',away_team:'Vikingos',home_match_branch:'varonil',home_match_category:'libre',ready:false}

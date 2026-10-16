@@ -55,3 +55,23 @@ for exceptional schedule changes, not routine rescheduling.
   `11:00` through `21:00` grid, all 52 proposed games, and the distinct
   `Pitbulls Jr`/`Pitbulls Sr` matches. Inspect every proposal, confirm, then
   repeat and verify that no games are duplicated.
+
+## Spreadsheet team recognition
+
+XLSX/CSV recognition compares team names within the explicitly written division;
+sharing age/branch suffixes never substitutes for name evidence. Unsupported ages
+such as U7 remain unresolved instead of being guessed as U6/U8. Numeric `18` is
+U18. Unified youth categories allow legacy branches, but an explicit branch can
+distinguish duplicate names. The confirmed schedule alias `Lobos Inf` resolves to
+`Lobos Kids`, distinct from adult `Lobos`.
+
+Every parsed game remains in review, including unmatched games. Each side offers
+a registered-team selector labelled with branch and category, retaining the
+original file label for comparison. Choosing both compatible teams enables an
+official game without creating guests. Mark a game friendly only when confirmed
+as such; unresolved guest names and different divisions can then be reviewed.
+Analysis never creates teams or confirms games automatically.
+
+Friendlies may pair registered teams from different divisions without changing
+those teams' categories. U7 is accepted for invited friendly participants only;
+it does not add an official league registration category.
