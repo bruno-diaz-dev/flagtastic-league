@@ -13,7 +13,7 @@ import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
 from services.divisions import teams_share_game_division
-from services.team_matching import normalize_team_upload_label, team_name_match_score
+from services.team_matching import match_team_name, normalize_team_upload_label, team_name_match_score
 
 
 class GameScheduleImportError(Exception):
@@ -41,7 +41,7 @@ def parse_game_schedule_file(filename, content, teams):
     else:
         raise GameScheduleImportError("Se requiere un archivo XLSX o CSV")
 
-    proposals = [_match_row(row, teams) for row in rows]
+    proposals = [_match_row(row, teams, spreadsheet=True) for row in rows]
     if not proposals:
         raise GameScheduleImportError("El archivo no contiene partidos reconocibles")
     if len(proposals) > MAX_SCHEDULE_GAMES:
@@ -578,13 +578,45 @@ def _read_csv(content):
     return rows
 
 
-def _match_row(row, teams):
-    home, away = _match_team_pair(
-        row["home_team"],
-        row["away_team"],
-        teams,
-    )
-    ready = home is not None and away is not None and home["id"] != away["id"]
+def _spreadsheet_category_hint(label):
+    target = _normalize(label)
+    if "libre" in target.split():
+        return "libre"
+    # Spreadsheets contain text, not OCR glyph errors. Preserve even unsupported
+    # ages (e.g. U7) so they cannot silently resolve to U6 or U8.
+    match = re.search(r"\b(?:u\s*)?(\d{1,2})\b", target)
+    return f"u{match[1]}" if match else None
+
+
+def _match_spreadsheet_team(label, teams):
+    label = re.sub(r"\b(fem|var|mix)(?=\d)", r"\1 ", label, flags=re.I)
+    # Confirmed schedule abbreviation: Lobos Inf is the registered Lobos Kids,
+    # distinct from Lobos in the same adult division.
+    label = re.sub(r"\blobos\s+inf(?:antil)?\b", "Lobos Kids", label, flags=re.I)
+    branch = _ocr_branch_hint(label)
+    category = _spreadsheet_category_hint(label)
+    match = match_team_name(label, teams, branch=branch, category=category)
+    if match is None and branch:
+        # Youth divisions permit cross-branch games, but an explicit branch
+        # can still distinguish two registered teams with the same name.
+        match = match_team_name(
+            label, [team for team in teams if _normalize(team["branch"]) == branch],
+            branch=branch, category=category,
+        )
+    return match
+
+
+def _match_row(row, teams, spreadsheet=False):
+    if spreadsheet:
+        home = _match_spreadsheet_team(row["home_team"], teams)
+        away = _match_spreadsheet_team(row["away_team"], teams)
+    else:
+        home, away = _match_team_pair(
+            row["home_team"], row["away_team"], teams,
+        )
+    ready = (home is not None and away is not None
+             and home["id"] != away["id"]
+             and teams_share_game_division(home, away))
     return {
         **row,
         "start_time": row["start_time"].strftime("%H:%M") if row["start_time"] else None,
@@ -597,6 +629,14 @@ def _match_row(row, teams):
         "away_match_branch": away["branch"] if away else None,
         "away_match_category": away["category"] if away else None,
         "ready": ready,
+        **({
+            "suggested_category": _spreadsheet_category_hint(
+                row["home_team"] if home is None else row["away_team"]
+            ),
+            "suggested_branch": _ocr_branch_hint(
+                row["home_team"] if home is None else row["away_team"]
+            ),
+        } if spreadsheet and not ready else {}),
     }
 
 
@@ -605,7 +645,12 @@ def _ocr_category_hint(label):
     if "libre" in target or "l1bre" in target:
         return "libre"
 
-    known = ("8", "10", "12", "14", "16", "18")
+    known = ("6", "8", "10", "12", "14", "16", "18")
+    # Recognize exact ages before repairing noisy OCR tokens: "18" is U18,
+    # never the OCR spelling "1" + "8" of U8.
+    exact = re.search(r"\b(?:u)?(6|8|10|12|14|16|18)\b", target)
+    if exact:
+        return f"u{exact[1]}"
     substitutions = str.maketrans({
         "b": "8",
         "e": "8",

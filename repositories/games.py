@@ -24,11 +24,14 @@ def resolve_game_participants(connection, game):
             if team["is_guest"] and not game.is_friendly:
                 raise ScheduleConflictError("Los invitados solo pueden participar en amistosos")
             known[side] = dict(team)
-    if len(known) == 2 and not teams_share_game_division(known["home"], known["away"]):
+    if (len(known) == 2 and not game.is_friendly
+            and not teams_share_game_division(known["home"], known["away"])):
         raise ScheduleConflictError("Los equipos deben pertenecer a la misma rama y categoria; U8, U10 y U12 permiten cruces entre ramas")
     reference = next(iter(known.values()), None)
-    branch = reference["branch"] if reference else game.branch
-    category = reference["category"] if reference else game.category
+    branch = (game.branch if game.is_friendly and game.branch else
+              reference["branch"] if reference else game.branch)
+    category = (game.category if game.is_friendly and game.category else
+                reference["category"] if reference else game.category)
     for side in ("home", "away"):
         if side in known:
             continue

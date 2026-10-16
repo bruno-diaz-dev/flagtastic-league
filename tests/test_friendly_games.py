@@ -100,3 +100,44 @@ def test_live_friendly_keeps_match_statistics_out_of_season_and_finals():
         assert connection.execute('SELECT COUNT(*) AS n FROM player_week_stats WHERE game_id=%s',(friendly,)).fetchone()['n']==0
     leaders=client.get('/api/statistics/leaderboards?branch=mixto&category=libre').json()
     assert all(not leaders[metric] for metric in ('points','receptions','sacks','tackles','interceptions','completion_percentage'))
+
+
+def test_u7_friendly_preserves_guest_age_and_cannot_be_official():
+    payload = fixture(category="u7", home_guest_name="ECA U7", away_guest_name="Cuernos U7")
+    response = client.post('/api/games/schedule/confirm', json={'games': [payload]})
+    assert response.status_code == 200
+    assert response.json()['created'] == 1
+    game = client.get('/api/games').json()[0]
+    assert game['home_team']['category'] == 'u7'
+    assert game['away_team']['category'] == 'u7'
+    assert client.get('/api/teams').json() == []
+    assert client.post('/api/games', json={**payload, 'is_friendly': False}).status_code == 422
+    assert client.post('/api/teams', json={'name': 'Oficial U7', 'branch': 'mixto', 'category': 'u7'}).status_code == 422
+
+
+def test_registered_teams_in_different_categories_can_play_only_a_friendly():
+    home = client.post('/api/teams', json={'name': 'Selección', 'branch': 'femenil', 'category': 'u12'}).json()['id']
+    away = client.post('/api/teams', json={'name': 'Eagles', 'branch': 'femenil', 'category': 'u14'}).json()['id']
+    payload = {'home_team_id': home, 'away_team_id': away, 'week': 3, 'field_number': 4, 'start_time': '12:00'}
+    assert client.post('/api/games/schedule/confirm', json={'games': [payload]}).status_code == 409
+    response = client.post('/api/games/schedule/confirm', json={'games': [{**payload, 'is_friendly': True}]})
+    assert response.status_code == 200
+    assert response.json()['created'] == 1
+    game = client.get('/api/games').json()[0]
+    assert game['home_team']['id'] == home
+    assert game['away_team']['id'] == away
+    assert game['is_friendly'] is True
+    assert client.get('/api/standings?branch=femenil&category=u12').json()[0]['games_played'] == 0
+
+
+def test_invited_friendly_keeps_explicit_age_against_registered_older_team():
+    away = client.post('/api/teams', json={'name': 'Eagles', 'branch': 'femenil', 'category': 'u14'}).json()['id']
+    response = client.post('/api/games', json=fixture(
+        home_guest_name='Selección U12', away_guest_name=None, away_team_id=away,
+        branch='femenil', category='u12',
+    ))
+    assert response.status_code == 201
+    game = client.get('/api/games').json()[0]
+    assert game['home_team']['category'] == 'u12'
+    assert game['away_team']['category'] == 'u14'
+    assert game['away_team']['id'] == away
