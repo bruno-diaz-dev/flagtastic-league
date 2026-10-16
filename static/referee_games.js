@@ -9,6 +9,8 @@ const scheduleReview = document.querySelector("#schedule-review");
 const scheduleReviewBody = document.querySelector("#schedule-review-body");
 const scheduleRawText = document.querySelector("#schedule-raw-text");
 const confirmScheduleButton = document.querySelector("#confirm-schedule");
+const scheduleConfirmMessage = document.querySelector("#official-schedule-confirm-message");
+const scheduleSaveProgress = document.querySelector("#official-schedule-save-progress");
 const dashboardPhotoPanel = document.querySelector("#referee-dashboard-photo-panel");
 const dashboardPhotoForm = document.querySelector("#referee-dashboard-photo-form");
 const dashboardPhotoMessage = document.querySelector("#referee-dashboard-photo-message");
@@ -251,7 +253,20 @@ function officialSelects(selectedOfficials) {
 }
 
 
+function setOfficialSaveProgress(state) {
+    if (!scheduleSaveProgress) return;
+    scheduleSaveProgress.hidden = state === "idle";
+    scheduleSaveProgress.classList.toggle("is-complete", state === "complete");
+    if (state === "complete") scheduleSaveProgress.setAttribute("aria-valuenow", "100");
+    else scheduleSaveProgress.removeAttribute("aria-valuenow");
+}
+function setOfficialConfirmMessage(message) {
+    scheduleMessage.textContent = message;
+    if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = message;
+}
 function renderScheduleReview(result) {
+    setOfficialSaveProgress("idle");
+    if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
     scheduleRawText.textContent = result.raw_text || "";
     scheduleReviewBody.innerHTML = result.proposals.map((proposal) => `
         <tr data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}">
@@ -315,6 +330,8 @@ scheduleForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const file = new FormData(scheduleForm).get("file");
     scheduleMessage.textContent = "Analizando archivo...";
+    setOfficialSaveProgress("idle");
+    if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
     scheduleReview.classList.add("hidden");
     const response = await analyzeRefereeSchedule(file);
     const body = await response.json();
@@ -327,6 +344,8 @@ scheduleForm?.addEventListener("submit", async (event) => {
 
 
 confirmScheduleButton?.addEventListener("click", async () => {
+    if (confirmScheduleButton.disabled) return;
+    confirmScheduleButton.disabled = true;
     const assignments = [...scheduleReviewBody.querySelectorAll("tr")].map((row) => ({
         game_id: Number(row.dataset.gameId),
         field_number: Number(row.querySelector("[name='field_number']").value),
@@ -338,14 +357,42 @@ confirmScheduleButton?.addEventListener("click", async () => {
                 position: select.dataset.position
             }))
     }));
-    const response = await confirmRefereeSchedule(assignments);
-    const body = await response.json();
-    scheduleMessage.textContent = response.ok
-        ? `${body.updated} partido(s) actualizado(s).`
-        : (body.detail || "No se pudieron guardar las asignaciones.");
-    if (response.ok) {
-        scheduleReview.classList.add("hidden");
-        await loadRefereeGames();
+    if (!assignments.length) {
+        setOfficialConfirmMessage("Analiza un rol con partidos reconocidos antes de confirmar.");
+        confirmScheduleButton.disabled = false;
+        return;
+    }
+    const originalLabel = confirmScheduleButton.textContent;
+    let saved = false;
+    confirmScheduleButton.textContent = "Guardando asignaciones…";
+    confirmScheduleButton.setAttribute("aria-busy", "true");
+    setOfficialSaveProgress("saving");
+    setOfficialConfirmMessage(`Guardando asignaciones de ${assignments.length} partido(s)… Espera a que termine.`);
+    try {
+        const response = await confirmRefereeSchedule(assignments);
+        const body = await response.json();
+        saved = response.ok;
+        setOfficialSaveProgress(saved ? "complete" : "idle");
+        const detail = Array.isArray(body.detail)
+            ? body.detail.map(error => error.msg).join(". ") : body.detail;
+        setOfficialConfirmMessage(saved
+            ? `${body.updated} partido(s) actualizado(s).`
+            : (detail || "No se pudieron guardar las asignaciones."));
+        if (saved) {
+            scheduleReview.classList.add("hidden");
+            await loadRefereeGames();
+        }
+    } catch (error) {
+        if (saved) {
+            setOfficialConfirmMessage("Asignaciones guardadas. No se pudo actualizar la agenda; recarga la página para consultarla.");
+        } else {
+            setOfficialSaveProgress("idle");
+            setOfficialConfirmMessage("No se pudo confirmar el guardado de las asignaciones. Reintenta la confirmación.");
+        }
+    } finally {
+        confirmScheduleButton.textContent = originalLabel;
+        confirmScheduleButton.removeAttribute("aria-busy");
+        confirmScheduleButton.disabled = saved;
     }
 });
 
