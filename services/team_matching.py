@@ -191,3 +191,40 @@ def match_team_name(label, teams, branch=None, category=None):
     if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < 0.06:
         return None
     return ranked[0][1]
+
+
+def schedule_category_hint(label):
+    """Read a spreadsheet age literally, including invited U7 teams."""
+    target = normalize_team_text(label)
+    if "libre" in target.split():
+        return "libre"
+    # Spreadsheets contain text, not OCR glyph errors. Preserve even unsupported
+    # ages (e.g. U7) so they cannot silently resolve to U6 or U8.
+    match = re.search(r"\b(?:u\s*)?(\d{1,2})\b", target)
+    return f"u{match[1]}" if match else None
+
+
+def match_schedule_team(label, teams):
+    """Resolve schedule labels consistently for fixtures and officiating."""
+    label = re.sub(r"\b(fem|var|mix)(?=\d)", r"\1 ", label, flags=re.I)
+    # Confirmed schedule abbreviation: Lobos Inf is the registered Lobos Kids,
+    # distinct from Lobos in the same adult division.
+    label = re.sub(r"\blobos\s+inf(?:antil)?\b", "Lobos Kids", label, flags=re.I)
+    category = schedule_category_hint(label)
+    # The league's U12 spreadsheet convention omits the branch for mixto;
+    # explicit Fem/Var labels still select their own registered identity.
+    normalized = normalize_team_text(label)
+    branch = next((branch for token, branch in (
+        ("fem", "femenil"), ("var", "varonil"), ("mix", "mixto")
+    ) if re.search(rf"\b{token}", normalized)), None)
+    branch = branch or ("mixto" if category == "u12" else None)
+    match = match_team_name(label, teams, branch=branch, category=category)
+    if match is None and branch:
+        # Youth divisions permit cross-branch games, but an explicit branch
+        # can still distinguish two registered teams with the same name.
+        match = match_team_name(
+            label, [team for team in teams if normalize_team_text(team["branch"]) == branch],
+            branch=branch, category=category,
+        )
+    return match
+
