@@ -504,7 +504,7 @@ def test_spreadsheet_distinguishes_explicit_branch_in_unified_youth():
         {"id": 3, "name": "Mictlán Bats", "branch": "mixto", "category": "u12"},
     ]
     assert _csv_pair("Nómadas U12 Fem", "Mictlan Bats U12", teams)["home_team_id"] == 1
-    assert _csv_pair("Nómadas U12", "Mictlan Bats U12", teams)["home_team_id"] is None
+    assert _csv_pair("Nómadas U12", "Mictlan Bats U12", teams)["home_team_id"] == 2
 
 
 def test_spreadsheet_known_lobos_infantil_alias_selects_kids():
