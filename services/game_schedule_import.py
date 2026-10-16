@@ -593,8 +593,10 @@ def _match_spreadsheet_team(label, teams):
     # Confirmed schedule abbreviation: Lobos Inf is the registered Lobos Kids,
     # distinct from Lobos in the same adult division.
     label = re.sub(r"\blobos\s+inf(?:antil)?\b", "Lobos Kids", label, flags=re.I)
-    branch = _ocr_branch_hint(label)
     category = _spreadsheet_category_hint(label)
+    # The league's U12 spreadsheet convention omits the branch for mixto;
+    # explicit Fem/Var labels still select their own registered identity.
+    branch = _ocr_branch_hint(label) or ("mixto" if category == "u12" else None)
     match = match_team_name(label, teams, branch=branch, category=category)
     if match is None and branch:
         # Youth divisions permit cross-branch games, but an explicit branch

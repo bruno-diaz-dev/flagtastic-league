@@ -62,7 +62,8 @@ XLSX/CSV recognition compares team names within the explicitly written division;
 sharing age/branch suffixes never substitutes for name evidence. Unsupported ages
 such as U7 remain unresolved instead of being guessed as U6/U8. Numeric `18` is
 U18. Unified youth categories allow legacy branches, but an explicit branch can
-distinguish duplicate names. The confirmed schedule alias `Lobos Inf` resolves to
+distinguish duplicate names. In U12 spreadsheets, an omitted branch means mixto
+(the league's confirmed source convention); explicit femenil remains femenil. The confirmed schedule alias `Lobos Inf` resolves to
 `Lobos Kids`, distinct from adult `Lobos`.
 
 Every parsed game remains in review, including unmatched games. Each side offers
