@@ -8,7 +8,11 @@ function setup() {
     const nodes = new Map();
     const document = {querySelector(selector) {
         if (!nodes.has(selector)) nodes.set(selector, {innerHTML: '', textContent: '',
-            classList: {toggle() {}, add() {}, remove() {}}, addEventListener() {}});
+            classList: {toggle() {}, add() {}, remove() {}},
+            listeners: {}, attributes: {},
+            addEventListener(event, callback) {this.listeners[event] = callback;},
+            setAttribute(name, value) {this.attributes[name] = value;},
+            removeAttribute(name) {delete this.attributes[name];}});
         return nodes.get(selector);
     }};
     const pending = () => new Promise(() => {});
@@ -84,4 +88,78 @@ test('Score capture is offered only for unscored pending assignments', () => {
         game(4, 'completed', 1), game(5, 'scheduled', 1, [7, null])]) {
         assert.doesNotMatch(c.refereeGameCard(g), /referee-score-form/);
     }
+});
+
+
+function confirmationSetup() {
+    const s = setup();
+    const row = {dataset: {gameId: '81', scheduledTime: '12:00'},
+        querySelector: () => ({value: '2'}),
+        querySelectorAll: () => [{value: '11', dataset: {position: 'referee'}}]};
+    s.nodes.get('#schedule-review-body').querySelectorAll = () => [row];
+    const button = s.nodes.get('#confirm-schedule');
+    button.textContent = 'Confirmar asignaciones';
+    s.context.loadRefereeGames = async () => {};
+    return {...s, button, confirm: button.listeners.click,
+        progress: s.nodes.get('#official-schedule-save-progress'),
+        message: s.nodes.get('#official-schedule-confirm-message')};
+}
+
+test('Official confirmation exposes pending activity, prevents double submission and completes after success', async () => {
+    const s = confirmationSetup();
+    let release, calls = 0, submitted;
+    s.context.confirmRefereeSchedule = assignments => {
+        calls++; submitted = assignments;
+        return new Promise(resolve => {release = resolve;});
+    };
+    const pending = s.confirm();
+    assert.equal(s.button.disabled, true);
+    assert.equal(s.button.attributes['aria-busy'], 'true');
+    assert.match(s.button.textContent, /Guardando asignaciones/);
+    assert.equal(s.progress.hidden, false);
+    assert.equal(s.progress.attributes['aria-valuenow'], undefined);
+    assert.match(s.message.textContent, /Guardando asignaciones de 1/);
+    await s.confirm();
+    assert.equal(calls, 1);
+    assert.equal(submitted[0].game_id, 81);
+    assert.equal(submitted[0].officials[0].user_id, 11);
+    release({ok: true, json: async () => ({updated: 1})});
+    await pending;
+    assert.equal(s.progress.attributes['aria-valuenow'], '100');
+    assert.match(s.message.textContent, /1 partido.*actualizado/);
+    assert.equal(s.button.textContent, 'Confirmar asignaciones');
+    assert.equal(s.button.attributes['aria-busy'], undefined);
+    assert.equal(s.button.disabled, true);
+});
+
+test('Official confirmation shows server errors beside the button and retains review for retry', async () => {
+    const s = confirmationSetup();
+    s.context.confirmRefereeSchedule = async () => ({ok: false, json: async () => ({detail: [{msg: 'Oficial no disponible'}]})});
+    await s.confirm();
+    assert.equal(s.message.textContent, 'Oficial no disponible');
+    assert.equal(s.progress.hidden, true);
+    assert.equal(s.button.disabled, false);
+    s.context.confirmRefereeSchedule = async () => ({ok: true, json: async () => ({updated: 1})});
+    await s.confirm();
+    assert.match(s.message.textContent, /actualizado/);
+});
+
+test('Official confirmation handles failed connections and restores its controls', async () => {
+    const s = confirmationSetup();
+    s.context.confirmRefereeSchedule = async () => {throw new Error('Network unavailable');};
+    await s.confirm();
+    assert.match(s.message.textContent, /No se pudo confirmar el guardado/);
+    assert.equal(s.progress.hidden, true);
+    assert.equal(s.button.disabled, false);
+    assert.equal(s.button.attributes['aria-busy'], undefined);
+});
+
+test('A failed agenda refresh never reports a confirmed assignment save as failed', async () => {
+    const s = confirmationSetup();
+    s.context.confirmRefereeSchedule = async () => ({ok: true, json: async () => ({updated: 1})});
+    s.context.loadRefereeGames = async () => {throw new Error('Refresh failed');};
+    await s.confirm();
+    assert.match(s.message.textContent, /Asignaciones guardadas/);
+    assert.equal(s.progress.attributes['aria-valuenow'], '100');
+    assert.equal(s.button.disabled, true);
 });
