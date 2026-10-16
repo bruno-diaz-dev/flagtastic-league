@@ -136,7 +136,18 @@ def test_league_admin_can_create_team():
     assert assignment is not None
 
 
-def test_team_representative_can_manage_only_assigned_team():
+def test_team_representative_can_manage_only_assigned_team(monkeypatch):
+    # Test ownership permissions inside the registration window. Cutoff
+    # enforcement is covered separately in test_roster_deadline.py.
+    from datetime import datetime, timedelta
+    from services.roster_policy import ROSTER_CLOSES_AT
+
+    class BeforeDeadline(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return (ROSTER_CLOSES_AT - timedelta(days=1)).astimezone(tz)
+
+    monkeypatch.setattr("services.roster_policy.datetime", BeforeDeadline)
     disable_test_authorization_override()
     assigned_name, email = unique_identity("representative")
     other_name, _ = unique_identity("other-team")

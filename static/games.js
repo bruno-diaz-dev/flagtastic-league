@@ -811,8 +811,8 @@ function renderGameScheduleReview(result) {
             <td><input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></td>
             <td><input data-schedule-home="${index}" aria-label="Equipo local ${index + 1}" maxlength="120" value="${escapeHtml(proposal.home_match || proposal.home_team)}"></td>
             <td><input data-schedule-away="${index}" aria-label="Equipo visitante ${index + 1}" maxlength="120" value="${escapeHtml(proposal.away_match || proposal.away_team)}"></td>
-            <td><select data-schedule-branch="${index}" aria-label="Rama ${index + 1}">${scheduleDivisionOptions(["varonil","femenil","mixto"],proposal.home_match_branch || proposal.away_match_branch)}</select>
-            <select data-schedule-category="${index}" aria-label="Categoría ${index + 1}">${scheduleDivisionOptions(["u6","u8","u10","u12","u14","u16","u18","libre"],proposal.home_match_category || proposal.away_match_category)}</select></td>
+            <td><div class="schedule-division-fields"><select data-schedule-branch="${index}" aria-label="Rama ${index + 1}">${scheduleDivisionOptions(["varonil","femenil","mixto"],proposal.home_match_branch || proposal.away_match_branch)}</select>
+            <select data-schedule-category="${index}" aria-label="Categoría ${index + 1}">${scheduleDivisionOptions(["u6","u8","u10","u12","u14","u16","u18","libre"],proposal.home_match_category || proposal.away_match_category)}</select></div></td>
             <td>${proposal.ready ? "Listo" : "Sin coincidencia: revisa o marca amistoso"}</td>
         </tr>`).join("");
     confirmScheduleButton.disabled = result.proposals.length === 0;
