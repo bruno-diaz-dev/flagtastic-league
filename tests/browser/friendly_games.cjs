@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');
  const secondTeam={id:3,name:'Nómadas',branch:'mixto',category:'libre'};
  const guest={id:2,name:'Invitados de otra liga',branch:'mixto',category:'libre',is_guest:true};
  const game={id:1,home_team:team,away_team:guest,is_friendly:true,week:1,field_number:1,start_time:'10:00',status:'scheduled',home_score:null,away_score:null};
- let created,imported;
+ let created,imported,confirmGate,releaseConfirmation,confirmFailure=false;
  await page.route('https://friendly.test/**',async route=>{
   const url=new URL(route.request().url()),method=route.request().method();
   if(url.pathname.startsWith('/static/'))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
@@ -17,7 +17,12 @@ const assert=require('node:assert/strict');
   if(url.pathname==='/api/teams')return json([team,secondTeam]);
   if(url.pathname==='/api/games'&&method==='GET')return json([game]);
   if(url.pathname==='/api/games'&&method==='POST'){created=route.request().postDataJSON();return route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({id:2})});}
-  if(url.pathname==='/api/games/schedule/confirm'){imported=route.request().postDataJSON();return json({created:1,updated:0,skipped:0});}
+  if(url.pathname==='/api/games/schedule/confirm'){
+   imported=route.request().postDataJSON();
+   if(confirmGate)await confirmGate;
+   if(confirmFailure)return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({detail:'El partido ya tiene resultados; revisa el rol.'})});
+   return json({created:1,updated:0,skipped:0});
+  }
   if(url.pathname.startsWith('/api/'))return json([]);
   let content=fs.readFileSync('templates/games.html','utf8').split('{% block content %}')[1].split('{% endblock %}')[0].replace(/{% for field_number in range\(1, 9\) %}[\s\S]*?{% endfor %}/g,'<option value="1">Campo 1</option>');
   return route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body class="role-league_admin"><main class="content">${content}</main><script>function escapeHtml(v){const el=document.createElement("span");el.textContent=String(v);return el.innerHTML.replace(/"/g,"&quot;");}</script><script src="/static/api.js"></script><script src="/static/games.js"></script></body></html>`});
@@ -56,10 +61,25 @@ const assert=require('node:assert/strict');
  await page.evaluate(()=>renderGameScheduleReview({matched:0,unmatched:1,proposals:[{week:2,field_number:1,start_time:'11:00',home_team:'Invitados A',away_team:'Invitados B',home_team_id:null,away_team_id:null,ready:false}]}));
  await page.locator('[data-schedule-friendly="0"]').check();
  await page.locator('[data-schedule-row="0"]').check();
+ await page.locator('#confirm-game-schedule').click();
+ assert.equal(await page.locator('#game-schedule-confirm-message').isVisible(),true);
+ assert.match(await page.locator('#game-schedule-confirm-message').textContent(),/rama y categoría/);
+ assert.equal(imported,undefined);
  await page.locator('[data-schedule-branch="0"]').selectOption('mixto');
  await page.locator('[data-schedule-category="0"]').selectOption('libre');
+ confirmGate=new Promise(resolve=>{releaseConfirmation=resolve;});
  await page.locator('#confirm-game-schedule').click();
+ assert.equal(await page.locator('#confirm-game-schedule').isDisabled(),true);
+ assert.equal(await page.locator('#confirm-game-schedule').getAttribute('aria-busy'),'true');
+ assert.match(await page.locator('#confirm-game-schedule').textContent(),/Guardando/);
+ assert.equal(await page.locator('#game-schedule-save-progress').isVisible(),true);
+ assert.equal(await page.locator('#game-schedule-save-progress').getAttribute('aria-valuenow'),null);
+ assert.match(await page.locator('#game-schedule-confirm-message').textContent(),/Guardando 1 partido/);
+ releaseConfirmation();confirmGate=null;
  await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
+ assert.equal(await page.locator('#game-schedule-save-progress').getAttribute('aria-valuenow'),'100');
+ assert.equal(await page.locator('#game-schedule-confirm-message').isVisible(),true);
+ assert.match(await page.locator('#game-schedule-confirm-message').textContent(),/creados/);
  assert.equal(imported.games[0].is_friendly,true);assert.equal(imported.games[0].home_guest_name,'Invitados A');assert.equal(imported.games[0].away_guest_name,'Invitados B');assert.equal(imported.games[0].category,'libre');
  // An unresolved label can be assigned to an actual team without becoming a guest.
  await page.evaluate(()=>renderGameScheduleReview({matched:0,unmatched:1,proposals:[{week:3,field_number:7,start_time:'18:00',home_team:'Local abreviado',away_team:'Nomadas',ready:false}]}));
@@ -70,6 +90,15 @@ const assert=require('node:assert/strict');
  await page.locator('[data-schedule-away-id="0"]').selectOption('3');
  assert.equal(await page.locator('[data-schedule-row="0"]').isChecked(),true);
  assert.equal(await page.locator('[data-schedule-home="0"]').isVisible(),false);
+ confirmFailure=true;
+ await page.locator('#confirm-game-schedule').click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-confirm-message').textContent.includes('ya tiene resultados'));
+ assert.equal(await page.locator('#game-schedule-confirm-message').isVisible(),true);
+ assert.equal(await page.locator('#game-schedule-save-progress').isVisible(),false);
+ assert.equal(await page.locator('#confirm-game-schedule').isEnabled(),true);
+ assert.equal(await page.locator('#confirm-game-schedule').getAttribute('aria-busy'),null);
+ assert.equal(await page.locator('[data-schedule-away-id="0"]').inputValue(),'3');
+ confirmFailure=false;
  await page.locator('#confirm-game-schedule').click();
  await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
  assert.equal(imported.games[0].home_team_id,1);
