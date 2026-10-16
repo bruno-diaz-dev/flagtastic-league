@@ -13,7 +13,7 @@ from services.referee_schedule_ocr import (
     GRID_FOUR_POSITION_ORDER,
     _best_referee,
 )
-from services.team_matching import team_name_match_score
+from services.team_matching import match_schedule_team
 
 
 class RefereeScheduleImportError(Exception):
@@ -266,24 +266,24 @@ def _schedule_row(source, row_number, week, field_number, start_time, home, away
 
 
 def _match_game(row, games):
+    # Resolve names with the same division/alias rules used to register the
+    # schedule, including invited friendly identities. Deduplicate teams that
+    # occur in multiple games before testing identity ambiguity.
+    week_games = [game for game in games if game["week"] == row["week"]]
+    teams = list({team["id"]: team for game in week_games
+                  for team in (game["home_team"], game["away_team"])}.values())
+    home = match_schedule_team(row["home_team"], teams)
+    away = match_schedule_team(row["away_team"], teams)
+    if home is None or away is None or home["id"] == away["id"]:
+        return None
+    participant_ids = {home["id"], away["id"]}
     candidates = []
-    for game in games:
-        if game["week"] != row["week"]:
-            continue
-        direct = (
-            team_name_match_score(row["home_team"], game["home_team"]["name"]),
-            team_name_match_score(row["away_team"], game["away_team"]["name"]),
-        )
-        swapped = (
-            team_name_match_score(row["home_team"], game["away_team"]["name"]),
-            team_name_match_score(row["away_team"], game["home_team"]["name"]),
-        )
-        team_scores = max(direct, swapped, key=sum)
-        if min(team_scores) < 0.70 or sum(team_scores) < 1.50:
+    for game in week_games:
+        if {game["home_team"]["id"], game["away_team"]["id"]} != participant_ids:
             continue
         field_bonus = 0.35 if game.get("field_number") == row["field_number"] else 0
         time_bonus = 0.35 if _same_time(game.get("start_time"), row["start_time"]) else 0
-        candidates.append((sum(team_scores) + field_bonus + time_bonus, game))
+        candidates.append((field_bonus + time_bonus, game))
     candidates.sort(key=lambda candidate: candidate[0], reverse=True)
     if not candidates:
         return None

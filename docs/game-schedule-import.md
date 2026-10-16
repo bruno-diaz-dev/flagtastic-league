@@ -76,3 +76,10 @@ Analysis never creates teams or confirms games automatically.
 Friendlies may pair registered teams from different divisions without changing
 those teams' categories. U7 is accepted for invited friendly participants only;
 it does not add an official league registration category.
+
+Referee spreadsheet imports share the same team identity resolver as game
+registration. They compare registered participant IDs (including friendly guests)
+within the jornada, then use field/time to distinguish repeated pairings. Joined
+names, explicit divisions, Lobos Inf and the U12 mixto convention therefore
+resolve consistently in both imports. Ambiguous games and unknown referees
+remain warnings; importing never creates referee accounts.

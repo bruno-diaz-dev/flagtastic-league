@@ -13,7 +13,12 @@ import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
 from services.divisions import teams_share_game_division
-from services.team_matching import match_team_name, normalize_team_upload_label, team_name_match_score
+from services.team_matching import (
+    match_schedule_team,
+    schedule_category_hint as _spreadsheet_category_hint,
+    normalize_team_upload_label,
+    team_name_match_score,
+)
 
 
 class GameScheduleImportError(Exception):
@@ -578,40 +583,10 @@ def _read_csv(content):
     return rows
 
 
-def _spreadsheet_category_hint(label):
-    target = _normalize(label)
-    if "libre" in target.split():
-        return "libre"
-    # Spreadsheets contain text, not OCR glyph errors. Preserve even unsupported
-    # ages (e.g. U7) so they cannot silently resolve to U6 or U8.
-    match = re.search(r"\b(?:u\s*)?(\d{1,2})\b", target)
-    return f"u{match[1]}" if match else None
-
-
-def _match_spreadsheet_team(label, teams):
-    label = re.sub(r"\b(fem|var|mix)(?=\d)", r"\1 ", label, flags=re.I)
-    # Confirmed schedule abbreviation: Lobos Inf is the registered Lobos Kids,
-    # distinct from Lobos in the same adult division.
-    label = re.sub(r"\blobos\s+inf(?:antil)?\b", "Lobos Kids", label, flags=re.I)
-    category = _spreadsheet_category_hint(label)
-    # The league's U12 spreadsheet convention omits the branch for mixto;
-    # explicit Fem/Var labels still select their own registered identity.
-    branch = _ocr_branch_hint(label) or ("mixto" if category == "u12" else None)
-    match = match_team_name(label, teams, branch=branch, category=category)
-    if match is None and branch:
-        # Youth divisions permit cross-branch games, but an explicit branch
-        # can still distinguish two registered teams with the same name.
-        match = match_team_name(
-            label, [team for team in teams if _normalize(team["branch"]) == branch],
-            branch=branch, category=category,
-        )
-    return match
-
-
 def _match_row(row, teams, spreadsheet=False):
     if spreadsheet:
-        home = _match_spreadsheet_team(row["home_team"], teams)
-        away = _match_spreadsheet_team(row["away_team"], teams)
+        home = match_schedule_team(row["home_team"], teams)
+        away = match_schedule_team(row["away_team"], teams)
     else:
         home, away = _match_team_pair(
             row["home_team"], row["away_team"], teams,
