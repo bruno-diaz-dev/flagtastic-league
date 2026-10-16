@@ -10,7 +10,7 @@
         </div>
     </header>
 
-    <details class="form-panel admin-only ui-action-hub"><summary>Gestionar calendario<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+    <details id="game-calendar-management" class="form-panel admin-only ui-action-hub"><summary>Gestionar calendario<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
     <section class="form-panel admin-only">
         <details class="ui-disclosure"><summary>Registrar partido<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
 
@@ -136,6 +136,13 @@
         <div id="game-schedule-review" class="schedule-review hidden">
             <div class="users-table-wrapper">
                 <table class="standings-data-table schedule-import-table">
+                    <colgroup>
+                        <col class="schedule-col-check"><col class="schedule-col-check">
+                        <col class="schedule-col-number"><col class="schedule-col-number">
+                        <col class="schedule-col-time">
+                        <col class="schedule-col-team"><col class="schedule-col-team">
+                        <col class="schedule-col-division"><col class="schedule-col-status">
+                    </colgroup>
                     <thead id="game-schedule-review-head"></thead>
                     <tbody id="game-schedule-review-body"></tbody>
                 </table>
@@ -264,5 +271,5 @@
 <script src="/static/ocr_loader.js?v=20261004-1"></script>
 <script src="/static/api.js?v=20261001-2"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20261006-friendly-2"></script>
+<script src="/static/games.js?v=20261016-1"></script>
 {% endblock %}

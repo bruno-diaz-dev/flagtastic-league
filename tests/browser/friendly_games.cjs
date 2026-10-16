@@ -60,5 +60,28 @@ const assert=require('node:assert/strict');
  await page.locator('#confirm-game-schedule').click();
  await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
  assert.equal(imported.games[0].is_friendly,true);assert.equal(imported.games[0].home_guest_name,'Invitados A');assert.equal(imported.games[0].away_guest_name,'Invitados B');assert.equal(imported.games[0].category,'libre');
+ await page.evaluate(()=>renderGameScheduleReview({matched:1,unmatched:1,proposals:[
+  {week:3,field_number:1,start_time:'19:00',home_team:'Seleccion Aguascalientes',away_team:'Diablos del Sol',home_match_branch:'femenil',home_match_category:'libre',ready:true},
+  {week:3,field_number:7,start_time:'19:00',home_team:'Lobos del Norte',away_team:'Vikingos',home_match_branch:'varonil',home_match_category:'libre',ready:false}
+ ]}));
+ for(const width of [1920,1546,1280,390,320]) {
+  await page.setViewportSize({width,height:960});
+  const layout=await page.evaluate(()=>{
+   const row=document.querySelector('#game-schedule-review-body tr:last-child');
+   const home=row.querySelector('[data-schedule-home]').getBoundingClientRect();
+   const category=row.querySelector('[data-schedule-category]').getBoundingClientRect();
+   const status=row.lastElementChild;
+   const checkbox=row.querySelector('[type=checkbox]').getBoundingClientRect();
+   return {pageFits:document.documentElement.scrollWidth<=innerWidth,homeWidth:home.width,
+    headersFit:[...document.querySelectorAll("#game-schedule-review-head th")].every(th=>th.scrollWidth<=th.clientWidth),statusFits:status.scrollWidth<=status.clientWidth,categoryEnds:category.right,statusStarts:status.getBoundingClientRect().left,checkboxWidth:checkbox.width};
+  });
+  assert.equal(layout.pageFits,true,`review must scroll inside its container at ${width}`);
+  assert.ok(layout.homeWidth>=200,`readable team inputs at ${width}: ${layout.homeWidth}`);
+  assert.equal(layout.statusFits,true,`warning must wrap at ${width}`);
+  assert.equal(layout.headersFit,true,`headers must not overlap at ${width}`);
+  assert.ok(layout.categoryEnds<=layout.statusStarts,`category and warning overlap at ${width}`);
+  assert.ok(layout.checkboxWidth<=20,`compact checkbox at ${width}`);
+  if(width===1546)await page.locator('#game-schedule-review').screenshot({path:'desktop-schedule-review.png'});
+ }
  assert.deepEqual(errors,[]);await browser.close();console.log('Friendly calendar, guest registration and reviewed import verified in Chromium.');
 })().catch(error=>{console.error(error);process.exit(1);});

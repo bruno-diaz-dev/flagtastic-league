@@ -1825,11 +1825,65 @@ body.role-league_admin .week-admin-actions.admin-only {
 .assigned-referee { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 10px; }
 .assigned-referee button { min-height: 28px; padding: 0 8px; }
 
-.schedule-review { margin-top: 20px; }
+@media (min-width: 1024px) {
+    .content:has(#game-calendar-management) {
+        width: min(1600px, calc(100% - 48px));
+    }
+}
 
-.schedule-import-table td,
-.schedule-import-table th {
-    white-space: nowrap;
+#game-calendar-management { min-width: 0; }
+
+.schedule-review { margin-top: 20px; min-width: 0; max-width: 100%; }
+
+#game-schedule-review .users-table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#game-schedule-review .schedule-import-table {
+    width: 100%;
+    min-width: 1280px;
+    table-layout: fixed;
+}
+
+.schedule-import-table .schedule-col-check { width: 7%; }
+.schedule-import-table .schedule-col-number { width: 6%; }
+.schedule-import-table .schedule-col-time { width: 12%; }
+.schedule-import-table .schedule-col-team { width: 18%; }
+.schedule-import-table .schedule-col-division { width: 15%; }
+.schedule-import-table .schedule-col-status { width: 11%; }
+
+#game-schedule-review .schedule-import-table td,
+#game-schedule-review .schedule-import-table th {
+    padding: 12px;
+    vertical-align: middle;
+    white-space: normal;
+}
+
+#game-schedule-review .schedule-import-table input:not([type="checkbox"]),
+#game-schedule-review .schedule-import-table select {
+    width: 100%;
+    min-width: 0;
+    font-size: 14px;
+    padding: 8px;
+}
+
+#game-schedule-review .schedule-import-table input[type="checkbox"] {
+    display: block;
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    margin: auto;
+}
+
+.schedule-division-fields { display: grid; gap: 8px; }
+#game-schedule-review .schedule-import-table td:last-child {
+    text-align: left;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
 }
 
 .schedule-row-warning td {
