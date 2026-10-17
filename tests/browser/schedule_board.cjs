@@ -25,7 +25,16 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
   return route.fulfill({contentType:'text/html',body:`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body class="role-league_admin"><main class="content">${content}</main><script>function escapeHtml(v){const n=document.createElement('span');n.textContent=String(v);return n.innerHTML.replace(/"/g,'&quot;');}</script><script src="/static/api.js"></script><script src="/static/games.js"></script><script src="/static/schedule_board.js"></script></body></html>`});
  });
  await page.goto('https://board.test/');
- const board=page.locator('#admin-schedule-board');await board.locator('[data-board-game="1"]').waitFor();
+ const board=page.locator('#admin-schedule-board');
+ const disclosure=board.locator('details.ui-disclosure');
+ assert.equal(await disclosure.evaluate(node=>node.open),false);
+ assert.equal(await page.locator('#schedule-board-grid').isVisible(),false);
+ await disclosure.locator('summary').click();
+ await board.locator('[data-board-game="1"]').waitFor();
+ await disclosure.locator('summary').press('Enter');
+ assert.equal(await page.locator('#schedule-board-grid').isVisible(),false);
+ await disclosure.locator('summary').press('Enter');
+ assert.equal(await page.locator('#schedule-board-grid').isVisible(),true);
  assert.equal(await board.locator('[data-board-game="3"]').isDisabled(),true);
  for(const width of [1546,390,320]){await page.setViewportSize({width,height:960});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`page overflow ${width}`);}
  await page.setViewportSize({width:1546,height:960});
