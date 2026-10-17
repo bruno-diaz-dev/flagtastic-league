@@ -266,7 +266,9 @@
     </section>
 
     <section id="admin-schedule-board" class="form-panel admin-only" aria-label="Tablero administrativo del rol">
-        <h3>Tablero del rol</h3>
+        <details class="ui-disclosure">
+            <summary>Tablero del rol<span class="ui-disclosure-hint">Expandir / contraer</span></summary>
+            <div class="ui-disclosure-body">
         <p>Arrastra un partido a otra hora o campo para guardar el cambio. También puedes seleccionarlo y usar los controles. Se conservan sus oficiales.</p>
         <label>Jornada del tablero<select id="schedule-board-week" aria-label="Jornada del tablero"></select></label>
         <p id="schedule-board-message" class="form-message" role="status" aria-live="polite"></p>
@@ -279,6 +281,8 @@
             </select></label>
             <button type="submit">Guardar cambio</button>
         </form>
+            </div>
+        </details>
     </section>
 
     <p class="form-hint">Se muestran los partidos pendientes. Selecciona una jornada o busca un equipo para ver también los finalizados y pospuestos.</p>
