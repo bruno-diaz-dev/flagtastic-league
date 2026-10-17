@@ -3070,3 +3070,12 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 .schedule-board-scroll { min-width: 0; width: 100%; }
 
 .schedule-board-table td.is-drop-target { background: rgba(244, 197, 66, .16); outline: 2px solid var(--color-gold); outline-offset: -2px; }
+
+.schedule-board-officials { margin-top: 1.25rem; border-top: 1px solid var(--color-border); padding-top: 1rem; }
+.schedule-board-officials-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.schedule-board-officials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 14px; }
+.schedule-board-official-slot { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.schedule-board-official-slot label { display: grid; gap: 6px; min-width: 0; }
+.schedule-board-official-slot select { width: 100%; min-width: 0; }
+.schedule-board-official-slot button:disabled { opacity: .65; cursor: wait; }
+.schedule-board-official-slot .form-message { margin: 0; }

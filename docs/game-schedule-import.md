@@ -88,3 +88,10 @@ within the jornada, then use field/time to distinguish repeated pairings. Joined
 names, explicit divisions, Lobos Inf and the U12 mixto convention therefore
 resolve consistently in both imports. Ambiguous games and unknown referees
 remain warnings; importing never creates referee accounts.
+
+The admin board includes five separate official selectors for the selected game:
+Referee, Down Judge, Field Judge, Side Judge and Statistician. Each slot saves
+independently using existing admin assignment endpoints; selecting “Sin asignar”
+and saving removes that assignment. Existing crew values are loaded, duplicate
+people are rejected, and “Actualizar lista” refreshes active referee accounts.
+Stale crew responses cannot overwrite the editor after selecting another game.

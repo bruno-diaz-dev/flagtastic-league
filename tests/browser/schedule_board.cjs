@@ -7,12 +7,32 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
  const teams=[{id:1,name:'RANCHEROS INFANTIL A.C.',branch:'femenil',category:'libre'},{id:2,name:'Diablos del Sol',branch:'femenil',category:'libre'}];
  const game=(id,field,time,status='scheduled')=>({id,week:3,field_number:field,start_time:time,status,home_team:teams[0],away_team:teams[1],home_score:status==='completed'?6:null,away_score:status==='completed'?0:null});
  const games=[game(1,1,'12:00'),game(2,2,'13:00'),game(3,3,'12:00','completed')];
+ const officials=[{id:11,name:'Ref Uno',role:'referee',status:'active'}, {id:12,name:'Ref Dos',roles:['player','referee'],status:'active'}, {id:13,name:'Ref Tres',role:'referee',status:'active'}, {id:14,name:'Inactivo',role:'referee',status:'inactive'}];
+ const crews={1:[{id:11,name:'Ref Uno',position:'referee'}],2:[{id:13,name:'Ref Tres',position:'down_judge'}]};
+ let officialWrites=0,rejectOfficial=false,holdCrew=false,releaseCrew,crewStarted;
  let writes=0,reject=false,release,hold=false,heldStarted;
  await page.route('https://board.test/**',async route=>{
   const url=new URL(route.request().url());
   const json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   if(url.pathname.startsWith('/static/'))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
   if(url.pathname==='/api/teams')return json(teams);
+  if(url.pathname==='/api/admin/users')return json(officials);
+  const crewMatch=url.pathname.match(/^\/api\/games\/(\d+)\/referees(?:\/(\d+))?$/);
+  if(crewMatch){
+   const id=Number(crewMatch[1]),userId=Number(crewMatch[2]),method=route.request().method();
+   if(method==='GET'){
+    const rows=[...(crews[id]||[])];
+    if(holdCrew&&id===1)await new Promise(resolve=>{releaseCrew=resolve;crewStarted();});
+    return json(rows);
+   }
+   officialWrites++;
+   if(rejectOfficial)return json({detail:'Asignación rechazada por el servidor'},409);
+   if(method==='DELETE'){crews[id]=(crews[id]||[]).filter(official=>official.id!==userId);return route.fulfill({status:204});}
+   const {position}=route.request().postDataJSON();
+   const person=officials.find(user=>user.id===userId);
+   crews[id]=[...(crews[id]||[]).filter(official=>official.position!==position),{id:userId,name:person.name,position}];
+   return json({game_id:id,user_id:userId,position},201);
+  }
   if(url.pathname==='/api/games')return json(games);
   if(/\/api\/games\/\d+\/schedule/.test(url.pathname)){
    writes++;const change=route.request().postDataJSON(),id=Number(url.pathname.split('/')[3]);
@@ -35,6 +55,42 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
  assert.equal(await page.locator('#schedule-board-grid').isVisible(),false);
  await disclosure.locator('summary').press('Enter');
  assert.equal(await page.locator('#schedule-board-grid').isVisible(),true);
+ const slot=position=>board.locator(`[data-board-position="${position}"]`);
+ await slot('referee').locator('select').waitFor();
+ assert.equal(await board.locator('[data-board-position] select').count(),5);
+ assert.equal(await slot('referee').locator('select').inputValue(),'11');
+ assert.equal(await slot('down_judge').locator('select').inputValue(),'');
+ assert.equal(await slot('referee').locator('option[value="14"]').count(),0);
+ await slot('down_judge').locator('select').selectOption('12');
+ await slot('down_judge').locator('button').click();
+ await page.waitForFunction(()=>document.querySelector('[data-board-position="down_judge"] .form-message').textContent.includes('guardada'));
+ assert.equal(officialWrites,1);assert.equal(await slot('referee').locator('select').inputValue(),'11');
+ await slot('field_judge').locator('select').selectOption('12');
+ await slot('field_judge').locator('button').click();
+ assert.match(await slot('field_judge').locator('.form-message').textContent(),/otro puesto/);assert.equal(officialWrites,1);
+ rejectOfficial=true;
+ await slot('field_judge').locator('select').selectOption('13');
+ await slot('field_judge').locator('button').click();
+ await page.waitForFunction(()=>document.querySelector('[data-board-position="field_judge"] .form-message').textContent.includes('rechazada'));
+ assert.equal(await slot('field_judge').locator('select').inputValue(),'13');
+ assert.equal(await slot('down_judge').locator('select').inputValue(),'12');
+ rejectOfficial=false;await slot('field_judge').locator('button').click();
+ await page.waitForFunction(()=>document.querySelector('[data-board-position="field_judge"] .form-message').textContent.includes('guardada'));
+ await slot('down_judge').locator('select').selectOption('');await slot('down_judge').locator('button').click();
+ await page.waitForFunction(()=>document.querySelector('[data-board-position="down_judge"] .form-message').textContent.includes('sin asignar'));
+ assert.equal(await slot('field_judge').locator('select').inputValue(),'13');
+ // A late crew response for one match cannot overwrite another match's editor.
+ holdCrew=true;const heldCrew=new Promise(resolve=>{crewStarted=resolve;});
+ await page.locator('#schedule-board-refresh-officials').click();await heldCrew;
+ await page.locator('#schedule-board-edit [name=game_id]').selectOption('2');
+ await page.waitForFunction(()=>document.querySelector('[data-board-position="down_judge"] select')?.value==='13');
+ const oldResponse=page.waitForResponse(response=>response.url().endsWith('/api/games/1/referees'));
+ releaseCrew();holdCrew=false;await oldResponse;
+ assert.equal(await slot('down_judge').locator('select').inputValue(),'13');
+ await page.locator('#schedule-board-edit [name=game_id]').selectOption('1');
+ await page.waitForFunction(()=>document.querySelector('[data-board-position="referee"] select')?.value==='11');
+ assert.equal(await slot('down_judge').locator('select').inputValue(),'');
+ assert.equal(await slot('field_judge').locator('select').inputValue(),'13');
  assert.equal(await board.locator('[data-board-game="3"]').isDisabled(),true);
  for(const width of [1546,390,320]){await page.setViewportSize({width,height:960});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`page overflow ${width}`);}
  await page.setViewportSize({width:1546,height:960});
