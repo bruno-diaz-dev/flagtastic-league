@@ -8,6 +8,7 @@ from models import (
     GameScheduleOcrPayload,
     GameScoreUpdate,
     GameStatusUpdate,
+    GameScheduleUpdate,
     OfficialPositionUpdate,
     RefereeScheduleConfirmation
 )
@@ -26,6 +27,7 @@ from repositories.games import (
     remove_referee,
     update_game_score,
     update_game_status,
+    update_game_schedule,
     update_games_status_by_week
 )
 from repositories.teams import get_all_teams, get_team_by_id
@@ -339,6 +341,22 @@ def update_score(
             detail="Game not found"
         )
 
+    return game
+
+
+@router.patch("/{game_id}/schedule")
+def change_game_schedule(
+    game_id: int,
+    change: GameScheduleUpdate,
+    _admin=Depends(require_league_admin),
+):
+    """Edit an existing fixture's time/field and retain its assigned crew."""
+    try:
+        game = update_game_schedule(game_id, change.start_time, change.field_number)
+    except GameStateConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if game is None:
+        raise HTTPException(status_code=404, detail="Partido no encontrado")
     return game
 
 

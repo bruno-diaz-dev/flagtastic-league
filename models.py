@@ -206,6 +206,19 @@ class GameCreate(BaseModel):
     field_number: int = Field(ge=1, le=8)
     start_time: time | None = None
 
+class GameScheduleUpdate(BaseModel):
+    """Change a fixture's scheduled time without replacing its identity."""
+    start_time: time
+    field_number: int | None = Field(default=None, ge=1, le=8)
+
+    @field_validator("start_time")
+    @classmethod
+    def validate_scheduled_time(cls, value):
+        if value.tzinfo is not None or value.second or value.microsecond:
+            raise ValueError("Usa una hora local con precisión de minutos")
+        return value
+
+
 class GameScoreUpdate(BaseModel):
     """Validate a non-negative final score update."""
     home_score: int = Field(ge=0)

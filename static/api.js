@@ -493,3 +493,11 @@ async function recoverAdminUserAccount(userId, email) {
         body: JSON.stringify({email, identity_confirmed: true})
     });
 }
+
+async function updateGameSchedule(gameId, startTime, fieldNumber = null) {
+    return fetch(`/api/games/${gameId}/schedule`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({start_time: startTime, field_number: fieldNumber})
+    });
+}

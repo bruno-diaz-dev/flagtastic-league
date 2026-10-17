@@ -54,6 +54,7 @@ def test_anonymous_user_cannot_manage_game_state_or_delete_games():
 
     responses = (
         client.patch("/api/games/999999/status", json={"status": "postponed"}),
+        client.patch("/api/games/999999/schedule", json={"start_time": "13:00", "field_number": 2}),
         client.patch("/api/games/week/1/status", json={"status": "postponed"}),
         client.delete("/api/games/999999"),
         client.delete("/api/games/week/1"),
@@ -798,3 +799,12 @@ def test_account_recovery_conflict_rolls_back_and_requires_confirmation():
     assert client.post(endpoint, json={"email": "new@example.test", "identity_confirmed": True}).status_code == 403
     client.cookies.clear()
     assert client.post(endpoint, json={"email": "new@example.test", "identity_confirmed": True}).status_code == 401
+
+
+def test_referee_cannot_reschedule_games():
+    disable_test_authorization_override()
+    name, email = unique_identity("schedule-referee")
+    create_user(UserCreate(name=name, email=email, password="supersecret", role="referee"))
+    assert login(email, "supersecret").status_code == 200
+    response = client.patch("/api/games/999999/schedule", json={"start_time": "13:00", "field_number": 2})
+    assert response.status_code == 403
