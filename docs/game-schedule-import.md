@@ -30,8 +30,13 @@ entire batch. Duplicate slots in the same request are rejected. Imports are
 serialized to prevent concurrent confirmations from creating the same slot.
 
 Slot identity is week, field and start time. Moving a game to another slot is
-not a supported rescheduling operation: it creates a new slot. Administrators
-must not use reimport to move games that already exist.
+not a rescheduling operation: it creates a new slot. To move an existing game,
+administrators use the schedule board or the game's time/field editor. Both
+update the same game ID through `PATCH /api/games/{id}/schedule`, retaining its
+crew, statistics and live session. Completed/scored games and occupied target
+slots in the same jornada are rejected. Postponed games keep that status.
+The board supports drag/drop and keyboard/mobile form controls. No database
+migration is required.
 
 No database migration is required by these safeguards.
 

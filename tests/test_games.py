@@ -623,3 +623,99 @@ def test_admin_can_correct_completed_game_score():
     assert game["status"] == "completed"
     assert game["home_score"] == 26
     assert game["away_score"] == 12
+
+
+def test_edit_schedule_preserves_game_crew_statistics_and_live_identity():
+    from uuid import uuid4
+    from models import UserCreate
+    from repositories.users import create_user
+    from repositories.games import assign_referee, get_game_referee, get_games_for_referee
+    from repositories.live_games import start_live_game
+
+    home, away = create_test_team('Move Home'), create_test_team('Move Away')
+    game = client.post('/api/games', json={
+        'home_team_id': home, 'away_team_id': away, 'week': 3,
+        'field_number': 1, 'start_time': '12:00',
+    }).json()
+    user = create_user(UserCreate(name='Test Official', email=f'move-{uuid4().hex}@example.test', password='supersecret', role='referee'))
+    assign_referee(game['id'], user['id'], 'referee', user['id'])
+    crew_before = get_game_referee(game['id'], user['id'])
+    start_live_game(game['id'], user['id'])
+    with get_connection() as connection:
+        player = connection.execute("INSERT INTO players (name, curp, age) VALUES ('Schedule Player', 'SCHEDULETEST000001', 20) RETURNING id").fetchone()['id']
+        connection.execute('INSERT INTO player_week_stats (week, player_id, team_id, game_id) VALUES (3, %s, %s, %s)', (player, home, game['id']))
+        live_before = dict(connection.execute('SELECT * FROM game_live_sessions WHERE game_id = %s', (game['id'],)).fetchone())
+    for _ in range(2):
+        response = client.patch(f"/api/games/{game['id']}/schedule", json={'start_time': '13:30', 'field_number': 2})
+        assert response.status_code == 200
+        assert response.json()['id'] == game['id']
+        assert response.json()['field_number'] == 2
+        assert response.json()['start_time'] == '13:30:00'
+    games = client.get('/api/games').json()
+    assert len(games) == 1
+    assert games[0]['home_team']['id'] == home and games[0]['away_team']['id'] == away
+    assert get_game_referee(game['id'], user['id']) == crew_before
+    assigned = get_games_for_referee(user['id'])[0]
+    assert assigned['start_time'].strftime('%H:%M') == '13:30' and assigned['field_number'] == 2
+    with get_connection() as connection:
+        assert dict(connection.execute('SELECT * FROM game_live_sessions WHERE game_id = %s', (game['id'],)).fetchone()) == live_before
+        assert connection.execute('SELECT COUNT(*) AS n FROM player_week_stats WHERE game_id = %s', (game['id'],)).fetchone()['n'] == 1
+
+
+def test_schedule_move_rejects_occupied_destination_and_keeps_original_slot():
+    home, away = create_test_team('Home'), create_test_team('Away')
+    payload = {'home_team_id': home, 'away_team_id': away, 'week': 3, 'field_number': 1, 'start_time': '12:00'}
+    source = client.post('/api/games', json=payload).json()['id']
+    client.post('/api/games', json={**payload, 'start_time': '13:00', 'field_number': 2})
+    response = client.patch(f'/api/games/{source}/schedule', json={'start_time': '13:00', 'field_number': 2})
+    assert response.status_code == 409
+    assert 'otro partido' in response.json()['detail']
+    source_game = next(game for game in client.get('/api/games').json() if game['id'] == source)
+    assert source_game['start_time'] == '12:00:00' and source_game['field_number'] == 1
+    # The same time in a free field is valid; omitting field keeps it unchanged.
+    assert client.patch(f'/api/games/{source}/schedule', json={'start_time': '13:00'}).status_code == 200
+
+
+def test_schedule_move_keeps_postponed_status_and_ignores_other_weeks():
+    home, away = create_test_team('Home'), create_test_team('Away')
+    payload = {'home_team_id': home, 'away_team_id': away, 'week': 3, 'field_number': 1}
+    source = client.post('/api/games', json=payload).json()['id']
+    client.post('/api/games', json={**payload, 'week': 4, 'field_number': 8, 'start_time': '15:00'})
+    client.patch(f'/api/games/{source}/status', json={'status': 'postponed'})
+    response = client.patch(f'/api/games/{source}/schedule', json={'start_time': '15:00', 'field_number': 8})
+    assert response.status_code == 200
+    assert response.json()['status'] == 'postponed' and response.json()['week'] == 3
+    assert client.patch('/api/games/999999999/schedule', json={'start_time': '15:00'}).status_code == 404
+    client.patch(f'/api/games/{source}/status', json={'status': 'scheduled'})
+    assert client.patch(f'/api/games/{source}/score', json={'home_score': 0, 'away_score': 6}).status_code == 200
+    assert client.patch(f'/api/games/{source}/schedule', json={'start_time': '16:00'}).status_code == 409
+
+
+@pytest.mark.parametrize('change', [
+    {'start_time': None}, {'start_time': '25:00'}, {'start_time': '13:00:30'},
+    {'start_time': '13:00Z'}, {'start_time': '13:00', 'field_number': 0},
+    {'start_time': '13:00', 'field_number': 9}, {},
+])
+def test_schedule_move_validates_local_time_and_fields(change):
+    assert client.patch('/api/games/999999999/schedule', json=change).status_code == 422
+
+
+def test_two_schedule_moves_cannot_claim_the_same_free_slot():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    home, away = create_test_team('Home'), create_test_team('Away')
+    ids = [client.post('/api/games', json={
+        'home_team_id': home, 'away_team_id': away, 'week': 3,
+        'field_number': field, 'start_time': '12:00',
+    }).json()['id'] for field in (1, 2)]
+    barrier = Barrier(2)
+    def move(game_id):
+        with TestClient(app) as concurrent_client:
+            barrier.wait(timeout=10)
+            return concurrent_client.patch(f'/api/games/{game_id}/schedule', json={'start_time': '20:00', 'field_number': 8}).status_code
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(move, ids))
+    assert sorted(results) == [200, 409]
+    games = client.get('/api/games').json()
+    assert len(games) == 2
+    assert sum(game['start_time'] == '20:00:00' and game['field_number'] == 8 for game in games) == 1

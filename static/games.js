@@ -20,6 +20,7 @@ const gameFilterBranchField = document.querySelector("#game-filter-branch-field"
 const gameFilterYouthBranch = document.querySelector("#game-filter-youth-branch");
 const gameFilterField = document.querySelector("#game-filter-field");
 const gamesCount = document.querySelector("#games-count");
+const gameScheduleUpdateMessage = document.querySelector("#game-schedule-update-message");
 const refereeAssignmentForm = document.querySelector("#referee-assignment-form");
 const refereeAssignmentMessage = document.querySelector("#referee-assignment-message");
 const assignedReferees = document.querySelector("#assigned-referees");
@@ -282,9 +283,19 @@ function renderGames(games) {
                         <a class="secondary-link game-details-link" href="/games/${game.id}">Ver partido / En vivo</a>
                     </footer>
                     <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
-                        <summary>${!hasScore && !isPostponed ? "Registrar resultado" : "Administrar partido"}</summary>
+                        <summary>${!hasScore && !isPostponed ? "Resultado y horario" : "Administrar partido"}</summary>
                         <div class="game-admin-controls">
                             ${scoreEditor}
+                            ${!hasScore ? `
+                            <form class="game-time-form admin-only" data-game-id="${game.id}">
+                                <label>Horario del partido
+                                    <input type="time" name="start_time" value="${escapeHtml(game.start_time?.slice(0, 5) || "")}" aria-label="Nuevo horario del partido ${game.id}" required>
+                                </label>
+                                <label>Campo<select name="field_number" aria-label="Nuevo campo del partido ${game.id}">${Array.from({length: 8}, (_, i) => `<option value="${i + 1}" ${i + 1 === game.field_number ? "selected" : ""}>Campo ${i + 1}</option>`).join("")}</select></label>
+                                <button type="submit">Guardar horario y campo</button>
+                                <p class="game-time-message form-message" role="status"></p>
+                            </form>
+                            ` : ""}
                             ${!hasScore ? `
                             <button
                                 class="secondary-button admin-only game-status-button"
@@ -371,6 +382,7 @@ function renderFilteredGames() {
     });
 
     renderGames(filteredGames);
+    if (typeof renderScheduleBoard === "function") renderScheduleBoard();
 }
 
 async function loadGamesTeams() {
@@ -517,9 +529,53 @@ async function submitGamesScore(event) {
     }
 }
 
+async function submitGameSchedule(event) {
+    event.preventDefault();
+    const form = event.target;
+    const button = form.querySelector('button[type="submit"]');
+    const message = form.querySelector(".game-time-message");
+    if (button.disabled) return;
+    const showMessage = text => {
+        message.textContent = text;
+        if (gameScheduleUpdateMessage) gameScheduleUpdateMessage.textContent = text;
+    };
+    const startTime = new FormData(form).get("start_time");
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = "Guardando horario…";
+    showMessage("Guardando horario…");
+    try {
+        const response = await updateGameSchedule(form.dataset.gameId, startTime, Number(new FormData(form).get("field_number")));
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const detail = Array.isArray(body.detail)
+                ? body.detail.map(error => error.msg).join(". ") : body.detail;
+            showMessage(detail || "No se pudo cambiar el horario.");
+            return;
+        }
+        gamesState = gamesState.map(game => game.id === Number(body.id)
+            ? {...game, start_time: body.start_time, field_number: body.field_number} : game);
+        renderFilteredGames();
+        showMessage("Horario y campo actualizados. Se conservan las asignaciones de oficiales.");
+        const savedForm = gamesContainer.querySelector(`.game-time-form[data-game-id="${body.id}"]`);
+        if (savedForm) {
+            savedForm.closest("details").open = true;
+            savedForm.querySelector(".game-time-message").textContent = "Horario y campo actualizados. Se conservan las asignaciones de oficiales.";
+            savedForm.scrollIntoView({block: "nearest"});
+        }
+    } catch (error) {
+        showMessage("No se pudo confirmar el cambio de horario. Revisa el partido antes de reintentar.");
+    } finally {
+        button.disabled = false;
+        button.textContent = originalLabel;
+    }
+}
+
 gamesContainer.addEventListener("submit", (event) => {
     // Score forms are rendered dynamically, so one delegated listener handles all.
-    if (event.target.classList.contains("score-form")) {
+    if (event.target.classList.contains("game-time-form")) {
+        submitGameSchedule(event);
+    } else if (event.target.classList.contains("score-form")) {
         submitGamesScore(event);
     }
 });

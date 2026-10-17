@@ -152,6 +152,7 @@ jobs:
           node tests/browser/live_capture.cjs
           node tests/browser/leaderboards.cjs
           node tests/browser/friendly_games.cjs
+          node tests/browser/schedule_board.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -162,6 +163,8 @@ jobs:
             mobile-field-touchdown.png
             mobile-leaderboards.png
             mobile-friendly-game.png
+            admin-schedule-board.png
+            mobile-schedule-board.png
           retention-days: 3
 
 

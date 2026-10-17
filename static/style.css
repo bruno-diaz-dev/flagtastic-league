@@ -3036,3 +3036,37 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 @media (prefers-reduced-motion: reduce) {
     .schedule-save-progress-fill { animation: none; }
 }
+
+.game-time-form {
+    display: grid;
+    gap: .65rem;
+    width: 100%;
+    min-width: 0;
+    grid-column: 1 / -1;
+    padding: 12px 0;
+    border-top: 1px solid var(--color-border);
+}
+.game-time-form label { display: grid; gap: .4rem; min-width: 0; }
+.game-time-form input { width: 100%; min-width: 0; }
+.game-time-form button:disabled { opacity: .65; cursor: wait; }
+
+.schedule-board-scroll { max-width: 100%; overflow: auto; max-height: 70vh; margin: 1rem 0; border: 1px solid var(--color-border); border-radius: 12px; }
+.schedule-board-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1440px; table-layout: fixed; }
+.schedule-board-table th, .schedule-board-table td { border-bottom: 1px solid var(--color-border); border-right: 1px solid var(--color-border); padding: 8px; vertical-align: top; text-align: left; }
+.schedule-board-table thead th { position: sticky; top: 0; z-index: 2; background: var(--color-navy); }
+.schedule-board-table th:first-child { width: 80px; position: sticky; left: 0; background: var(--color-navy); z-index: 1; }
+.schedule-board-table thead th:first-child { z-index: 3; }
+.schedule-board-table td { height: 100px; background: var(--color-surface); }
+.schedule-board-card { width: 100%; display: grid; gap: 5px; padding: 10px; min-width: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; background: var(--color-navy-soft); color: var(--color-text); border: 1px solid var(--color-gold); border-radius: 9px; cursor: grab; margin-bottom: 6px; }
+.schedule-board-card small { color: var(--color-muted); font-size: .75rem; }
+.schedule-board-card:disabled { cursor: default; opacity: .6; border-color: var(--color-border); }
+.schedule-board-card.is-postponed { border-style: dashed; }
+.schedule-board-edit { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto; align-items: end; gap: 12px; }
+.schedule-board-edit label { display: grid; min-width: 0; gap: 6px; }
+.schedule-board-edit input, .schedule-board-edit select { width: 100%; min-width: 0; }
+.schedule-board-unscheduled { padding: 12px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+@media (max-width: 700px) { .schedule-board-edit { grid-template-columns: 1fr; } }
+#admin-schedule-board { min-width: 0; width: 100%; max-width: 100%; }
+.schedule-board-scroll { min-width: 0; width: 100%; }
+
+.schedule-board-table td.is-drop-target { background: rgba(244, 197, 66, .16); outline: 2px solid var(--color-gold); outline-offset: -2px; }

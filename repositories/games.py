@@ -305,6 +305,41 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
         connection.close()
 
 
+def update_game_schedule(game_id, start_time, field_number=None):
+    """Move an unscored fixture in place, preserving all linked records."""
+    with get_connection() as connection:
+        # Serialize the empty-slot check with all game writers, including
+        # SELECT FOR UPDATE used by official assignment imports. Public reads
+        # remain available; no crew rows need to be changed or locked here.
+        connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
+        game = connection.execute(
+            "SELECT id, week, field_number, start_time, status, home_score, away_score "
+            "FROM games WHERE id = %s FOR UPDATE", (game_id,),
+        ).fetchone()
+        if game is None:
+            return None
+        if (game["status"] == "completed" or game["home_score"] is not None
+                or game["away_score"] is not None):
+            raise GameStateConflictError("No se puede cambiar el horario de un partido finalizado")
+        desired_field = field_number if field_number is not None else game["field_number"]
+        if game["start_time"] != start_time or game["field_number"] != desired_field:
+            conflict = connection.execute(
+                "SELECT id FROM games WHERE week = %s AND field_number = %s "
+                "AND start_time = %s AND id <> %s LIMIT 1",
+                (game["week"], desired_field, start_time, game_id),
+            ).fetchone()
+            if conflict:
+                raise GameStateConflictError(
+                    "Ese campo ya tiene otro partido en la misma jornada y hora"
+                )
+        updated = connection.execute(
+            "UPDATE games SET start_time = %s, field_number = %s WHERE id = %s "
+            "RETURNING id, week, field_number, start_time, status",
+            (start_time, desired_field, game_id),
+        ).fetchone()
+        return dict(updated)
+
+
 def update_game_status(game_id, status):
     """Postpone or restore an unscored game and return its new state."""
     connection = get_connection()
