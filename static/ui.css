@@ -175,7 +175,22 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .sidebar .nav-short { display: inline-flex; flex: 0 0 20px; width: 20px; height: 20px; color: var(--color-gold); }
 .sidebar .nav-short svg { width: 20px; height: 20px; }
 .sidebar .nav-link[aria-current="page"] { background: rgba(244, 197, 66, .12); border-color: rgba(244, 197, 66, .38); color: var(--color-gold); }
-.sidebar .logout-button { min-height: 44px; font-size: 13px; border-radius: var(--ui-radius-small); }
+.sidebar .logout-button {
+    appearance: none;
+    -webkit-appearance: none;
+    min-height: 44px;
+    width: 100%;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--ui-radius-small);
+    border: 1px solid rgba(244, 197, 66, .35);
+    background: rgba(244, 197, 66, .05);
+    color: var(--color-gold);
+}
+.sidebar .logout-button .nav-text { white-space: nowrap; }
+.sidebar .logout-button:hover { background: rgba(244, 197, 66, .12); border-color: var(--color-gold); }
+.sidebar .logout-button:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 3px; }
 .mobile-page-context { display: none; min-width: 0; }
 @media (hover: hover) {
     .content .team-card:hover, .content .referee-card:hover, .content .dashboard-team-card:hover { border-color: rgba(244, 197, 66, .45); }

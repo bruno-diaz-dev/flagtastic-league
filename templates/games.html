@@ -274,13 +274,19 @@
         <p id="schedule-board-message" class="form-message" role="status" aria-live="polite"></p>
         <div id="schedule-board-grid" class="schedule-board-scroll" tabindex="0" aria-label="Mapa de partidos por hora y campo"></div>
         <form id="schedule-board-edit" class="schedule-board-edit">
-            <label>Partido<select name="game_id" required aria-label="Partido a reprogramar"></select></label>
+            <label>Partido<select name="game_id" required aria-label="Partido del tablero"></select></label>
             <label>Hora<input name="start_time" type="time" required aria-label="Hora de destino"></label>
             <label>Campo<select name="field_number" required aria-label="Campo de destino">
                 {% for field_number in range(1, 9) %}<option value="{{ field_number }}">Campo {{ field_number }}</option>{% endfor %}
             </select></label>
             <button type="submit">Guardar cambio</button>
         </form>
+        <section id="schedule-board-officials" class="schedule-board-officials hidden" aria-label="Oficiales del partido seleccionado">
+            <div class="schedule-board-officials-header"><h4>Oficiales del partido</h4><button id="schedule-board-refresh-officials" type="button" class="secondary-button">Actualizar lista</button></div>
+            <p id="schedule-board-officials-game"></p>
+            <p id="schedule-board-officials-message" class="form-message" role="status" aria-live="polite"></p>
+            <div id="schedule-board-officials-slots" class="schedule-board-officials-grid"></div>
+        </section>
             </div>
         </details>
     </section>
@@ -297,5 +303,5 @@
 <script src="/static/api.js?v=20261017-1"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
 <script src="/static/games.js?v=20261017-1"></script>
-<script src="/static/schedule_board.js?v=20261017-1"></script>
+<script src="/static/schedule_board.js?v=20261017-2"></script>
 {% endblock %}
