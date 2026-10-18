@@ -207,6 +207,17 @@
             </select>
         </label>
 
+        <label>
+            Estado
+            <select id="game-filter-status">
+                <option value="">Vista habitual</option>
+                <option value="scheduled">Programados</option>
+                <option value="postponed">Pospuestos</option>
+                <option value="completed">Finalizados</option>
+                <option value="all">Todos</option>
+            </select>
+        </label>
+
         <label id="game-filter-branch-field">
             Rama
             <select id="game-filter-branch">
@@ -302,6 +313,6 @@
 <script src="/static/ocr_loader.js?v=20261004-1"></script>
 <script src="/static/api.js?v=20261017-1"></script>
 <script src="/static/schedule_ocr_cells.js?v=20260929-2"></script>
-<script src="/static/games.js?v=20261017-1"></script>
+<script src="/static/games.js?v=20261018-1"></script>
 <script src="/static/schedule_board.js?v=20261017-2"></script>
 {% endblock %}
