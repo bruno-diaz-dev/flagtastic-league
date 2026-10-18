@@ -12,6 +12,7 @@ const manualGameBranchField = document.querySelector("#manual-game-branch-field"
 const manualGameYouthBranch = document.querySelector("#manual-game-youth-branch");
 const manualHomeTeamSearch = document.querySelector("#manual-home-team-search");
 const manualAwayTeamSearch = document.querySelector("#manual-away-team-search");
+const gameFilterStatus = document.querySelector("#game-filter-status");
 const gameFilterWeek = document.querySelector("#game-filter-week");
 const gameFilterTeam = document.querySelector("#game-filter-team");
 const gameFilterBranch = document.querySelector("#game-filter-branch");
@@ -216,7 +217,7 @@ function renderGames(games) {
         gamesContainer.innerHTML = `
             <div class="empty-state">
                 <h3>Sin partidos con estos filtros</h3>
-                <p>Selecciona una jornada o busca un equipo para consultar también partidos finalizados o pospuestos.</p>
+                <p>Selecciona Estado: Pospuestos para encontrar y restablecer un partido, o elige una jornada para ver su historial.</p>
             </div>
         `;
         return;
@@ -302,7 +303,8 @@ function renderGames(games) {
                                 type="button"
                                 data-game-status="${game.id}"
                                 data-next-status="${isPostponed ? "scheduled" : "postponed"}"
-                            >${isPostponed ? "Restaurar" : "Posponer"}</button>
+                            >${isPostponed ? "Restablecer partido" : "Posponer"}</button>
+                            <p class="game-status-message form-message" role="status"></p>
                         ` : ""}
                             <button class="danger-button admin-only" type="button" data-delete-game="${game.id}">
                             Eliminar
@@ -373,7 +375,9 @@ function renderFilteredGames() {
             || String(game.field_number) === gameFilterField.value
         );
         const hasScore = game.home_score != null && game.away_score != null;
-        const matchesStatus = (
+        const matchesStatus = gameFilterStatus.value
+            ? gameFilterStatus.value === "all" || game.status === gameFilterStatus.value
+            : (
             selectedWeek !== ""
             || normalizeSearchText(gameFilterTeam.value) !== ""
             || (game.status !== "completed" && game.status !== "postponed" && !hasScore)
@@ -580,16 +584,44 @@ gamesContainer.addEventListener("submit", (event) => {
     }
 });
 
+async function submitGameStatus(button) {
+    if (button.disabled) return;
+    const originalLabel = button.textContent;
+    const message = button.parentElement.querySelector(".game-status-message");
+    const showMessage = text => {
+        message.textContent = text;
+        gameScheduleUpdateMessage.textContent = text;
+    };
+    button.disabled = true;
+    button.textContent = "Guardando…";
+    showMessage("Guardando estado del partido…");
+    try {
+        const response = await updateGameStatus(button.dataset.gameStatus, button.dataset.nextStatus);
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const detail = Array.isArray(body.detail)
+                ? body.detail.map(error => error.msg).join(". ") : body.detail;
+            showMessage(detail || "No se pudo cambiar el estado del partido.");
+            return;
+        }
+        gamesState = gamesState.map(game => game.id === Number(body.id)
+            ? {...game, status: body.status} : game);
+        renderFilteredGames();
+        showMessage(body.status === "scheduled"
+            ? "Partido restablecido. Ya está programado y conserva su horario, campo y oficiales."
+            : "Partido pospuesto. Puedes encontrarlo en Estado: Pospuestos para restablecerlo.");
+    } catch (error) {
+        showMessage("No se pudo confirmar el cambio. Revisa el estado del partido antes de reintentar.");
+    } finally {
+        button.disabled = false;
+        button.textContent = originalLabel;
+    }
+}
+
 gamesContainer.addEventListener("click", async (event) => {
     const statusButton = event.target.closest("[data-game-status]");
     if (statusButton) {
-        statusButton.disabled = true;
-        const response = await updateGameStatus(
-            statusButton.dataset.gameStatus,
-            statusButton.dataset.nextStatus
-        );
-        if (response.ok) await loadGames();
-        else statusButton.disabled = false;
+        await submitGameStatus(statusButton);
         return;
     }
 
@@ -621,7 +653,7 @@ manualAwayTeamSearch.addEventListener("input", () => {
     updateGuestFields();
 });
 
-[gameFilterWeek, gameFilterBranch, gameFilterField].forEach((filter) => {
+[gameFilterWeek, gameFilterBranch, gameFilterField, gameFilterStatus].forEach((filter) => {
     filter.addEventListener("change", renderFilteredGames);
 });
 gameFilterCategory.addEventListener("change", () => {

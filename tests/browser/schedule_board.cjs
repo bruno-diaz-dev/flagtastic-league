@@ -33,6 +33,11 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
    crews[id]=[...(crews[id]||[]).filter(official=>official.position!==position),{id:userId,name:person.name,position}];
    return json({game_id:id,user_id:userId,position},201);
   }
+  if(/\/api\/games\/\d+\/status$/.test(url.pathname)){
+   const id=Number(url.pathname.split('/')[3]),change=route.request().postDataJSON();
+   const current=games.find(g=>g.id===id);current.status=change.status;
+   return json({id,status:current.status});
+  }
   if(url.pathname==='/api/games')return json(games);
   if(/\/api\/games\/\d+\/schedule/.test(url.pathname)){
    writes++;const change=route.request().postDataJSON(),id=Number(url.pathname.split('/')[3]);
@@ -146,5 +151,19 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
  await page.evaluate(()=>{document.body.className='role-referee';});assert.equal(await board.isVisible(),false);
  assert.equal(await page.locator('.game-time-form[data-game-id="1"]').isVisible(),false);
  await page.evaluate(()=>{document.body.className='role-player';});assert.equal(await board.isVisible(),false);
+ // Restore an accidentally postponed game through the visible admin controls.
+ games.push(game(4,4,'17:00','postponed'));
+ await page.reload();
+ await page.locator('#game-filter-status').selectOption('postponed');
+ const restore=page.locator('[data-game-status="4"]');
+ await restore.waitFor({state:'attached'});
+ assert.equal(await page.locator('#games .game-card').count(),1);
+ await restore.evaluate(node=>node.closest('details').open=true);
+ await restore.click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-update-message').textContent.includes('Partido restablecido'));
+ assert.equal(await page.locator('[data-game-status="4"]').count(),0);
+ await page.locator('#game-filter-status').selectOption('scheduled');
+ await page.locator('[data-game-status="4"]').waitFor({state:'attached'});
+ assert.equal(games.find(g=>g.id===4).status,'scheduled');
  assert.deepEqual(errors,[]);await browser.close();console.log('Schedule board: drag/drop, conflicts, mobile controls, save feedback, card editor and admin visibility verified.');
 })().catch(error=>{console.error(error);process.exit(1);});

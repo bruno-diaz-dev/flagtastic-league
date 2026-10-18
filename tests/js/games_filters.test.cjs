@@ -94,3 +94,60 @@ test('Saving a score immediately removes the game from pending without a cached 
     s.nodes.get('#game-filter-week').value = '2';
     assert.ok(s.ids().includes(1));
 });
+
+test('Postponed filter finds hidden games without selecting a jornada', () => {
+    const s = setup();
+    s.nodes.get('#game-filter-status').value = 'postponed';
+    assert.deepEqual(s.ids(), [3]);
+    s.nodes.get('#game-filter-team').value = 'halcones';
+    assert.deepEqual(s.ids(), [3]);
+    s.nodes.get('#game-filter-field').value = '2';
+    assert.deepEqual(s.ids(), []);
+});
+
+test('Restoration updates local state without reading a stale cached games list', async () => {
+    const s = setup();
+    s.nodes.get('#game-filter-status').value = 'postponed';
+    const message = {textContent: ''};
+    const button = {disabled: false, textContent: 'Restablecer partido',
+        dataset: {gameStatus: '3', nextStatus: 'scheduled'},
+        parentElement: {querySelector: () => message}};
+    let release, writes = 0;
+    s.context.updateGameStatus = async () => {
+        writes++;
+        await new Promise(resolve => {release = resolve;});
+        return {ok: true, json: async () => ({id: 3, status: 'scheduled'})};
+    };
+    const saving = s.context.submitGameStatus(button);
+    assert.equal(button.disabled, true);
+    assert.match(message.textContent, /Guardando/);
+    await s.context.submitGameStatus(button);
+    assert.equal(writes, 1);
+    release();
+    await saving;
+    assert.deepEqual(s.ids(), []);
+    s.nodes.get('#game-filter-status').value = 'scheduled';
+    assert.deepEqual(s.ids(), [1, 3, 4]);
+    assert.match(s.nodes.get('#game-schedule-update-message').textContent, /Partido restablecido/);
+    assert.equal(button.disabled, false);
+});
+
+test('Restoration errors stay visible and leave the game postponed for retry', async () => {
+    const s = setup();
+    s.nodes.get('#game-filter-status').value = 'postponed';
+    const message = {textContent: ''};
+    const button = {disabled: false, textContent: 'Restablecer partido',
+        dataset: {gameStatus: '3', nextStatus: 'scheduled'},
+        parentElement: {querySelector: () => message}};
+    s.context.updateGameStatus = async () => ({ok: false,
+        json: async () => ({detail: 'No tienes permisos'})});
+    await s.context.submitGameStatus(button);
+    assert.equal(message.textContent, 'No tienes permisos');
+    assert.equal(button.disabled, false);
+    assert.deepEqual(s.ids(), [3]);
+    s.context.updateGameStatus = async () => {throw new Error('offline');};
+    await s.context.submitGameStatus(button);
+    assert.match(message.textContent, /No se pudo confirmar/);
+    assert.equal(button.disabled, false);
+    assert.deepEqual(s.ids(), [3]);
+});
