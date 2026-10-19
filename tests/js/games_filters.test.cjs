@@ -152,15 +152,22 @@ test('Restoration errors stay visible and leave the game postponed for retry', a
     assert.deepEqual(s.ids(), [3]);
 });
 
-test('Weekly highlights use division, team, field and week filters independently of upcoming-list status', () => {
+test('Featured score requires an explicit week and follows its filters independently of list status', () => {
     const s = setup();
     s.context.renderWeeklyFeaturedGames = games => {s.context.featuredIds = games.map(game => game.id);};
     s.ids();
-    assert.deepEqual(Array.from(s.context.featuredIds), [1, 2, 3, 4, 5]);
+    assert.deepEqual(Array.from(s.context.featuredIds), []);
+    s.nodes.get('#game-filter-team').value = 'aguilas';
+    s.ids();
+    assert.deepEqual(Array.from(s.context.featuredIds), []);
     s.nodes.get('#game-filter-week').value = '1';
     s.nodes.get('#game-filter-status').value = 'postponed';
     s.ids();
     assert.deepEqual(Array.from(s.context.featuredIds), [2, 3, 4]);
+    s.nodes.get('#game-filter-week').value = '';
+    s.ids();
+    assert.deepEqual(Array.from(s.context.featuredIds), []);
+    s.nodes.get('#game-filter-week').value = '1';
     s.nodes.get('#game-filter-category').value = 'u14';
     s.ids();
     assert.deepEqual(Array.from(s.context.featuredIds), []);

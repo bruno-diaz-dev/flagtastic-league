@@ -384,7 +384,7 @@ function renderFilteredGames() {
             || (game.status !== "completed" && game.status !== "postponed" && !hasScore)
         );
         const matchesContext = matchesTeam && matchesWeek && matchesBranch && matchesCategory && matchesField;
-        if (matchesContext) featuredCandidates.push(game);
+        if (selectedWeek !== "" && matchesContext) featuredCandidates.push(game);
         return matchesStatus && matchesContext;
     });
 
