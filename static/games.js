@@ -350,6 +350,7 @@ function renderFilteredGames() {
     toggleGamesWeekStatusButton.textContent = (
         selectedWeekIsPostponed ? "Restaurar jornada" : "Posponer jornada"
     );
+    const featuredCandidates = [];
     const filteredGames = gamesState.filter((game) => {
         const teamSearch = normalizeSearchText(gameFilterTeam.value);
         const matchesTeam = (
@@ -382,9 +383,12 @@ function renderFilteredGames() {
             || normalizeSearchText(gameFilterTeam.value) !== ""
             || (game.status !== "completed" && game.status !== "postponed" && !hasScore)
         );
-        return matchesStatus && matchesTeam && matchesWeek && matchesBranch && matchesCategory && matchesField;
+        const matchesContext = matchesTeam && matchesWeek && matchesBranch && matchesCategory && matchesField;
+        if (matchesContext) featuredCandidates.push(game);
+        return matchesStatus && matchesContext;
     });
 
+    if (typeof renderWeeklyFeaturedGames === "function") renderWeeklyFeaturedGames(featuredCandidates);
     renderGames(filteredGames);
     if (typeof renderScheduleBoard === "function") renderScheduleBoard();
 }
