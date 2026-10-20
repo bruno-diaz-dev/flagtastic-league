@@ -61,7 +61,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             teams_by_id = {team["id"]: team for team in teams}
             registered_games = connection.execute(
                 """
-                SELECT id, week, home_team_id, away_team_id
+                SELECT id, week, home_team_id, away_team_id, status, home_score, away_score
                 FROM games
                 WHERE week = ANY(%s) AND NOT is_friendly
                 ORDER BY id
@@ -110,6 +110,25 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         tuple(sorted((home["id"], away["id"])))
                         for _, home, away in candidates
                     }
+                    if len(distinct_pairs) > 1 and not link_existing_games_only:
+                        # Shared youth names can have the same opponent in two
+                        # branches. Use only an exact published score match;
+                        # otherwise retain the ambiguity error rather than guess.
+                        score_matches = []
+                        for match, home, away in candidates:
+                            if match["status"] != "completed":
+                                continue
+                            scores = (match["home_score"], match["away_score"])
+                            if match["home_team_id"] != home["id"]:
+                                scores = scores[::-1]
+                            if scores == (source_game["home_score"], source_game["away_score"]):
+                                score_matches.append((match, home, away))
+                        if score_matches:
+                            candidates = score_matches
+                            distinct_pairs = {
+                                tuple(sorted((home["id"], away["id"])))
+                                for _, home, away in candidates
+                            }
                     if len(distinct_pairs) > 1:
                         raise StatisticsValidationError(
                             f"Jornada {week}: el partido #{game_index + 1} "

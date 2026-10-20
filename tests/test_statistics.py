@@ -1117,3 +1117,39 @@ def test_full_import_disambiguates_color_by_registered_opponent_and_reuses_rever
         games = client.get('/api/games').json()
         assert len(games) == 1
         assert (games[0]['home_score'], games[0]['away_score']) == (6, 80)
+
+
+def test_full_import_shared_opponents_use_exact_published_scores_to_disambiguate():
+    mixto = create_team('Nomadas', 'mixto', 'u12')
+    rival = create_team('Rancheras Flag', 'mixto', 'u12')
+    connection = get_connection()
+    fem = connection.execute("INSERT INTO teams (name, branch, category, status) VALUES ('Nomadas', 'femenil', 'u12', 'active') RETURNING id").fetchone()['id']
+    game_ids = []
+    for home, home_score in [(mixto, 18), (fem, 12)]:
+        game_ids.append(connection.execute("INSERT INTO games (home_team_id, away_team_id, week, status, home_score, away_score) VALUES (%s,%s,1,'completed',%s,6) RETURNING id", (home, rival, home_score)).fetchone()['id'])
+    connection.commit()
+    connection.close()
+    for team_id, number in [(mixto, 16), (fem, 15), (rival, 7)]:
+        create_player(team_id, f'Player {number}', f'PAIR{team_id:014d}', number)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 1'
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    for name, number, touchdowns in [('Nomadas', 15, 2), ('Rancheras Flag', 7, 1),
+                                      ('Nomadas', 16, 3), ('Rancheras Flag', 7, 1)]:
+        for label in labels:
+            sheet.append([name, 'U12', label, *([number] * touchdowns if label == 'TD' else [])])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    for _ in range(2):
+        response = client.post('/api/statistics/import', files={'file': ('source.xlsx', output.getvalue())})
+        assert response.status_code == 200, response.text
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 4
+        assert next(row for row in rows if row['team_id'] == fem)['game_id'] == game_ids[1]
+        assert next(row for row in rows if row['team_id'] == mixto)['game_id'] == game_ids[0]
+        assert len(client.get('/api/games').json()) == 2
