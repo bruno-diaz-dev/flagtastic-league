@@ -335,7 +335,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 game_id = game_ids.get((week, row.get("game_index")))
                 existing_rows = connection.execute(
                     """
-                    SELECT id, game_id FROM player_week_stats
+                    SELECT id, game_id, passes_completed, passes_attempted
+                    FROM player_week_stats
                     WHERE week = %s AND team_id = %s AND player_id = %s
                       AND (%s::integer IS NULL OR game_id = %s OR game_id IS NULL)
                     ORDER BY id FOR UPDATE
@@ -358,6 +359,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     row["passes_attempted"]
                 )
                 if existing_rows:
+                    if row.get("passing_incomplete"):
+                        values = (*values[:5], existing_rows[0]["passes_completed"],
+                                  existing_rows[0]["passes_attempted"])
                     saved = connection.execute(
                         """
                         UPDATE player_week_stats

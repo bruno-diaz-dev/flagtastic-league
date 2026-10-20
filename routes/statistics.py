@@ -83,8 +83,9 @@ async def import_statistics(
     if len(content) > MAX_WORKBOOK_BYTES:
         raise HTTPException(status_code=413, detail="El archivo excede 5 MB")
 
+    warnings = []
     try:
-        weeks = parse_statistics_workbook(content, selected_week=week)
+        weeks = parse_statistics_workbook(content, selected_week=week, warnings=warnings)
         try:
             games = parse_games_workbook(content, selected_week=week)
         except StatisticsFileError:
@@ -99,7 +100,7 @@ async def import_statistics(
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
-    return imported
+    return {**imported, "warnings": warnings}
 
 
 @router.post("/api/weeks/{week}/player-stats/import-division")
@@ -124,8 +125,9 @@ async def import_division_statistics(
     content = await file.read(MAX_WORKBOOK_BYTES + 1)
     if len(content) > MAX_WORKBOOK_BYTES:
         raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
+    warnings = []
     try:
-        weeks = parse_statistics_workbook(content, selected_week=week)
+        weeks = parse_statistics_workbook(content, selected_week=week, warnings=warnings)
         rows = weeks[week]
         if any(
             row["category"] != category
@@ -155,7 +157,7 @@ async def import_division_statistics(
         )
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return {"weeks": [week], **imported}
+    return {"weeks": [week], **imported, "warnings": warnings}
 
 
 @router.post("/api/statistics/import")
@@ -170,15 +172,16 @@ async def import_official_statistics(
     content = await file.read(MAX_WORKBOOK_BYTES + 1)
     if len(content) > MAX_WORKBOOK_BYTES:
         raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
+    warnings = []
     try:
-        weeks = parse_statistics_workbook(content)
+        weeks = parse_statistics_workbook(content, warnings=warnings)
         games = parse_games_workbook(content)
         imported = import_statistics_workbook(weeks, games, existing_records=existing_records)
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {
         "weeks": sorted(weeks),
-        **imported,
+        **imported, "warnings": warnings,
     }
 
 

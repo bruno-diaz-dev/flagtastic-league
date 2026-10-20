@@ -1026,3 +1026,63 @@ def test_sporting_tiebreakers_precede_player_and_team_ids():
     ]
     ordered = _rank_leaders(rows, lambda r: _leader_score(r, 'receptions'), 5)
     assert [(r['player_id'], r['team_id']) for r in ordered] == [(2, 1), (2, 2), (1, 1)]
+
+
+@pytest.mark.parametrize('endpoint', [
+    '/api/statistics/import',
+    '/api/weeks/1/player-stats/import',
+    '/api/weeks/1/player-stats/import-division',
+])
+def test_incomplete_passing_import_keeps_published_passing_and_is_idempotent(endpoint):
+    home = create_team('Tigres')
+    create_team('Ravens')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
+                               (10, 'Receiver', 'DDDD000101HAGRRN04'),
+                               (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(home, name, curp, number)
+    assert client.post('/api/statistics/import', files={
+        'file': ('valid.xlsx', create_official_workbook())
+    }).status_code == 200
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    sheet = workbook['Wk 1']
+    for cell in ('D2', 'E2', 'F2'):
+        sheet[cell] = None
+    sheet['E10'] = 83  # A verified rushing TD is independent of QB attribution.
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    fields = {'existing_records': 'update', 'branch': 'varonil', 'category': 'libre'}
+    for _ in range(2):
+        response = client.post(endpoint, data=fields, files={'file': ('incomplete.xlsx', output.getvalue())})
+        assert response.status_code == 200, response.text
+        warning = response.json()['warnings'][0]
+        assert (warning['source_completed'], warning['source_attempted']) == (2, 0)
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 3
+        passer = next(row for row in rows if row['jersey_number'] == 83)
+        assert (passer['passes_completed'], passer['passes_attempted']) == (2, 3)
+        assert passer['points'] == 6
+        assert next(row for row in rows if row['jersey_number'] == 10)['receptions'] == 2
+
+
+def test_new_incomplete_passing_import_does_not_fabricate_attempts_or_drop_receptions():
+    home = create_team('Tigres')
+    create_team('Ravens')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
+                               (10, 'Receiver', 'DDDD000101HAGRRN04'),
+                               (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(home, name, curp, number)
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    for cell in ('D2', 'E2', 'F2'):
+        workbook['Wk 1'][cell] = None
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    response = client.post('/api/statistics/import', files={'file': ('incomplete.xlsx', output.getvalue())})
+    assert response.status_code == 200, response.text
+    assert len(response.json()['warnings']) == 1
+    rows = client.get('/api/weeks/1/player-stats').json()
+    assert len(rows) == 3
+    passer = next(row for row in rows if row['jersey_number'] == 83)
+    assert (passer['passes_completed'], passer['passes_attempted']) == (0, 0)
+    assert next(row for row in rows if row['jersey_number'] == 10)['receptions'] == 2

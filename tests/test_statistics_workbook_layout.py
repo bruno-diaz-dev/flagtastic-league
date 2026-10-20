@@ -122,3 +122,36 @@ def test_official_completions_exceeding_attempts_are_rejected():
     workbook.close()
     with pytest.raises(StatisticsFileError, match='completos exceden'):
         parse_statistics_workbook(output.getvalue())
+
+
+@pytest.mark.parametrize('jersey', [0, 8])
+def test_incomplete_official_passing_warns_and_preserves_other_metrics(jersey):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 2'
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    events = {'Completos Pase': [20], 'Para % pases': [jersey],
+              'TD': [20], 'Tacleo': [jersey]}
+    for label in labels:
+        sheet.append(['Example', 'Fem 14', label, *events.get(label, [])])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    warnings = []
+    rows = parse_statistics_workbook(output.getvalue(), warnings=warnings)[2]
+    by_number = {row['jersey_number']: row for row in rows}
+    assert by_number[20]['receptions'] == 1
+    assert by_number[20]['points'] == 6
+    assert by_number[jersey]['tackles'] == 1
+    assert by_number[jersey]['passes_completed'] == 0
+    assert by_number[jersey]['passes_attempted'] == 0
+    assert by_number[jersey]['passing_incomplete'] is True
+    assert len(warnings) == 1
+    assert warnings[0]['source_completed'] == 1
+    assert warnings[0]['source_attempted'] == 0
+    assert warnings[0]['jersey_number'] == jersey
+    assert warnings[0]['sheet'] == 'Wk 2'
+    assert warnings[0]['row'] == 2
