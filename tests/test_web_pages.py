@@ -322,8 +322,8 @@ def test_public_player_links_are_rendered_by_roster_and_leaderboards():
     roster_script = client.get("/static/roster.js")
     statistics_script = client.get("/static/statistics.js")
 
-    assert 'href="/players/${player.id}"' in roster_script.text
-    assert 'href="/players/${leader.player_id}"' in statistics_script.text
+    assert 'href="/players/${player.id}?team_id=${teamId}"' in roster_script.text
+    assert 'href="/players/${leader.player_id}?team_id=${leader.team_id}"' in statistics_script.text
 
 
 def test_visible_team_names_link_to_their_canonical_rosters():
