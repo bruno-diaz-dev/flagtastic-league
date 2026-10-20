@@ -43,7 +43,7 @@ export default function StatsScreen() {
 
       <Panel>
         <Text style={styles.summaryTitle}>RESUMEN DE TEMPORADA</Text>
-        <Text style={styles.summary}>Tus números acumulan las jornadas importadas oficialmente por la liga. Los detalles por partido están disponibles en la versión web.</Text>
+        <Text style={styles.summary}>Tus números corresponden únicamente a la categoría y equipo seleccionados. Cada jornada se cuenta una vez, aunque tengas dos partidos. Los detalles por partido están disponibles en la versión web.</Text>
       </Panel>
       <WebLink path="/dashboard" label="Abrir mi dashboard completo" icon="stats-chart-outline" />
     </Screen>

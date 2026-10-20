@@ -6,6 +6,7 @@ export type User = {
 };
 
 export type TeamSummary = {
+  statistics?: PlayerStatistics;
   team_id: number;
   team_name: string;
   branch: string;

@@ -73,7 +73,7 @@ function renderRoster(team) {
         return `
             <article class="roster-player">
                 ${playerPhoto(player)}
-                <a class="roster-player-identity player-profile-link" href="/players/${player.id}">
+                <a class="roster-player-identity player-profile-link" href="/players/${player.id}?team_id=${teamId}">
                     <h3>${escapeHtml(displayName)}</h3>
                     <p>${identity}</p>
                 </a>

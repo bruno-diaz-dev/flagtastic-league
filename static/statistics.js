@@ -49,7 +49,7 @@ function leaderboardIdentity(leader) {
         : "";
     return `
         <div class="leaderboard-identity">
-            <a class="leaderboard-player player-profile-link" href="/players/${leader.player_id}">
+            <a class="leaderboard-player player-profile-link" href="/players/${leader.player_id}?team_id=${leader.team_id}">
                 ${photo}
                 <div>
                     <strong>${escapeHtml(displayName)}</strong>
@@ -197,7 +197,10 @@ async function submitStatisticsImport(event) {
 }
 
 
+let leaderboardRequest = 0;
+
 async function loadLeaderboards(event) {
+    const request = ++leaderboardRequest;
     if (event) event.preventDefault();
     const formData = new FormData(leaderboardForm);
     leaderboardsContainer.innerHTML = "<p>Cargando estadísticas...</p>";
@@ -210,15 +213,22 @@ async function loadLeaderboards(event) {
             formData.get("category")
         );
         if (!response.ok) throw new Error("Request failed");
-        renderLeaderboards(await response.json());
+        const body = await response.json();
+        if (request !== leaderboardRequest) return;
+        renderLeaderboards(body);
     } catch (error) {
+        if (request !== leaderboardRequest) return;
         leaderboardsContainer.innerHTML = "<p>No se pudieron cargar las estadísticas.</p>";
     }
 }
 
 
 leaderboardForm.addEventListener("submit", loadLeaderboards);
-leaderboardCategory.addEventListener("change", updateLeaderboardBranchControl);
+leaderboardCategory.addEventListener("change", () => {
+    updateLeaderboardBranchControl();
+    loadLeaderboards();
+});
+leaderboardBranch.addEventListener("change", loadLeaderboards);
 if (statisticsImportForm) {
     statisticsImportForm.addEventListener("submit", submitStatisticsImport);
     statisticsImportMode.addEventListener("change", updateStatisticsImportMode);

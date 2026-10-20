@@ -493,18 +493,18 @@ def get_week_statistics(week):
     return [dict(row) for row in rows]
 
 
-def get_player_statistics(player_id):
-    """Return totals derived from a player's weekly records."""
+def get_player_statistics_by_team(player_id):
+    """Return separate season totals for each membership, never across teams."""
     connection = get_connection()
-    row = connection.execute(
+    rows = connection.execute(
         """
         SELECT players.id AS player_id, players.name AS player_name,
             players.aka AS player_aka,
-            CASE
-                WHEN players.profile_photo_path IS NULL THEN NULL
-                ELSE '/media/profiles/' || players.profile_photo_path
-            END AS profile_photo_url,
-            COUNT(stats.id)::INTEGER AS weeks,
+            CASE WHEN players.profile_photo_path IS NULL THEN NULL
+                 ELSE '/media/profiles/' || players.profile_photo_path END AS profile_photo_url,
+            teams.id AS team_id, teams.name AS team_name, teams.branch, teams.category,
+            team_players.active,
+            COUNT(DISTINCT stats.week)::INTEGER AS weeks,
             COALESCE(SUM(stats.points), 0)::INTEGER AS points,
             COALESCE(SUM(stats.receptions), 0)::INTEGER AS receptions,
             COALESCE(SUM(stats.interceptions), 0)::INTEGER AS interceptions,
@@ -513,21 +513,35 @@ def get_player_statistics(player_id):
             COALESCE(SUM(stats.passes_completed), 0)::INTEGER AS passes_completed,
             COALESCE(SUM(stats.passes_attempted), 0)::INTEGER AS passes_attempted
         FROM players
-        LEFT JOIN player_week_stats AS stats ON stats.player_id = players.id
+        LEFT JOIN team_players ON team_players.player_id = players.id
+        LEFT JOIN teams ON teams.id = team_players.team_id
+        LEFT JOIN player_week_stats AS stats
+            ON stats.player_id = players.id AND stats.team_id = teams.id
         WHERE players.id = %s
-        GROUP BY players.id, players.name
+        GROUP BY players.id, teams.id, team_players.active
+        ORDER BY team_players.active DESC NULLS LAST,
+                 teams.branch, teams.category, teams.name, teams.id
         """,
-        (player_id,)
-    ).fetchone()
+        (player_id,),
+    ).fetchall()
     connection.close()
-    if row is None:
-        return None
-    result = dict(row)
-    result["completion_percentage"] = (
-        round(result["passes_completed"] * 100 / result["passes_attempted"], 2)
-        if result["passes_attempted"] > 0 else None
-    )
-    return result
+    results = []
+    for row in rows:
+        result = dict(row)
+        result["completion_percentage"] = (
+            round(result["passes_completed"] * 100 / result["passes_attempted"], 2)
+            if result["passes_attempted"] > 0 else None
+        )
+        results.append(result)
+    return results
+
+
+def get_player_statistics(player_id, team_id=None):
+    """Read the requested team, or the first membership when none is specified."""
+    scopes = get_player_statistics_by_team(player_id)
+    if team_id is not None:
+        return next((row for row in scopes if row["team_id"] == team_id), None)
+    return scopes[0] if scopes else None
 
 
 def get_game_statistics(game_id, team_ids=None, player_id=None):

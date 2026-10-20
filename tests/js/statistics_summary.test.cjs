@@ -56,3 +56,24 @@ test('incomplete-passing warnings remain visible even with no unregistered jerse
     assert.match(summary.children[1].children[0].textContent, /<b>Diablos<\/b>/);
     assert.equal(summary.children[1].children[0].html, undefined);
 });
+
+test('slower category responses cannot replace the most recently requested leaders', async () => {
+    const {context} = setup();
+    const pending=[];let category='u10';const rendered=[];
+    context.FormData=class {constructor(){this.category=category;} get(key){return key==='category'?this.category:'mixto';}};
+    context.isUnifiedYouthCategory=()=>true;
+    context.getLeaderboards=()=>new Promise(resolve=>pending.push(resolve));
+    context.renderLeaderboards=data=>rendered.push(data.category);
+    const first=context.loadLeaderboards();
+    category='u12';const second=context.loadLeaderboards();
+    pending[1]({ok:true,json:async()=>({category:'u12'})});await second;
+    pending[0]({ok:true,json:async()=>({category:'u10'})});await first;
+    assert.deepEqual(rendered,['u12']);
+});
+
+test('leader links retain the ranking team context on the player profile', () => {
+    const {context}=setup();
+    context.escapeHtml=String;
+    const html=context.leaderboardIdentity({player_id:7,team_id:21,player_name:'Player',jersey_number:5,team_name:'U10 team'});
+    assert.match(html,/href="\/players\/7\?team_id=21"/);
+});

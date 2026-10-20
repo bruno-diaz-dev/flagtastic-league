@@ -154,6 +154,7 @@ jobs:
           node tests/browser/friendly_games.cjs
           node tests/browser/schedule_board.cjs
           node tests/browser/weekly_featured.cjs
+          node tests/browser/player_statistics_scope.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

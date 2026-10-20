@@ -153,9 +153,12 @@ export function LeagueDataProvider({ children }: PropsWithChildren) {
   const activeTeam = mode === 'representative' ? (activeManagedTeam ? managedTeamSummary(activeManagedTeam) : null) : dashboard?.teams.find(({team_id}) => team_id === activeTeamId)
     || dashboard?.teams[0]
     || null;
+  const scopedDashboard = useMemo(() => dashboard && activeTeam?.statistics
+    ? {...dashboard, statistics: activeTeam.statistics} : dashboard,
+  [dashboard, activeTeam]);
   const value = useMemo(
-    () => ({representativeDashboard, activeManagedTeam, dashboard, games, standings, leaderboards, refereeGames, refereeProfile, activeTeam, loading, refreshing, error, refresh, selectTeam}),
-    [representativeDashboard, activeManagedTeam, dashboard, games, standings, leaderboards, refereeGames, refereeProfile, activeTeam, loading, refreshing, error, refresh, selectTeam],
+    () => ({representativeDashboard, activeManagedTeam, dashboard: scopedDashboard, games, standings, leaderboards, refereeGames, refereeProfile, activeTeam, loading, refreshing, error, refresh, selectTeam}),
+    [representativeDashboard, activeManagedTeam, scopedDashboard, games, standings, leaderboards, refereeGames, refereeProfile, activeTeam, loading, refreshing, error, refresh, selectTeam],
   );
   return <LeagueDataContext.Provider value={value}>{children}</LeagueDataContext.Provider>;
 }
