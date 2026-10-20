@@ -118,11 +118,11 @@ async function loadDashboard() {
         profilePhotoPlaceholder.classList.remove("hidden");
     }
 
-    statsContainer.innerHTML = Object.entries(statisticLabels).map(([key, label]) => {
-        const rawValue = dashboard.statistics[key];
-        const value = rawValue === null ? "-" : rawValue;
-        return `<article class="stat-item"><span>${label}</span><strong>${value}</strong></article>`;
-    }).join("");
+    renderScopedPlayerStatistics(dashboard, {
+        select: document.querySelector("#personal-stats-team"), container: statsContainer,
+        context: document.querySelector("#personal-stats-context"), labels: statisticLabels,
+        teamId: document.querySelector("#personal-stats-team").value
+    });
 
     teamsContainer.innerHTML = dashboard.teams.length
         ? dashboard.teams.map((team) => `

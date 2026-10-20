@@ -370,8 +370,9 @@ async function deleteAdminUser(userId) {
     return fetch(`/api/admin/users/${userId}`, {method: "DELETE"});
 }
 
-async function getPublicPlayerProfile(playerId) {
-    return fetch(`/api/players/${playerId}/profile`);
+async function getPublicPlayerProfile(playerId, teamId = null) {
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    return fetch(`/api/players/${playerId}/profile${query}`);
 }
 
 async function getMyRefereeGames() {

@@ -47,11 +47,16 @@ function renderPublicProfile(profile) {
         placeholder.textContent = profileInitials(profile.player.name);
     }
 
-    publicStats.innerHTML = Object.entries(publicStatisticLabels).map(([key, label]) => {
-        const rawValue = profile.statistics[key];
-        const value = rawValue === null ? "-" : rawValue;
-        return `<article class="stat-item"><span>${label}</span><strong>${value}</strong></article>`;
-    }).join("");
+    renderScopedPlayerStatistics(profile, {
+        select: document.querySelector("#public-player-stats-team"), container: publicStats,
+        context: document.querySelector("#public-player-stats-context"), labels: publicStatisticLabels,
+        teamId: new URLSearchParams(window.location.search).get("team_id"),
+        onSelect: teamId => {
+            const url = new URL(window.location.href);
+            url.searchParams.set("team_id", teamId);
+            window.history.replaceState(null, "", url);
+        }
+    });
 
     publicTeams.innerHTML = profile.teams.length
         ? profile.teams.map((team) => `
@@ -65,7 +70,7 @@ function renderPublicProfile(profile) {
 
 
 async function loadPublicProfile() {
-    const response = await getPublicPlayerProfile(publicPlayerId);
+    const response = await getPublicPlayerProfile(publicPlayerId, new URLSearchParams(window.location.search).get("team_id"));
     if (response.status === 404) {
         publicMessage.textContent = "Jugador no encontrado.";
         return;

@@ -18,6 +18,8 @@
 
     <section aria-labelledby="public-player-stats-title">
         <h3 id="public-player-stats-title">Estadísticas de temporada</h3>
+        <label>Categoría y equipo<select id="public-player-stats-team" aria-label="Categoría y equipo de las estadísticas"></select></label>
+        <p id="public-player-stats-context" class="form-help" aria-live="polite"></p>
         <div id="public-player-stats" class="stat-grid" aria-live="polite"></div>
     </section>
 
@@ -31,6 +33,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/player_profile.js?v=20261001-1"></script>
+<script src="/static/api.js?v=20261020-1"></script>
+<script src="/static/player_statistics_scope.js?v=20261020-1"></script>
+<script src="/static/player_profile.js?v=20261020-1"></script>
 {% endblock %}

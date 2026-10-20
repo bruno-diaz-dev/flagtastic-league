@@ -1,6 +1,6 @@
 """Authenticated player dashboard and self-service roster endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from psycopg.errors import UniqueViolation
 
 from dependencies.auth import require_player, require_team_representative, user_has_role
@@ -31,9 +31,9 @@ def update_my_profile(profile: PlayerProfileUpdate, user=Depends(require_player)
 
 
 @router.get("/dashboard")
-def player_dashboard(user=Depends(require_player)):
+def player_dashboard(team_id: int | None = Query(default=None, gt=0), user=Depends(require_player)):
     """Return only data belonging to the authenticated player."""
-    dashboard = get_player_dashboard(user["player_id"])
+    dashboard = get_player_dashboard(user["player_id"], team_id=team_id)
     if dashboard is None:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     return dashboard

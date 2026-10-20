@@ -3,7 +3,7 @@
 from io import BytesIO
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 
@@ -194,18 +194,18 @@ def list_week_statistics(week: int):
 
 
 @router.get("/api/players/{player_id}/stats")
-def player_statistics(player_id: int):
+def player_statistics(player_id: int, team_id: int | None = Query(default=None, gt=0)):
     """Return a player's totals derived from weekly records."""
-    statistics = get_player_statistics(player_id)
+    statistics = get_player_statistics(player_id, team_id=team_id)
     if statistics is None:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     return statistics
 
 
 @router.get("/api/players/{player_id}/profile")
-def public_player_profile(player_id: int):
+def public_player_profile(player_id: int, team_id: int | None = Query(default=None, gt=0)):
     """Return the public season profile without account or CURP data."""
-    profile = get_player_dashboard(player_id)
+    profile = get_player_dashboard(player_id, team_id=team_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
     return profile

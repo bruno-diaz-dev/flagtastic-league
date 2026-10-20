@@ -188,3 +188,49 @@ def test_existing_player_can_update_public_aka():
     assert updated.json()["aka"] == "Brucie"
     assert client.get("/api/auth/me").json()["display_name"] == "Brucie"
     assert client.get("/api/me/dashboard").json()["player"]["aka"] == "Brucie"
+
+
+def test_profile_categories_do_not_mix_stats_or_count_games_as_extra_weeks():
+    teams = []
+    for category in ('u10', 'u12'):
+        teams.append(client.post('/api/teams', json={'name': f'Team {category}', 'branch': 'mixto', 'category': category}).json())
+    registration = register_player()
+    player_id = registration.json()['player_id']
+    assert client.post('/api/auth/login', json={'email': 'player@example.com', 'password': 'supersecret'}).status_code == 200
+    for team in teams:
+        assert client.post(f"/api/me/teams/{team['id']}", json={'jersey_number': 5}).status_code == 201
+    connection = get_connection()
+    # Five player/game records, including a U10 doubleheader, span two actual weeks.
+    for team_index, week, points, interceptions in [(0, 1, 6, 1), (0, 1, 0, 0), (0, 2, 0, 0),
+                                                    (1, 1, 12, 1), (1, 2, 6, 0)]:
+        team = teams[team_index]
+        rival = connection.execute("INSERT INTO teams (name,branch,category,status) VALUES (%s,'mixto',%s,'active') RETURNING id", (f'Rival {team_index} {week} {points}', team['category'])).fetchone()['id']
+        game = connection.execute("INSERT INTO games (home_team_id,away_team_id,week,status,home_score,away_score) VALUES (%s,%s,%s,'completed',6,0) RETURNING id", (team['id'], rival, week)).fetchone()['id']
+        connection.execute("INSERT INTO player_week_stats (week,game_id,player_id,team_id,points,interceptions,passes_completed,passes_attempted) VALUES (%s,%s,%s,%s,%s,%s,1,%s)", (week, game, player_id, team['id'], points, interceptions, 2 if team_index == 0 else 1))
+    connection.commit()
+    connection.close()
+    for team in teams:
+        params = f"?team_id={team['id']}"
+        statistics = client.get(f'/api/players/{player_id}/stats{params}').json()
+        assert statistics['interceptions'] == 1
+        assert statistics['weeks'] == 2
+        assert statistics['team_id'] == team['id']
+        assert statistics['points'] == (6 if team['category'] == 'u10' else 18)
+        assert statistics['completion_percentage'] == (50 if team['category'] == 'u10' else 100)
+        public = client.get(f'/api/players/{player_id}/profile{params}').json()
+        personal = client.get('/api/me/dashboard'+params).json()
+        for profile in (public, personal):
+            assert profile['selected_team_id'] == team['id']
+            assert profile['statistics']['interceptions'] == 1
+            assert profile['statistics']['weeks'] == 2
+            assert len(profile['teams']) == 2
+            assert all(scope['statistics']['interceptions'] == 1 for scope in profile['teams'])
+        leaders = client.get(f"/api/statistics/leaderboards?branch=mixto&category={team['category']}").json()
+        assert leaders['interceptions'][0]['player_id'] == player_id
+        assert leaders['interceptions'][0]['value'] == 1
+    default = client.get(f'/api/players/{player_id}/profile').json()
+    assert default['statistics']['interceptions'] == 1
+    assert default['statistics']['weeks'] == 2
+    for endpoint in (f'/api/players/{player_id}/stats', f'/api/players/{player_id}/profile', '/api/me/dashboard'):
+        assert client.get(endpoint+'?team_id=999999').status_code == 404
+        assert client.get(endpoint+'?team_id=0').status_code == 422

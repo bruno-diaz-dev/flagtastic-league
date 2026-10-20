@@ -26,7 +26,7 @@ function renderRepresentativeSummary(teams) {
 }
 
 
-function representativePlayerCard(player) {
+function representativePlayerCard(player, teamId) {
     const displayName = player.player_aka || player.player_name;
     const statistics = [
         ["PTS", player.points],
@@ -40,7 +40,7 @@ function representativePlayerCard(player) {
     return `
         <article class="representative-player-card">
             <header>
-                <a href="/players/${player.player_id}">${escapeHtml(displayName)}</a>
+                <a href="/players/${player.player_id}?team_id=${teamId}">${escapeHtml(displayName)}</a>
                 <strong>#${player.jersey_number}</strong>
             </header>
             <dl>${statistics.map(([label, value]) => `
@@ -78,14 +78,14 @@ function renderRepresentativeTeam(team) {
             <div class="table-scroll representative-player-table"><table class="standings-data-table"><thead><tr>
                 <th>Jugador</th><th>#</th><th>PTS</th><th>REC</th><th>INT</th><th>CAP</th><th>TAC</th><th>PC</th><th>PL</th><th>%</th>
             </tr></thead><tbody>${team.players.map((player) => `<tr>
-                <td><a href="/players/${player.player_id}">${escapeHtml(player.player_aka || player.player_name)}</a></td>
+                <td><a href="/players/${player.player_id}?team_id=${team.id}">${escapeHtml(player.player_aka || player.player_name)}</a></td>
                 <td>${player.jersey_number}</td><td>${player.points}</td><td>${player.receptions}</td><td>${player.interceptions}</td>
                 <td>${player.sacks}</td><td>${player.tackles}</td><td>${player.passes_completed}</td><td>${player.passes_attempted}</td>
                 <td>${player.completion_percentage ?? "-"}</td>
             </tr>`).join("") || `<tr><td colspan="10">Sin jugadores registrados.</td></tr>`}</tbody></table></div>
             <div class="representative-player-list">
                 ${team.players.length
-                    ? team.players.map(representativePlayerCard).join("")
+                    ? team.players.map(player => representativePlayerCard(player, team.id)).join("")
                     : `<div class="empty-state"><h4>Sin jugadores registrados</h4></div>`}
             </div>
         </section>`;
