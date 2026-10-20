@@ -197,7 +197,7 @@ def _parse_official_games(sheet, week):
     return games
 
 
-def _parse_official_week_sheet(sheet, week):
+def _parse_official_week_sheet(sheet, week, warnings=None):
     """Preserve each 15-row team block as statistics for one exact game."""
     players = defaultdict(lambda: Counter({
         "points": 0, "receptions": 0, "interceptions": 0,
@@ -207,12 +207,14 @@ def _parse_official_week_sheet(sheet, week):
     blocks = _official_team_blocks(sheet)
     if not blocks:
         return []
+    source_rows = {}
     for block_index, (row_number, block) in enumerate(blocks):
         team = str(block[0][0]).strip()
         branch, category = _division_from_official_category(
             block[0][1], sheet.title, row_number
         )
         game_index = block_index // 2
+        source_rows[(game_index, branch, category, team)] = row_number
         for values in block:
             label = _normalized_text(values[2])
             if label not in IDENTITY_EVENT_LABELS:
@@ -234,18 +236,33 @@ def _parse_official_week_sheet(sheet, week):
 
     rows = []
     for (game_index, branch, category, team, jersey_number), metrics in players.items():
-        if metrics["passes_completed"] > metrics["passes_attempted"]:
-            raise StatisticsFileError(
-                f"{sheet.title}, equipo {team}, jersey {jersey_number}: "
-                "los pases completos exceden los intentos registrados"
-            )
+        passing_incomplete = metrics["passes_completed"] > metrics["passes_attempted"]
+        if passing_incomplete:
+            if warnings is None:
+                raise StatisticsFileError(
+                    f"{sheet.title}, equipo {team}, jersey {jersey_number}: "
+                    "los pases completos exceden los intentos registrados"
+                )
+            warnings.append({
+                "reason": "incomplete_passing", "week": week,
+                "sheet": sheet.title,
+                "row": source_rows[(game_index, branch, category, team)],
+                "team_name": team, "branch": branch, "category": category,
+                "jersey_number": jersey_number, "game_index": game_index,
+                "source_completed": metrics["passes_completed"],
+                "source_attempted": metrics["passes_attempted"],
+            })
+            # Do not infer attempts, guess a QB, or publish an invented rating.
+            # The repository keeps the existing passing pair on an update.
+            metrics["passes_completed"] = metrics["passes_attempted"] = 0
         rows.append({
             "branch": branch,
             "category": category,
             "team": team,
             "jersey_number": jersey_number,
             "game_index": game_index,
-            **dict(metrics)
+            **dict(metrics),
+            **({"passing_incomplete": True} if passing_incomplete else {})
         })
     rows.sort(key=lambda row: (
         row["branch"], row["category"], row["team"].casefold(),
@@ -307,7 +324,7 @@ def _parse_flat_sheet(sheet):
     return rows
 
 
-def parse_statistics_workbook(content, selected_week=None):
+def parse_statistics_workbook(content, selected_week=None, *, warnings=None):
     """Return `{week: rows}` from the official workbook or compact template."""
     try:
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
@@ -321,7 +338,7 @@ def parse_statistics_workbook(content, selected_week=None):
                 week_sheets.append((int(match.group(1)), sheet))
         if week_sheets:
             parsed = {
-                week: _parse_official_week_sheet(sheet, week)
+                week: _parse_official_week_sheet(sheet, week, warnings)
                 for week, sheet in week_sheets
                 if selected_week is None or week == selected_week
             }
@@ -347,7 +364,7 @@ def parse_statistics_workbook(content, selected_week=None):
             if tuple(_normalized_text(v) for v in headers) == (
                 "equipo", "categoria", "estadistica"
             ):
-                return {selected_week: _parse_official_week_sheet(active, selected_week)}
+                return {selected_week: _parse_official_week_sheet(active, selected_week, warnings)}
         rows = _parse_flat_sheet(workbook.active)
         if not rows:
             raise StatisticsFileError("El archivo no contiene estadisticas")

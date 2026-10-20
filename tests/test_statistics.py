@@ -800,7 +800,8 @@ def test_ambiguous_team_name_stops_import_instead_of_guessing():
     assert client.get("/api/weeks/1/player-stats").json() == []
 
 
-def test_u12_same_name_in_two_branches_uses_registered_match():
+@pytest.mark.parametrize('endpoint', ['/api/weeks/1/player-stats/import-division', '/api/statistics/import'])
+def test_u12_same_name_in_two_branches_uses_registered_match(endpoint):
     """The official opponent disambiguates Fem vs Mix U12 Nómadas."""
     eagles = create_team("Eagles Flag", "mixto", "u12")
     vikingos = create_team("Vikingos", "mixto", "u12")
@@ -855,7 +856,7 @@ def test_u12_same_name_in_two_branches_uses_registered_match():
 
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Hoja1"
+    sheet.title = "Wk 1" if endpoint == "/api/statistics/import" else "Hoja1"
     sheet.append(["Equipo", "Categoría", "Estadística", 1])
     labels = [
         "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
@@ -880,7 +881,7 @@ def test_u12_same_name_in_two_branches_uses_registered_match():
 
     for attempt in range(2):
         response = client.post(
-            "/api/weeks/1/player-stats/import-division",
+            endpoint,
             data={"branch": "mixto", "category": "u12"},
             files={"file": ("Week 1 U12.xlsx", stream.getvalue())},
         )
@@ -1026,3 +1027,129 @@ def test_sporting_tiebreakers_precede_player_and_team_ids():
     ]
     ordered = _rank_leaders(rows, lambda r: _leader_score(r, 'receptions'), 5)
     assert [(r['player_id'], r['team_id']) for r in ordered] == [(2, 1), (2, 2), (1, 1)]
+
+
+@pytest.mark.parametrize('endpoint', [
+    '/api/statistics/import',
+    '/api/weeks/1/player-stats/import',
+    '/api/weeks/1/player-stats/import-division',
+])
+def test_incomplete_passing_import_keeps_published_passing_and_is_idempotent(endpoint):
+    home = create_team('Tigres')
+    create_team('Ravens')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
+                               (10, 'Receiver', 'DDDD000101HAGRRN04'),
+                               (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(home, name, curp, number)
+    assert client.post('/api/statistics/import', files={
+        'file': ('valid.xlsx', create_official_workbook())
+    }).status_code == 200
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    sheet = workbook['Wk 1']
+    for cell in ('D2', 'E2', 'F2'):
+        sheet[cell] = None
+    sheet['E10'] = 83  # A verified rushing TD is independent of QB attribution.
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    fields = {'existing_records': 'update', 'branch': 'varonil', 'category': 'libre'}
+    for _ in range(2):
+        response = client.post(endpoint, data=fields, files={'file': ('incomplete.xlsx', output.getvalue())})
+        assert response.status_code == 200, response.text
+        warning = response.json()['warnings'][0]
+        assert (warning['source_completed'], warning['source_attempted']) == (2, 0)
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 3
+        passer = next(row for row in rows if row['jersey_number'] == 83)
+        assert (passer['passes_completed'], passer['passes_attempted']) == (2, 3)
+        assert passer['points'] == 6
+        assert next(row for row in rows if row['jersey_number'] == 10)['receptions'] == 2
+
+
+def test_new_incomplete_passing_import_does_not_fabricate_attempts_or_drop_receptions():
+    home = create_team('Tigres')
+    create_team('Ravens')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
+                               (10, 'Receiver', 'DDDD000101HAGRRN04'),
+                               (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(home, name, curp, number)
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    for cell in ('D2', 'E2', 'F2'):
+        workbook['Wk 1'][cell] = None
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    response = client.post('/api/statistics/import', files={'file': ('incomplete.xlsx', output.getvalue())})
+    assert response.status_code == 200, response.text
+    assert len(response.json()['warnings']) == 1
+    rows = client.get('/api/weeks/1/player-stats').json()
+    assert len(rows) == 3
+    passer = next(row for row in rows if row['jersey_number'] == 83)
+    assert (passer['passes_completed'], passer['passes_attempted']) == (0, 0)
+    assert next(row for row in rows if row['jersey_number'] == 10)['receptions'] == 2
+
+
+def test_full_import_disambiguates_color_by_registered_opponent_and_reuses_reversed_match():
+    oro = create_team('Diablos del Sol Oro', 'mixto', 'u10')
+    create_team('Diablos del Sol Tinto', 'mixto', 'u10')
+    lobos = create_team('Lobos', 'mixto', 'u10')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
+                               (10, 'Receiver', 'DDDD000101HAGRRN04'),
+                               (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(oro, name, curp, number)
+    match = client.post('/api/games', json={'home_team_id': lobos, 'away_team_id': oro,
+                                          'week': 1, 'field_number': 1}).json()
+    assert client.patch(f"/api/games/{match['id']}/score", json={'home_score': 6, 'away_score': 80}).status_code == 200
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    for row in workbook['Wk 1'].iter_rows(min_row=2):
+        row[0].value = 'Diablos del sol' if row[0].value == 'Tigres' else 'Lobos'
+        row[1].value = 'U10'
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    for _ in range(2):
+        response = client.post('/api/statistics/import', files={'file': ('source.xlsx', output.getvalue())})
+        assert response.status_code == 200, response.text
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 3
+        assert {row['team_id'] for row in rows} == {oro}
+        assert {row['game_id'] for row in rows} == {match['id']}
+        games = client.get('/api/games').json()
+        assert len(games) == 1
+        assert (games[0]['home_score'], games[0]['away_score']) == (6, 80)
+
+
+def test_full_import_shared_opponents_use_exact_published_scores_to_disambiguate():
+    mixto = create_team('Nomadas', 'mixto', 'u12')
+    rival = create_team('Rancheras Flag', 'mixto', 'u12')
+    connection = get_connection()
+    fem = connection.execute("INSERT INTO teams (name, branch, category, status) VALUES ('Nomadas', 'femenil', 'u12', 'active') RETURNING id").fetchone()['id']
+    game_ids = []
+    for home, home_score in [(mixto, 18), (fem, 12)]:
+        game_ids.append(connection.execute("INSERT INTO games (home_team_id, away_team_id, week, status, home_score, away_score) VALUES (%s,%s,1,'completed',%s,6) RETURNING id", (home, rival, home_score)).fetchone()['id'])
+    connection.commit()
+    connection.close()
+    for team_id, number in [(mixto, 16), (fem, 15), (rival, 7)]:
+        create_player(team_id, f'Player {number}', f'PAIR{team_id:014d}', number)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 1'
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    for name, number, touchdowns in [('Nomadas', 15, 2), ('Rancheras Flag', 7, 1),
+                                      ('Nomadas', 16, 3), ('Rancheras Flag', 7, 1)]:
+        for label in labels:
+            sheet.append([name, 'U12', label, *([number] * touchdowns if label == 'TD' else [])])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    for _ in range(2):
+        response = client.post('/api/statistics/import', files={'file': ('source.xlsx', output.getvalue())})
+        assert response.status_code == 200, response.text
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 4
+        assert next(row for row in rows if row['team_id'] == fem)['game_id'] == game_ids[1]
+        assert next(row for row in rows if row['team_id'] == mixto)['game_id'] == game_ids[0]
+        assert len(client.get('/api/games').json()) == 2

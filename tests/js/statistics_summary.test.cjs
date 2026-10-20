@@ -44,3 +44,15 @@ test('summary deduplicates numbers per team/week and renders names as text', () 
     context.renderSkippedStatistics({skipped: []});
     assert.equal(summary.children.length, 0);
 });
+
+test('incomplete-passing warnings remain visible even with no unregistered jerseys', () => {
+    const {context, summary} = setup();
+    context.renderSkippedStatistics({warnings: [{sheet: 'Wk 2', row: 392, week: 2,
+        team_name: '<b>Diablos</b>', branch: 'femenil', category: 'u14',
+        jersey_number: 0, source_completed: 1, source_attempted: 0}]});
+    assert.match(summary.children[0].textContent, /pases inconsistentes omitidos/);
+    assert.match(summary.children[1].children[0].textContent, /Wk 2, bloque desde fila 392/);
+    assert.match(summary.children[1].children[0].textContent, /1 completos y 0 intentos/);
+    assert.match(summary.children[1].children[0].textContent, /<b>Diablos<\/b>/);
+    assert.equal(summary.children[1].children[0].html, undefined);
+});

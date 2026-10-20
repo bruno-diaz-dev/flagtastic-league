@@ -104,6 +104,18 @@ function renderLeaderboards(leaderboards) {
 function renderSkippedStatistics(data) {
     statisticsImportSkipped.replaceChildren();
     const skipped = data.skipped || [];
+    const warnings = data.warnings || [];
+    if (warnings.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${warnings.length} advertencia(s): pases inconsistentes omitidos. No se inventaron intentos; si había pases publicados, se conservaron.`;
+        const list = document.createElement("ul");
+        for (const warning of warnings) {
+            const item = document.createElement("li");
+            item.textContent = `${warning.sheet}, bloque desde fila ${warning.row} · Jornada ${warning.week} · ${warning.team_name} (${warning.branch} / ${warning.category}) · #${warning.jersey_number}: ${warning.source_completed} completos y ${warning.source_attempted} intentos en el archivo. Se procesaron las demás estadísticas válidas.`;
+            list.append(item);
+        }
+        statisticsImportSkipped.append(heading, list);
+    }
     if (!skipped.length) return;
     const heading = document.createElement("p");
     heading.textContent = `${skipped.length} registros omitidos: número no registrado en el equipo.`;

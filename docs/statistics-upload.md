@@ -41,3 +41,14 @@ record in a week has an unknown number, its existing statistics and games remain
 unchanged. Unknown teams, duplicate valid players, malformed values and live-game
 conflicts still reject the transaction. Game scores are still taken from the
 workbook, including when an individual scorer's number is omitted.
+
+## Inconsistent passing counts
+
+Official-sheet imports continue when a QB has more completions than recorded
+attempts. The response includes a `warnings` entry identifying the week, sheet,
+team, jersey and original counts. The page displays it even if no jerseys were
+skipped. Other valid metrics, including the receiver's receptions, still import.
+The QB's passing pair is omitted together: existing passing totals for that
+player/game are preserved on update; a new record has no credited passing stats.
+No attempts are inferred and a valid jersey zero is treated like any other number.
+Strict parser callers without a warning collector still reject the inconsistency.
