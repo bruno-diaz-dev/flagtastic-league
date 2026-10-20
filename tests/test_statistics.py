@@ -800,7 +800,8 @@ def test_ambiguous_team_name_stops_import_instead_of_guessing():
     assert client.get("/api/weeks/1/player-stats").json() == []
 
 
-def test_u12_same_name_in_two_branches_uses_registered_match():
+@pytest.mark.parametrize('endpoint', ['/api/weeks/1/player-stats/import-division', '/api/statistics/import'])
+def test_u12_same_name_in_two_branches_uses_registered_match(endpoint):
     """The official opponent disambiguates Fem vs Mix U12 Nómadas."""
     eagles = create_team("Eagles Flag", "mixto", "u12")
     vikingos = create_team("Vikingos", "mixto", "u12")
@@ -855,7 +856,7 @@ def test_u12_same_name_in_two_branches_uses_registered_match():
 
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Hoja1"
+    sheet.title = "Wk 1" if endpoint == "/api/statistics/import" else "Hoja1"
     sheet.append(["Equipo", "Categoría", "Estadística", 1])
     labels = [
         "Intentos Pase", "Completos Pase", "Para % pases", "Puntos Pase",
@@ -880,7 +881,7 @@ def test_u12_same_name_in_two_branches_uses_registered_match():
 
     for attempt in range(2):
         response = client.post(
-            "/api/weeks/1/player-stats/import-division",
+            endpoint,
             data={"branch": "mixto", "category": "u12"},
             files={"file": ("Week 1 U12.xlsx", stream.getvalue())},
         )
@@ -1086,3 +1087,33 @@ def test_new_incomplete_passing_import_does_not_fabricate_attempts_or_drop_recep
     passer = next(row for row in rows if row['jersey_number'] == 83)
     assert (passer['passes_completed'], passer['passes_attempted']) == (0, 0)
     assert next(row for row in rows if row['jersey_number'] == 10)['receptions'] == 2
+
+
+def test_full_import_disambiguates_color_by_registered_opponent_and_reuses_reversed_match():
+    oro = create_team('Diablos del Sol Oro', 'mixto', 'u10')
+    create_team('Diablos del Sol Tinto', 'mixto', 'u10')
+    lobos = create_team('Lobos', 'mixto', 'u10')
+    for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
+                               (10, 'Receiver', 'DDDD000101HAGRRN04'),
+                               (22, 'Defender', 'EEEE000101HAGRRN05')):
+        create_player(oro, name, curp, number)
+    match = client.post('/api/games', json={'home_team_id': lobos, 'away_team_id': oro,
+                                          'week': 1, 'field_number': 1}).json()
+    assert client.patch(f"/api/games/{match['id']}/score", json={'home_score': 6, 'away_score': 80}).status_code == 200
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    for row in workbook['Wk 1'].iter_rows(min_row=2):
+        row[0].value = 'Diablos del sol' if row[0].value == 'Tigres' else 'Lobos'
+        row[1].value = 'U10'
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    for _ in range(2):
+        response = client.post('/api/statistics/import', files={'file': ('source.xlsx', output.getvalue())})
+        assert response.status_code == 200, response.text
+        rows = client.get('/api/weeks/1/player-stats').json()
+        assert len(rows) == 3
+        assert {row['team_id'] for row in rows} == {oro}
+        assert {row['game_id'] for row in rows} == {match['id']}
+        games = client.get('/api/games').json()
+        assert len(games) == 1
+        assert (games[0]['home_score'], games[0]['away_score']) == (6, 80)

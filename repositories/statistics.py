@@ -55,7 +55,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         # this disambiguates homonymous cross-branch youth teams such as the
         # two U12 Nómadas, without changing either team or the Excel.
         recorded_game_pairs = {}
-        if link_existing_games_only and games:
+        recorded_game_ids = {}
+        recorded_game_home_ids = {}
+        if games:
             teams_by_id = {team["id"]: team for team in teams}
             registered_games = connection.execute(
                 """
@@ -96,6 +98,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         if home and away and home["id"] != away["id"]:
                             candidates.append((official_game, home, away))
                     if not candidates:
+                        if not link_existing_games_only:
+                            continue
                         raise StatisticsValidationError(
                             f"Jornada {week}: el partido #{game_index + 1} "
                             f"({source_game['home_team']} vs "
@@ -115,6 +119,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     official_game, home, away = candidates[0]
                     claimed_games.add(official_game["id"])
                     recorded_game_pairs[(week, game_index)] = (home, away)
+                    recorded_game_ids[(week, game_index)] = official_game["id"]
+                    recorded_game_home_ids[(week, game_index)] = official_game["home_team_id"]
 
         def resolve_stats_team(row, week):
             game_index = row.get("game_index")
@@ -249,7 +255,10 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         game_ids = {}
         used_existing_game_ids = set()
         for week, home_team_id, away_team_id, game in resolved_games:
-            if link_existing_games_only:
+            recorded_id = recorded_game_ids.get((week, game["game_index"]))
+            if recorded_id is not None:
+                existing_candidates = [{"id": recorded_id}]
+            elif link_existing_games_only:
                 # A statistics upload must link to an existing match without
                 # creating games or guessing/overwriting its final score.
                 existing_candidates = connection.execute(
@@ -301,6 +310,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             else:
                 # Never overwrite an official completed scoreboard when importing
                 # player statistics; the referee/admin result remains authoritative.
+                home_score, away_score = game["home_score"], game["away_score"]
+                if recorded_game_home_ids.get((week, game["game_index"]), home_team_id) != home_team_id:
+                    home_score, away_score = away_score, home_score
                 saved_game = connection.execute(
                     """
                     UPDATE games
@@ -309,7 +321,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         status = 'completed'
                     WHERE id = %s RETURNING id
                     """,
-                    (game["home_score"], game["away_score"], existing["id"])
+                    (home_score, away_score, existing["id"])
                 ).fetchone()
             used_existing_game_ids.add(saved_game["id"])
             game_ids[(week, game["game_index"])] = saved_game["id"]
