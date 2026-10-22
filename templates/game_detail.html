@@ -27,24 +27,14 @@
     <section id="game-officials" class="hidden" aria-labelledby="game-officials-title">
         <h3 id="game-officials-title">Equipo arbitral</h3>
         <div id="game-officials-list" class="assigned-referees"></div>
-        <form id="game-official-form" class="filter-form admin-only">
-            <label>
-                Persona
-                <select name="user_id" required></select>
-            </label>
-            <label>
-                Puesto
-                <select name="position" required>
-                    <option value="referee">Referee</option>
-                    <option value="down_judge">Down Judge</option>
-                    <option value="field_judge">Field Judge</option>
-                    <option value="side_judge">Side Judge</option>
-                    <option value="statistician">Estadístico</option>
-                </select>
-            </label>
-            <button type="submit">Asignar o reemplazar</button>
-        </form>
-        <p id="game-official-message" class="form-message admin-only" role="status"></p>
+        <div class="admin-only schedule-board-officials">
+            <div class="schedule-board-officials-header">
+                <p>Selecciona la planilla por puesto. Cada botón guarda únicamente su asignación.</p>
+                <button id="game-official-refresh" class="secondary-button" type="button">Actualizar lista</button>
+            </div>
+            <p id="game-official-message" class="form-message" role="status"></p>
+            <div id="game-official-slots" class="schedule-board-officials-grid"></div>
+        </div>
     </section>
     <p id="game-detail-message" class="form-message" role="status"></p>
 </section>
@@ -52,7 +42,7 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20260925-6"></script>
-<script src="/static/game_detail.js?v=20261020-2"></script>
+<script src="/static/game_detail.js?v=20261022-1"></script>
 <script src="/static/live_capture_queue.js?v=20261005-1"></script>
 <script src="/static/live_field.js?v=20261005-1"></script>
 <script src="/static/live_game.js?v=20261006-attendance-1"></script>
