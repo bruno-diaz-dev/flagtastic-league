@@ -3,8 +3,13 @@
 const gameDetailPage = document.querySelector(".game-detail-page");
 const gameId = gameDetailPage.dataset.gameId;
 const detailMessage = document.querySelector("#game-detail-message");
-const officialForm = document.querySelector("#game-official-form");
+const officialSlots = document.querySelector("#game-official-slots");
+const officialRefresh = document.querySelector("#game-official-refresh");
 const officialMessage = document.querySelector("#game-official-message");
+let assignedOfficials = [];
+let officialSaving = false;
+let officialLoading = false;
+let officialNeedsRefresh = false;
 const labels = {
     points: "Puntos", receptions: "Recepciones", interceptions: "Intercepciones",
     sacks: "Capturas", tackles: "Tacleadas", passes_completed: "Pases completos",
@@ -27,22 +32,63 @@ function renderOfficials(officials) {
     list.innerHTML = officials.length ? officials.map((official) => `
         <span class="assigned-referee">
             <strong>${positionLabels[official.position]}</strong> ·
-            ${escapeHtml(official.display_name)}
-            <button class="admin-only" type="button" data-remove-official="${official.id}" aria-label="Quitar a ${escapeHtml(official.display_name)}">×</button>
+            ${escapeHtml(official.display_name || official.name)}
         </span>
     `).join("") : "Sin oficiales asignados.";
 }
 
 async function loadOfficialOptions() {
-    const response = await getAdminUsers();
-    if (!response.ok) return;
-    const users = await response.json();
-    const officials = users.filter((user) =>
-        (user.roles || [user.role]).includes("referee") && user.status === "active"
-    );
-    officialForm.elements.user_id.innerHTML = officials.map((user) =>
-        `<option value="${user.id}">${escapeHtml(user.display_name || user.name)}</option>`
-    ).join("");
+    if (officialSaving || officialLoading) return;
+    officialLoading = true;
+    officialMessage.textContent = "Cargando planilla…";
+    syncOfficialControls();
+    try {
+        const usersResponse = await getAdminUsers();
+        // Referees can read the crew, but only administrators can edit it.
+        if ([401, 403].includes(usersResponse.status)) {
+            officialSlots.innerHTML = "";
+            officialMessage.textContent = "";
+            return;
+        }
+        if (!usersResponse.ok) throw new Error("users");
+        const crewResponse = await getGameReferees(gameId);
+        if (!crewResponse.ok) throw new Error("crew");
+        const [users, crew] = await Promise.all([usersResponse.json(), crewResponse.json()]);
+        const candidates = users.filter(user =>
+            (user.roles || [user.role]).includes("referee") && user.status === "active"
+        );
+        crew.forEach(official => {
+            if (!candidates.some(user => user.id === official.id)) candidates.push({...official, unavailable: true});
+        });
+        candidates.sort((a, b) => (a.display_name || a.name).localeCompare(b.display_name || b.name, "es"));
+        assignedOfficials = crew;
+        renderOfficials(crew);
+        officialSlots.innerHTML = Object.entries(positionLabels).map(([position, label]) => {
+            const selected = crew.find(official => official.position === position)?.id;
+            return `<form class="schedule-board-official-slot" data-official-position="${position}">
+                <label>${label}<select name="official_id" aria-label="${label} del partido">
+                    <option value="">Sin asignar</option>${candidates.map(user => `<option value="${user.id}" ${user.id === selected ? "selected" : ""} ${user.unavailable && user.id !== selected ? "disabled" : ""}>${escapeHtml(user.display_name || user.name)}${user.unavailable ? " (no activo)" : ""}</option>`).join("")}
+                </select></label>
+                <button type="submit">Guardar ${label}</button>
+                <p class="form-message" role="status"></p>
+            </form>`;
+        }).join("");
+        officialNeedsRefresh = false;
+        officialMessage.textContent = "Para retirar a alguien, selecciona Sin asignar y guarda ese puesto.";
+    } catch (error) {
+        officialNeedsRefresh = true;
+        officialMessage.textContent = "No se pudo cargar la planilla. Pulsa Actualizar lista para reintentar.";
+    } finally {
+        officialLoading = false;
+        syncOfficialControls();
+    }
+}
+
+function syncOfficialControls() {
+    officialSlots.querySelectorAll("select, button").forEach(control => {
+        control.disabled = officialSaving || officialLoading || officialNeedsRefresh;
+    });
+    officialRefresh.disabled = officialSaving || officialLoading;
 }
 
 async function loadGameDetail() {
@@ -79,41 +125,58 @@ async function loadGameDetail() {
     }
     if (detail.officials) {
         document.querySelector("#game-officials").classList.remove("hidden");
+        assignedOfficials = detail.officials;
         renderOfficials(detail.officials);
         await loadOfficialOptions();
     }
 }
 
-officialForm.addEventListener("submit", async (event) => {
+officialSlots.addEventListener("submit", async (event) => {
     event.preventDefault();
-    officialMessage.textContent = "Guardando cambio...";
-    const response = await assignGameReferee(
-        gameId,
-        officialForm.elements.user_id.value,
-        officialForm.elements.position.value
-    );
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        officialMessage.textContent = error.detail || "No se pudo guardar la asignación.";
+    if (officialSaving || officialLoading || officialNeedsRefresh) return;
+    const form = event.target;
+    const position = form.dataset.officialPosition;
+    if (!Object.hasOwn(positionLabels, position)) return;
+    const nextId = Number(form.elements.official_id.value) || null;
+    const previous = assignedOfficials.find(official => official.position === position);
+    const message = form.querySelector(".form-message");
+    if (nextId === (previous?.id || null)) {message.textContent = "Sin cambios."; return;}
+    if (nextId && assignedOfficials.some(official => official.position !== position && official.id === nextId)) {
+        message.textContent = "Esta persona ya tiene otro puesto en el partido.";
         return;
     }
-    officialMessage.textContent = "Asignación actualizada.";
-    const officialsResponse = await getGameReferees(gameId);
-    if (officialsResponse.ok) renderOfficials(await officialsResponse.json());
-});
-
-document.querySelector("#game-officials-list").addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-remove-official]");
-    if (!button) return;
-    const response = await removeGameReferee(gameId, button.dataset.removeOfficial);
-    if (!response.ok) {
-        officialMessage.textContent = "No se pudo retirar al oficial.";
-        return;
+    officialSaving = true;
+    const button = form.querySelector("button");
+    const label = button.textContent;
+    button.textContent = "Guardando…";
+    message.textContent = "Guardando asignación…";
+    form.setAttribute("aria-busy", "true");
+    syncOfficialControls();
+    try {
+        const response = nextId
+            ? await assignGameReferee(gameId, nextId, position)
+            : await removeGameReferee(gameId, previous.id);
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            message.textContent = typeof body.detail === "string" ? body.detail : "No se pudo guardar la asignación.";
+            return;
+        }
+        assignedOfficials = assignedOfficials.filter(official => official.position !== position);
+        if (nextId) assignedOfficials.push({id: nextId, position,
+            display_name: form.elements.official_id.selectedOptions[0].textContent.replace(/ \(no activo\)$/, "")});
+        renderOfficials(assignedOfficials);
+        message.textContent = nextId ? "Asignación guardada." : "Puesto sin asignar.";
+    } catch (error) {
+        officialNeedsRefresh = true;
+        message.textContent = "No se pudo confirmar el guardado. Pulsa Actualizar lista para comprobar la asignación.";
+    } finally {
+        officialSaving = false;
+        button.textContent = label;
+        form.removeAttribute("aria-busy");
+        syncOfficialControls();
     }
-    officialMessage.textContent = "Oficial retirado del partido.";
-    const officialsResponse = await getGameReferees(gameId);
-    if (officialsResponse.ok) renderOfficials(await officialsResponse.json());
 });
+officialRefresh.addEventListener("click", loadOfficialOptions);
 
 loadGameDetail().catch(() => {
     detailMessage.textContent = "No se pudo conectar con el servidor.";
