@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/referee_schedule_review.css?v=20261023-1">
 <section class="role-dashboard-page league-page">
     <header class="section-header">
         <p class="ui-kicker">FlagTastic · Equipo arbitral</p>
@@ -46,12 +47,7 @@
         <p id="schedule-import-message" class="form-message" role="status"></p>
         <div id="schedule-review" class="schedule-review hidden">
             <p id="schedule-review-scope" class="form-help"></p>
-            <div class="table-scroll">
-                <table class="standings-data-table">
-                    <thead><tr><th>Partido</th><th>Campo</th><th>Equipo arbitral</th></tr></thead>
-                    <tbody id="schedule-review-body"></tbody>
-                </table>
-            </div>
+            <div id="schedule-review-body" class="schedule-review-cards"></div>
             <button id="confirm-schedule" type="button">Confirmar asignaciones</button>
             <details><summary>Contenido reconocido</summary><pre id="schedule-raw-text"></pre></details>
         </div>
@@ -65,5 +61,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261023-1"></script>
-<script src="/static/referee_games.js?v=20261023-1"></script>
+<script src="/static/referee_games.js?v=20261023-2"></script>
 {% endblock %}
