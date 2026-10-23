@@ -13,7 +13,7 @@ from services.referee_schedule_ocr import (
     GRID_FOUR_POSITION_ORDER,
     _best_referee,
 )
-from services.team_matching import match_schedule_team
+from services.team_matching import match_schedule_team, normalize_team_text
 
 
 class RefereeScheduleImportError(Exception):
@@ -282,8 +282,8 @@ def _match_game(row, games):
     week_games = [game for game in games if game["week"] == row["week"]]
     teams = list({team["id"]: team for game in week_games
                   for team in (game["home_team"], game["away_team"])}.values())
-    home = match_schedule_team(row["home_team"], teams)
-    away = match_schedule_team(row["away_team"], teams)
+    home = _match_participant(row["home_team"], teams)
+    away = _match_participant(row["away_team"], teams)
     if home is None or away is None or home["id"] == away["id"]:
         return None
     participant_ids = {home["id"], away["id"]}
@@ -300,6 +300,17 @@ def _match_game(row, games):
     if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.08:
         return None
     return candidates[0][1]
+
+
+def _match_participant(label, teams):
+    # Guests retain their printed identity (for example U17/U15) even when
+    # the friendly fixture uses a supported enclosing category such as U18.
+    # Only an exact, unique registered name can bypass the category hint.
+    exact = [team for team in teams
+             if normalize_team_text(team["name"]) == normalize_team_text(label)]
+    if len(exact) == 1 and exact[0].get("is_guest"):
+        return exact[0]
+    return match_schedule_team(label, teams)
 
 
 def _match_officials(official_slots, referees):

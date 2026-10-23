@@ -76,6 +76,21 @@ def test_csv_week_filter_excludes_other_rows_before_slot_validation():
     assert result["warnings"] == []
 
 
+def test_invited_friendly_teams_use_unique_exact_names_not_a_guessed_category():
+    game = {**GAMES[0], "week": 4, "is_friendly": True,
+            "home_team": {"id": 191, "name": "Sel AGS Var U17", "branch": "varonil", "category": "u18", "is_guest": True},
+            "away_team": {"id": 192, "name": "Sel AGS Var U15", "branch": "varonil", "category": "u18", "is_guest": True}}
+    content = ("jornada,campo,hora,local,visitante,referee,down judge\n"
+               "4,1,12:00,Sel AGS Var U17,Sel AGS Var U15,Cam,Alan\n").encode()
+    result = parse_referee_schedule_file("rol.csv", content, [game], REFEREES, selected_week=4)
+    assert result["matched"] == 1
+    assert result["warnings"] == []
+    # U16 must not silently become the registered U17 guest, even at this slot.
+    assert parse_referee_schedule_file(
+        "rol.csv", content.replace(b"U17", b"U16"), [game], REFEREES, selected_week=4
+    )["matched"] == 0
+
+
 def test_analysis_endpoint_applies_week_filter_without_saving(monkeypatch):
     from fastapi.testclient import TestClient
     from main import app
