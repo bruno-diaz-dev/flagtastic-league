@@ -311,7 +311,8 @@ function scheduleTimeText(minutes) {
 }
 
 window.analyzeScheduleImageCells = async function(file, week, progress) {
-    if (!window.Tesseract) throw new Error("El lector OCR del navegador no está disponible.");
+    progress("Cargando lector de imágenes...");
+    const ocr = await loadScheduleOcr();
     progress("Detectando cuadrícula...");
     const canvas = await scheduleSourceCanvas(file);
     const lines = scheduleGridLines(canvas);
@@ -324,7 +325,7 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
 
     let worker = null;
     try {
-        worker = await window.Tesseract.createWorker("eng", 1);
+        worker = await ocr.createWorker("eng", 1);
         const timeCells = rows.map((row) => ({
             key: "time:" + row.index,
             x0: 0,

@@ -9,7 +9,12 @@ const assert=require('node:assert/strict');
  const secondTeam={id:3,name:'Nómadas',branch:'mixto',category:'libre'};
  const guest={id:2,name:'Invitados de otra liga',branch:'mixto',category:'libre',is_guest:true};
  const game={id:1,home_team:team,away_team:guest,is_friendly:true,week:1,field_number:1,start_time:'10:00',status:'scheduled',home_score:null,away_score:null};
- let created,imported,confirmGate,releaseConfirmation,confirmFailure=false;
+ let created,imported,confirmGate,releaseConfirmation,confirmFailure=false,ocrDownloads=0,imagePayload;
+ await page.route('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',route=>{
+  ocrDownloads++;
+  return route.fulfill({contentType:'application/javascript',headers:{'Access-Control-Allow-Origin':'*'},
+   body:'window.Tesseract={async createWorker(){return {async terminate(){window.imageWorkerTerminated=(window.imageWorkerTerminated||0)+1;}}}};'});
+ });
  await page.route('https://friendly.test/**',async route=>{
   const url=new URL(route.request().url()),method=route.request().method();
   if(url.pathname.startsWith('/static/'))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
@@ -17,6 +22,11 @@ const assert=require('node:assert/strict');
   if(url.pathname==='/api/teams')return json([team,secondTeam]);
   if(url.pathname==='/api/games'&&method==='GET')return json([game]);
   if(url.pathname==='/api/games'&&method==='POST'){created=route.request().postDataJSON();return route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({id:2})});}
+  if(url.pathname==='/api/games/schedule/analyze-cells'){
+   imagePayload=route.request().postDataJSON();
+   return json({matched:1,unmatched:0,proposals:[{week:imagePayload.week,field_number:1,start_time:'12:00',home_team:team.name,away_team:secondTeam.name,
+    home_team_id:1,away_team_id:3,home_match_branch:'mixto',home_match_category:'libre',ready:true}]});
+  }
   if(url.pathname==='/api/games/schedule/confirm'){
    imported=route.request().postDataJSON();
    if(confirmGate)await confirmGate;
@@ -25,7 +35,7 @@ const assert=require('node:assert/strict');
   }
   if(url.pathname.startsWith('/api/'))return json([]);
   let content=fs.readFileSync('templates/games.html','utf8').split('{% block content %}')[1].split('{% endblock %}')[0].replace(/{% for field_number in range\(1, 9\) %}[\s\S]*?{% endfor %}/g,'<option value="1">Campo 1</option>');
-  return route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body class="role-league_admin"><main class="content">${content}</main><script>function escapeHtml(v){const el=document.createElement("span");el.textContent=String(v);return el.innerHTML.replace(/"/g,"&quot;");}</script><script src="/static/api.js"></script><script src="/static/games.js"></script></body></html>`});
+  return route.fulfill({contentType:'text/html',body:`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/ui.css"></head><body class="role-league_admin"><main class="content">${content}</main><script>function escapeHtml(v){const el=document.createElement("span");el.textContent=String(v);return el.innerHTML.replace(/"/g,"&quot;");}</script><script src="/static/api.js"></script><script src="/static/ocr_loader.js"></script><script src="/static/schedule_ocr_cells.js"></script><script src="/static/games.js"></script></body></html>`});
  });
  await page.goto('https://friendly.test/');
  await page.locator('.game-card-friendly').waitFor();
@@ -128,5 +138,23 @@ const assert=require('node:assert/strict');
   assert.ok(layout.checkboxWidth<=20,`compact checkbox at ${width}`);
   if(width===1546)await page.locator('#game-schedule-review').screenshot({path:'desktop-schedule-review.png'});
  }
- assert.deepEqual(errors,[]);await browser.close();console.log('Friendly calendar, guest registration and reviewed import verified in Chromium.');
+ // Exercise the first image upload through the real form and lazy-loader entry point.
+ assert.equal(ocrDownloads,0);assert.equal(await page.evaluate(()=>Boolean(window.Tesseract)),false);
+ await page.evaluate(()=>{
+  scheduleSourceCanvas=async()=>({width:1200,height:100});
+  scheduleGridLines=()=>[0,100];prepareScheduleCell=()=>({blank:false});
+  recognizeScheduleCells=async(worker,canvas,cells,options)=>new Map(cells.map(cell=>[cell.key,
+   options.whitelist?'12:00':cell.key.endsWith(':home')?'Local de la liga':'Nómadas']));
+ });
+ const imageForm=page.locator('#game-schedule-import-form');
+ await imageForm.locator('[name=week_override]').fill('4');
+ await imageForm.locator('[name=file]').setInputFiles({name:'rol.jpeg',mimeType:'image/jpeg',buffer:Buffer.from('controlled OCR fixture')});
+ await imageForm.locator('button').click();
+ await page.waitForFunction(()=>window.imageWorkerTerminated===1);
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('listos'));
+ assert.equal(ocrDownloads,1);assert.equal(imagePayload.week,4);assert.equal(imagePayload.rows[0].start_time,'12:00');
+ assert.equal(await page.locator('#game-schedule-review').isVisible(),true);
+ await imageForm.locator('button').click();await page.waitForFunction(()=>window.imageWorkerTerminated===2);
+ assert.equal(ocrDownloads,1);
+ assert.deepEqual(errors,[]);await browser.close();console.log('Friendly calendar, guest registration, reviewed import and lazy OCR image loading verified in Chromium.');
 })().catch(error=>{console.error(error);process.exit(1);});
