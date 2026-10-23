@@ -163,6 +163,20 @@ def test_csv_table_accepts_explicit_role_columns_and_reports_unknown_names():
     assert "Persona nueva" in result["warnings"][0]
 
 
+def test_structured_referee_names_preserve_zoe_accents_and_reject_shared_aliases():
+    people = [{"id":11,"name":"Zoe García","aka":"Zoe","display_name":"Zoe"},
+              {"id":12,"name":"Zoé Pérez","aka":"Zoé","display_name":"Zoé"}]
+    source = 'jornada,campo,hora,local,visitante,referee,down judge\n5,1,12:00,Nomadas U8,Lobos U8,Zoe,Zoé\n'.encode()
+    for candidates in [people,list(reversed(people))]:
+        result = parse_referee_schedule_file('rol.csv',source,GAMES,candidates)
+        assert result['warnings']==[]
+        assert [official['user_id'] for official in result['proposals'][0]['officials']]==[11,12]
+    duplicate = [{**person,'aka':'Zoe','display_name':'Zoe'} for person in people]
+    ambiguous = parse_referee_schedule_file('rol.csv',source,GAMES,duplicate)
+    assert ambiguous['proposals'][0]['officials']==[]
+    assert 'única' in ambiguous['warnings'][0]
+
+
 def test_structured_schedule_does_not_guess_an_unregistered_game():
     content = (
         "jornada,campo,hora,local,visitante,referee,down judge\n"

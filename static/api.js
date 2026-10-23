@@ -383,6 +383,15 @@ async function getGameReferees(gameId) {
     return fetch(`/api/games/${gameId}/referees`);
 }
 
+function refereeIdentityLabel(person) {
+    const display = person.display_name || person.name;
+    return `${display}${person.name && person.name !== display ? ` · ${person.name}` : ""} · #${person.id}`;
+}
+
+async function getRefereeAssignmentAudit() {
+    return fetch("/api/referees/assignments", {cache: "no-store"});
+}
+
 async function assignGameReferee(gameId, userId, position) {
     return fetch(`/api/games/${gameId}/referees/${userId}`, {
         method: "PUT",

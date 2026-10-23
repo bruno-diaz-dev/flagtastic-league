@@ -120,7 +120,7 @@ async function loadRefereeAssignmentOptions() {
     const users = await response.json();
     const referees = users.filter((user) => (user.roles || [user.role]).includes("referee"));
     refereeAssignmentForm.elements.referee_id.innerHTML = referees.map((user) =>
-        `<option value="${user.id}">${escapeHtml(user.display_name || user.name)}</option>`
+        `<option value="${user.id}">${escapeHtml(refereeIdentityLabel(user))}</option>`
     ).join("");
 }
 

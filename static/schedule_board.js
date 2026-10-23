@@ -183,7 +183,7 @@ async function loadBoardOfficials(force = false) {
             const selected = boardCrewAssignments.get(position);
             return `<form class="schedule-board-official-slot" data-board-position="${position}">
                 <label>${label}<select name="official_id" aria-label="${label} del partido">
-                    <option value="">Sin asignar</option>${candidates.map(user => `<option value="${user.id}" ${user.id === selected ? 'selected' : ''} ${user.unavailable && user.id !== selected ? 'disabled' : ''}>${escapeHtml(user.display_name || user.name)}${user.unavailable ? ' (no activo)' : ''}</option>`).join('')}
+                    <option value="">Sin asignar</option>${candidates.map(user => `<option value="${user.id}" ${user.id === selected ? 'selected' : ''} ${user.unavailable && user.id !== selected ? 'disabled' : ''}>${escapeHtml(refereeIdentityLabel(user))}${user.unavailable ? ' (no activo)' : ''}</option>`).join('')}
                 </select></label>
                 <button type="submit">Guardar ${label}</button>
                 <p class="form-message" role="status"></p>

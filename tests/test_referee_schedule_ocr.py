@@ -4,7 +4,32 @@ from io import BytesIO
 
 from PIL import Image
 
-from services.referee_schedule_ocr import _grid_row_time, parse_referee_schedule_image
+from services.referee_schedule_ocr import _best_referee, _grid_row_time, parse_referee_schedule_image
+
+
+def test_matching_never_selects_the_first_of_two_accent_collisions():
+    people=[{'id':11,'name':'Zoe García','display_name':'Zoe','aka':'Zoe'},
+            {'id':12,'name':'Zoé Pérez','display_name':'Zoé','aka':'Zoé'}]
+    for candidates in [people,list(reversed(people))]:
+        for printed in ['Zoe','Zoé','ZOE','Zoes']:
+            assert _best_referee(printed,candidates) is None
+        assert _best_referee('ZOE',candidates,preserve_accents=True)[0]['id']==11
+        assert _best_referee('Zoe\u0301',candidates,preserve_accents=True)[0]['id']==12
+        assert _best_referee('Zoe García',candidates)[0]['id']==11
+        assert _best_referee('Zoé Pérez',candidates)[0]['id']==12
+
+
+def test_ocr_fallback_leaves_colliding_zoe_names_unassigned(monkeypatch):
+    image=Image.new('RGB',(40,40),'white');content=BytesIO();image.save(content,format='PNG')
+    monkeypatch.setattr('services.referee_schedule_ocr.pytesseract.image_to_string',
+                        lambda image,config:'Campo 1 Tigres vs Ravens Zoe Alan')
+    people=[{'id':11,'name':'Zoe García','display_name':'Zoe'},
+            {'id':12,'name':'Zoé Pérez','display_name':'Zoé'},
+            {'id':13,'name':'Alan','display_name':'Alan'}]
+    games=[{'id':44,'week':4,'home_team':{'name':'Tigres'},'away_team':{'name':'Ravens'}}]
+    result=parse_referee_schedule_image(content.getvalue(),games,people)
+    assert result['proposals'][0]['officials']==[]
+    assert 'ambiguos' in result['warnings'][0]
 
 
 def test_grid_time_uses_printed_hour_instead_of_row_position():
