@@ -1,6 +1,6 @@
 """HTTP endpoints for scheduling games and recording final scores."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from models import (
     GameCreate,
     GameScheduleImportConfirmation,
@@ -214,6 +214,7 @@ def list_my_referee_games(user=Depends(require_referee)):
 @router.post("/referee-schedule/analyze")
 async def analyze_referee_schedule(
     file: UploadFile = File(...),
+    week: int | None = Form(None, gt=0),
     _admin=Depends(require_league_admin)
 ):
     """Read an image or structured file into reviewable assignment proposals."""
@@ -226,12 +227,21 @@ async def analyze_referee_schedule(
             status_code=415,
             detail="Se requiere una imagen JPG, PNG o WebP, o un archivo XLSX o CSV",
         )
+    if week is not None and not is_structured:
+        raise HTTPException(
+            status_code=422,
+            detail="El filtro por jornada está disponible para archivos XLSX y CSV",
+        )
     content = await file.read(MAX_REFEREE_SCHEDULE_BYTES + 1)
     if len(content) > MAX_REFEREE_SCHEDULE_BYTES:
         raise HTTPException(status_code=413, detail="El archivo excede 10 MB")
     referees = get_referee_match_candidates()
     try:
         if is_structured:
+            if week is not None:
+                return parse_referee_schedule_file(
+                    filename, content, get_games(), referees, selected_week=week
+                )
             return parse_referee_schedule_file(
                 filename, content, get_games(), referees
             )

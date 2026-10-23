@@ -7,6 +7,7 @@
       "preview": true,
       "weekly-featured-score-preview": true,
       "fix-game-detail-crew-slots": true,
+      "referee-import-week-filter": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,

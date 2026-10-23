@@ -403,9 +403,10 @@ async function removeGameReferee(gameId, userId) {
     return fetch(`/api/games/${gameId}/referees/${userId}`, {method: "DELETE"});
 }
 
-async function analyzeRefereeSchedule(file) {
+async function analyzeRefereeSchedule(file, week = null) {
     const formData = new FormData();
     formData.append("file", file);
+    if (week !== null && week !== "") formData.append("week", week);
     return fetch("/api/games/referee-schedule/analyze", {
         method: "POST",
         body: formData
