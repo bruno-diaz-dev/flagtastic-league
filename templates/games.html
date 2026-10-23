@@ -117,12 +117,14 @@
         <p class="panel-description">
             Sube una imagen del rol o el calendario en XLSX o CSV. Podrás revisar
             los partidos reconocidos antes de guardarlos. Marca Amistoso para incluir invitados que no están registrados y revisa sus nombres, rama y categoría.
+            También puedes subir el Excel del rol de árbitros: aquí solo se leen los partidos, horarios y campos; no se importan asignaciones arbitrales.
             Si ya existe un partido en esa jornada, hora y campo, se actualizan sus equipos y se conserva la planilla arbitral, siempre que no tenga captura ni resultados.
         </p>
         <form id="game-schedule-import-form" class="filter-form">
             <label>
                 Jornada
                 <input name="week_override" type="number" min="1" max="99" value="1" required>
+                <small>En XLSX o CSV se importa solo esa jornada. Para imágenes, indica la jornada del rol.</small>
             </label>
             <label>
                 Archivo del rol
@@ -137,6 +139,7 @@
         </form>
         <p id="game-schedule-import-message" class="form-message" role="status"></p>
         <div id="game-schedule-review" class="schedule-review hidden">
+            <p id="game-schedule-review-scope" class="form-help"></p>
             <div class="users-table-wrapper">
                 <table class="standings-data-table schedule-import-table">
                     <colgroup>
@@ -321,9 +324,9 @@
 
 {% block scripts %}
 <script src="/static/ocr_loader.js?v=20261004-1"></script>
-<script src="/static/api.js?v=20261017-1"></script>
+<script src="/static/api.js?v=20261023-2"></script>
 <script src="/static/schedule_ocr_cells.js?v=20261023-1"></script>
 <script src="/static/weekly_featured.js?v=20261019-1"></script>
-<script src="/static/games.js?v=20261019-2"></script>
+<script src="/static/games.js?v=20261023-1"></script>
 <script src="/static/schedule_board.js?v=20261017-2"></script>
 {% endblock %}

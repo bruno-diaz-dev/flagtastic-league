@@ -421,9 +421,10 @@ async function confirmRefereeSchedule(assignments) {
     });
 }
 
-async function analyzeGameSchedule(file) {
+async function analyzeGameSchedule(file, week = null) {
     const formData = new FormData();
     formData.append("file", file);
+    if (week !== null && week !== "") formData.append("week_override", week);
     return fetch("/api/games/schedule/analyze", {
         method: "POST",
         body: formData

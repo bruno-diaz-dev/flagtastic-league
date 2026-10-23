@@ -4,12 +4,14 @@ from io import BytesIO
 
 from openpyxl import Workbook
 from PIL import Image
+import pytest
 
 from services.game_schedule_import import (
     parse_game_schedule_file,
     parse_game_schedule_image,
     parse_game_schedule_ocr_words,
     parse_game_schedule_ocr_cells,
+    GameScheduleImportError,
 )
 
 
@@ -19,6 +21,69 @@ TEAMS = [
     {"id": 3, "name": "Ducks", "branch": "femenil", "category": "libre"},
     {"id": 4, "name": "Storms", "branch": "femenil", "category": "libre"},
 ]
+
+
+def _referee_history_workbook():
+    workbook = Workbook()
+    workbook.active.title = "Disp"
+    workbook.active.append(["Nombre", "Disponibilidad"])
+    workbook.active.append(["Cam", "Completo"])
+    workbook.create_sheet("Rol Arb").append(["Nombre", "# Partidos", "Sem 4"])
+    for week in [1, 4, 5, 6]:
+        sheet = workbook.create_sheet(f"Semana {week}")
+        sheet.append([f"Semana {week}"])
+        sheet.append(["Hora", "Campo 1", None, "Campo 7", None, "Nombre", "# Partidos", "DISP", "12:00"])
+        if week <= 4:
+            sheet.append(["12:00", "Nomadas U8", "Rancheras Flag U8", "Ducks Fem Libre", "Storms Fem Libre", "Cam", 2, "Completo", 1])
+            sheet.append([None, "Cam / Alan / Miguel / Allison", None, "Tony / Areli / Fer / Zoe"])
+    content = BytesIO()
+    workbook.save(content)
+    workbook.close()
+    return content.getvalue()
+
+
+def test_referee_history_workbook_imports_only_selected_week_without_officials():
+    result = parse_game_schedule_file("Hist - Arb.xlsx", _referee_history_workbook(), TEAMS, selected_week=4)
+    assert result["selected_week"] == 4
+    assert result["matched"] == 2
+    assert result["unmatched"] == 0
+    assert {row["week"] for row in result["proposals"]} == {4}
+    assert [row["field_number"] for row in result["proposals"]] == [1, 7]
+    assert all(row["source_row"].startswith("Semana 4!") for row in result["proposals"])
+    assert all("officials" not in row for row in result["proposals"])
+    assert "Cam / Alan" not in str(result)
+    assert parse_game_schedule_file("hist.xlsx", _referee_history_workbook(), TEAMS)["matched"] == 4
+    with pytest.raises(GameScheduleImportError, match="jornada 5"):
+        parse_game_schedule_file("hist.xlsx", _referee_history_workbook(), TEAMS, selected_week=5)
+
+
+def test_csv_selected_week_ignores_other_week_rows_before_field_validation():
+    content = ("jornada,campo,hora,local,visitante\n"
+               "1,invalid,invalid,Unknown,Unknown\n"
+               "4,1,12:00,Nomadas U8,Rancheras Flag U8\n").encode()
+    result = parse_game_schedule_file("rol.csv", content, TEAMS, selected_week=4)
+    assert result["matched"] == 1
+    assert result["proposals"][0]["week"] == 4
+
+
+def test_game_analysis_endpoint_filters_referee_workbook_and_cannot_assign_officials(monkeypatch):
+    from fastapi.testclient import TestClient
+    from main import app
+
+    monkeypatch.setattr("routes.games.get_all_teams", lambda: TEAMS)
+    def no_writes(*args, **kwargs):
+        pytest.fail("Game analysis cannot write fixtures or official assignments")
+    monkeypatch.setattr("routes.games.import_game_schedule", no_writes)
+    monkeypatch.setattr("routes.games.apply_referee_schedule", no_writes)
+    with TestClient(app) as client:
+        files={"file": ("Hist - Arb.xlsx", _referee_history_workbook(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        response=client.post("/api/games/schedule/analyze", data={"week_override":"4"}, files=files)
+        assert response.status_code == 200
+        assert response.json()["selected_week"] == 4
+        assert [row["week"] for row in response.json()["proposals"]] == [4, 4]
+        assert all("officials" not in row for row in response.json()["proposals"])
+        for invalid in ["0", "-1", "100", "4.5"]:
+            assert client.post("/api/games/schedule/analyze", data={"week_override":invalid}, files=files).status_code == 422
 
 
 def test_pitbulls_ir_ocr_matches_jr_without_confusing_sr():
