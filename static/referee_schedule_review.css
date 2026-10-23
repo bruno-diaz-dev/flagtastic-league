@@ -1,0 +1,51 @@
+/* Keep the fixture, destination and crew together at every screen size. */
+#schedule-review .schedule-review-cards { display: grid; gap: 16px; min-width: 0; }
+#schedule-review .schedule-review-card {
+    display: grid; gap: 18px; min-width: 0; padding: 20px;
+    border: 1px solid var(--color-border); border-radius: 14px;
+    background: var(--color-surface);
+}
+#schedule-review .schedule-review-card-header {
+    display: grid; grid-template-columns: minmax(0, 1fr) 180px;
+    align-items: start; gap: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+#schedule-review .schedule-review-match { min-width: 0; }
+#schedule-review .schedule-review-meta {
+    margin: 0 0 8px; color: var(--color-muted); font-size: 13px; font-weight: 600;
+}
+#schedule-review .schedule-review-time { color: var(--color-gold); white-space: nowrap; }
+#schedule-review .schedule-review-match h4 {
+    margin: 0; font-size: 18px; line-height: 1.45; color: var(--color-text);
+    overflow-wrap: anywhere;
+}
+#schedule-review .schedule-review-field {
+    display: grid; gap: 7px; min-width: 0; color: var(--color-gold);
+    font-size: 13px; font-weight: 700;
+}
+#schedule-review .schedule-review-field select {
+    width: 100%; min-width: 0; min-height: 48px; font-weight: 700;
+    border-color: var(--color-gold);
+}
+#schedule-review .schedule-referees {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-width: 0; gap: 14px;
+}
+#schedule-review .schedule-official-slot { min-width: 0; text-align: left; gap: 7px; }
+#schedule-review .schedule-official-slot select { min-width: 0; max-width: 100%; min-height: 48px; }
+#schedule-review .schedule-review-source { min-width: 0; color: var(--color-muted); font-size: 12px; }
+#schedule-review .schedule-review-source summary { cursor: pointer; min-height: 28px; }
+#schedule-review .schedule-review-source p { margin: 8px 0 0; overflow-wrap: anywhere; }
+#schedule-review #confirm-schedule { margin-top: 20px; max-width: 100%; }
+@media (max-width: 1100px) {
+    #schedule-review .schedule-referees { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+    #schedule-review .schedule-review-card { padding: 16px; }
+    #schedule-review .schedule-review-card-header { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    #schedule-review .schedule-referees { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #schedule-review .schedule-review-match h4 { font-size: 16px; }
+}
+@media (max-width: 480px) {
+    #schedule-review .schedule-referees { grid-template-columns: minmax(0, 1fr); }
+}

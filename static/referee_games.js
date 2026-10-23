@@ -278,22 +278,27 @@ function renderScheduleReview(result) {
     confirmScheduleButton.textContent = result.selected_week
         ? `Confirmar asignaciones de jornada ${result.selected_week}`
         : "Confirmar asignaciones";
-    scheduleReviewBody.innerHTML = result.proposals.map((proposal) => `
-        <tr data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}">
-            <td>
-                <strong>${escapeHtml(proposal.game_label)}</strong>
-                <small>${escapeHtml(proposal.source_text)}</small>
-            </td>
-            <td>
-                <select name="field_number">
+    scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => {
+        const week = result.selected_week || proposal.game_label.match(/^J(\d+):/)?.[1];
+        const label = proposal.game_label.replace(/^J\d+:\s*/, "");
+        return `<article class="schedule-review-card" data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}" aria-labelledby="schedule-match-${index}">
+            <header class="schedule-review-card-header">
+                <div class="schedule-review-match">
+                    <p class="schedule-review-meta">${week ? `Jornada ${escapeHtml(week)} · ` : ""}<span class="schedule-review-time">${proposal.scheduled_time ? `${escapeHtml(proposal.scheduled_time.slice(0, 5))} h` : "Hora por asignar"}</span></p>
+                    <h4 id="schedule-match-${index}">${escapeHtml(label)}</h4>
+                </div>
+                <label class="schedule-review-field">Campo de asignación
+                <select name="field_number" aria-label="Campo para ${escapeHtml(label)}">
                     ${Array.from({length: 8}, (_, index) => index + 1).map((number) =>
                         `<option value="${number}" ${number === proposal.field_number ? "selected" : ""}>Campo ${number}</option>`
                     ).join("")}
                 </select>
-            </td>
-            <td><div class="schedule-referees">${officialSelects(proposal.officials || [])}</div></td>
-        </tr>
-    `).join("");
+                </label>
+            </header>
+            <div class="schedule-referees" role="group" aria-label="Planilla para ${escapeHtml(label)}">${officialSelects(proposal.officials || [])}</div>
+            <details class="schedule-review-source"><summary>Ver texto del archivo</summary><p>${escapeHtml(proposal.source_text || "")}</p></details>
+        </article>`;
+    }).join("");
     scheduleReview.classList.remove("hidden");
     confirmScheduleButton.disabled = result.proposals.length === 0;
     const warnings = result.warnings || [];
@@ -374,7 +379,7 @@ scheduleForm?.addEventListener("submit", async (event) => {
 confirmScheduleButton?.addEventListener("click", async () => {
     if (confirmScheduleButton.disabled) return;
     confirmScheduleButton.disabled = true;
-    const assignments = [...scheduleReviewBody.querySelectorAll("tr")].map((row) => ({
+    const assignments = [...scheduleReviewBody.querySelectorAll(".schedule-review-card")].map((row) => ({
         game_id: Number(row.dataset.gameId),
         field_number: Number(row.querySelector("[name='field_number']").value),
         scheduled_time: row.dataset.scheduledTime || null,
@@ -393,6 +398,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
     const originalLabel = confirmScheduleButton.textContent;
     scheduleConfirming = true;
     scheduleForm.querySelectorAll("input, button").forEach(control => {control.disabled = true;});
+    scheduleReviewBody.querySelectorAll("select").forEach(control => {control.disabled = true;});
     let saved = false;
     confirmScheduleButton.textContent = "Guardando asignaciones…";
     confirmScheduleButton.setAttribute("aria-busy", "true");
@@ -422,6 +428,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
     } finally {
         scheduleConfirming = false;
         scheduleForm.querySelectorAll("input, button").forEach(control => {control.disabled = false;});
+        scheduleReviewBody.querySelectorAll("select").forEach(control => {control.disabled = false;});
         confirmScheduleButton.textContent = originalLabel;
         confirmScheduleButton.removeAttribute("aria-busy");
         confirmScheduleButton.disabled = saved;
