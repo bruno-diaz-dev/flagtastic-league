@@ -94,6 +94,7 @@ def list_games(response: Response):
 @router.post("/schedule/analyze")
 async def analyze_game_schedule(
     file: UploadFile = File(...),
+    week_override: int | None = Form(None, gt=0, le=99),
     _admin=Depends(require_league_admin),
 ):
     """Parse an image or spreadsheet into an administrator review."""
@@ -107,6 +108,10 @@ async def analyze_game_schedule(
         except GameScheduleImportError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
     try:
+        if week_override is not None:
+            return parse_game_schedule_file(
+                filename, content, get_all_teams(), selected_week=week_override
+            )
         return parse_game_schedule_file(filename, content, get_all_teams())
     except GameScheduleImportError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

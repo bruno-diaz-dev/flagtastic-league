@@ -40,6 +40,8 @@ const weekActionMessage = document.querySelector("#week-action-message");
 let gamesState = [];
 let gameTeamsState = [];
 let scheduleImportState = null;
+let gameScheduleAnalysisRequest = 0;
+let gameScheduleSaving = false;
 const officialPositionLabels = {
     referee: "Referee",
     down_judge: "Down Judge",
@@ -941,6 +943,10 @@ function renderGameScheduleReview(result) {
     setScheduleSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
     scheduleImportState = result;
+    const scope = document.querySelector("#game-schedule-review-scope");
+    scope.textContent = result.selected_week
+        ? `Solo jornada ${result.selected_week}. Se importan partidos; las asignaciones arbitrales del archivo no se incluyen.`
+        : "Revisa los partidos reconocidos. Las asignaciones arbitrales del archivo no se incluyen.";
     scheduleReview.classList.remove("hidden");
     scheduleReviewHead.innerHTML = `<tr><th>Importar</th><th>Amistoso</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Local</th><th>Visitante</th><th>Rama / Categoría</th><th>Estado</th></tr>`;
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
@@ -966,13 +972,24 @@ scheduleReviewBody.addEventListener("change", event => {
 });
 
 
+scheduleImportForm?.addEventListener("change", () => {
+    gameScheduleAnalysisRequest++;
+    scheduleImportState = null;
+    scheduleReview.classList.add("hidden");
+    confirmScheduleButton.disabled = true;
+    scheduleImportMessage.textContent = "Pulsa Analizar rol para revisar el archivo y la jornada seleccionados.";
+});
+
 scheduleImportForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (gameScheduleSaving) return;
+    const request = ++gameScheduleAnalysisRequest;
     const scheduleFields = new FormData(scheduleImportForm);
     const file = scheduleFields.get("file");
     const weekOverride = scheduleFields.get("week_override");
     scheduleReview.classList.add("hidden");
     scheduleImportState = null;
+    confirmScheduleButton.disabled = true;
     scheduleImportMessage.textContent = "Analizando archivo...";
     setScheduleSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
@@ -984,17 +1001,18 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
             ? await window.analyzeScheduleImageCells(
                 file,
                 weekOverride,
-                (message) => { scheduleImportMessage.textContent = message; }
+                (message) => { if (request === gameScheduleAnalysisRequest) scheduleImportMessage.textContent = message; }
             )
-            : await analyzeGameSchedule(file);
+            : await analyzeGameSchedule(file, weekOverride);
         const body = await response.json();
+        if (request !== gameScheduleAnalysisRequest) return;
         if (!response.ok) {
             scheduleImportMessage.textContent = body.detail || "No se pudo analizar el rol.";
             return;
         }
         renderGameScheduleReview(body);
     } catch (error) {
-        scheduleImportMessage.textContent = error.message || "No se pudo analizar el rol.";
+        if (request === gameScheduleAnalysisRequest) scheduleImportMessage.textContent = error.message || "No se pudo analizar el rol.";
     }
 });
 
@@ -1041,6 +1059,9 @@ confirmScheduleButton?.addEventListener("click", async () => {
         return;
     }
     const originalLabel = confirmScheduleButton.textContent;
+    gameScheduleSaving = true;
+    scheduleImportForm.querySelectorAll("input, button").forEach(control => {control.disabled = true;});
+    scheduleReviewBody.querySelectorAll("input, select").forEach(control => {control.disabled = true;});
     confirmScheduleButton.textContent = "Guardando partidos…";
     confirmScheduleButton.setAttribute("aria-busy", "true");
     setScheduleSaveProgress("saving");
@@ -1063,6 +1084,9 @@ confirmScheduleButton?.addEventListener("click", async () => {
         setScheduleSaveProgress("idle");
         setScheduleConfirmMessage("No se pudo confirmar el resultado del guardado. Reintenta la confirmación para verificarlo; los mismos partidos no se duplicarán.");
     } finally {
+        gameScheduleSaving = false;
+        scheduleImportForm.querySelectorAll("input, button").forEach(control => {control.disabled = false;});
+        scheduleReviewBody.querySelectorAll("input, select").forEach(control => {control.disabled = false;});
         confirmScheduleButton.textContent = originalLabel;
         confirmScheduleButton.removeAttribute("aria-busy");
         confirmScheduleButton.disabled = !scheduleImportState;

@@ -10,6 +10,7 @@
       "referee-import-week-filter": true,
       "fix-referee-review-layout": true,
       "fix-schedule-image-ocr-loading": true,
+      "game-import-referee-workbook": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,

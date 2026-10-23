@@ -10,6 +10,7 @@ const assert=require('node:assert/strict');
  const guest={id:2,name:'Invitados de otra liga',branch:'mixto',category:'libre',is_guest:true};
  const game={id:1,home_team:team,away_team:guest,is_friendly:true,week:1,field_number:1,start_time:'10:00',status:'scheduled',home_score:null,away_score:null};
  let created,imported,confirmGate,releaseConfirmation,confirmFailure=false,ocrDownloads=0,imagePayload;
+ let holdWorkbook=false, releaseWorkbook, workbookStarted;
  await page.route('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',route=>{
   ocrDownloads++;
   return route.fulfill({contentType:'application/javascript',headers:{'Access-Control-Allow-Origin':'*'},
@@ -25,6 +26,14 @@ const assert=require('node:assert/strict');
   if(url.pathname==='/api/games/schedule/analyze-cells'){
    imagePayload=route.request().postDataJSON();
    return json({matched:1,unmatched:0,proposals:[{week:imagePayload.week,field_number:1,start_time:'12:00',home_team:team.name,away_team:secondTeam.name,
+    home_team_id:1,away_team_id:3,home_match_branch:'mixto',home_match_category:'libre',ready:true}]});
+  }
+  if(url.pathname==='/api/games/schedule/analyze'){
+   const body=route.request().postData();
+   assert.match(body,/filename="Hist - Arb.xlsx"/);
+   assert.match(body,/name="week_override"\r\n\r\n4/);
+   if(holdWorkbook)await new Promise(resolve=>{releaseWorkbook=resolve;workbookStarted();});
+   return json({selected_week:4,matched:1,unmatched:0,proposals:[{week:4,field_number:2,start_time:'12:00',home_team:team.name,away_team:secondTeam.name,
     home_team_id:1,away_team_id:3,home_match_branch:'mixto',home_match_category:'libre',ready:true}]});
   }
   if(url.pathname==='/api/games/schedule/confirm'){
@@ -156,5 +165,25 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('#game-schedule-review').isVisible(),true);
  await imageForm.locator('button').click();await page.waitForFunction(()=>window.imageWorkerTerminated===2);
  assert.equal(ocrDownloads,1);
- assert.deepEqual(errors,[]);await browser.close();console.log('Friendly calendar, guest registration, reviewed import and lazy OCR image loading verified in Chromium.');
+ // The same referee workbook can go through the game importer, with a scoped
+ // review and a game-only confirmation payload. Old responses stay invalidated.
+ await imageForm.locator('[name=file]').setInputFiles({name:'Hist - Arb.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('controlled multi-week workbook fixture')});
+ holdWorkbook=true;const held=new Promise(resolve=>{workbookStarted=resolve;});
+ await imageForm.locator('button').click();await held;
+ await imageForm.locator('[name=week_override]').fill('3');await imageForm.locator('[name=week_override]').press('Tab');
+ const oldResponse=page.waitForResponse(response=>response.url().endsWith('/api/games/schedule/analyze'));
+ releaseWorkbook();holdWorkbook=false;await oldResponse;
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+ assert.equal(await page.locator('#game-schedule-review').isVisible(),false);
+ assert.equal(await page.locator('#confirm-game-schedule').isDisabled(),true);
+ await imageForm.locator('[name=week_override]').fill('4');await imageForm.locator('button').click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-review-scope').textContent.includes('Solo jornada 4'));
+ assert.match(await page.locator('#game-schedule-review-scope').textContent(),/arbitrales.*no se incluyen/);
+ await page.locator('#confirm-game-schedule').click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
+ assert.equal(imported.games.length,1);assert.equal(imported.games[0].week,4);
+ assert.equal(imported.games[0].field_number,2);assert.equal(imported.games[0].start_time,'12:00');
+ assert.equal('officials' in imported.games[0],false);
+ assert.equal(ocrDownloads,1,'XLSX imports do not download an OCR reader');
+ assert.deepEqual(errors,[]);await browser.close();console.log('Friendly calendar, guest registration, reviewed import, lazy OCR and scoped game-only workbook imports verified in Chromium.');
 })().catch(error=>{console.error(error);process.exit(1);});

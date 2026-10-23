@@ -36,18 +36,22 @@ CSV_HEADERS = {
 }
 
 
-def parse_game_schedule_file(filename, content, teams):
+def parse_game_schedule_file(filename, content, teams, *, selected_week=None):
     """Return reviewable game proposals without modifying league data."""
     lower_name = (filename or "").lower()
     if lower_name.endswith(".xlsx"):
-        rows = _read_calendar_workbook(content)
+        rows = _read_calendar_workbook(content, selected_week)
     elif lower_name.endswith(".csv"):
-        rows = _read_csv(content)
+        rows = _read_csv(content, selected_week)
     else:
         raise GameScheduleImportError("Se requiere un archivo XLSX o CSV")
 
     proposals = [_match_row(row, teams, spreadsheet=True) for row in rows]
     if not proposals:
+        if selected_week is not None:
+            raise GameScheduleImportError(
+                f"El archivo no contiene partidos para la jornada {selected_week}"
+            )
         raise GameScheduleImportError("El archivo no contiene partidos reconocibles")
     if len(proposals) > MAX_SCHEDULE_GAMES:
         raise GameScheduleImportError(
@@ -58,6 +62,7 @@ def parse_game_schedule_file(filename, content, teams):
         "proposals": proposals,
         "matched": sum(proposal["ready"] for proposal in proposals),
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
+        "selected_week": selected_week,
     }
 
 
@@ -478,7 +483,7 @@ def _ocr_team_cell(image, left, right, top, bottom):
     return pytesseract.image_to_string(crop, config="--psm 6").strip().replace("\n", " ")
 
 
-def _read_calendar_workbook(content):
+def _read_calendar_workbook(content, selected_week=None):
     try:
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     except Exception as error:
@@ -487,7 +492,7 @@ def _read_calendar_workbook(content):
     rows = []
     try:
         for sheet in workbook.worksheets:
-            week = None
+            week = _week(sheet.title)
             field_columns = {}
             hour_column = None
             for row_number, values in enumerate(sheet.iter_rows(values_only=True), start=1):
@@ -513,7 +518,9 @@ def _read_calendar_workbook(content):
                             field_columns[index] = int(match.group(1))
                     continue
 
-                if week is None or hour_column is None or not field_columns:
+                if week is None or hour_column is None or not field_columns or (
+                    selected_week is not None and week != selected_week
+                ):
                     continue
                 scheduled_time = _time_value(cells[hour_column])
                 if scheduled_time is None:
@@ -536,7 +543,7 @@ def _read_calendar_workbook(content):
     return rows
 
 
-def _read_csv(content):
+def _read_csv(content, selected_week=None):
     try:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as error:
@@ -564,6 +571,8 @@ def _read_csv(content):
             continue
         try:
             week = int(_text(row[mapped["week"]]))
+            if selected_week is not None and week != selected_week:
+                continue
             field_number = int(re.sub(r"\D", "", _text(row[mapped["field_number"]])))
         except (TypeError, ValueError) as error:
             raise GameScheduleImportError(
