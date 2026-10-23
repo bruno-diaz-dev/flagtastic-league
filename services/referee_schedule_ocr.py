@@ -28,6 +28,10 @@ GRID_FIVE_POSITION_ORDER = (
     "referee", "down_judge", "field_judge", "side_judge", "statistician"
 )
 
+# Confirmed by the league administrator. These are distinct printed identities;
+# never fold their accents before choosing the corresponding account.
+STRUCTURED_REFEREE_ALIASES = {"zoe": "zoe j", "zoé": "zoe f"}
+
 
 class RefereeScheduleImageError(Exception):
     """Raised when an uploaded schedule cannot be read safely."""
@@ -83,6 +87,22 @@ def _best_referee(segment, referees, *, preserve_accents=False):
     identities = [(referee, referee.get("display_name") or referee["name"],
                    {canonical(value) for value in (referee.get("display_name"), referee.get("aka"), referee["name"]) if value})
                   for referee in referees]
+    printed_alias = canonical(segment)
+    if printed_alias in STRUCTURED_REFEREE_ALIASES:
+        if not preserve_accents:
+            # OCR can omit an accent, so a bare name in an image is insufficient.
+            return None
+        target = STRUCTURED_REFEREE_ALIASES[printed_alias]
+        exact = [(referee, name) for referee, name, aliases in identities if target in aliases]
+        if exact:
+            return exact[0] if len(exact) == 1 else None
+        # Support accounts still using the original printed aliases only while
+        # neither expanded identity exists. Never substitute the other Zoe.
+        if any(set(STRUCTURED_REFEREE_ALIASES.values()) & aliases
+               for _, _, aliases in identities):
+            return None
+        exact = [(referee, name) for referee, name, aliases in identities if printed_alias in aliases]
+        return exact[0] if len(exact) == 1 else None
     if preserve_accents:
         exact = [(referee, name) for referee, name, aliases in identities if canonical(segment) in aliases]
         if exact:

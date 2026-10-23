@@ -19,6 +19,25 @@ def test_matching_never_selects_the_first_of_two_accent_collisions():
         assert _best_referee('Zoé Pérez',candidates)[0]['id']==12
 
 
+def test_confirmed_aliases_require_a_unique_correct_target_and_reliable_accents():
+    people = [
+        {"id": 21, "name": "Nombre legal J", "display_name": "Zoe J"},
+        {"id": 22, "name": "Nombre legal F", "display_name": "Zoe F"},
+        {"id": 23, "name": "Otra cuenta", "display_name": "Zoe"},
+    ]
+    for candidates in [people, list(reversed(people))]:
+        for printed, expected in [("Zoe", 21), ("ZOE", 21), ("Zoé", 22), ("Zoe\u0301", 22)]:
+            assert _best_referee(printed, candidates, preserve_accents=True)[0]["id"] == expected
+            assert _best_referee(printed, candidates) is None
+        for name, expected in [("Zoe J", 21), ("Zoe F", 22)]:
+            assert _best_referee(name, candidates)[0]["id"] == expected
+    # Missing/inactive target, even with a tempting old alias or fuzzy match.
+    assert _best_referee("Zoe", people[1:], preserve_accents=True) is None
+    assert _best_referee("Zoé", [people[0]], preserve_accents=True) is None
+    duplicate = [*people, {"id": 24, "name": "Duplicada", "display_name": "Zoe F"}]
+    assert _best_referee("Zoé", duplicate, preserve_accents=True) is None
+
+
 def test_ocr_fallback_leaves_colliding_zoe_names_unassigned(monkeypatch):
     image=Image.new('RGB',(40,40),'white');content=BytesIO();image.save(content,format='PNG')
     monkeypatch.setattr('services.referee_schedule_ocr.pytesseract.image_to_string',

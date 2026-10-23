@@ -177,6 +177,36 @@ def test_structured_referee_names_preserve_zoe_accents_and_reject_shared_aliases
     assert 'única' in ambiguous['warnings'][0]
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_confirmed_zoe_aliases_select_separate_accounts_and_keep_crew_positions(reverse):
+    people = [
+        {"id": 21, "name": "Nombre legal J", "aka": "Zoe J", "display_name": "Zoe J"},
+        {"id": 22, "name": "Nombre legal F", "aka": "Zoe F", "display_name": "Zoe F"},
+        *REFEREES,
+    ]
+    if reverse:
+        people.reverse()
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Semana 5"
+    sheet.append(["Semana 5"])
+    sheet.append(["Hora", "Campo 1", None])
+    sheet.append(["12:00", "Nómadas U8", "Lobos U8"])
+    sheet.append([None, "Zoe / Zoé / Miguel / Allison", None])
+    content = BytesIO()
+    workbook.save(content)
+    result = parse_referee_schedule_file(
+        "rol.xlsx", content.getvalue(), GAMES, people, selected_week=5
+    )
+    assert result["warnings"] == []
+    assert result["proposals"][0]["officials"] == [
+        {"user_id": 21, "name": "Zoe J", "position": "referee"},
+        {"user_id": 22, "name": "Zoe F", "position": "down_judge"},
+        {"user_id": 13, "name": "Miguel", "position": "field_judge"},
+        {"user_id": 14, "name": "Allison", "position": "statistician"},
+    ]
+
+
 def test_structured_schedule_does_not_guess_an_unregistered_game():
     content = (
         "jornada,campo,hora,local,visitante,referee,down judge\n"

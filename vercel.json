@@ -12,6 +12,7 @@
       "fix-schedule-image-ocr-loading": true,
       "game-import-referee-workbook": true,
       "referee-assignment-audit": true,
+      "fix-zoe-referee-aliases": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,
