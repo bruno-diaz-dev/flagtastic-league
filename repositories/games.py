@@ -75,13 +75,14 @@ def import_game_schedule(games):
             game = resolve_game_participants(connection, game)
             existing = connection.execute(
                 """
-                SELECT id, home_team_id, away_team_id, home_score, away_score, is_friendly
+                SELECT id, home_team_id, away_team_id, home_score, away_score, is_friendly, status
                 FROM games
                 WHERE week = %s
                   AND field_number = %s
                   AND start_time IS NOT DISTINCT FROM %s
                 ORDER BY id
                 LIMIT 1
+                FOR UPDATE
                 """,
                 (game.week, game.field_number, game.start_time),
             ).fetchone()
@@ -100,19 +101,22 @@ def import_game_schedule(games):
                     SELECT EXISTS (
                         SELECT 1 FROM player_week_stats WHERE game_id = %s
                         UNION ALL
-                        SELECT 1 FROM game_referees WHERE game_id = %s
+                        SELECT 1 FROM game_live_events WHERE game_id = %s
                         UNION ALL
                         SELECT 1 FROM game_live_sessions WHERE game_id = %s
                     ) AS present
                     """,
                     (existing["id"], existing["id"], existing["id"]),
                 ).fetchone()["present"]
-                if existing["home_score"] is not None or existing["away_score"] is not None or related:
+                if (existing["status"] == "completed" or existing["home_score"] is not None
+                        or existing["away_score"] is not None or related):
                     raise ScheduleConflictError(
                         f"El partido {existing['id']} ya tiene resultados, estadisticas "
-                        "o arbitros asignados. No se pueden reemplazar sus equipos."
+                        "o captura registrada. No se pueden reemplazar sus equipos."
                     )
 
+                # The crew belongs to this schedule slot. Keep both its rows
+                # and the game ID when correcting unplayed participants.
                 connection.execute(
                     """
                     UPDATE games
