@@ -67,7 +67,7 @@ async function loadOfficialOptions() {
             const selected = crew.find(official => official.position === position)?.id;
             return `<form class="schedule-board-official-slot" data-official-position="${position}">
                 <label>${label}<select name="official_id" aria-label="${label} del partido">
-                    <option value="">Sin asignar</option>${candidates.map(user => `<option value="${user.id}" ${user.id === selected ? "selected" : ""} ${user.unavailable && user.id !== selected ? "disabled" : ""}>${escapeHtml(user.display_name || user.name)}${user.unavailable ? " (no activo)" : ""}</option>`).join("")}
+                    <option value="">Sin asignar</option>${candidates.map(user => `<option value="${user.id}" data-display-name="${escapeHtml(user.display_name || user.name)}" ${user.id === selected ? "selected" : ""} ${user.unavailable && user.id !== selected ? "disabled" : ""}>${escapeHtml(refereeIdentityLabel(user))}${user.unavailable ? " (no activo)" : ""}</option>`).join("")}
                 </select></label>
                 <button type="submit">Guardar ${label}</button>
                 <p class="form-message" role="status"></p>
@@ -163,7 +163,7 @@ officialSlots.addEventListener("submit", async (event) => {
         }
         assignedOfficials = assignedOfficials.filter(official => official.position !== position);
         if (nextId) assignedOfficials.push({id: nextId, position,
-            display_name: form.elements.official_id.selectedOptions[0].textContent.replace(/ \(no activo\)$/, "")});
+            display_name: form.elements.official_id.selectedOptions[0].dataset.displayName});
         renderOfficials(assignedOfficials);
         message.textContent = nextId ? "Asignación guardada." : "Puesto sin asignar.";
     } catch (error) {

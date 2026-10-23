@@ -1,13 +1,14 @@
 """Authenticated referee directory and self-service profile photo endpoints."""
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
-from dependencies.auth import require_authenticated_user, require_referee
+from dependencies.auth import require_authenticated_user, require_referee, require_league_admin
 from models import RefereeProfileUpdate
 from repositories.referees import (
     get_public_referee_profile,
     get_referee_profile,
     get_referee_roster,
+    get_referee_assignment_audit,
     update_referee_aka,
     update_referee_photo,
 )
@@ -30,6 +31,14 @@ def my_referee_profile(user=Depends(require_referee)):
     if profile is None:
         raise HTTPException(status_code=404, detail="Arbitro no encontrado")
     return profile
+
+
+@router.get("/assignments")
+def referee_assignment_audit(response: Response, _admin=Depends(require_league_admin)):
+    """Allow league administrators to inspect every official's actual games."""
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vercel-CDN-Cache-Control"] = "no-store"
+    return get_referee_assignment_audit()
 
 
 @router.get("/{user_id}")

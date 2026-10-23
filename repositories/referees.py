@@ -3,6 +3,36 @@
 from database import get_connection
 
 
+def get_referee_assignment_audit():
+    """Return account identities and their stored assignments for admins only."""
+    with get_connection() as connection:
+        people = connection.execute("""
+            SELECT users.id, users.name, users.email, users.status,
+                   COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, '')) AS aka,
+                   COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, ''), users.name) AS display_name
+            FROM users LEFT JOIN players ON players.id = users.player_id
+            WHERE EXISTS (SELECT 1 FROM user_roles WHERE user_id=users.id AND role='referee')
+               OR EXISTS (SELECT 1 FROM game_referees WHERE user_id=users.id)
+            ORDER BY display_name, users.name, users.id
+        """).fetchall()
+        rows = connection.execute("""
+            SELECT game_referees.user_id, game_referees.position, game_referees.assigned_at,
+                   games.id, games.week, games.field_number, games.start_time, games.status,
+                   home.name AS home_team, away.name AS away_team
+            FROM game_referees JOIN games ON games.id=game_referees.game_id
+            JOIN teams home ON home.id=games.home_team_id
+            JOIN teams away ON away.id=games.away_team_id
+            ORDER BY games.week DESC, games.start_time NULLS LAST, games.field_number, games.id
+        """).fetchall()
+    people = {row["id"]: {**dict(row), "games": []} for row in people}
+    for row in rows:
+        game = dict(row)
+        person_id = game.pop("user_id")
+        if person_id in people:
+            people[person_id]["games"].append(game)
+    return {"officials": list(people.values()), "weeks": sorted({game["week"] for person in people.values() for game in person["games"]}, reverse=True)}
+
+
 def get_referee_roster():
     """Return active users who have the cumulative referee role."""
     connection = get_connection()

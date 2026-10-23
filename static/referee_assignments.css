@@ -1,0 +1,28 @@
+#referee-assignment-audit { min-width: 0; }
+.referee-audit-heading { display:flex; flex-wrap:wrap; align-items:start; justify-content:space-between; gap:14px; }
+.referee-audit-heading h3 { margin:0 0 6px; }
+.referee-audit-heading p { margin:0; color:var(--color-muted); max-width:650px; font-size:13px; }
+.referee-audit-filters { display:grid; grid-template-columns:180px minmax(0,1fr); gap:16px; margin:20px 0; }
+.referee-audit-filters label { display:grid; gap:7px; min-width:0; font-size:13px; }
+.referee-audit-filters input, .referee-audit-filters select { width:100%; min-width:0; }
+.referee-audit-list { display:grid; gap:12px; min-width:0; }
+.referee-audit-person { border:1px solid var(--color-border); border-radius:12px; background:var(--color-page); min-width:0; }
+.referee-audit-person > summary { display:flex; align-items:center; gap:12px; cursor:pointer; padding:16px; list-style:none; }
+.referee-audit-person > summary::-webkit-details-marker { display:none; }
+.referee-audit-person > summary::after { content:'+'; color:var(--color-gold); font-size:22px; }
+.referee-audit-person[open] > summary::after { content:'−'; }
+.referee-audit-identity { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.referee-audit-identity strong { font-size:18px; color:var(--color-text); }
+.referee-audit-identity span, .referee-audit-identity small { font-size:12px; color:var(--color-muted); }
+.referee-audit-total { margin-left:auto; flex-shrink:0; color:var(--color-gold); font-weight:700; font-size:13px; }
+.referee-audit-games { padding:0 16px 16px; display:grid; gap:12px; min-width:0; }
+.referee-audit-games article { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:14px; padding-top:14px; border-top:1px solid var(--color-border); }
+.referee-audit-games h4 { margin:6px 0; font-size:15px; overflow-wrap:anywhere; }
+.referee-audit-games p { margin:0; font-size:12px; color:var(--color-muted); }
+.referee-audit-games .referee-audit-slot { color:var(--color-gold); }
+.referee-audit-games a { text-align:center; text-decoration:none; }
+@media(max-width:540px) {
+    .referee-audit-filters, .referee-audit-games article { grid-template-columns:minmax(0,1fr); }
+    .referee-audit-person > summary { padding:12px; gap:8px; }
+    .referee-audit-games { padding:0 12px 12px; }
+}

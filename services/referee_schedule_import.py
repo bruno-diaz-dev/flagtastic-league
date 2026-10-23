@@ -61,8 +61,8 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
         officials, unmatched_names = _match_officials(row["officials"], referees)
         if unmatched_names:
             warnings.append(
-                f"{row['source_row']}: no se reconocieron los oficiales "
-                f"{', '.join(unmatched_names)}."
+                f"{row['source_row']}: no se pudo identificar de forma única a los oficiales "
+                f"{', '.join(unmatched_names)}. Selecciona la cuenta correcta al revisar."
             )
         proposals.append({
             "game_id": game["id"],
@@ -318,7 +318,7 @@ def _match_officials(official_slots, referees):
     unmatched = []
     used_users = set()
     for position, printed_name in official_slots:
-        matched = _best_referee(printed_name, referees)
+        matched = _best_referee(printed_name, referees, preserve_accents=True)
         if matched is None:
             unmatched.append(printed_name)
             continue

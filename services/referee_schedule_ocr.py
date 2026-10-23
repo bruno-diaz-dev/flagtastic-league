@@ -74,22 +74,39 @@ def _detected_position(context, name, fallback_index):
     return POSITION_ORDER[min(fallback_index, len(POSITION_ORDER) - 1)]
 
 
-def _best_referee(segment, referees):
-    """Match one printed AKA/name cell to the closest active account."""
+def _best_referee(segment, referees, *, preserve_accents=False):
+    """Resolve one account; equal or near-equal candidates require review."""
     normalized_segment = _normalized(segment)
     if not normalized_segment:
         return None
+    canonical = lambda value: " ".join(unicodedata.normalize("NFC", str(value or "")).casefold().split())
+    identities = [(referee, referee.get("display_name") or referee["name"],
+                   {canonical(value) for value in (referee.get("display_name"), referee.get("aka"), referee["name"]) if value})
+                  for referee in referees]
+    if preserve_accents:
+        exact = [(referee, name) for referee, name, aliases in identities if canonical(segment) in aliases]
+        if exact:
+            return exact[0] if len(exact) == 1 else None
+    exact = [(referee, name) for referee, name, aliases in identities
+             if normalized_segment in {_normalized(alias) for alias in aliases}]
+    if exact:
+        return exact[0] if len(exact) == 1 else None
     candidates = []
-    for referee in referees:
-        display_name = referee.get("display_name") or referee["name"]
-        normalized_name = _normalized(display_name)
-        score = SequenceMatcher(None, normalized_segment, normalized_name).ratio()
-        if normalized_name in normalized_segment or normalized_segment in normalized_name:
-            score = max(score, 0.95)
+    for referee, display_name, aliases in identities:
+        score = 0
+        for alias in aliases:
+            normalized_name = _normalized(alias)
+            value = SequenceMatcher(None, normalized_segment, normalized_name).ratio()
+            if normalized_name in normalized_segment or normalized_segment in normalized_name:
+                value = max(value, 0.95)
+            score = max(score, value)
         candidates.append((score, referee, display_name))
     if not candidates:
         return None
-    score, referee, display_name = max(candidates, key=lambda candidate: candidate[0])
+    candidates.sort(key=lambda candidate: candidate[0], reverse=True)
+    score, referee, display_name = candidates[0]
+    if len(candidates) > 1 and score - candidates[1][0] < 0.08:
+        return None
     return (referee, display_name) if score >= 0.72 else None
 
 
@@ -148,7 +165,7 @@ def _grid_row_time(words, row_top, row_bottom, time_column_width):
     return f"{int(match.group(1)):02d}:{match.group(2)}"
 
 
-def _parse_grid_schedule(image, raw_text, games, referees):
+def _parse_grid_schedule(image, raw_text, games, referees, warnings=None):
     """Parse the league's week-by-field role sheet using word coordinates."""
     normalized_text = _normalized(raw_text)
     week_match = re.search(r"semana\s*(\d+)", normalized_text)
@@ -249,6 +266,8 @@ def _parse_grid_schedule(image, raw_text, games, referees):
             for position, segment in zip(position_order, segments):
                 matched = _best_referee(segment, referees)
                 if matched is None:
+                    if segment and warnings is not None:
+                        warnings.append(f"J{game['week']}: no se pudo identificar de forma única a {segment}. Revisa su puesto en la planilla.")
                     continue
                 referee, display_name = matched
                 officials.append({
@@ -295,9 +314,10 @@ def parse_referee_schedule_image(content, games, referees):
             "El servidor no tiene instalado el lector OCR"
         ) from error
 
-    grid_proposals = _parse_grid_schedule(image, raw_text, games, referees)
+    warnings = []
+    grid_proposals = _parse_grid_schedule(image, raw_text, games, referees, warnings)
     if grid_proposals:
-        return {"proposals": grid_proposals, "raw_text": raw_text.strip()}
+        return {"proposals": grid_proposals, "raw_text": raw_text.strip(), "warnings": warnings}
 
     lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
     proposals = []
@@ -316,12 +336,22 @@ def parse_referee_schedule_image(content, games, referees):
         ), None)
         if matched_game is None:
             continue
-        matched_referees = [
-            referee for referee in referees
-            if _contains_name(
-                context, referee.get("display_name") or referee["name"]
-            )
-        ]
+        matched_referees = []
+        ambiguous = []
+        for referee in referees:
+            name = referee.get("display_name") or referee["name"]
+            if not _contains_name(context, name):
+                continue
+            resolved = _best_referee(name, referees)
+            if resolved and resolved[0]["id"] == referee["id"]:
+                matched_referees.append(referee)
+            else:
+                ambiguous.append(name)
+        if ambiguous:
+            # Without reliable slash positions, omitting one name would shift
+            # the inferred roles of the remaining people. Review the whole crew.
+            matched_referees = []
+            warnings.append(f"J{matched_game['week']}: nombres ambiguos ({', '.join(ambiguous)}). Selecciona la planilla manualmente.")
         officials = []
         used_positions = set()
         for referee in matched_referees:
@@ -356,4 +386,4 @@ def parse_referee_schedule_image(content, games, referees):
 
     if not raw_text.strip():
         raise RefereeScheduleImageError("No se pudo leer texto en la imagen")
-    return {"proposals": proposals, "raw_text": raw_text.strip()}
+    return {"proposals": proposals, "raw_text": raw_text.strip(), "warnings": warnings}

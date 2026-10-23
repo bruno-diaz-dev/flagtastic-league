@@ -516,7 +516,7 @@ def get_game_referees(game_id):
     rows = connection.execute(
         """
         SELECT users.id, users.name, users.email, players.aka,
-               COALESCE(NULLIF(players.aka, ''), users.name) AS display_name,
+               COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, ''), users.name) AS display_name,
                game_referees.position, game_referees.assigned_at,
                game_referees.assigned_by
         FROM game_referees
@@ -577,7 +577,7 @@ def get_games_for_referee(user_id):
             """
             SELECT game_referees.game_id, game_referees.position,
                    users.id AS user_id,
-                   COALESCE(NULLIF(players.aka, ''), users.name) AS display_name,
+                   COALESCE(NULLIF(users.aka, ''), NULLIF(players.aka, ''), users.name) AS display_name,
                    CASE
                        WHEN players.profile_photo_path IS NOT NULL
                            THEN '/media/profiles/' || players.profile_photo_path

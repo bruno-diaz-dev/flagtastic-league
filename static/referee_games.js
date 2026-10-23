@@ -248,7 +248,7 @@ function officialSelects(selectedOfficials) {
                 <option value="">Sin asignar</option>
                 ${availableReferees.map((referee) => `
                     <option value="${referee.id}" ${selectedByPosition.get(position) === referee.id ? "selected" : ""}>
-                        ${escapeHtml(referee.display_name || referee.name)}
+                        ${escapeHtml(refereeIdentityLabel(referee))}
                     </option>`).join("")}
             </select>
         </label>
