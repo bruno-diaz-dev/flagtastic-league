@@ -549,6 +549,66 @@ def test_schedule_cannot_replace_scored_game_and_rolls_back_batch():
     assert games[0]["home_score"] == 20
 
 
+def test_schedule_corrects_unplayed_matchup_without_losing_crew_or_duplicating_game():
+    from uuid import uuid4
+    from models import UserCreate
+    from repositories.users import create_user
+    from repositories.games import assign_referee, get_game_referee
+
+    home, away, other = (create_test_team(name=name) for name in ("Home", "Away", "Other"))
+    row = dict(home_team_id=home, away_team_id=away, week=4, field_number=2, start_time="12:00")
+    client.post("/api/games/schedule/confirm", json={"games": [row]})
+    game_id = client.get("/api/games").json()[0]["id"]
+    user = create_user(UserCreate(name="Assigned Official", email=f"import-{uuid4().hex}@example.test",
+                                 password="supersecret", role="referee"))
+    assign_referee(game_id, user["id"], "referee", user["id"])
+    original_assignment = get_game_referee(game_id, user["id"])
+
+    correction = {"games": [{**row, "away_team_id": other}]}
+    updated = client.post("/api/games/schedule/confirm", json=correction)
+    assert updated.status_code == 200
+    assert updated.json() == {"created": 0, "updated": 1, "skipped": 0}
+    games = client.get("/api/games").json()
+    assert len(games) == 1
+    assert games[0]["id"] == game_id
+    assert games[0]["home_team"]["id"] == home
+    assert games[0]["away_team"]["id"] == other
+    assert get_game_referee(game_id, user["id"]) == original_assignment
+    assert client.post("/api/games/schedule/confirm", json=correction).json() == {
+        "created": 0, "updated": 0, "skipped": 1,
+    }
+
+
+@pytest.mark.parametrize("protected", ["live", "attendance", "completed"])
+def test_matchup_replacement_preserves_started_or_completed_games_and_rolls_back(protected):
+    from uuid import uuid4
+
+    home, away, other = (create_test_team(name=name) for name in ("Home", "Away", "Other"))
+    row = dict(home_team_id=home, away_team_id=away, week=4, field_number=2, start_time="12:00")
+    client.post("/api/games/schedule/confirm", json={"games": [row]})
+    game_id = client.get("/api/games").json()[0]["id"]
+    with get_connection() as connection:
+        if protected == "live":
+            connection.execute("INSERT INTO game_live_sessions(game_id) VALUES (%s)", (game_id,))
+        elif protected == "attendance":
+            connection.execute("""INSERT INTO game_live_events
+                (game_id,client_id,kind,team_id,period,minute,second)
+                VALUES (%s,%s,'attendance',%s,1,0,0)""", (game_id, uuid4(), home))
+        else:
+            connection.execute("UPDATE games SET status='completed' WHERE id=%s", (game_id,))
+    result = client.post("/api/games/schedule/confirm", json={"games": [
+        {**row, "field_number": 3}, {**row, "away_team_id": other},
+    ]})
+    assert result.status_code == 409
+    games = client.get("/api/games").json()
+    assert len(games) == 1 and games[0]["id"] == game_id
+    assert games[0]["away_team"]["id"] == away
+    with get_connection() as connection:
+        table = "game_live_sessions" if protected == "live" else "game_live_events"
+        if protected != "completed":
+            assert connection.execute(f"SELECT COUNT(*) AS n FROM {table} WHERE game_id=%s", (game_id,)).fetchone()["n"] == 1
+
+
 def test_schedule_rejects_duplicate_slots():
     home = create_test_team(name="Home")
     away = create_test_team(name="Away")
