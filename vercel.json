@@ -13,6 +13,7 @@
       "game-import-referee-workbook": true,
       "referee-assignment-audit": true,
       "fix-zoe-referee-aliases": true,
+      "collapse-referee-assignment-audit": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,
