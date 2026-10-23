@@ -37,13 +37,13 @@ OFFICIAL_HEADERS = {
 }
 
 
-def parse_referee_schedule_file(filename, content, games, referees):
+def parse_referee_schedule_file(filename, content, games, referees, *, selected_week=None):
     """Read XLSX or CSV schedules without relying on OCR."""
     lower_name = (filename or "").lower()
     if lower_name.endswith(".xlsx"):
-        rows = _read_workbook(content)
+        rows = _read_workbook(content, selected_week)
     elif lower_name.endswith(".csv"):
-        rows = _read_csv(content)
+        rows = _read_csv(content, selected_week)
     else:
         raise RefereeScheduleImportError("Se requiere un archivo XLSX o CSV")
 
@@ -77,6 +77,10 @@ def parse_referee_schedule_file(filename, content, games, referees):
         })
 
     if not rows:
+        if selected_week is not None:
+            raise RefereeScheduleImportError(
+                f"El archivo no contiene asignaciones arbitrales para la jornada {selected_week}"
+            )
         raise RefereeScheduleImportError(
             "El archivo no contiene asignaciones arbitrales reconocibles"
         )
@@ -91,10 +95,11 @@ def parse_referee_schedule_file(filename, content, games, referees):
         "matched": len(proposals),
         "unmatched": len(rows) - len(proposals),
         "source_format": "structured",
+        "selected_week": selected_week,
     }
 
 
-def _read_workbook(content):
+def _read_workbook(content, selected_week=None):
     try:
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     except Exception as error:
@@ -104,13 +109,13 @@ def _read_workbook(content):
     try:
         for sheet in workbook.worksheets:
             matrix = [list(row) for row in sheet.iter_rows(values_only=True)]
-            rows.extend(_read_matrix(matrix, sheet.title))
+            rows.extend(_read_matrix(matrix, sheet.title, selected_week))
     finally:
         workbook.close()
     return rows
 
 
-def _read_csv(content):
+def _read_csv(content, selected_week=None):
     try:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as error:
@@ -120,15 +125,15 @@ def _read_csv(content):
     except Exception:
         dialect = "excel"
     matrix = [list(row) for row in reader(StringIO(text), dialect=dialect)]
-    return _read_matrix(matrix, "CSV")
+    return _read_matrix(matrix, "CSV", selected_week)
 
 
-def _read_matrix(matrix, source_name):
+def _read_matrix(matrix, source_name, selected_week=None):
     """Accept either one-row-per-game data or the league's two-row grid."""
     header_index, columns = _tabular_columns(matrix)
     if columns is not None:
-        return _read_tabular_rows(matrix, header_index, columns, source_name)
-    return _read_grid_rows(matrix, source_name)
+        return _read_tabular_rows(matrix, header_index, columns, source_name, selected_week)
+    return _read_grid_rows(matrix, source_name, selected_week)
 
 
 def _tabular_columns(matrix):
@@ -154,13 +159,15 @@ def _tabular_columns(matrix):
     return None, None
 
 
-def _read_tabular_rows(matrix, header_index, columns, source_name):
+def _read_tabular_rows(matrix, header_index, columns, source_name, selected_week=None):
     rows = []
     for row_number, values in enumerate(matrix[header_index + 1:], start=header_index + 2):
         if not any(_text(value) for value in values):
             continue
         try:
             week = int(re.sub(r"\D", "", _cell(values, columns["week"])))
+            if selected_week is not None and week != selected_week:
+                continue
             field_number = int(re.sub(r"\D", "", _cell(values, columns["field_number"])))
         except ValueError as error:
             raise RefereeScheduleImportError(
@@ -185,7 +192,7 @@ def _read_tabular_rows(matrix, header_index, columns, source_name):
     return rows
 
 
-def _read_grid_rows(matrix, source_name):
+def _read_grid_rows(matrix, source_name, selected_week=None):
     week = _week(source_name)
     hour_column = None
     field_columns = {}
@@ -211,7 +218,10 @@ def _read_grid_rows(matrix, source_name):
                     field_columns[column] = int(match.group(1))
             continue
 
-        if week is None or hour_column is None or not field_columns:
+        if week is None or hour_column is None or not field_columns or (
+            selected_week is not None and week != selected_week
+        ):
+            pending_games = {}
             continue
         start_time = _time_value(_cell_value(values, hour_column))
         if start_time is not None:

@@ -6,7 +6,7 @@ import pytest
 
 from openpyxl import Workbook
 
-from services.referee_schedule_import import parse_referee_schedule_file
+from services.referee_schedule_import import RefereeScheduleImportError, parse_referee_schedule_file
 
 
 GAMES = [{
@@ -27,6 +27,78 @@ REFEREES = [
     {"id": 13, "name": "Miguel Field", "display_name": "Miguel"},
     {"id": 14, "name": "Allison Stats", "display_name": "Allison"},
 ]
+
+
+def test_selected_week_ignores_history_and_empty_future_sheets():
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    for week in range(1, 7):
+        sheet = workbook.create_sheet(f"Semana {week}")
+        sheet.append([f"Semana {week}"])
+        sheet.append(["Hora", "Campo 1", None])
+        if week <= 4:
+            sheet.append(["12:00", "Nómadas U8", "Lobos U8"])
+            sheet.append([None, "Cam / Alan / Miguel / Allison", None])
+    content = BytesIO()
+    workbook.save(content)
+    games = [{**GAMES[0], "id": 80 + week, "week": week} for week in range(1, 5)]
+
+    filtered = parse_referee_schedule_file(
+        "historial.xlsx", content.getvalue(), games, REFEREES, selected_week=4
+    )
+    assert [proposal["game_id"] for proposal in filtered["proposals"]] == [84]
+    assert filtered["selected_week"] == 4
+    assert filtered["warnings"] == []
+    assert filtered["unmatched"] == 0
+    assert "Semana 4!" in filtered["raw_text"]
+    assert "Semana 3!" not in filtered["raw_text"]
+    # Missing historical matches must not generate warnings in a J4-only import.
+    assert parse_referee_schedule_file(
+        "historial.xlsx", content.getvalue(), [games[-1]], REFEREES, selected_week=4
+    )["warnings"] == []
+    assert parse_referee_schedule_file(
+        "historial.xlsx", content.getvalue(), games, REFEREES
+    )["matched"] == 4
+    with pytest.raises(RefereeScheduleImportError, match="jornada 5"):
+        parse_referee_schedule_file(
+            "historial.xlsx", content.getvalue(), games, REFEREES, selected_week=5
+        )
+
+
+def test_csv_week_filter_excludes_other_rows_before_slot_validation():
+    content = ("jornada,campo,hora,local,visitante,referee,down judge\n"
+               "3,invalid,invalid,Otro,Lobos U8,No registrado,Otro\n"
+               "4,1,12:00,Nómadas U8,Lobos U8,Cam,Alan\n").encode()
+    result = parse_referee_schedule_file(
+        "rol.csv", content, [{**GAMES[0], "week": 4}], REFEREES, selected_week=4
+    )
+    assert result["matched"] == 1
+    assert result["warnings"] == []
+
+
+def test_analysis_endpoint_applies_week_filter_without_saving(monkeypatch):
+    from fastapi.testclient import TestClient
+    from main import app
+
+    monkeypatch.setattr("routes.games.get_games", lambda: [
+        {**GAMES[0], "id": week, "week": week} for week in [3, 4]
+    ])
+    monkeypatch.setattr("routes.games.get_referee_match_candidates", lambda: REFEREES)
+    def no_writes(*args, **kwargs):
+        pytest.fail("Analysis must never write assignments")
+    monkeypatch.setattr("routes.games.apply_referee_schedule", no_writes)
+    content = ("jornada,campo,hora,local,visitante,referee,down judge\n"
+               "3,1,12:00,Nómadas U8,Lobos U8,Cam,Alan\n"
+               "4,1,12:00,Nómadas U8,Lobos U8,Cam,Alan\n").encode()
+    with TestClient(app) as client:
+        response = client.post("/api/games/referee-schedule/analyze", data={"week": "4"},
+                               files={"file": ("rol.csv", content, "text/csv")})
+        assert response.status_code == 200
+        assert response.json()["selected_week"] == 4
+        assert [proposal["game_id"] for proposal in response.json()["proposals"]] == [4]
+        for invalid in ["0", "-1", "4.5", "incorrecta"]:
+            assert client.post("/api/games/referee-schedule/analyze", data={"week": invalid},
+                               files={"file": ("rol.csv", content, "text/csv")}).status_code == 422
 
 
 def test_xlsx_grid_reads_game_row_and_ordered_official_row():

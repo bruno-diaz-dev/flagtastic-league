@@ -8,6 +8,9 @@ const scheduleMessage = document.querySelector("#schedule-import-message");
 const scheduleReview = document.querySelector("#schedule-review");
 const scheduleReviewBody = document.querySelector("#schedule-review-body");
 const scheduleRawText = document.querySelector("#schedule-raw-text");
+const scheduleScope = document.querySelector("#schedule-review-scope");
+let scheduleAnalysisRequest = 0;
+let scheduleConfirming = false;
 const confirmScheduleButton = document.querySelector("#confirm-schedule");
 const scheduleConfirmMessage = document.querySelector("#official-schedule-confirm-message");
 const scheduleSaveProgress = document.querySelector("#official-schedule-save-progress");
@@ -268,6 +271,13 @@ function renderScheduleReview(result) {
     setOfficialSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
     scheduleRawText.textContent = result.raw_text || "";
+    const scope = result.selected_week
+        ? `Solo jornada ${result.selected_week}. Las demás jornadas no se incluirán en esta confirmación.`
+        : "Todas las jornadas reconocidas en el archivo.";
+    scheduleScope.textContent = scope;
+    confirmScheduleButton.textContent = result.selected_week
+        ? `Confirmar asignaciones de jornada ${result.selected_week}`
+        : "Confirmar asignaciones";
     scheduleReviewBody.innerHTML = result.proposals.map((proposal) => `
         <tr data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}">
             <td>
@@ -326,20 +336,38 @@ dashboardPhotoForm?.addEventListener("submit", async (event) => {
 });
 
 
+scheduleForm?.addEventListener("change", () => {
+    scheduleAnalysisRequest++;
+    scheduleReview.classList.add("hidden");
+    confirmScheduleButton.disabled = true;
+    scheduleMessage.textContent = "Pulsa Analizar rol para revisar el archivo y la jornada seleccionados.";
+});
+
 scheduleForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const file = new FormData(scheduleForm).get("file");
-    scheduleMessage.textContent = "Analizando archivo...";
+    if (scheduleConfirming) return;
+    const data = new FormData(scheduleForm);
+    const file = data.get("file");
+    const week = data.get("week") || null;
+    const request = ++scheduleAnalysisRequest;
+    scheduleMessage.textContent = week ? `Analizando solo la jornada ${week}…` : "Analizando archivo...";
     setOfficialSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
     scheduleReview.classList.add("hidden");
-    const response = await analyzeRefereeSchedule(file);
-    const body = await response.json();
-    if (!response.ok) {
-        scheduleMessage.textContent = body.detail || "No se pudo analizar el archivo.";
-        return;
+    confirmScheduleButton.disabled = true;
+    try {
+        const response = await analyzeRefereeSchedule(file, week);
+        const body = await response.json();
+        if (request !== scheduleAnalysisRequest) return;
+        if (!response.ok) {
+            const detail = Array.isArray(body.detail) ? body.detail.map(error => error.msg).join(". ") : body.detail;
+            scheduleMessage.textContent = detail || "No se pudo analizar el archivo.";
+            return;
+        }
+        renderScheduleReview(body);
+    } catch (error) {
+        if (request === scheduleAnalysisRequest) scheduleMessage.textContent = "No se pudo analizar el rol. Reintenta sin cambiar el archivo.";
     }
-    renderScheduleReview(body);
 });
 
 
@@ -363,6 +391,8 @@ confirmScheduleButton?.addEventListener("click", async () => {
         return;
     }
     const originalLabel = confirmScheduleButton.textContent;
+    scheduleConfirming = true;
+    scheduleForm.querySelectorAll("input, button").forEach(control => {control.disabled = true;});
     let saved = false;
     confirmScheduleButton.textContent = "Guardando asignaciones…";
     confirmScheduleButton.setAttribute("aria-busy", "true");
@@ -390,6 +420,8 @@ confirmScheduleButton?.addEventListener("click", async () => {
             setOfficialConfirmMessage("No se pudo confirmar el guardado de las asignaciones. Reintenta la confirmación.");
         }
     } finally {
+        scheduleConfirming = false;
+        scheduleForm.querySelectorAll("input, button").forEach(control => {control.disabled = false;});
         confirmScheduleButton.textContent = originalLabel;
         confirmScheduleButton.removeAttribute("aria-busy");
         confirmScheduleButton.disabled = saved;

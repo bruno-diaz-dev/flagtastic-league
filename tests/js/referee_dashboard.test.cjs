@@ -97,6 +97,7 @@ function confirmationSetup() {
         querySelector: () => ({value: '2'}),
         querySelectorAll: () => [{value: '11', dataset: {position: 'referee'}}]};
     s.nodes.get('#schedule-review-body').querySelectorAll = () => [row];
+    s.nodes.get('#referee-schedule-form').querySelectorAll = () => [];
     const button = s.nodes.get('#confirm-schedule');
     button.textContent = 'Confirmar asignaciones';
     s.context.loadRefereeGames = async () => {};
@@ -162,4 +163,25 @@ test('A failed agenda refresh never reports a confirmed assignment save as faile
     assert.match(s.message.textContent, /Asignaciones guardadas/);
     assert.equal(s.progress.attributes['aria-valuenow'], '100');
     assert.equal(s.button.disabled, true);
+});
+
+test('Selected import week reaches analysis and changing it invalidates the previous review', async () => {
+    const {context:c,nodes} = setup();
+    let week = '4', release;
+    c.FormData = class {get(key) {return key === 'file' ? 'original.xlsx' : week;}};
+    const form = nodes.get('#referee-schedule-form');
+    c.analyzeRefereeSchedule = (file, selected) => {
+        assert.equal(file,'original.xlsx');assert.equal(selected,'4');
+        return new Promise(resolve=>{release=resolve;});
+    };
+    const pending = form.listeners.submit({preventDefault(){}});
+    week='3';form.listeners.change();
+    release({ok:true,json:async()=>({selected_week:4,proposals:[]})});await pending;
+    assert.equal(nodes.get('#confirm-schedule').disabled,true);
+    assert.doesNotMatch(nodes.get('#schedule-review-scope').textContent,/Solo jornada 4/);
+    c.analyzeRefereeSchedule = async (file,selected) => {
+        assert.equal(selected,'3');return {ok:true,json:async()=>({selected_week:3,proposals:[]})};
+    };
+    await form.listeners.submit({preventDefault(){}});
+    assert.match(nodes.get('#schedule-review-scope').textContent,/Solo jornada 3/);
 });
