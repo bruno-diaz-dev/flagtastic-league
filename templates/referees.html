@@ -14,8 +14,11 @@
     </header>
 
     <section id="referee-assignment-audit" class="form-panel admin-only" aria-labelledby="referee-assignment-title">
+        <details id="referee-audit-disclosure" class="ui-disclosure">
+        <summary><span id="referee-assignment-title">Asignaciones por árbitro</span><span class="ui-disclosure-hint">Consultar</span></summary>
+        <div class="ui-disclosure-body">
         <div class="referee-audit-heading">
-            <div><h3 id="referee-assignment-title">Asignaciones por árbitro</h3><p>Revisa a qué cuenta se asignó cada partido y abre el encuentro para corregir su planilla.</p></div>
+            <p>Revisa a qué cuenta se asignó cada partido y abre el encuentro para corregir su planilla.</p>
             <button id="referee-audit-refresh" class="secondary-button" type="button">Actualizar</button>
         </div>
         <div class="referee-audit-filters">
@@ -25,6 +28,8 @@
         <p id="referee-audit-message" class="form-message" role="status">Cargando asignaciones…</p>
         <p id="referee-audit-count" class="form-help" role="status"></p>
         <div id="referee-audit-list" class="referee-audit-list"></div>
+        </div>
+        </details>
     </section>
     <section id="referee-photo-panel" class="referee-self-panel hidden" aria-label="Mi perfil arbitral">
         <details id="referee-profile-editor">
