@@ -192,6 +192,10 @@ function liveNarrative(event, teamName) {
     return `${teamName} · ${descriptions[event.kind] || "Registro histórico."}`;
 }
 
+function liveUsesFriendlyFinalScore(data) {
+    return data.is_friendly && !(data.events || []).some(event => !event.voided_at && !["halftime", "two_minute_warning"].includes(event.kind));
+}
+
 function renderLive(data) {
     if (liveData && data.version < liveData.version) return;
     const previousState = liveData?.state;
@@ -210,6 +214,10 @@ function renderLive(data) {
     document.querySelector("#live-official-controls").classList.toggle("hidden", !official);
     document.querySelector("#live-start").classList.toggle("hidden", data.state !== "not_started");
     document.querySelector("#live-capture-panel").classList.toggle("hidden", data.state !== "live");
+    document.querySelector("#live-finish-controls").classList.toggle("hidden", data.state !== "live" || !(official || liveHasRole("league_admin")));
+    document.querySelector("#live-friendly-final-score").classList.toggle("hidden", !liveUsesFriendlyFinalScore(data));
+    document.querySelector("#live-final-home-label").textContent = data.home_team.name;
+    document.querySelector("#live-final-away-label").textContent = data.away_team.name;
     document.querySelector("#live-finish").classList.toggle("hidden", data.state !== "live");
     if (official && data.state === "live" && previousState !== "live") document.querySelector("#live-capture-panel").open = true;
     if (rosterChanged) {
@@ -351,11 +359,11 @@ async function liveWrite(path, body = {}) {
 async function liveOperation(action, isPlay = false) {
     if (liveBusy || liveQueue?.working || liveQueue?.rows.length) { liveMessage.textContent = "Primero confirma las jugadas pendientes antes de corregir o finalizar."; return; }
     liveBusy = true;
-    for (const id of ["#live-start","#live-finish","#live-save-play"]) document.querySelector(id).disabled = true;
+    for (const id of ["#live-start","#live-finish","#live-save-play","#live-final-home","#live-final-away"]) document.querySelector(id).disabled = true;
     liveMessage.textContent = "Guardando…";
     try { await action(); await refreshLive(true); }
     catch (error) { liveMessage.textContent = `${error.message}${isPlay ? " Revisa la cronología antes de reenviar la jugada." : ""}`; }
-    finally { liveBusy = false; for (const id of ["#live-start","#live-finish","#live-save-play"]) document.querySelector(id).disabled = false; if (liveQueue) renderLiveOutbox(liveQueue.rows); }
+    finally { liveBusy = false; for (const id of ["#live-start","#live-finish","#live-save-play","#live-final-home","#live-final-away"]) document.querySelector(id).disabled = false; if (liveQueue) renderLiveOutbox(liveQueue.rows); }
 }
 
 liveForm.elements.team_id.addEventListener("change", liveOptions);
@@ -401,13 +409,25 @@ document.querySelector("#live-start").addEventListener("click", () => liveOperat
     liveMessage.textContent = "Captura en vivo iniciada.";
 }));
 document.querySelector("#live-finish").addEventListener("click", async () => {
-    if (!liveQueue || liveCaptureSaving) return;
-    try { await liveQueue.reload(); } catch (error) { liveQueueError(error); return; }
-    if (liveQueue.rows.length || liveQueue.working) { liveMessage.textContent = "Hay jugadas sin confirmar. Envíalas antes de finalizar."; return; }
-    if (!liveData || !window.confirm(`¿Finalizar ${liveData.home_team.name} ${liveData.home_score} – ${liveData.away_score} ${liveData.away_team.name}? Se publicarán las estadísticas y solo un administrador podrá corregirlas.`)) return;
+    if (liveBusy || liveCaptureSaving || (liveHasRole("referee") && !liveQueue)) return;
+    if (liveQueue) {
+        try { await liveQueue.reload(); } catch (error) { liveQueueError(error); return; }
+        if (liveQueue.rows.length || liveQueue.working) { liveMessage.textContent = "Hay jugadas sin confirmar. Envíalas antes de finalizar."; return; }
+    }
+    const snapshot = liveData;
+    if (!snapshot || snapshot.state !== "live") return;
+    const payload = {expected_version:snapshot.version};
+    if (liveUsesFriendlyFinalScore(snapshot)) {
+        const home = document.querySelector("#live-final-home"), away = document.querySelector("#live-final-away");
+        if (!home.reportValidity() || !away.reportValidity()) return;
+        payload.home_score = Number(home.value);payload.away_score = Number(away.value);
+    }
+    const homeScore = payload.home_score ?? snapshot.home_score, awayScore = payload.away_score ?? snapshot.away_score;
+    const consequence = snapshot.is_friendly ? "El resultado no suma a la temporada." : "Se publicarán las estadísticas y solo un administrador podrá corregirlas.";
+    if (!window.confirm(`¿Finalizar ${snapshot.home_team.name} ${homeScore} – ${awayScore} ${snapshot.away_team.name}? ${consequence}`)) return;
     liveOperation(async () => {
-        await liveWrite("finish", {expected_version:liveData.version});
-        liveMessage.textContent = "Partido finalizado. Marcador y estadísticas publicados.";
+        await liveWrite("finish", payload);
+        liveMessage.textContent = snapshot.is_friendly ? "Amistoso finalizado. Marcador guardado; no suma a la temporada." : "Partido finalizado. Marcador y estadísticas publicados.";
         if (typeof loadGameDetail === "function") await loadGameDetail();
     });
 });

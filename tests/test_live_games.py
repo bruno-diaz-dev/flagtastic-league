@@ -350,3 +350,96 @@ def test_passing_touchdown_never_credits_qb_personal_points_without_receiver():
     _, rows = project_events([{'kind': 'passing_touchdown', 'team_id': 1, 'player_id': 5, 'receiver_id': None}], 1, 2)
     assert rows[0]['points'] == 0
     assert rows[0]['passing_points'] == 6
+
+
+@pytest.mark.parametrize('final_score', [(0, 0), (12, 12), (26, 18)])
+@pytest.mark.parametrize('finisher', ['league_admin', 'referee'])
+def test_empty_roster_friendly_can_close_with_real_score_without_season_statistics(final_score, finisher):
+    client, _, _, _, users = setup_match()
+    login(client, users['league_admin'])
+    response = client.post('/api/games', json={
+        'is_friendly': True, 'home_guest_name': 'Sele U17', 'away_guest_name': 'Sele U15',
+        'branch': 'varonil', 'category': 'u18', 'week': 4, 'field_number': 2,
+    })
+    assert response.status_code == 201
+    game_id = response.json()['id']
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    assert client.post(path + '/start').status_code == 200
+    snapshot = client.get(path).json()
+    assert snapshot['roster'] == [] and snapshot['events'] == []
+    payload = {'expected_version': snapshot['version'], 'home_score': final_score[0], 'away_score': final_score[1]}
+    client.cookies.clear()
+    assert client.post(path + '/finish', json=payload).status_code == 401
+    login(client, users['team_representative'])
+    assert client.post(path + '/finish', json=payload).status_code == 403
+    login(client, users[finisher])
+    assert client.post(path + '/finish', json={**payload, 'expected_version': 0}).status_code == 409
+    assert client.post(path + '/finish', json=payload).status_code == 200
+    assert client.post(path + '/finish', json=payload).status_code == 200
+    assert client.post(path + '/finish', json={**payload, 'home_score': final_score[0] + 1}).status_code == 409
+    closed = client.get(path).json()
+    assert closed['state'] == 'completed'
+    assert (closed['home_score'], closed['away_score']) == final_score
+    assert closed['events'] == [] and closed['statistics'] == [] and closed['finished_at']
+    with get_connection() as connection:
+        assert connection.execute('SELECT COUNT(*) AS n FROM player_week_stats WHERE game_id=%s', (game_id,)).fetchone()['n'] == 0
+        session = connection.execute('SELECT finished_by, version FROM game_live_sessions WHERE game_id=%s', (game_id,)).fetchone()
+        user = connection.execute('SELECT id FROM users WHERE email=%s', (users[finisher],)).fetchone()
+        assert session['finished_by'] == user['id'] and session['version'] == snapshot['version'] + 1
+
+
+def test_friendly_scoring_capture_cannot_be_overridden_and_tied_capture_can_finish():
+    client, game_id, teams, players, users = setup_match()
+    with get_connection() as connection:
+        connection.execute('UPDATE games SET is_friendly=true WHERE id=%s', (game_id,))
+    login(client, users['referee'])
+    path = f'/api/games/{game_id}/live'
+    assert client.post(path + '/start').status_code == 200
+    for team, roster in zip(teams, players):
+        assert client.post(path + '/events', json=event(team, roster[0])).status_code == 201
+    snapshot = client.get(path).json()
+    assert snapshot['home_score'] == snapshot['away_score'] == 6
+    overridden = client.post(path + '/finish', json={'expected_version': snapshot['version'], 'home_score': 99, 'away_score': 0})
+    assert overridden.status_code == 409
+    assert client.get(path).json()['state'] == 'live'
+    assert client.post(path + '/finish', json={'expected_version': snapshot['version']}).status_code == 200
+    with get_connection() as connection:
+        assert connection.execute('SELECT COUNT(*) AS n FROM player_week_stats WHERE game_id=%s', (game_id,)).fetchone()['n'] == 0
+
+
+def test_official_game_cannot_bypass_capture_with_a_direct_final_score():
+    client, game_id, teams, players, users = setup_match()
+    login(client, users['referee'])
+    path = f'/api/games/{game_id}/live'
+    assert client.post(path + '/start').status_code == 200
+    snapshot = client.get(path).json()
+    assert client.post(path + '/finish', json={'expected_version': snapshot['version'], 'home_score': 6, 'away_score': 0}).status_code == 422
+    assert client.post(path + '/finish', json={'expected_version': snapshot['version']}).status_code == 409
+    assert client.get(path).json()['state'] == 'live'
+
+
+def test_friendly_final_score_is_kept_when_a_pause_is_corrected_after_closing():
+    client, game_id, _, _, users = setup_match()
+    with get_connection() as connection:
+        connection.execute('UPDATE games SET is_friendly=true WHERE id=%s', (game_id,))
+    login(client, users['referee'])
+    path = f'/api/games/{game_id}/live'
+    assert client.post(path + '/start').status_code == 200
+    pause = client.post(path + '/events', json={
+        'client_id': str(uuid4()), 'kind': 'halftime', 'period': 1, 'minute': 20, 'second': 0,
+    }).json()
+    snapshot = client.get(path).json()
+    login(client, users['league_admin'])
+    assert client.post(path + '/finish', json={'expected_version': snapshot['version'], 'home_score': 18, 'away_score': 12}).status_code == 200
+    closed = client.get(path).json()
+    assert client.post(path + f"/events/{pause['id']}/void", json={'expected_version': closed['version'], 'reason': 'Pausa equivocada'}).status_code == 200
+    corrected = client.get(path).json()
+    assert (corrected['home_score'], corrected['away_score']) == (18, 12)
+
+
+@pytest.mark.parametrize('scores', [{'home_score': 6}, {'away_score': 0}, {'home_score': -1, 'away_score': 0}, {'home_score': 1.5, 'away_score': 0}, {'home_score': 2_147_483_648, 'away_score': 0}])
+def test_live_finish_requires_both_nonnegative_integer_scores(scores):
+    from routes.live_games import LiveFinish
+    with pytest.raises(ValidationError):
+        LiveFinish(expected_version=1, **scores)

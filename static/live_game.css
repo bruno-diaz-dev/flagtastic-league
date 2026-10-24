@@ -12,6 +12,12 @@
 .live-scoreboard .live-score-separator { margin: 0 12px; color: var(--color-muted); font-size: 24px; }
 #live-update-status { margin: 0; }
 #live-official-controls { display: grid; gap: 12px; }
+#live-finish-controls { display: grid; gap: 12px; min-width: 0; }
+.live-friendly-final-score { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: 12px; }
+.live-friendly-final-score legend { color: var(--color-gold); font-weight: 700; }
+.live-final-score-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.live-final-score-fields label { display: grid; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.live-final-score-fields input { width: 100%; min-width: 0; }
 #live-capture-panel { border: 1px solid var(--color-border); border-radius: var(--ui-radius); }
 .live-event-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
 .live-event-form label { display: grid; }

@@ -168,10 +168,17 @@ def append_event(game_id, payload, user_id, allow_completed_attendance=False):
         return {"id": saved["id"], "duplicate": False}
 
 
-def publish(connection, game):
+def publish(connection, game, final_score=None):
     """Replace only this game's totals and result in the same transaction."""
-    scores, totals = project_events(events_for(connection, game["id"]), game["home_team_id"], game["away_team_id"])
-    if scores[game["home_team_id"]] == scores[game["away_team_id"]]:
+    events = events_for(connection, game["id"])
+    scores, totals = project_events(events, game["home_team_id"], game["away_team_id"])
+    if final_score is not None:
+        if not game["is_friendly"]:
+            raise LiveGameError("El marcador directo solo está disponible para amistosos sin jugadas", 422)
+        if any(not event["voided_at"] and event["kind"] not in ("attendance", "halftime", "two_minute_warning") for event in events):
+            raise LiveGameError("El amistoso ya tiene jugadas. Revisa y finaliza con el marcador de la captura")
+        scores = dict(zip((game["home_team_id"], game["away_team_id"]), final_score))
+    if not game["is_friendly"] and scores[game["home_team_id"]] == scores[game["away_team_id"]]:
         raise LiveGameError("La liga no admite empates. Revisa las anotaciones antes de finalizar")
     connection.execute("DELETE FROM player_week_stats WHERE game_id = %s", (game["id"],))
     for player in ([] if game["is_friendly"] else totals):
@@ -183,16 +190,20 @@ def publish(connection, game):
     connection.execute("UPDATE games SET home_score = %s, away_score = %s, status = 'completed' WHERE id = %s", (scores[game["home_team_id"]], scores[game["away_team_id"]], game["id"]))
 
 
-def finish_live_game(game_id, expected_version, user_id):
+def finish_live_game(game_id, expected_version, user_id, final_score=None):
     with get_connection() as connection:
         game = locked_game(connection, game_id)
         session = session_for(connection, game_id)
+        if final_score is not None and not game["is_friendly"]:
+            raise LiveGameError("El marcador directo solo está disponible para amistosos sin jugadas", 422)
         if session and session["state"] == "completed":
+            if final_score is not None and final_score != (game["home_score"], game["away_score"]):
+                raise LiveGameError("El partido ya fue finalizado con otro marcador. Actualiza para revisarlo")
             return {"state": "completed"}
         require_live(game, session)
         if session["version"] != expected_version:
             raise LiveGameError("Hay nuevas jugadas. Actualiza y revisa el marcador antes de finalizar")
-        publish(connection, game)
+        publish(connection, game, final_score)
         connection.execute("UPDATE game_live_sessions SET state = 'completed', finished_at = NOW(), finished_by = %s, version = version + 1 WHERE game_id = %s", (user_id, game_id))
         return {"state": "completed"}
 
@@ -223,7 +234,7 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
             connection.execute("UPDATE game_live_events SET voided_at = NOW(), voided_by = %s, void_reason = %s WHERE id = %s", (user_id, payload["reason"].strip(), event_id))
             if event["kind"] == "attendance":
                 connection.execute("UPDATE game_live_events SET voided_at=NOW(), voided_by=%s, void_reason=%s WHERE game_id=%s AND team_id=%s AND player_id=%s AND kind='attendance' AND voided_at IS NULL", (user_id, payload["reason"].strip(), game_id, event["team_id"], event["player_id"]))
-            if session and session["state"] == "completed" and event["kind"] != "attendance":
+            if session and session["state"] == "completed" and event["kind"] not in ("attendance", "halftime", "two_minute_warning"):
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
