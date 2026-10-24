@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field, model_validator
 
-from dependencies.auth import require_referee, require_authenticated_user, user_has_role
+from dependencies.auth import require_referee, require_score_recorder, require_authenticated_user, user_has_role
 from repositories.live_games import LiveGameError, read_live_game, start_live_game, append_event, void_event, finish_live_game
 
 router = APIRouter(prefix="/api/games/{game_id}/live", tags=["live games"])
@@ -44,6 +44,14 @@ class LiveEvent(BaseModel):
 
 class LiveFinish(BaseModel):
     expected_version: int = Field(ge=0)
+    home_score: int | None = Field(default=None, ge=0, le=2_147_483_647, strict=True)
+    away_score: int | None = Field(default=None, ge=0, le=2_147_483_647, strict=True)
+
+    @model_validator(mode="after")
+    def validate_final_score(self):
+        if (self.home_score is None) != (self.away_score is None):
+            raise ValueError("Indica el marcador de ambos equipos")
+        return self
 
 
 class LiveVoid(BaseModel):
@@ -85,8 +93,9 @@ def correct(game_id: int, event_id: int, correction: LiveVoid, user=Depends(requ
 
 
 @router.post("/finish")
-def finish(game_id: int, payload: LiveFinish, user=Depends(require_referee)):
-    return perform(finish_live_game, game_id, payload.expected_version, user["id"])
+def finish(game_id: int, payload: LiveFinish, user=Depends(require_score_recorder)):
+    final_score = None if payload.home_score is None else (payload.home_score, payload.away_score)
+    return perform(finish_live_game, game_id, payload.expected_version, user["id"], final_score)
 
 
 class AttendanceCheckIn(BaseModel):

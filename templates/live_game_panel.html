@@ -49,6 +49,16 @@
             <div id="live-outbox-list"></div>
         </section>
         <section id="live-moments" class="hidden"><h4>Pausas del partido</h4><p class="form-help">Usan el periodo y reloj de la captura. No requieren equipo ni jugador.</p><button type="button" class="secondary-button" data-live-moment="halftime">Medio tiempo</button> <button type="button" class="secondary-button" data-live-moment="two_minute_warning">Pausa de los 2 minutos</button></section>
+    </div>
+    <div id="live-finish-controls" class="hidden">
+        <fieldset id="live-friendly-final-score" class="live-friendly-final-score hidden">
+            <legend>Marcador final del amistoso</legend>
+            <p class="form-help">No hay jugadas capturadas. Indica el resultado real para cerrar el partido. El amistoso no suma estadísticas de temporada.</p>
+            <div class="live-final-score-fields">
+                <label><span id="live-final-home-label">Local</span><input id="live-final-home" type="number" min="0" max="2147483647" step="1" required inputmode="numeric" autocomplete="off"></label>
+                <label><span id="live-final-away-label">Visitante</span><input id="live-final-away" type="number" min="0" max="2147483647" step="1" required inputmode="numeric" autocomplete="off"></label>
+            </div>
+        </fieldset>
         <button id="live-finish" type="button" class="secondary-button hidden">Revisar y finalizar partido</button>
     </div>
     <p id="live-operation-message" class="form-message" role="status"></p>
