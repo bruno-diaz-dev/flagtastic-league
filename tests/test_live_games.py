@@ -443,3 +443,180 @@ def test_live_finish_requires_both_nonnegative_integer_scores(scores):
     from routes.live_games import LiveFinish
     with pytest.raises(ValidationError):
         LiveFinish(expected_version=1, **scores)
+
+
+def test_cancel_accidental_capture_preserves_attendance_audit_and_restart_safety():
+    import json
+    client, game_id, teams, players, users = setup_match()
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    starter_id = client.get('/api/auth/me').json()['id']
+    assert client.post(path + '/start').status_code == 200
+    original_start = client.get(path).json()['started_at']
+    attendance = client.post(path + '/events', json=event(teams[0], players[0][0], 'attendance')).json()
+    pause = client.post(path + '/events', json={'client_id': str(uuid4()), 'kind': 'halftime', 'period': 1, 'minute': 20, 'second': 0}).json()
+    original = client.get(path).json()
+    payload = {'expected_version': original['version']}
+    for role in ['referee', 'team_representative']:
+        login(client, users[role])
+        assert client.post(path + '/cancel', json=payload).status_code == 403
+    client.cookies.clear()
+    assert client.post(path + '/cancel', json=payload).status_code == 401
+    login(client, users['league_admin'])
+    admin_id = client.get('/api/auth/me').json()['id']
+    # A stale confirmation cannot cancel a newly changed capture.
+    assert client.post(path + '/cancel', json={'expected_version': 1}).status_code == 409
+    with get_connection() as connection:
+        game_before = dict(connection.execute('SELECT * FROM games WHERE id=%s', (game_id,)).fetchone())
+    assert client.post(path + '/cancel', json=payload).status_code == 200
+    assert client.post(path + '/cancel', json=payload).status_code == 200
+    pending = client.get(path).json()
+    assert pending['state'] == 'not_started' and pending['version'] > original['version']
+    assert pending['started_at'] is None and pending['finished_at'] is None
+    assert pending['events'] == [] and pending['statistics'] == []
+    assert next(row for row in pending['attendance'] if row['player_id'] == players[0][0])['present']
+    with get_connection() as connection:
+        game_after = dict(connection.execute('SELECT * FROM games WHERE id=%s', (game_id,)).fetchone())
+        assert game_after == game_before
+        rows = connection.execute('SELECT * FROM game_live_events WHERE game_id=%s ORDER BY id', (game_id,)).fetchall()
+        audit = [row for row in rows if row['kind'] == 'note']
+        assert len(audit) == 1
+        metadata = json.loads(audit[0]['note'])
+        assert metadata['started_by'] == starter_id and metadata['started_at'] == original_start
+        assert metadata['version'] == pending['version']
+        assert audit[0]['recorded_by'] == admin_id and audit[0]['voided_by'] == admin_id
+        assert audit[0]['void_reason'] == 'Captura iniciada por error' and audit[0]['voided_at']
+        assert next(row for row in rows if row['id'] == pause['id'])['voided_at']
+        assert next(row for row in rows if row['id'] == attendance['id'])['voided_at'] is None
+        assert connection.execute('SELECT 1 FROM game_live_sessions WHERE game_id=%s', (game_id,)).fetchone() is None
+    # Independent attendance correction still works while the fixture is pending.
+    assert client.post(path + f"/events/{attendance['id']}/void", json={'expected_version': pending['version'], 'reason': 'Asistencia equivocada'}).status_code == 200
+    login(client, users['referee'])
+    assert client.post(path + '/start').status_code == 200
+    restarted = client.get(path).json()
+    assert restarted['state'] == 'live' and restarted['version'] > pending['version']
+    assert restarted['started_at'] != original_start
+    old_play = event(teams[0], players[0][0], 'pass_incomplete', capture_started_at=original_start)
+    assert client.post(path + '/events', json=old_play).status_code == 409
+    # Cached older clients must refresh after a cancelled capture.
+    assert client.post(path + '/events', json=event(teams[0], players[0][0], 'pass_incomplete')).status_code == 409
+    new_play = event(teams[0], players[0][0], 'pass_incomplete', capture_started_at=restarted['started_at'])
+    assert client.post(path + '/events', json=new_play).status_code == 201
+    login(client, users['league_admin'])
+    assert client.post(path + '/cancel', json=payload).status_code == 409
+    active = client.get(path).json()
+    assert active['state'] == 'live' and len(active['events']) == 1
+    assert client.post(path + '/cancel', json={'expected_version': active['version']}).status_code == 409
+
+
+@pytest.mark.parametrize('kind', ['pass_incomplete', 'flag', 'touchdown'])
+def test_cancel_cannot_discard_confirmed_sporting_plays_even_at_zero_zero(kind):
+    client, game_id, teams, players, users = setup_match()
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    assert client.post(path + '/start').status_code == 200
+    assert client.post(path + '/events', json=event(teams[0], players[0][0], kind)).status_code == 201
+    snapshot = client.get(path).json()
+    login(client, users['league_admin'])
+    result = client.post(path + '/cancel', json={'expected_version': snapshot['version']})
+    assert result.status_code == 409 and 'jugadas confirmadas' in result.json()['detail']
+    assert client.get(path).json()['events'] == snapshot['events']
+    # An administrator must explicitly void the mistaken play first.
+    play_id = snapshot['events'][0]['id']
+    assert client.post(path + f'/events/{play_id}/void', json={'expected_version': snapshot['version'], 'reason': 'Captura equivocada'}).status_code == 200
+    reviewed = client.get(path).json()
+    assert client.post(path + '/cancel', json={'expected_version': reviewed['version']}).status_code == 200
+
+
+def test_cancel_preserves_previously_voided_plays_and_can_restart_repeatedly():
+    client, game_id, teams, players, users = setup_match()
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    assert client.post(path + '/start').status_code == 200
+    scoring = client.post(path + '/events', json=event(teams[0], players[0][0])).json()
+    snapshot = client.get(path).json()
+    assert client.post(path + f"/events/{scoring['id']}/void", json={'expected_version': snapshot['version'], 'reason': 'Captura equivocada'}).status_code == 200
+    versions = [client.get(path).json()['version']]
+    for _ in range(2):
+        login(client, users['league_admin'])
+        assert client.post(path + '/cancel', json={'expected_version': versions[-1]}).status_code == 200
+        pending = client.get(path).json()
+        versions.append(pending['version'])
+        login(client, users['referee'])
+        assert client.post(path + '/start').status_code == 200
+        versions.append(client.get(path).json()['version'])
+    assert versions == sorted(set(versions))
+    with get_connection() as connection:
+        original = connection.execute('SELECT * FROM game_live_events WHERE id=%s', (scoring['id'],)).fetchone()
+        assert original['void_reason'] == 'Captura equivocada' and original['voided_at']
+        assert connection.execute("SELECT COUNT(*) AS n FROM game_live_events WHERE game_id=%s AND kind='note'", (game_id,)).fetchone()['n'] == 2
+
+
+@pytest.mark.parametrize('state', ['postponed', 'completed', 'with_statistics'])
+def test_cancel_refuses_games_with_results_postponements_or_published_statistics(state):
+    client, game_id, teams, players, users = setup_match()
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    assert client.post(path + '/start').status_code == 200
+    with get_connection() as connection:
+        if state == 'with_statistics':
+            connection.execute('INSERT INTO player_week_stats (week,game_id,player_id,team_id) VALUES (1,%s,%s,%s)', (game_id, players[0][0], teams[0]))
+        else:
+            connection.execute('UPDATE games SET status=%s,home_score=%s,away_score=%s WHERE id=%s', (state, 6 if state == 'completed' else None, 0 if state == 'completed' else None, game_id))
+    snapshot = client.get(path).json()
+    login(client, users['league_admin'])
+    assert client.post(path + '/cancel', json={'expected_version': snapshot['version']}).status_code == 409
+    with get_connection() as connection:
+        assert connection.execute('SELECT 1 FROM game_live_sessions WHERE game_id=%s', (game_id,)).fetchone()
+        assert connection.execute("SELECT 1 FROM game_live_events WHERE game_id=%s AND kind='note'", (game_id,)).fetchone() is None
+
+
+def test_concurrent_cancel_and_capture_never_erase_an_accepted_play():
+    from repositories.live_games import cancel_live_game, LiveGameError
+    from threading import Barrier
+    client, game_id, teams, players, users = setup_match()
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    referee_id = client.get('/api/auth/me').json()['id']
+    assert client.post(path + '/start').status_code == 200
+    snapshot = client.get(path).json()
+    login(client, users['league_admin'])
+    admin_id = client.get('/api/auth/me').json()['id']
+    payload = LiveEvent(**event(teams[0], players[0][0], 'pass_incomplete', capture_started_at=snapshot['started_at'])).model_dump()
+    barrier = Barrier(2)
+    def operation(cancel):
+        barrier.wait(timeout=10)
+        try:
+            return cancel_live_game(game_id, snapshot['version'], admin_id) if cancel else append_event(game_id, payload, referee_id)
+        except LiveGameError:
+            return None
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        cancel_result, play_result = list(executor.map(operation, [True, False]))
+    assert (cancel_result is None) != (play_result is None)
+    current = client.get(path).json()
+    assert (current['state'], len(current['events'])) == (('not_started', 0) if cancel_result else ('live', 1))
+
+
+def test_cancel_rolls_back_on_legacy_session_cascade_instead_of_losing_attendance():
+    client, game_id, teams, players, users = setup_match()
+    path = f'/api/games/{game_id}/live'
+    login(client, users['referee'])
+    assert client.post(path + '/start').status_code == 200
+    assert client.post(path + '/events', json=event(teams[0], players[0][0], 'attendance')).status_code == 201
+    snapshot = client.get(path).json()
+    login(client, users['league_admin'])
+    with get_connection() as connection:
+        connection.execute('ALTER TABLE game_live_events DROP CONSTRAINT game_live_events_game_id_fkey')
+        connection.execute('ALTER TABLE game_live_events ADD CONSTRAINT game_live_events_game_id_fkey FOREIGN KEY (game_id) REFERENCES game_live_sessions(game_id) ON DELETE CASCADE NOT VALID')
+    try:
+        result = client.post(path + '/cancel', json={'expected_version': snapshot['version']})
+        assert result.status_code == 409 and 'conservar el historial' in result.json()['detail']
+        current = client.get(path).json()
+        assert current['state'] == 'live' and current['version'] == snapshot['version']
+        assert next(row for row in current['attendance'] if row['player_id'] == players[0][0])['present']
+        with get_connection() as connection:
+            assert connection.execute("SELECT COUNT(*) AS n FROM game_live_events WHERE game_id=%s AND kind='note'", (game_id,)).fetchone()['n'] == 0
+    finally:
+        with get_connection() as connection:
+            connection.execute('ALTER TABLE game_live_events DROP CONSTRAINT game_live_events_game_id_fkey')
+            connection.execute('ALTER TABLE game_live_events ADD CONSTRAINT game_live_events_game_id_fkey FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE')

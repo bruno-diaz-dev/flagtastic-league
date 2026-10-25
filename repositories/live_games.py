@@ -1,5 +1,8 @@
 """Atomic, auditable live-game persistence and final statistics publication."""
 
+import json
+from uuid import uuid4
+
 from database import get_connection
 from services.live_game import METRICS, project_events
 
@@ -31,6 +34,21 @@ def require_live(game, session):
 
 def events_for(connection, game_id):
     return connection.execute("SELECT * FROM game_live_events WHERE game_id = %s ORDER BY id", (game_id,)).fetchall()
+
+
+def last_capture_cancellation(events):
+    """Read archived lifecycle notes; they never enter sporting projections."""
+    for event in reversed(events):
+        if event["kind"] != "note" or not event["voided_at"]:
+            continue
+        try:
+            data = json.loads(event["note"])
+        except (TypeError, ValueError):
+            continue
+        if (isinstance(data, dict) and data.get("action") == "cancel_capture"
+                and type(data.get("version")) is int and data["version"] > 1):
+            return data
+    return None
 
 
 def roster_for(connection, game):
@@ -90,6 +108,7 @@ def read_live_game(game_id):
             raise LiveGameError("Partido no encontrado", 404)
         session = session_for(connection, game_id)
         events = events_for(connection, game_id)
+        cancellation = last_capture_cancellation(events) if session is None else None
         scores, totals = project_events(events, game["home_team_id"], game["away_team_id"])
         rosters = roster_for(connection, game)
         identities = {(p["team_id"], p["player_id"]): p for p in rosters}
@@ -107,7 +126,7 @@ def read_live_game(game_id):
             state = "postponed"
         return {
             "game_id": game_id, "state": state, "is_friendly": game["is_friendly"],
-            "version": session["version"] if session else 0,
+            "version": session["version"] if session else cancellation["version"] if cancellation else 0,
             "started_at": session["started_at"] if session else None,
             "finished_at": session["finished_at"] if session else None,
             "week": game["week"],
@@ -131,7 +150,9 @@ def start_live_game(game_id, user_id):
                 raise LiveGameError("El partido ya tiene estadísticas importadas")
             # Acquire the write lock also used by legacy schedule/stat imports.
             connection.execute("UPDATE games SET status = status WHERE id = %s", (game_id,))
-            connection.execute("INSERT INTO game_live_sessions (game_id, started_by) VALUES (%s, %s)", (game_id, user_id))
+            cancellation = last_capture_cancellation(events_for(connection, game_id))
+            version = cancellation["version"] + 1 if cancellation else 1
+            connection.execute("INSERT INTO game_live_sessions (game_id, started_by, version) VALUES (%s, %s, %s)", (game_id, user_id, version))
     return {"state": "live"}
 
 
@@ -149,7 +170,12 @@ def append_event(game_id, payload, user_id, allow_completed_attendance=False):
             if game["status"] == "completed" and not allow_completed_attendance:
                 raise LiveGameError("Solo un administrador puede registrar asistencia después de finalizar", 403)
         else:
-            require_live(game, session_for(connection, game_id))
+            session = session_for(connection, game_id)
+            require_live(game, session)
+            capture_started_at = payload.get("capture_started_at")
+            if ((capture_started_at is not None and capture_started_at != session["started_at"])
+                    or (capture_started_at is None and last_capture_cancellation(events_for(connection, game_id)))):
+                raise LiveGameError("La captura se reinició. Esta jugada pertenece a otra captura; recarga y revisa los pendientes")
         if payload["kind"] not in ("halftime", "two_minute_warning") and payload["team_id"] not in (game["home_team_id"], game["away_team_id"]):
             raise LiveGameError("El equipo no pertenece a este partido", 422)
         roster = {p["player_id"]: p for p in roster_for(connection, game) if p["team_id"] == payload["team_id"]}
@@ -208,6 +234,51 @@ def finish_live_game(game_id, expected_version, user_id, final_score=None):
         return {"state": "completed"}
 
 
+def cancel_live_game(game_id, expected_version, user_id):
+    """Archive an accidental empty capture, keeping attendance and audit history."""
+    with get_connection() as connection:
+        game = locked_game(connection, game_id)
+        if game["status"] != "scheduled" or game["home_score"] is not None or game["away_score"] is not None:
+            raise LiveGameError("Solo puedes cancelar la captura de un partido pendiente sin resultado")
+        session = session_for(connection, game_id)
+        events = events_for(connection, game_id)
+        if session is None:
+            cancellation = last_capture_cancellation(events)
+            if cancellation and cancellation["version"] == expected_version + 1:
+                return {"state": "not_started"}
+            raise LiveGameError("El partido no tiene una captura activa. Actualiza para revisarlo")
+        require_live(game, session)
+        if session["version"] != expected_version:
+            raise LiveGameError("Hay cambios en la captura. Actualiza antes de cancelarla")
+        if any(not event["voided_at"] and event["kind"] not in ("attendance", "halftime", "two_minute_warning", "note") for event in events):
+            raise LiveGameError("Hay jugadas confirmadas. Revisa y anula las capturas equivocadas antes de cancelar")
+        if connection.execute("SELECT 1 FROM player_week_stats WHERE game_id=%s LIMIT 1", (game_id,)).fetchone():
+            raise LiveGameError("El partido tiene estadísticas publicadas y no puede volver a pendiente")
+        reason = "Captura iniciada por error"
+        connection.execute("""
+            UPDATE game_live_events SET voided_at=NOW(), voided_by=%s, void_reason=%s
+            WHERE game_id=%s AND kind <> 'attendance' AND voided_at IS NULL
+        """, (user_id, reason, game_id))
+        # The existing event log also stores lifecycle audit notes. Archive the
+        # start metadata before removing only the active session; events refer
+        # directly to games, so attendance and prior void records survive.
+        note = json.dumps({"action": "cancel_capture", "version": session["version"] + 1,
+                           "started_by": session["started_by"], "started_at": session["started_at"].isoformat()},
+                          separators=(",", ":"))
+        connection.execute("""
+            INSERT INTO game_live_events
+                (game_id, client_id, kind, team_id, period, minute, second, note, recorded_by, voided_at, voided_by, void_reason)
+            VALUES (%s, %s, 'note', %s, 1, 0, 0, %s, %s, NOW(), %s, %s)
+        """, (game_id, uuid4(), game["home_team_id"], note, user_id, user_id, reason))
+        connection.execute("DELETE FROM game_live_sessions WHERE game_id=%s", (game_id,))
+        # Fail safely on an installation with the old cascading session FK.
+        # Raising rolls back the deletion, including any cascaded event rows.
+        remaining = connection.execute("SELECT COUNT(*) AS n FROM game_live_events WHERE game_id=%s", (game_id,)).fetchone()["n"]
+        if remaining != len(events) + 1:
+            raise LiveGameError("La base de datos necesita actualizarse para conservar el historial. La captura sigue activa")
+        return {"state": "not_started"}
+
+
 def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
     with get_connection() as connection:
         game = locked_game(connection, game_id)
@@ -225,10 +296,12 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
                 if not is_admin:
                     raise LiveGameError("Solo un administrador puede corregir un partido finalizado", 403)
             else:
-                if not is_referee:
-                    raise LiveGameError("Solo árbitros pueden corregir la captura en vivo", 403)
+                if not is_referee and not is_admin:
+                    raise LiveGameError("Solo árbitros y administradores pueden corregir la captura en vivo", 403)
                 require_live(game, session)
-        if (session["version"] if session else 0) != payload["expected_version"]:
+        cancellation = last_capture_cancellation(events_for(connection, game_id)) if session is None else None
+        version = session["version"] if session else cancellation["version"] if cancellation else 0
+        if version != payload["expected_version"]:
             raise LiveGameError("Hay nuevas jugadas. Actualiza antes de corregir")
         if event["voided_at"] is None:
             connection.execute("UPDATE game_live_events SET voided_at = NOW(), voided_by = %s, void_reason = %s WHERE id = %s", (user_id, payload["reason"].strip(), event_id))
