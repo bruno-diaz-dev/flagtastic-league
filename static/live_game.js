@@ -86,6 +86,7 @@ function renderLiveOutbox(rows) {
         `<article class="live-pending-play"><strong>${escapeHtml(liveLabels[row.payload.kind])} · ${escapeHtml(row.labels.player)}${row.labels.receiver ? " → " + escapeHtml(row.labels.receiver) : ""}</strong><span>${escapeHtml(row.labels.team)} · P${row.payload.period} ${String(row.payload.minute).padStart(2,"0")}:${String(row.payload.second).padStart(2,"0")} · ${{pending:"En espera",sending:"Enviando",retry:"Pendiente de confirmación",blocked:"No aceptada"}[row.status] || "En espera"}</span>${row.error ? `<p>${escapeHtml(row.error)}</p>` : ""}${row.status === "blocked" && row.httpStatus === 422 ? `<button type="button" class="secondary-button" data-live-edit="${row.id}">Corregir selección</button>` : ""}</article>`
     ).join("");
     document.querySelector("#live-finish").disabled = Boolean(rows.length || liveQueue?.working || liveBusy || liveCaptureSaving);
+    syncLiveCancel();
 }
 
 function liveQueueError(error) {
@@ -114,7 +115,7 @@ async function initializeLiveQueue() {
 
 function liveCapturePayload() {
     const field = name => liveForm.elements[name].value;
-    return {kind:field("kind"),team_id:Number(field("team_id")),player_id:field("player_id") ? Number(field("player_id")) : null,receiver_id:liveForm.elements.receiver_id.disabled || !field("receiver_id") ? null : Number(field("receiver_id")),period:Number(field("period")),minute:Number(field("minute")),second:Number(field("second"))};
+    return {capture_started_at:liveData?.started_at,kind:field("kind"),team_id:Number(field("team_id")),player_id:field("player_id") ? Number(field("player_id")) : null,receiver_id:liveForm.elements.receiver_id.disabled || !field("receiver_id") ? null : Number(field("receiver_id")),period:Number(field("period")),minute:Number(field("minute")),second:Number(field("second"))};
 }
 
 async function liveCapturePlay() {
@@ -141,7 +142,7 @@ async function liveCapturePlay() {
         renderLiveQuickControls();
         liveQueue.flush().catch(liveQueueError);
     } catch (error) { if (liveLastTap === tap) liveLastTap = null; liveQueueError(error); }
-    finally { liveCaptureSaving -= 1; }
+    finally { liveCaptureSaving -= 1; syncLiveCancel(); }
 }
 
 function liveHasRole(role) { return Boolean(liveUser && (liveUser.roles || [liveUser.role]).includes(role)); }
@@ -196,6 +197,14 @@ function liveUsesFriendlyFinalScore(data) {
     return data.is_friendly && !(data.events || []).some(event => !event.voided_at && !["halftime", "two_minute_warning"].includes(event.kind));
 }
 
+function liveHasSportingPlays(data) {
+    return (data?.events || []).some(event => !event.voided_at && !["halftime", "two_minute_warning", "note", "attendance"].includes(event.kind));
+}
+
+function syncLiveCancel() {
+    document.querySelector("#live-cancel").disabled = Boolean(!liveData || liveData.state !== "live" || liveHasSportingPlays(liveData) || liveBusy || liveCaptureSaving || liveQueue?.working || liveQueue?.rows.length);
+}
+
 function renderLive(data) {
     if (liveData && data.version < liveData.version) return;
     const previousState = liveData?.state;
@@ -219,6 +228,11 @@ function renderLive(data) {
     document.querySelector("#live-final-home-label").textContent = data.home_team.name;
     document.querySelector("#live-final-away-label").textContent = data.away_team.name;
     document.querySelector("#live-finish").classList.toggle("hidden", data.state !== "live");
+    document.querySelector("#live-cancel-controls").classList.toggle("hidden", data.state !== "live" || !liveHasRole("league_admin"));
+    document.querySelector("#live-cancel-help").textContent = liveHasSportingPlays(data)
+        ? "Hay jugadas confirmadas. Revisa y anula las capturas equivocadas antes de volver a pendiente."
+        : "Devuelve el partido a pendiente. Se conserva la asistencia y no se registra un resultado.";
+    syncLiveCancel();
     if (official && data.state === "live" && previousState !== "live") document.querySelector("#live-capture-panel").open = true;
     if (rosterChanged) {
         const selectedTeam = liveForm.elements.team_id.value;
@@ -232,7 +246,7 @@ function renderLive(data) {
         const visibleEvents = data.events.filter(event => event.kind !== "attendance" && !event.voided_at);
         document.querySelector("#live-timeline").innerHTML = visibleEvents.length ? [...visibleEvents].reverse().map(event => {
             const team = event.team_id === data.home_team.id ? data.home_team : data.away_team;
-            const canCorrect = ((data.state === "live" && official) || (data.state === "completed" && liveHasRole("league_admin")));
+            const canCorrect = ((data.state === "live" && (official || liveHasRole("league_admin"))) || (data.state === "completed" && liveHasRole("league_admin")));
             return `<article class="live-event"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
                 <div><h4>${liveLabels[event.kind] || "Registro histórico"}</h4><p>${escapeHtml(liveNarrative(event, team.name))}</p>
                 ${liveFieldView && event.kind !== "note" ? `<button type="button" class="secondary-button" data-live-field-event="${event.id}">Ver en el campo</button>` : ""}
@@ -272,7 +286,7 @@ async function liveCaptureAdministrative(kind, teamId = null, playerId = null) {
             return;
         }
     }
-    const payload = {client_id:crypto.randomUUID(),kind,team_id:teamId,player_id:playerId,receiver_id:null,
+    const payload = {client_id:crypto.randomUUID(),capture_started_at:liveData.started_at,kind,team_id:teamId,player_id:playerId,receiver_id:null,
         period:Number(liveForm.elements.period.value),minute:Number(liveForm.elements.minute.value),second:Number(liveForm.elements.second.value)};
     const player = liveData.roster.find(p => p.team_id === teamId && p.player_id === playerId);
     const labels = {player:player ? `#${player.jersey_number} ${player.display_name}` : "",receiver:"",team:teamId === liveData.home_team.id ? liveData.home_team.name : teamId === liveData.away_team.id ? liveData.away_team.name : "Partido"};
@@ -359,11 +373,11 @@ async function liveWrite(path, body = {}) {
 async function liveOperation(action, isPlay = false) {
     if (liveBusy || liveQueue?.working || liveQueue?.rows.length) { liveMessage.textContent = "Primero confirma las jugadas pendientes antes de corregir o finalizar."; return; }
     liveBusy = true;
-    for (const id of ["#live-start","#live-finish","#live-save-play","#live-final-home","#live-final-away"]) document.querySelector(id).disabled = true;
+    for (const id of ["#live-start","#live-finish","#live-cancel","#live-save-play","#live-final-home","#live-final-away"]) document.querySelector(id).disabled = true;
     liveMessage.textContent = "Guardando…";
     try { await action(); await refreshLive(true); }
     catch (error) { liveMessage.textContent = `${error.message}${isPlay ? " Revisa la cronología antes de reenviar la jugada." : ""}`; }
-    finally { liveBusy = false; for (const id of ["#live-start","#live-finish","#live-save-play","#live-final-home","#live-final-away"]) document.querySelector(id).disabled = false; if (liveQueue) renderLiveOutbox(liveQueue.rows); }
+    finally { liveBusy = false; for (const id of ["#live-start","#live-finish","#live-save-play","#live-final-home","#live-final-away"]) document.querySelector(id).disabled = false; if (liveQueue) renderLiveOutbox(liveQueue.rows); syncLiveCancel(); }
 }
 
 liveForm.elements.team_id.addEventListener("change", liveOptions);
@@ -428,6 +442,21 @@ document.querySelector("#live-finish").addEventListener("click", async () => {
     liveOperation(async () => {
         await liveWrite("finish", payload);
         liveMessage.textContent = snapshot.is_friendly ? "Amistoso finalizado. Marcador guardado; no suma a la temporada." : "Partido finalizado. Marcador y estadísticas publicados.";
+        if (typeof loadGameDetail === "function") await loadGameDetail();
+    });
+});
+document.querySelector("#live-cancel").addEventListener("click", async () => {
+    if (liveBusy || liveCaptureSaving || !liveHasRole("league_admin")) return;
+    if (liveQueue) {
+        try { await liveQueue.reload(); } catch (error) { liveQueueError(error); return; }
+        if (liveQueue.rows.length || liveQueue.working) { liveMessage.textContent = "Hay jugadas pendientes en este dispositivo. Revísalas antes de cancelar."; return; }
+    }
+    const snapshot = liveData;
+    if (!snapshot || snapshot.state !== "live" || liveHasSportingPlays(snapshot)) return;
+    if (!window.confirm(`¿Cancelar la captura de ${snapshot.home_team.name} vs ${snapshot.away_team.name}? El partido volverá a pendiente, conservando la asistencia. Confirma que no hay capturas pendientes en otros dispositivos.`)) return;
+    liveOperation(async () => {
+        await liveWrite("cancel", {expected_version:snapshot.version});
+        liveMessage.textContent = "Captura cancelada. El partido vuelve a pendiente y conserva la asistencia.";
         if (typeof loadGameDetail === "function") await loadGameDetail();
     });
 });

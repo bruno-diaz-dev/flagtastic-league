@@ -4,10 +4,10 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
-from dependencies.auth import require_referee, require_score_recorder, require_authenticated_user, user_has_role
-from repositories.live_games import LiveGameError, read_live_game, start_live_game, append_event, void_event, finish_live_game
+from dependencies.auth import require_league_admin, require_referee, require_score_recorder, require_authenticated_user, user_has_role
+from repositories.live_games import LiveGameError, read_live_game, start_live_game, append_event, void_event, finish_live_game, cancel_live_game
 
 router = APIRouter(prefix="/api/games/{game_id}/live", tags=["live games"])
 
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/games/{game_id}/live", tags=["live games"])
 class LiveEvent(BaseModel):
     """An idempotent, timestamped entry in the digital statistics sheet."""
     client_id: UUID
+    capture_started_at: AwareDatetime | None = None
     kind: Literal["pass_complete", "pass_incomplete", "passing_touchdown", "touchdown", "extra_one", "extra_two", "safety", "sack", "flag", "interception", "attendance", "halftime", "two_minute_warning"]
     team_id: int | None = Field(default=None, gt=0)
     player_id: int | None = Field(default=None, gt=0)
@@ -59,6 +60,10 @@ class LiveVoid(BaseModel):
     expected_version: int = Field(ge=0)
 
 
+class LiveCancel(BaseModel):
+    expected_version: int = Field(ge=1)
+
+
 def perform(operation, *args):
     """Translate domain conflicts without leaking database errors."""
     try:
@@ -96,6 +101,11 @@ def correct(game_id: int, event_id: int, correction: LiveVoid, user=Depends(requ
 def finish(game_id: int, payload: LiveFinish, user=Depends(require_score_recorder)):
     final_score = None if payload.home_score is None else (payload.home_score, payload.away_score)
     return perform(finish_live_game, game_id, payload.expected_version, user["id"], final_score)
+
+
+@router.post("/cancel")
+def cancel(game_id: int, payload: LiveCancel, user=Depends(require_league_admin)):
+    return perform(cancel_live_game, game_id, payload.expected_version, user["id"])
 
 
 class AttendanceCheckIn(BaseModel):

@@ -61,6 +61,11 @@
         </fieldset>
         <button id="live-finish" type="button" class="secondary-button hidden">Revisar y finalizar partido</button>
     </div>
+    <section id="live-cancel-controls" class="live-cancel-controls hidden">
+        <h4>¿Se inició la captura por error?</h4>
+        <p id="live-cancel-help" class="form-help">Devuelve el partido a pendiente. Se conserva la asistencia y no se registra un resultado.</p>
+        <button id="live-cancel" type="button" class="secondary-button">Cancelar captura y volver a pendiente</button>
+    </section>
     <p id="live-operation-message" class="form-message" role="status"></p>
     <button id="attendance-action" type="button" class="hidden">Tomar asistencia</button>
     <details id="live-attendance-panel" class="ui-disclosure"><summary>Asistencia y elegibilidad a finales</summary><div class="ui-disclosure-body"><p class="form-help">Marca a quienes asistieron, aunque no tengan estadísticas. Cada partido finalizado cuenta una vez. Requisito: mitad del calendario registrado más uno (8 juegos → 5; 9 → 5). La elegibilidad es provisional si el calendario aún está incompleto o incluye finales; verifica la temporada regular antes de aprobarla.</p><p id="attendance-permission" class="form-help"></p><div id="live-attendance"></div></div></details>

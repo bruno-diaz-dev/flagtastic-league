@@ -8,9 +8,9 @@ const assert = require('node:assert/strict');
     const page = await context.newPage();
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     let offline=true;let role='referee';let matchState='live';let correctionVersion=0;const plays=new Map();
-    let friendly=false,guestOnly=false,finalScores=null;const finishes=[];
+    let friendly=false,guestOnly=false,finalScores=null,startedAt='2026-10-25T15:00:00+00:00';const finishes=[],cancellations=[];
     const roster=[{team_id:1,player_id:10,jersey_number:10,display_name:'Ana'},{team_id:1,player_id:7,jersey_number:7,display_name:'Eva'},{team_id:1,player_id:12,jersey_number:12,display_name:'Luz'},{team_id:2,player_id:20,jersey_number:20,display_name:'María'}];
-    const snapshot=()=>({game_id:5,state:matchState,is_friendly:friendly,version:plays.size+correctionVersion,home_team:{id:1,name:'Tigres'},away_team:{id:2,name:'Lobos'},home_score:finalScores?.home_score??[...plays.values()].filter(p=>p.kind==='extra_one').length,away_score:finalScores?.away_score??0,roster:guestOnly?[]:roster,attendance:guestOnly?[]:roster.map(r=>({...r,present:[...plays.values()].some(p=>p.kind==='attendance'&&p.player_id===r.player_id),attended_games:0,required_games:5})),statistics:[],events:[...plays.values()].filter(p=>p.kind!=='attendance').map((p,i)=>({...p,id:i+1,player_label:'#'+(roster.find(r=>r.player_id===p.player_id)?.jersey_number||''),receiver_label:p.receiver_id?'#7 Eva':null,voided_at:p.voided_at || null}))});
+    const snapshot=()=>({game_id:5,state:matchState,is_friendly:friendly,started_at:matchState==='not_started'?null:startedAt,version:plays.size+correctionVersion,home_team:{id:1,name:'Tigres'},away_team:{id:2,name:'Lobos'},home_score:finalScores?.home_score??[...plays.values()].filter(p=>p.kind==='extra_one').length,away_score:finalScores?.away_score??0,roster:guestOnly?[]:roster,attendance:guestOnly?[]:roster.map(r=>({...r,present:[...plays.values()].some(p=>p.kind==='attendance'&&p.player_id===r.player_id),attended_games:0,required_games:5})),statistics:[],events:[...plays.values()].filter(p=>p.kind!=='attendance').map((p,i)=>({...p,id:i+1,player_label:'#'+(roster.find(r=>r.player_id===p.player_id)?.jersey_number||''),receiver_label:p.receiver_id?'#7 Eva':null,voided_at:p.voided_at || null}))});
     await page.route('https://capture.test/**',async route=>{
         const u=new URL(route.request().url());
         if(u.pathname==='/') {
@@ -21,6 +21,15 @@ const assert = require('node:assert/strict');
         } else if(u.pathname==='/api/auth/me') {
             await route.fulfill({json:{id:12,role,roles:[role]}});
         } else if(route.request().method()==='POST') {
+            if(u.pathname.endsWith('/cancel')) {
+                cancellations.push(route.request().postDataJSON());correctionVersion++;matchState='not_started';
+                for(const play of plays.values())if(play.kind!=='attendance')play.voided_at='2026-10-25T16:00:00Z';
+                return route.fulfill({json:{state:'not_started'}});
+            }
+            if(u.pathname.endsWith('/start')) {
+                correctionVersion++;startedAt='2026-10-25T17:00:00+00:00';matchState='live';
+                return route.fulfill({json:{state:'live'}});
+            }
             if(u.pathname.endsWith('/finish')) {
                 const payload=route.request().postDataJSON();finishes.push(payload);finalScores=payload;matchState='completed';
                 return route.fulfill({json:{state:'completed'}});
@@ -95,6 +104,7 @@ const assert = require('node:assert/strict');
     role='player';await page.reload();await page.locator('#live-state[data-state="live"]').waitFor();
     assert.equal(await page.locator('#live-official-controls').isVisible(),false);
     assert.equal(await page.locator('#live-finish').isVisible(),false);
+    assert.equal(await page.locator('#live-cancel').isVisible(),false);
     plays.clear();matchState='not_started';role='referee';await page.reload();
     await page.locator('#live-state[data-state="not_started"]').waitFor();
     await page.locator('#attendance-action').click();
@@ -148,6 +158,40 @@ const assert = require('node:assert/strict');
     page.once('dialog',dialog=>dialog.accept());await page.locator('#live-finish').click();
     await page.locator('#live-state[data-state="completed"]').waitFor();
     assert.equal(finishes.length,2);assert.equal(finishes[1].home_score,0);assert.equal(finishes[1].away_score,0);
+    // An accidental official capture returns to pending, without a final result.
+    role='league_admin';friendly=false;guestOnly=false;matchState='live';finalScores=null;plays.clear();
+    plays.set('checkin',{kind:'attendance',team_id:1,player_id:10});
+    await page.reload();await page.locator('#live-state[data-state="live"]').waitFor();
+    assert.equal(await page.locator('#live-cancel').isVisible(),true);
+    assert.equal(await page.locator('#live-cancel').isEnabled(),true);
+    plays.set('confirmed-flag',{kind:'flag',team_id:1,player_id:10});
+    await page.evaluate(()=>refreshLive(true));
+    await page.waitForFunction(()=>document.querySelector('#live-cancel').disabled);
+    assert.match(await page.locator('#live-cancel-help').textContent(),/jugadas confirmadas/);
+    plays.get('confirmed-flag').voided_at='2026-10-25T15:30:00Z';correctionVersion++;
+    await page.evaluate(()=>refreshLive(true));
+    await page.waitForFunction(()=>!document.querySelector('#live-cancel').disabled);
+    for(const width of [320,390,1280]) {
+        await page.setViewportSize({width,height:844});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'cancel capture fits '+width);
+    }
+    page.once('dialog',dialog=>dialog.dismiss());await page.locator('#live-cancel').click();
+    assert.equal(cancellations.length,0);
+    const cancelVersion=snapshot().version;
+    page.once('dialog',async dialog=>{assert.match(dialog.message(),/volverá a pendiente/);assert.match(dialog.message(),/conservando la asistencia/);await dialog.accept();});
+    await page.locator('#live-cancel').click();await page.locator('#live-state[data-state="not_started"]').waitFor();
+    assert.deepEqual(cancellations,[{expected_version:cancelVersion}]);assert.equal(finishes.length,2);
+    assert.equal(await page.locator('#live-cancel-controls').isVisible(),false);
+    assert.match(await page.locator('#live-attendance').textContent(),/Presente en este juego/);
+    role='referee';await page.reload();await page.locator('#live-state[data-state="not_started"]').waitFor();
+    await page.locator('#live-start').click();await page.locator('#live-state[data-state="live"]').waitFor();
+    assert.equal(await page.locator('#live-cancel').isVisible(),false);
+    await page.locator('[data-live-kind="pass_incomplete"]').click();
+    const restartedPlay=page.waitForResponse(response=>response.url().endsWith('/events')&&response.request().postDataJSON().kind==='pass_incomplete');
+    await page.locator('[data-live-player="10"][data-live-field="player_id"]').click();
+    await restartedPlay;
+    await page.waitForFunction(()=>document.querySelector('#live-queue-status').textContent.includes('Todo enviado'));
+    assert.equal([...plays.values()].find(play=>play.kind==='pass_incomplete').capture_started_at,startedAt);
     assert.deepEqual(errors,[]);
     console.log('Mobile browser verified: one-tap pass, next play while offline, IndexedDB reload recovery, ordered upload, no duplicate plays, no optimistic public score, no overflow, private referee controls, no page errors.');
     await browser.close();
