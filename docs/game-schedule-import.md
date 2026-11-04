@@ -14,13 +14,14 @@ Image recognition preserves irregular schedules. When the source is clearly an
 hourly grid, minute noise such as `13:09` is normalized to the printed whole
 hour, and a duplicated or missing hour is repaired only when its immediate
 neighbors prove the sequence. Unreadable times remain empty in the review
-table. Administrators must fill the time for each selected game before
+cards. Administrators must fill the time for each selected game before
 confirmation; recognized times can also be corrected. Recognition is not a
 substitute for reviewing team matches and times before confirmation.
 
 Failed block-OCR time cells receive a second, individual single-line OCR pass.
-The review displays registered team names with branch/category in a separate
-column. The observed `Pitbulls Ir` glyph error resolves to `Pitbulls Jr` without
+The review uses responsive cards with complete team names and divisions,
+field, time, date and venue. Each card offers “Editar partido” for corrections;
+its visible summary follows edits. There is no horizontal review table. The observed `Pitbulls Ir` glyph error resolves to `Pitbulls Jr` without
 collapsing the distinct `Pitbulls Sr` team.
 
 Confirmation is transactional. Repeated identical slots are skipped. Replacing
