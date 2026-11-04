@@ -65,3 +65,9 @@
     .game-import-confirm-bar { bottom:8px; }
     .game-import-confirm-bar button { width:100%; }
 }
+
+/* Keep the upload controls on one baseline; guidance sits below the row. */
+#game-schedule-import-form input, #game-schedule-import-form button[type="submit"] {
+    width:100%; height:56px; min-width:0;
+}
+#game-schedule-week-help { margin:10px 0 0; }
