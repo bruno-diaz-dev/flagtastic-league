@@ -2,7 +2,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="/static/weekly_featured.css?v=20261019-1">
-<link rel="stylesheet" href="/static/game_calendar.css?v=20261104-2">
+<link rel="stylesheet" href="/static/game_calendar.css?v=20261104-3">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -127,8 +127,7 @@
         <form id="game-schedule-import-form" class="filter-form">
             <label>
                 Jornada
-                <input name="week_override" type="number" min="1" max="99" value="1" required>
-                <small>En XLSX o CSV se importa solo esa jornada. Para imágenes, indica la jornada del rol.</small>
+                <input name="week_override" type="number" min="1" max="99" value="1" aria-describedby="game-schedule-week-help" required>
             </label>
             <label>
                 Archivo del rol
@@ -141,6 +140,7 @@
             </label>
             <button type="submit">Analizar rol</button>
         </form>
+        <p id="game-schedule-week-help" class="form-help">En XLSX o CSV se importa solo esa jornada. Para imágenes, indica la jornada del rol.</p>
         <p id="game-schedule-import-message" class="form-message" role="status"></p>
         <div id="game-schedule-review" class="schedule-review hidden">
             <p id="game-schedule-review-scope" class="form-help"></p>
