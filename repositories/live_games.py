@@ -130,6 +130,7 @@ def read_live_game(game_id):
             "started_at": session["started_at"] if session else None,
             "finished_at": session["finished_at"] if session else None,
             "week": game["week"],
+            "game_date": game.get("game_date"), "venue": game.get("venue"),
             "home_team": {"id": game["home_team_id"], "name": game["home_name"]},
             "away_team": {"id": game["away_team_id"], "name": game["away_name"]},
             "home_score": game["home_score"] if state == "completed" else scores[game["home_team_id"]],

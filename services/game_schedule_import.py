@@ -13,6 +13,7 @@ import pytesseract
 
 from services.referee_schedule_ocr import _configure_windows_tesseract
 from services.divisions import teams_share_game_division
+from services.schedule_context import context_header, context_fields, parse_schedule_date, clean_venue
 from services.team_matching import (
     match_schedule_team,
     schedule_category_hint as _spreadsheet_category_hint,
@@ -63,6 +64,7 @@ def parse_game_schedule_file(filename, content, teams, *, selected_week=None):
         "matched": sum(proposal["ready"] for proposal in proposals),
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
         "selected_week": selected_week,
+        "warnings": list(dict.fromkeys(f"{row.get('venue') or row['source_row']}: fecha inválida; complétala en la revisión" for row in rows if row.get("date_required"))),
     }
 
 
@@ -493,6 +495,7 @@ def _read_calendar_workbook(content, selected_week=None):
     try:
         for sheet in workbook.worksheets:
             week = _week(sheet.title)
+            context = {}
             field_columns = {}
             hour_column = None
             for row_number, values in enumerate(sheet.iter_rows(values_only=True), start=1):
@@ -501,8 +504,14 @@ def _read_calendar_workbook(content, selected_week=None):
                 week_value = next((value for value in texts if _week(value)), None)
                 if week_value:
                     week = _week(week_value)
+                    context = {}
                     field_columns = {}
                     hour_column = None
+                detected_context = context_header(cells, context)
+                if detected_context is not None:
+                    context = detected_context
+                    continue
+                if week_value:
                     continue
 
                 detected_hour_column = next(
@@ -537,6 +546,7 @@ def _read_calendar_workbook(content, selected_week=None):
                         "start_time": scheduled_time,
                         "home_team": home,
                         "away_team": away,
+                        **context_fields(context),
                     })
     finally:
         workbook.close()
@@ -565,6 +575,9 @@ def _read_csv(content, selected_week=None):
             )
         mapped[field] = match
 
+    date_column = next((normalized[name] for name in ("fecha", "date", "game_date") if name in normalized), None)
+    venue_column = next((normalized[name] for name in ("sede", "venue") if name in normalized), None)
+
     rows = []
     for row_number, row in enumerate(reader, start=2):
         if not any(_text(value) for value in row.values()):
@@ -588,6 +601,11 @@ def _read_csv(content, selected_week=None):
             "start_time": scheduled_time,
             "home_team": _text(row[mapped["home_team"]]),
             "away_team": _text(row[mapped["away_team"]]),
+            **context_fields({
+                "game_date": parse_schedule_date(row.get(date_column)) if date_column else None,
+                "venue": clean_venue(row.get(venue_column)) if venue_column else None,
+                "date_required": bool(date_column and _text(row.get(date_column)) and not parse_schedule_date(row.get(date_column))),
+            }),
         })
     return rows
 
@@ -600,7 +618,7 @@ def _match_row(row, teams, spreadsheet=False):
         home, away = _match_team_pair(
             row["home_team"], row["away_team"], teams,
         )
-    ready = (home is not None and away is not None
+    ready = (not row.get("date_required") and home is not None and away is not None
              and home["id"] != away["id"]
              and teams_share_game_division(home, away))
     return {

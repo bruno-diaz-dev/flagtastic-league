@@ -1,0 +1,19 @@
+.calendar-bulk-fill { display:flex; flex-wrap:wrap; align-items:end; gap:14px; margin:16px 0; }
+.calendar-bulk-fill label, .schedule-calendar-fields { display:grid; gap:8px; min-width:0; }
+.calendar-bulk-fill input { width:100%; }
+#game-schedule-review .schedule-import-table { min-width:1550px; }
+.schedule-import-table .schedule-col-calendar { width:220px; }
+.schedule-calendar-fields label { display:grid; gap:5px; font-size:12px; min-width:0; }
+.schedule-calendar-fields input:invalid { border-color:#f5b056; }
+.schedule-board-group { min-width:0; margin-bottom:24px; }
+.schedule-board-group h4 { position:sticky; left:0; width:fit-content; max-width:calc(100vw - 100px); margin:16px; color:var(--color-gold); overflow-wrap:anywhere; }
+.schedule-board-edit { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.schedule-board-edit label:first-child { grid-column:1/-1; }
+.game-calendar-context { margin:0; font-size:13px; color:var(--color-muted); overflow-wrap:anywhere; }
+.game-time-heading { flex-wrap:wrap; }
+.game-time-heading .game-calendar-context { flex-basis:100%; }
+.game-time-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:700px) {
+    .schedule-board-edit { grid-template-columns:minmax(0,1fr); }
+    .calendar-bulk-fill { display:grid; grid-template-columns:minmax(0,1fr); }
+}

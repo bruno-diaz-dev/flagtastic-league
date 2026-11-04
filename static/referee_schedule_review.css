@@ -6,7 +6,7 @@
     background: var(--color-surface);
 }
 #schedule-review .schedule-review-card-header {
-    display: grid; grid-template-columns: minmax(0, 1fr) 180px;
+    display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr) 180px;
     align-items: start; gap: 20px; padding-bottom: 16px;
     border-bottom: 1px solid var(--color-border);
 }
@@ -49,3 +49,10 @@
 @media (max-width: 480px) {
     #schedule-review .schedule-referees { grid-template-columns: minmax(0, 1fr); }
 }
+
+.schedule-review-calendar { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:14px; }
+.schedule-review-calendar label { display:grid; gap:7px; min-width:0; }
+.schedule-review-calendar input { width:100%; min-width:0; }
+@media(max-width:540px){.schedule-review-calendar {grid-template-columns:minmax(0,1fr);}}
+
+@media(max-width:1100px){#schedule-review .schedule-review-card-header{grid-template-columns:minmax(0,1fr);}}

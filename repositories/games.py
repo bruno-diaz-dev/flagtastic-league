@@ -1,6 +1,8 @@
 """Persistence operations for games and final scores."""
 
 from database import get_connection
+from collections import Counter
+from services.schedule_context import venue_key
 
 
 class ScheduleConflictError(ValueError):
@@ -9,6 +11,45 @@ class ScheduleConflictError(ValueError):
 
 class GameStateConflictError(ValueError):
     """The requested transition conflicts with the current game state."""
+
+
+class CalendarMigrationRequired(ScheduleConflictError, GameStateConflictError):
+    """Calendar writes must not silently drop metadata on an older database."""
+
+
+UNSET = object()
+CALENDAR_COLUMNS = "(to_jsonb(games)->>'game_date')::date AS game_date, to_jsonb(games)->>'venue' AS venue"
+
+
+def calendar_available(connection):
+    return connection.execute("""
+        SELECT COUNT(*) AS n FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='games' AND column_name IN ('game_date','venue')
+    """).fetchone()["n"] == 2
+
+
+def require_calendar(connection):
+    if not calendar_available(connection):
+        raise CalendarMigrationRequired("Falta activar fecha y sede en Supabase. Aplica la migración del calendario antes de guardar estos datos")
+
+
+def get_calendar_capabilities():
+    """Expose a feature flag, never schema contents or credentials."""
+    with get_connection() as connection:
+        return {"date_and_venue": calendar_available(connection)}
+
+
+def calendar_slot_rows(connection, week, field_number, start_time, exclude=None):
+    return connection.execute(f"""
+        SELECT games.*, {CALENDAR_COLUMNS} FROM games
+        WHERE week=%s AND field_number IS NOT DISTINCT FROM %s
+          AND start_time IS NOT DISTINCT FROM %s AND id IS DISTINCT FROM %s
+        ORDER BY id FOR UPDATE
+    """, (week, field_number, start_time, exclude)).fetchall()
+
+
+def same_calendar(row, game_date, venue):
+    return row.get("game_date") == game_date and venue_key(row.get("venue")) == venue_key(venue)
 
 
 def resolve_game_participants(connection, game):
@@ -50,117 +91,91 @@ def resolve_game_participants(connection, game):
 
 
 def create_game(game):
-    """Create the fixture and any invited teams atomically."""
+    """Create a fixture and its invited teams, preserving calendar context."""
     with get_connection() as connection:
+        connection.execute("LOCK TABLE games IN SHARE ROW EXCLUSIVE MODE")
+        if game.game_date is not None or game.venue is not None:
+            require_calendar(connection)
         game = resolve_game_participants(connection, game)
+        if game.start_time is not None and any(same_calendar(row, game.game_date, game.venue)
+                for row in calendar_slot_rows(connection, game.week, game.field_number, game.start_time)):
+            raise ScheduleConflictError("Ese campo ya tiene un partido en la misma fecha, sede y hora")
+        columns = "home_team_id, away_team_id, week, field_number, start_time, is_friendly"
+        values = [game.home_team_id, game.away_team_id, game.week, game.field_number, game.start_time, game.is_friendly]
+        if game.game_date is not None or game.venue is not None:
+            columns += ", game_date, venue"
+            values.extend([game.game_date, game.venue])
         row = connection.execute(
-            """INSERT INTO games (home_team_id, away_team_id, week, field_number, start_time, is_friendly)
-               VALUES (%s, %s, %s, %s, %s, %s)
-               RETURNING id, home_team_id, away_team_id, week, field_number, start_time, status, is_friendly""",
-            (game.home_team_id, game.away_team_id, game.week, game.field_number, game.start_time, game.is_friendly),
+            f"INSERT INTO games ({columns}) VALUES ({','.join(['%s'] * len(values))}) "
+            f"RETURNING id, home_team_id, away_team_id, week, field_number, start_time, status, is_friendly, {CALENDAR_COLUMNS}",
+            values,
         ).fetchone()
         return dict(row)
 
 
 def import_game_schedule(games):
-    """Upsert reviewed schedule rows by their week, field, and start time."""
-    connection = get_connection()
-    created = 0
-    updated = 0
-    skipped = 0
-    try:
-        # Serialize schedule imports, including empty slots, until commit.
+    """Upsert reviewed slots, distinguishing calendar day and venue."""
+    with get_connection() as connection:
         connection.execute("LOCK TABLE games IN SHARE ROW EXCLUSIVE MODE")
+        has_calendar = calendar_available(connection)
+        if not has_calendar and any(game.game_date is not None or game.venue is not None for game in games):
+            require_calendar(connection)
+        slot_counts = Counter((game.week, game.field_number, game.start_time) for game in games)
+        created = updated = skipped = 0
         for game in games:
             game = resolve_game_participants(connection, game)
-            existing = connection.execute(
-                """
-                SELECT id, home_team_id, away_team_id, home_score, away_score, is_friendly, status
-                FROM games
-                WHERE week = %s
-                  AND field_number = %s
-                  AND start_time IS NOT DISTINCT FROM %s
-                ORDER BY id
-                LIMIT 1
-                FOR UPDATE
-                """,
-                (game.week, game.field_number, game.start_time),
-            ).fetchone()
-
+            rows = calendar_slot_rows(connection, game.week, game.field_number, game.start_time)
+            exact = [row for row in rows
+                     if (game.game_date is None or row.get('game_date') == game.game_date)
+                     and (game.venue is None or venue_key(row.get('venue')) == venue_key(game.venue))]
+            if len(exact) > 1:
+                raise ScheduleConflictError("Hay varios partidos en ese horario y campo. Indica fecha y sede para identificar el correcto")
+            existing = exact[0] if exact else None
+            if existing is None:
+                legacy = [row for row in rows
+                          if (row.get('game_date') is None or game.game_date is None or row['game_date'] == game.game_date)
+                          and (not row.get('venue') or game.venue is None or venue_key(row['venue']) == venue_key(game.venue))]
+                if legacy:
+                    if (len(legacy) != 1 or slot_counts[(game.week, game.field_number, game.start_time)] != 1
+                            or legacy[0]['home_team_id'] != game.home_team_id or legacy[0]['away_team_id'] != game.away_team_id):
+                        raise ScheduleConflictError("Hay un partido sin fecha o sede en ese espacio. Completa su calendario antes de reemplazarlo")
+                    existing = legacy[0]
             if existing is not None:
-                if (
-                    existing["home_team_id"] == game.home_team_id
-                    and existing["away_team_id"] == game.away_team_id
-                    and existing["is_friendly"] == game.is_friendly
-                ):
+                desired_date = game.game_date if game.game_date is not None else existing.get('game_date')
+                desired_venue = game.venue if game.venue is not None else existing.get('venue')
+                same_teams = (existing['home_team_id'] == game.home_team_id and existing['away_team_id'] == game.away_team_id
+                              and existing['is_friendly'] == game.is_friendly)
+                metadata_changed = not same_calendar(existing, desired_date, desired_venue)
+                if same_teams and not metadata_changed:
                     skipped += 1
                     continue
-
-                related = connection.execute(
-                    """
-                    SELECT EXISTS (
-                        SELECT 1 FROM player_week_stats WHERE game_id = %s
-                        UNION ALL
-                        SELECT 1 FROM game_live_events WHERE game_id = %s
-                        UNION ALL
-                        SELECT 1 FROM game_live_sessions WHERE game_id = %s
-                    ) AS present
-                    """,
-                    (existing["id"], existing["id"], existing["id"]),
-                ).fetchone()["present"]
-                if (existing["status"] == "completed" or existing["home_score"] is not None
-                        or existing["away_score"] is not None or related):
-                    raise ScheduleConflictError(
-                        f"El partido {existing['id']} ya tiene resultados, estadisticas "
-                        "o captura registrada. No se pueden reemplazar sus equipos."
-                    )
-
-                # The crew belongs to this schedule slot. Keep both its rows
-                # and the game ID when correcting unplayed participants.
-                connection.execute(
-                    """
-                    UPDATE games
-                    SET home_team_id = %s,
-                        away_team_id = %s, is_friendly = %s
-                    WHERE id = %s
-                    """,
-                    (
-                        game.home_team_id,
-                        game.away_team_id,
-                        game.is_friendly,
-                        existing["id"],
-                    ),
-                )
+                if (existing['status'] == 'completed' or existing['home_score'] is not None or existing['away_score'] is not None):
+                    raise ScheduleConflictError(f"El partido {existing['id']} ya tiene resultados; no se puede reemplazar ni cambiar su calendario")
+                if not same_teams:
+                    related = connection.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM player_week_stats WHERE game_id=%s
+                            UNION ALL SELECT 1 FROM game_live_events WHERE game_id=%s
+                            UNION ALL SELECT 1 FROM game_live_sessions WHERE game_id=%s
+                        ) AS present
+                    """, (existing['id'],) * 3).fetchone()['present']
+                    if related:
+                        raise ScheduleConflictError(f"El partido {existing['id']} ya tiene estadísticas o captura registrada. No se pueden reemplazar sus equipos")
+                metadata_sql = ", game_date=%s, venue=%s" if has_calendar else ""
+                args = [game.home_team_id, game.away_team_id, game.is_friendly]
+                if has_calendar:
+                    args.extend([desired_date, desired_venue])
+                connection.execute("UPDATE games SET home_team_id=%s, away_team_id=%s, is_friendly=%s" + metadata_sql + " WHERE id=%s", [*args, existing['id']])
                 updated += 1
                 continue
-
-            connection.execute(
-                """
-                INSERT INTO games
-                    (home_team_id, away_team_id, week, field_number, start_time, is_friendly)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    game.home_team_id,
-                    game.away_team_id,
-                    game.week,
-                    game.field_number,
-                    game.start_time,
-                    game.is_friendly,
-                ),
-            )
+            columns = "home_team_id, away_team_id, week, field_number, start_time, is_friendly"
+            args = [game.home_team_id, game.away_team_id, game.week, game.field_number, game.start_time, game.is_friendly]
+            if has_calendar:
+                columns += ", game_date, venue"
+                args.extend([game.game_date, game.venue])
+            connection.execute(f"INSERT INTO games ({columns}) VALUES ({','.join(['%s'] * len(args))})", args)
             created += 1
-        connection.commit()
-        return {
-            "created": created,
-            "updated": updated,
-            "skipped": skipped,
-        }
-    except Exception:
-        connection.rollback()
-        raise
-    finally:
-        connection.close()
+        return {"created": created, "updated": updated, "skipped": skipped}
 
 def get_games():
     """Return games with nested public summaries for both teams."""
@@ -175,6 +190,8 @@ def get_games():
             games.week,
             games.field_number,
             games.start_time,
+            (to_jsonb(games)->>'game_date')::date AS game_date,
+            to_jsonb(games)->>'venue' AS venue,
             games.status,
             games.is_friendly,
             home_team.is_guest AS home_is_guest,
@@ -228,7 +245,7 @@ def get_games():
             "away_score": row["away_score"],
             "week": row["week"],
             "field_number": row["field_number"],
-            "start_time": row["start_time"],
+            "start_time": row["start_time"], "game_date": row["game_date"], "venue": row["venue"],
             "status": row["status"], "is_friendly": row["is_friendly"]
         }
         for row in rows
@@ -309,38 +326,31 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
         connection.close()
 
 
-def update_game_schedule(game_id, start_time, field_number=None):
-    """Move an unscored fixture in place, preserving all linked records."""
+def update_game_schedule(game_id, start_time, field_number=None, *, game_date=UNSET, venue=UNSET):
+    """Move a fixture in place across days/venues without changing its ID or crew."""
     with get_connection() as connection:
-        # Serialize the empty-slot check with all game writers, including
-        # SELECT FOR UPDATE used by official assignment imports. Public reads
-        # remain available; no crew rows need to be changed or locked here.
         connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
-        game = connection.execute(
-            "SELECT id, week, field_number, start_time, status, home_score, away_score "
-            "FROM games WHERE id = %s FOR UPDATE", (game_id,),
-        ).fetchone()
+        game = connection.execute(f"SELECT games.*, {CALENDAR_COLUMNS} FROM games WHERE id=%s FOR UPDATE", (game_id,)).fetchone()
         if game is None:
             return None
-        if (game["status"] == "completed" or game["home_score"] is not None
-                or game["away_score"] is not None):
-            raise GameStateConflictError("No se puede cambiar el horario de un partido finalizado")
-        desired_field = field_number if field_number is not None else game["field_number"]
-        if game["start_time"] != start_time or game["field_number"] != desired_field:
-            conflict = connection.execute(
-                "SELECT id FROM games WHERE week = %s AND field_number = %s "
-                "AND start_time = %s AND id <> %s LIMIT 1",
-                (game["week"], desired_field, start_time, game_id),
-            ).fetchone()
-            if conflict:
-                raise GameStateConflictError(
-                    "Ese campo ya tiene otro partido en la misma jornada y hora"
-                )
-        updated = connection.execute(
-            "UPDATE games SET start_time = %s, field_number = %s WHERE id = %s "
-            "RETURNING id, week, field_number, start_time, status",
-            (start_time, desired_field, game_id),
-        ).fetchone()
+        if game['status'] == 'completed' or game['home_score'] is not None or game['away_score'] is not None:
+            raise GameStateConflictError("No se puede cambiar el calendario de un partido finalizado")
+        desired_field = field_number if field_number is not None else game['field_number']
+        desired_date = game.get('game_date') if game_date is UNSET else game_date
+        desired_venue = game.get('venue') if venue is UNSET else venue
+        metadata_changed = not same_calendar(game, desired_date, desired_venue)
+        if metadata_changed:
+            require_calendar(connection)
+        changed = metadata_changed or game['start_time'] != start_time or game['field_number'] != desired_field
+        if changed and any(same_calendar(row, desired_date, desired_venue)
+                           for row in calendar_slot_rows(connection, game['week'], desired_field, start_time, game_id)):
+            raise GameStateConflictError("Ese campo ya tiene otro partido en la misma jornada, fecha, sede y hora")
+        metadata_sql = ", game_date=%s, venue=%s" if metadata_changed else ""
+        args = [start_time, desired_field]
+        if metadata_changed:
+            args.extend([desired_date, desired_venue])
+        updated = connection.execute("UPDATE games SET start_time=%s, field_number=%s" + metadata_sql
+            + f" WHERE id=%s RETURNING id, week, field_number, start_time, status, {CALENDAR_COLUMNS}", [*args, game_id]).fetchone()
         return dict(updated)
 
 
@@ -546,6 +556,8 @@ def get_games_for_referee(user_id):
             games.week,
             games.field_number,
             games.start_time,
+            (to_jsonb(games)->>'game_date')::date AS game_date,
+            to_jsonb(games)->>'venue' AS venue,
             games.status,
             games.is_friendly,
             game_referees.position AS official_position,
@@ -636,7 +648,7 @@ def get_games_for_referee(user_id):
             "away_score": row["away_score"],
             "week": row["week"],
             "field_number": row["field_number"],
-            "start_time": row["start_time"],
+            "start_time": row["start_time"], "game_date": row["game_date"], "venue": row["venue"],
             "status": row["status"], "is_friendly": row["is_friendly"],
             "official_position": row["official_position"],
             "officials": crew_by_game[row["id"]]
@@ -653,39 +665,45 @@ def apply_referee_schedule(assignments, assigned_by):
     skipped = 0
 
     try:
+        connection.execute("LOCK TABLE games IN EXCLUSIVE MODE")
         connection.execute("LOCK TABLE game_referees IN SHARE ROW EXCLUSIVE MODE")
-
+        ids = [assignment.game_id for assignment in assignments]
+        if len(ids) != len(set(ids)):
+            raise ScheduleConflictError("No se puede confirmar dos veces el mismo partido")
+        plans = {}
         for assignment in assignments:
-            game = connection.execute(
-                """
-                SELECT id, field_number, start_time
-                FROM games
-                WHERE id = %s
-                FOR UPDATE
-                """,
-                (assignment.game_id,)
-            ).fetchone()
+            game = connection.execute(f"SELECT games.*, {CALENDAR_COLUMNS} FROM games WHERE id=%s FOR UPDATE", (assignment.game_id,)).fetchone()
             if game is None:
                 raise ValueError(f"No existe el partido {assignment.game_id}")
-
-            desired_time = assignment.scheduled_time or game["start_time"]
-            if (
-                game["field_number"] != assignment.field_number
-                or game["start_time"] != desired_time
-            ):
-                connection.execute(
-                    """
-                    UPDATE games
-                    SET field_number = %s,
-                        start_time = %s
-                    WHERE id = %s
-                    """,
-                    (
-                        assignment.field_number,
-                        desired_time,
-                        assignment.game_id,
-                    )
-                )
+            wanted_time = assignment.scheduled_time or game['start_time']
+            wanted_date = assignment.game_date if 'game_date' in assignment.model_fields_set else game.get('game_date')
+            wanted_venue = assignment.venue if 'venue' in assignment.model_fields_set else game.get('venue')
+            changed_meta = not same_calendar(game, wanted_date, wanted_venue)
+            changed = changed_meta or game['field_number'] != assignment.field_number or game['start_time'] != wanted_time
+            if changed and (game['status'] == 'completed' or game['home_score'] is not None or game['away_score'] is not None):
+                raise ScheduleConflictError("No se puede cambiar el calendario de un partido finalizado")
+            if changed_meta:
+                require_calendar(connection)
+            plans[game['id']] = (game, wanted_time, wanted_date, wanted_venue, changed_meta, changed)
+        occupied = {}
+        for assignment in assignments:
+            game, wanted_time, wanted_date, wanted_venue, changed_meta, changed = plans[assignment.game_id]
+            if wanted_time is not None:
+                key = (game['week'], wanted_date, venue_key(wanted_venue), assignment.field_number, wanted_time)
+                if key in occupied and (changed or plans[occupied[key]][5]):
+                    raise ScheduleConflictError("Dos partidos ocuparían la misma fecha, sede, campo y hora")
+                occupied[key] = game['id']
+                if changed and any(row['id'] not in plans and same_calendar(row, wanted_date, wanted_venue)
+                        for row in calendar_slot_rows(connection, game['week'], assignment.field_number, wanted_time, game['id'])):
+                    raise ScheduleConflictError("Ese campo ya tiene otro partido en la misma fecha, sede y hora")
+        for assignment in assignments:
+            game, desired_time, desired_date, desired_venue, changed_meta, changed = plans[assignment.game_id]
+            if changed:
+                sql_meta = ', game_date=%s, venue=%s' if changed_meta else ''
+                args = [assignment.field_number, desired_time]
+                if changed_meta:
+                    args.extend([desired_date, desired_venue])
+                connection.execute('UPDATE games SET field_number=%s, start_time=%s' + sql_meta + ' WHERE id=%s', [*args, game['id']])
 
             for official in assignment.officials:
                 current_position = connection.execute(

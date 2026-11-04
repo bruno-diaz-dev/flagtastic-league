@@ -18,7 +18,7 @@ function setup() {
     const pending = () => new Promise(() => {});
     const context = vm.createContext({document, window: {location: {assign() {}}},
         getMyRefereeGames: pending, getMyRefereeProfile: pending, getAdminUsers: pending,
-        divisionBranchLabel: branch => branch,
+        divisionBranchLabel: branch => branch, gameCalendarLabel: () => "",
         escapeHtml: v => String(v).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')});
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/referee_games.js'), 'utf8'), context);
     const game = (id, status, week, scores=[null, null], position='referee') => ({
@@ -94,9 +94,9 @@ test('Score capture is offered only for unscored pending assignments', () => {
 function confirmationSetup() {
     const s = setup();
     const row = {dataset: {gameId: '81', scheduledTime: '12:00'},
-        querySelector: () => ({value: '2'}),
+        querySelector: selector => ({value: selector.includes('field_number') ? '2' : ''}),
         querySelectorAll: () => [{value: '11', dataset: {position: 'referee'}}]};
-    s.nodes.get('#schedule-review-body').querySelectorAll = () => [row];
+    s.nodes.get('#schedule-review-body').querySelectorAll = selector => selector === '.schedule-review-card' ? [row] : [];
     s.nodes.get('#referee-schedule-form').querySelectorAll = () => [];
     const button = s.nodes.get('#confirm-schedule');
     button.textContent = 'Confirmar asignaciones';

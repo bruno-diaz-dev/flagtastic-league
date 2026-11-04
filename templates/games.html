@@ -2,6 +2,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="/static/weekly_featured.css?v=20261019-1">
+<link rel="stylesheet" href="/static/game_calendar.css?v=20261104-1">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -12,6 +13,7 @@
     </header>
 
     <details id="game-calendar-management" class="form-panel admin-only ui-action-hub"><summary>Gestionar calendario<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+    <p id="calendar-migration-notice" class="form-message admin-only hidden" role="status">Fecha y sede aún no están habilitadas en la base de datos. Puedes revisar el archivo; antes de guardar esos datos debe activarse el calendario.</p>
     <section class="form-panel admin-only">
         <details class="ui-disclosure"><summary>Registrar partido<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
 
@@ -104,6 +106,8 @@
                 <input name="start_time" type="time">
             </label>
 
+            <label>Fecha<input name="game_date" type="date"></label>
+            <label>Sede<input name="venue" maxlength="120" placeholder="Nombre de la sede"></label>
             <button type="submit">Registrar partido</button>
         </form>
 
@@ -140,12 +144,18 @@
         <p id="game-schedule-import-message" class="form-message" role="status"></p>
         <div id="game-schedule-review" class="schedule-review hidden">
             <p id="game-schedule-review-scope" class="form-help"></p>
+            <div class="calendar-bulk-fill">
+                <label>Fecha para partidos sin fecha<input id="game-schedule-fill-date" type="date"></label>
+                <button id="game-schedule-apply-date" type="button" class="secondary-button">Completar fechas vacías</button>
+            </div>
+            <p id="game-schedule-selection-summary" class="form-help" role="status"></p>
             <div class="users-table-wrapper">
                 <table class="standings-data-table schedule-import-table">
                     <colgroup>
                         <col class="schedule-col-check"><col class="schedule-col-check">
                         <col class="schedule-col-number"><col class="schedule-col-number">
                         <col class="schedule-col-time">
+                        <col class="schedule-col-calendar">
                         <col class="schedule-col-team"><col class="schedule-col-team">
                         <col class="schedule-col-division"><col class="schedule-col-status">
                     </colgroup>
@@ -285,13 +295,15 @@
         <details class="ui-disclosure">
             <summary>Tablero del rol<span class="ui-disclosure-hint">Expandir / contraer</span></summary>
             <div class="ui-disclosure-body">
-        <p>Arrastra un partido a otra hora o campo para guardar el cambio. También puedes seleccionarlo y usar los controles. Se conservan sus oficiales.</p>
+        <p>El rol se separa por fecha y sede. Arrastra un partido a otro espacio o usa los controles para cambiar su fecha, sede, hora o campo. Se conservan sus oficiales.</p>
         <label>Jornada del tablero<select id="schedule-board-week" aria-label="Jornada del tablero"></select></label>
         <p id="schedule-board-message" class="form-message" role="status" aria-live="polite"></p>
         <div id="schedule-board-grid" class="schedule-board-scroll" tabindex="0" aria-label="Mapa de partidos por hora y campo"></div>
         <form id="schedule-board-edit" class="schedule-board-edit">
             <label>Partido<select name="game_id" required aria-label="Partido del tablero"></select></label>
             <label>Hora<input name="start_time" type="time" required aria-label="Hora de destino"></label>
+            <label>Fecha<input name="game_date" type="date" aria-label="Fecha de destino"></label>
+            <label>Sede<input name="venue" maxlength="120" aria-label="Sede de destino"></label>
             <label>Campo<select name="field_number" required aria-label="Campo de destino">
                 {% for field_number in range(1, 9) %}<option value="{{ field_number }}">Campo {{ field_number }}</option>{% endfor %}
             </select></label>
@@ -324,9 +336,9 @@
 
 {% block scripts %}
 <script src="/static/ocr_loader.js?v=20261004-1"></script>
-<script src="/static/api.js?v=20261023-3"></script>
+<script src="/static/api.js?v=20261104-1"></script>
 <script src="/static/schedule_ocr_cells.js?v=20261023-1"></script>
 <script src="/static/weekly_featured.js?v=20261019-1"></script>
-<script src="/static/games.js?v=20261023-2"></script>
-<script src="/static/schedule_board.js?v=20261023-1"></script>
+<script src="/static/games.js?v=20261104-1"></script>
+<script src="/static/schedule_board.js?v=20261104-1"></script>
 {% endblock %}

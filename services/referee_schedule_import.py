@@ -14,6 +14,7 @@ from services.referee_schedule_ocr import (
     _best_referee,
 )
 from services.team_matching import match_schedule_team, normalize_team_text
+from services.schedule_context import context_header, context_fields, parse_schedule_date, clean_venue, venue_key
 
 
 class RefereeScheduleImportError(Exception):
@@ -59,6 +60,10 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
             continue
 
         officials, unmatched_names = _match_officials(row["officials"], referees)
+        proposal_date = row.get("game_date") or game.get("game_date")
+        if row.get("date_required"):
+            warnings.append(f"{row['source_row']}: fecha inválida del archivo; " + (
+                "se conserva la fecha guardada del partido" if proposal_date else "complétala en la revisión"))
         if unmatched_names:
             warnings.append(
                 f"{row['source_row']}: no se pudo identificar de forma única a los oficiales "
@@ -74,6 +79,9 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
             "scheduled_time": row["start_time"].strftime("%H:%M"),
             "officials": officials,
             "source_text": row["source_text"],
+            **({"game_date": str(proposal_date) if proposal_date else None} if proposal_date or row.get("date_required") else {}),
+            **({"venue": row.get("venue") or game.get("venue")} if row.get("venue") or game.get("venue") else {}),
+            **({"date_required": True} if row.get("date_required") and not proposal_date else {}),
         })
 
     if not rows:
@@ -155,6 +163,8 @@ def _tabular_columns(matrix):
             }
             if any(column is not None for column in official_columns.values()):
                 columns["officials"] = official_columns
+                columns["game_date"] = next((normalized[name] for name in ("fecha", "date", "game_date") if name in normalized), None)
+                columns["venue"] = next((normalized[name] for name in ("sede", "venue") if name in normalized), None)
                 return index, columns
     return None, None
 
@@ -187,13 +197,18 @@ def _read_tabular_rows(matrix, header_index, columns, source_name, selected_week
         ]
         rows.append(_schedule_row(
             source_name, row_number, week, field_number, start_time,
-            home_team, away_team, officials,
+            home_team, away_team, officials, {
+                "game_date": parse_schedule_date(_cell_value(values, columns["game_date"])) if columns["game_date"] is not None else None,
+                "venue": clean_venue(_cell_value(values, columns["venue"])) if columns["venue"] is not None else None,
+                "date_required": bool(columns["game_date"] is not None and _cell(values, columns["game_date"]) and not parse_schedule_date(_cell_value(values, columns["game_date"]))),
+            },
         ))
     return rows
 
 
 def _read_grid_rows(matrix, source_name, selected_week=None):
     week = _week(source_name)
+    context = {}
     hour_column = None
     field_columns = {}
     pending_games = {}
@@ -204,6 +219,12 @@ def _read_grid_rows(matrix, source_name, selected_week=None):
         detected_week = next((_week(value) for value in texts if _week(value)), None)
         if detected_week is not None:
             week = detected_week
+            context = {}
+        detected_context = context_header(values, context)
+        if detected_context is not None:
+            context = detected_context
+            pending_games = {}
+            continue
 
         detected_hour = next(
             (index for index, value in enumerate(texts) if _normalize(value) == "hora"),
@@ -231,7 +252,7 @@ def _read_grid_rows(matrix, source_name, selected_week=None):
                 away_team = _cell(values, column + 1)
                 if home_team and away_team:
                     pending_games[column] = (
-                        field_number, start_time, home_team, away_team, row_number
+                        field_number, start_time, home_team, away_team, row_number, dict(context)
                     )
             continue
 
@@ -243,7 +264,7 @@ def _read_grid_rows(matrix, source_name, selected_week=None):
             ).strip()
             if "/" not in official_text:
                 continue
-            field_number, scheduled_time, home_team, away_team, game_row = game_data
+            field_number, scheduled_time, home_team, away_team, game_row, game_context = game_data
             segments = [segment.strip() for segment in official_text.split("/")]
             order = GRID_FIVE_POSITION_ORDER if len(segments) >= 5 else GRID_FOUR_POSITION_ORDER
             officials = [
@@ -253,13 +274,13 @@ def _read_grid_rows(matrix, source_name, selected_week=None):
             ]
             rows.append(_schedule_row(
                 source_name, game_row, week, field_number, scheduled_time,
-                home_team, away_team, officials,
+                home_team, away_team, officials, game_context,
             ))
             del pending_games[column]
     return rows
 
 
-def _schedule_row(source, row_number, week, field_number, start_time, home, away, officials):
+def _schedule_row(source, row_number, week, field_number, start_time, home, away, officials, context=None):
     names = " / ".join(name for _position, name in officials)
     return {
         "source_row": f"{source}!{row_number}",
@@ -272,6 +293,7 @@ def _schedule_row(source, row_number, week, field_number, start_time, home, away
         "source_text": (
             f"{source}!{row_number}: {home} vs {away} | {names}"
         ),
+        **context_fields(context or {}),
     }
 
 
@@ -291,9 +313,15 @@ def _match_game(row, games):
     for game in week_games:
         if {game["home_team"]["id"], game["away_team"]["id"]} != participant_ids:
             continue
+        if row.get("game_date") and game.get("game_date") and str(row["game_date"]) != str(game["game_date"]):
+            continue
+        if row.get("venue") and game.get("venue") and venue_key(row["venue"]) != venue_key(game["venue"]):
+            continue
         field_bonus = 0.35 if game.get("field_number") == row["field_number"] else 0
         time_bonus = 0.35 if _same_time(game.get("start_time"), row["start_time"]) else 0
-        candidates.append((field_bonus + time_bonus, game))
+        date_bonus = 2 if row.get("game_date") and str(row["game_date"]) == str(game.get("game_date")) else 0
+        venue_bonus = 1 if row.get("venue") and venue_key(row["venue"]) == venue_key(game.get("venue")) else 0
+        candidates.append((field_bonus + time_bonus + date_bonus + venue_bonus, game))
     candidates.sort(key=lambda candidate: candidate[0], reverse=True)
     if not candidates:
         return None

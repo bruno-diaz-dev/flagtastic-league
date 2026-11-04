@@ -20,6 +20,8 @@ function setup() {
         getTeams: pending, getAdminUsers: pending,
         escapeHtml: value => String(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
         divisionBranchLabel: branch => branch,
+        gameVenueKey: value => String(value || "").trim().toLowerCase(),
+        gameCalendarLabel: () => "", gameDateLabel: () => "",
         isUnifiedYouthCategory: c => ['u8', 'u10', 'u12'].includes(c)});
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/games.js'), 'utf8'), context);
     context.result = [];

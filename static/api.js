@@ -3,7 +3,7 @@
 function escapeHtml(value) {
     const element = document.createElement("div");
     element.textContent = String(value);
-    return element.innerHTML;
+    return element.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 async function getTeams() {
@@ -506,10 +506,19 @@ async function recoverAdminUserAccount(userId, email) {
     });
 }
 
-async function updateGameSchedule(gameId, startTime, fieldNumber = null) {
+async function updateGameSchedule(gameId, startTime, fieldNumber = null, metadata = {}) {
     return fetch(`/api/games/${gameId}/schedule`, {
         method: "PATCH",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({start_time: startTime, field_number: fieldNumber})
+        body: JSON.stringify({start_time: startTime, field_number: fieldNumber, ...metadata})
     });
 }
+
+function gameDateLabel(value) {
+    if (!value) return "Fecha por asignar";
+    const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+    return new Intl.DateTimeFormat("es-MX", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:"UTC"})
+        .format(new Date(Date.UTC(year, month - 1, day, 12)));
+}
+function gameVenueKey(value) { return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("es-MX"); }
+function gameCalendarLabel(game) { return `${gameDateLabel(game.game_date)} · ${game.venue || "Sede por asignar"}`; }

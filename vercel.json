@@ -16,6 +16,7 @@
       "collapse-referee-assignment-audit": true,
       "fix-live-friendly-finalization": true,
       "cancel-accidental-live-capture": true,
+      "game-dates-and-venues": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,

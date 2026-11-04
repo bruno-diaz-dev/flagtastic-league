@@ -185,5 +185,31 @@ const assert=require('node:assert/strict');
  assert.equal(imported.games[0].field_number,2);assert.equal(imported.games[0].start_time,'12:00');
  assert.equal('officials' in imported.games[0],false);
  assert.equal(ocrDownloads,1,'XLSX imports do not download an OCR reader');
+ // A bad date in a second block stays pending until the admin supplies it.
+ const calendarRows=[0,1,2].map(index=>({week:5,field_number:1,start_time:index===0?'20:15':index===1?'21:15':'11:00',
+  home_team:team.name,away_team:secondTeam.name,home_team_id:1,away_team_id:3,home_match_branch:'mixto',home_match_category:'libre',
+  ...(index<2?{game_date:'2026-11-04',venue:'Cuernos Largos',ready:true}:{venue:'Cd Industrial" onfocus="window.__calendarXss=1',date_required:true,ready:false})}));
+ await page.route('https://friendly.test/api/games/schedule/analyze',route=>route.fulfill({json:{matched:2,unmatched:1,selected_week:5,warnings:['Cd Industrial: fecha inválida'],proposals:calendarRows}}));
+ await imageForm.locator('[name=week_override]').fill('5');
+ await imageForm.locator('[name=file]').setInputFiles({name:'two-days.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('controlled calendar blocks')});
+ await imageForm.locator('button').click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-review-scope').textContent.includes('jornada 5'));
+ assert.equal(await page.locator('[data-schedule-row="2"]').isDisabled(),true);
+ assert.equal(await page.locator('[data-schedule-row]:checked').count(),2);
+ const venue=page.locator('[data-schedule-venue="2"]');
+ assert.equal(await venue.inputValue(),calendarRows[2].venue);assert.equal(await venue.getAttribute('onfocus'),null);
+ await venue.fill('Cd Industrial');assert.equal(await page.evaluate(()=>window.__calendarXss),undefined);
+ await page.locator('#game-schedule-fill-date').fill('2026-11-08');
+ await page.locator('#game-schedule-apply-date').click();
+ assert.equal(await page.locator('[data-schedule-date="0"]').inputValue(),'2026-11-04');
+ assert.equal(await page.locator('[data-schedule-date="1"]').inputValue(),'2026-11-04');
+ assert.equal(await page.locator('[data-schedule-date="2"]').inputValue(),'2026-11-08');
+ assert.equal(await page.locator('[data-schedule-row]:checked').count(),3);
+ assert.match(await page.locator('#game-schedule-selection-summary').textContent(),/3 de 3/);
+ for(const width of [1546,390,320]){await page.setViewportSize({width,height:960});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'calendar review '+width);}
+ await page.setViewportSize({width:1546,height:960});await page.locator('#game-schedule-review').screenshot({path:'/tmp/calendar-import-desktop.png'});
+ await page.locator('#confirm-game-schedule').click();
+ await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
+ assert.equal(imported.games.length,3);assert.equal(imported.games[0].game_date,'2026-11-04');assert.equal(imported.games[2].game_date,'2026-11-08');assert.equal(imported.games[2].venue,'Cd Industrial');
  assert.deepEqual(errors,[]);await browser.close();console.log('Friendly calendar, guest registration, reviewed import, lazy OCR and scoped game-only workbook imports verified in Chromium.');
 })().catch(error=>{console.error(error);process.exit(1);});

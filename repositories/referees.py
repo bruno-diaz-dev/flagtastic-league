@@ -18,6 +18,7 @@ def get_referee_assignment_audit():
         rows = connection.execute("""
             SELECT game_referees.user_id, game_referees.position, game_referees.assigned_at,
                    games.id, games.week, games.field_number, games.start_time, games.status,
+                   (to_jsonb(games)->>'game_date')::date AS game_date, to_jsonb(games)->>'venue' AS venue,
                    home.name AS home_team, away.name AS away_team
             FROM game_referees JOIN games ON games.id=game_referees.game_id
             JOIN teams home ON home.id=games.home_team_id
