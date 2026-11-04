@@ -1,12 +1,14 @@
-"""Read model for division standings calculated from completed games."""
+"""Division standings from completed games and explicit approved PF credits."""
 
 from database import get_connection
 from services.divisions import category_allows_cross_branch_games
+from services.standings_adjustments import apply_points_for_adjustments
 
 
 def get_standings(branch, category):
     """Calculate standings, combining all branches for U8 through U12."""
     connection = get_connection()
+    connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
 
     unified = category_allows_cross_branch_games(category)
     branch_filter = "" if unified else "teams.branch = %s AND"
@@ -84,9 +86,9 @@ def get_standings(branch, category):
         parameters
     ).fetchall()
 
-    connection.close()
-
     standings = [dict(row) for row in rows]
+    apply_points_for_adjustments(connection, standings, category)
+    connection.close()
 
     # Point difference is derived after aggregation to keep the SQL readable.
     for team in standings:
