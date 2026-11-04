@@ -28,7 +28,6 @@ const assignedReferees = document.querySelector("#assigned-referees");
 const scheduleImportForm = document.querySelector("#game-schedule-import-form");
 const scheduleImportMessage = document.querySelector("#game-schedule-import-message");
 const scheduleReview = document.querySelector("#game-schedule-review");
-const scheduleReviewHead = document.querySelector("#game-schedule-review-head");
 const scheduleReviewBody = document.querySelector("#game-schedule-review-body");
 const confirmScheduleButton = document.querySelector("#confirm-game-schedule");
 const scheduleConfirmMessage = document.querySelector("#game-schedule-confirm-message");
@@ -936,14 +935,33 @@ function refreshScheduleRow(index) {
     choice.disabled = !valid;
     if (!valid) choice.checked = false;
     else if (wasDisabled) choice.checked = true;
-    const status = choice.closest("tr").lastElementChild;
+    const card = choice.closest(".game-import-card");
+    const status = card.querySelector(".game-import-status");
     status.textContent = !dateValid ? "Completa la fecha inválida del archivo" : sameTeam ? "Selecciona dos equipos distintos" : valid ? "Listo" : home && away ? "Divisiones distintas: revisa el rol" : "Selecciona el equipo registrado o marca Amistoso si es invitado";
-    choice.closest("tr").classList.toggle("schedule-row-warning", !valid);
+    card.classList.toggle("is-pending", !valid);
+    if (sameTeam || (!friendly && !compatible)) card.querySelector("details").open = true;
     updateScheduleSelectionSummary();
     if (compatible && !friendly) {
         field("branch").value = home.branch;
         field("category").value = home.category;
     }
+    refreshScheduleCardSummary(index);
+}
+
+function refreshScheduleCardSummary(index) {
+    const card = scheduleReviewBody.querySelector(`[data-import-card="${index}"]`);
+    const field = name => card.querySelector(`[data-schedule-${name}="${index}"]`);
+    for (const side of ["home", "away"]) {
+        const team = gameTeamsState.find(team => String(team.id) === field(`${side}-id`).value);
+        card.querySelector(`[data-summary-${side}]`).textContent = team?.name || field(side).value.trim() || "Equipo pendiente";
+        const branch = team?.branch || field("branch").value;
+        const category = team?.category || field("category").value;
+        card.querySelector(`[data-summary-${side}-division]`).textContent = [branch ? divisionBranchLabel(branch, category) : "", category?.toUpperCase()].filter(Boolean).join(" · ") || "División pendiente";
+    }
+    card.querySelector("[data-summary-date]").textContent = field("date").value ? gameDateLabel(field("date").value) : "Fecha pendiente";
+    card.querySelector("[data-summary-venue]").textContent = field("venue").value.trim() || "Sede pendiente";
+    card.querySelector("[data-summary-time]").textContent = field("time").value || "Hora pendiente";
+    card.querySelector("[data-summary-kind]").textContent = field("friendly").checked ? "Amistoso" : "Oficial";
 }
 function setScheduleSaveProgress(state) {
     if (!scheduleSaveProgress) return;
@@ -965,29 +983,54 @@ function renderGameScheduleReview(result) {
         ? `Solo jornada ${result.selected_week}. Se importan partidos; las asignaciones arbitrales del archivo no se incluyen.`
         : "Revisa los partidos reconocidos. Las asignaciones arbitrales del archivo no se incluyen.";
     scheduleReview.classList.remove("hidden");
-    scheduleReviewHead.innerHTML = `<tr><th>Importar</th><th>Amistoso</th><th>Jornada</th><th>Campo</th><th>Hora</th><th>Fecha / Sede</th><th>Local</th><th>Visitante</th><th>Rama / Categoría</th><th>Estado</th></tr>`;
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
-        <tr class="${proposal.ready ? "" : "schedule-row-warning"}">
-            <td><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"} aria-label="Importar partido ${index + 1}"></td>
-            <td><input type="checkbox" data-schedule-friendly="${index}" aria-label="Amistoso ${index + 1}"></td>
-            <td>${proposal.week}</td><td>${proposal.field_number}</td>
-            <td><input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></td>
-            <td><div class="schedule-calendar-fields"><label>Fecha<input type="date" data-schedule-date="${index}" aria-label="Fecha del partido ${index + 1}" value="${escapeHtml(proposal.game_date || "")}" ${proposal.date_required ? "required" : ""}></label>
-                <label>Sede<input data-schedule-venue="${index}" aria-label="Sede del partido ${index + 1}" maxlength="120" value="${escapeHtml(proposal.venue || "")}"></label></div></td>
-            <td>${scheduleTeamControl(proposal, "home", index)}</td>
-            <td>${scheduleTeamControl(proposal, "away", index)}</td>
-            <td><div class="schedule-division-fields"><select data-schedule-branch="${index}" aria-label="Rama ${index + 1}">${scheduleDivisionOptions(["varonil","femenil","mixto"],proposal.suggested_branch || proposal.home_match_branch || proposal.away_match_branch)}</select>
-            <select data-schedule-category="${index}" aria-label="Categoría ${index + 1}">${scheduleDivisionOptions(["u6","u7","u8","u10","u12","u14","u16","u18","libre"],proposal.suggested_category || proposal.home_match_category || proposal.away_match_category)}</select></div></td>
-            <td>${proposal.ready ? "Listo" : "Selecciona el equipo registrado o marca Amistoso si es invitado"}</td>
-        </tr>`).join("");
+        <article class="game-import-card" data-import-card="${index}" aria-labelledby="import-game-${index}">
+            <header class="game-import-card-top">
+                <span>Jornada ${proposal.week} · Partido ${index + 1}</span>
+                <span class="game-import-kind" data-summary-kind>Oficial</span>
+            </header>
+            <h4 id="import-game-${index}" class="game-import-match">
+                <span><small>Local</small><span data-summary-home></span><small data-summary-home-division></small></span>
+                <span class="game-import-versus" aria-label="contra">vs</span>
+                <span><small>Visitante</small><span data-summary-away></span><small data-summary-away-division></small></span>
+            </h4>
+            <dl class="game-import-calendar">
+                <div><dt>Campo</dt><dd>Campo ${proposal.field_number}</dd></div>
+                <div><dt>Hora</dt><dd data-summary-time></dd></div>
+                <div><dt>Fecha</dt><dd data-summary-date></dd></div>
+                <div><dt>Sede</dt><dd data-summary-venue></dd></div>
+            </dl>
+            <div class="game-import-choices">
+                <label><input type="checkbox" data-schedule-row="${index}" ${proposal.ready ? "checked" : "disabled"} aria-label="Importar partido ${index + 1}">Importar</label>
+                <label><input type="checkbox" data-schedule-friendly="${index}" aria-label="Amistoso ${index + 1}">Amistoso</label>
+            </div>
+            <p class="game-import-status"></p>
+            <details class="game-import-editor">
+                <summary>Editar partido</summary>
+                <div class="game-import-editor-fields">
+                    <label>Hora<input type="time" data-schedule-time="${index}" aria-label="Hora del partido ${index + 1}" value="${escapeHtml(proposal.start_time || "")}" required></label>
+                    <label>Fecha<input type="date" data-schedule-date="${index}" aria-label="Fecha del partido ${index + 1}" value="${escapeHtml(proposal.game_date || "")}" ${proposal.date_required ? "required" : ""}></label>
+                    <label class="game-import-wide">Sede<input data-schedule-venue="${index}" aria-label="Sede del partido ${index + 1}" maxlength="120" value="${escapeHtml(proposal.venue || "")}"></label>
+                    <div class="game-import-team-editor game-import-wide"><span>Equipo local</span>${scheduleTeamControl(proposal, "home", index)}</div>
+                    <div class="game-import-team-editor game-import-wide"><span>Equipo visitante</span>${scheduleTeamControl(proposal, "away", index)}</div>
+                    <label>Rama<select data-schedule-branch="${index}" aria-label="Rama ${index + 1}">${scheduleDivisionOptions(["varonil","femenil","mixto"],proposal.suggested_branch || proposal.home_match_branch || proposal.away_match_branch)}</select></label>
+                    <label>Categoría<select data-schedule-category="${index}" aria-label="Categoría ${index + 1}">${scheduleDivisionOptions(["u6","u7","u8","u10","u12","u14","u16","u18","libre"],proposal.suggested_category || proposal.home_match_category || proposal.away_match_category)}</select></label>
+                </div>
+            </details>
+        </article>`).join("");
     result.proposals.forEach((_, index) => refreshScheduleRow(index));
     confirmScheduleButton.disabled = result.proposals.length === 0;
-    scheduleImportMessage.textContent = `${(result.warnings || []).join(" ")} ${result.matched} partido(s) listos y ${result.unmatched} fila(s) por revisar. Selecciona los equipos pendientes en cada fila. Usa Amistoso únicamente si el partido corresponde a invitados o divisiones distintas.`;
+    scheduleImportMessage.textContent = `${(result.warnings || []).join(" ")} ${result.matched} partido(s) listos y ${result.unmatched} partido(s) por revisar. Abre «Editar partido» para corregir los pendientes. Usa Amistoso únicamente si el partido corresponde a invitados o divisiones distintas.`;
 }
 scheduleReviewBody.addEventListener("change", event => {
-    const index = event.target.dataset.scheduleFriendly
-        ?? event.target.dataset.scheduleHomeId ?? event.target.dataset.scheduleAwayId ?? event.target.dataset.scheduleDate;
-    if (index !== undefined) refreshScheduleRow(index);
+    if (!scheduleImportState || gameScheduleSaving) return;
+    const index = Object.entries(event.target.dataset).find(([key]) => key.startsWith("schedule"))?.[1];
+    if (index !== undefined) refreshScheduleRow(Number(index));
+});
+scheduleReviewBody.addEventListener("input", event => {
+    if (!scheduleImportState || gameScheduleSaving) return;
+    const index = event.target.dataset.scheduleHome ?? event.target.dataset.scheduleAway ?? event.target.dataset.scheduleVenue;
+    if (index !== undefined) refreshScheduleCardSummary(Number(index));
 });
 
 
@@ -1110,13 +1153,18 @@ confirmScheduleButton?.addEventListener("click", async () => {
         scheduleReviewBody.querySelectorAll("input, select").forEach(control => {control.disabled = false;});
         confirmScheduleButton.textContent = originalLabel;
         confirmScheduleButton.removeAttribute("aria-busy");
+        if (scheduleImportState) scheduleImportState.proposals.forEach((_, index) => refreshScheduleRow(index));
         confirmScheduleButton.disabled = !scheduleImportState;
     }
 });
 
 function updateScheduleSelectionSummary() {
     const summary = document.querySelector("#game-schedule-selection-summary");
-    if (summary && scheduleImportState) summary.textContent = `Seleccionados ${scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked").length} de ${scheduleImportState.proposals.length} partidos. Las filas pendientes no se importarán.`;
+    if (!scheduleImportState) return;
+    const selected = scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked").length;
+    if (summary) summary.textContent = `Seleccionados ${selected} de ${scheduleImportState.proposals.length} partidos. Los pendientes no se importarán.`;
+    const count = document.querySelector("#game-schedule-confirm-count");
+    if (count) count.textContent = `${selected} de ${scheduleImportState.proposals.length} partidos seleccionados`;
 }
 document.querySelector("#game-schedule-apply-date")?.addEventListener("click", () => {
     const date = document.querySelector("#game-schedule-fill-date").value;

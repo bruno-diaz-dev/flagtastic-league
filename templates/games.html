@@ -2,7 +2,7 @@
 
 {% block content %}
 <link rel="stylesheet" href="/static/weekly_featured.css?v=20261019-1">
-<link rel="stylesheet" href="/static/game_calendar.css?v=20261104-1">
+<link rel="stylesheet" href="/static/game_calendar.css?v=20261104-2">
 <section class="league-page">
     <header class="section-header">
         <div>
@@ -149,23 +149,13 @@
                 <button id="game-schedule-apply-date" type="button" class="secondary-button">Completar fechas vacías</button>
             </div>
             <p id="game-schedule-selection-summary" class="form-help" role="status"></p>
-            <div class="users-table-wrapper">
-                <table class="standings-data-table schedule-import-table">
-                    <colgroup>
-                        <col class="schedule-col-check"><col class="schedule-col-check">
-                        <col class="schedule-col-number"><col class="schedule-col-number">
-                        <col class="schedule-col-time">
-                        <col class="schedule-col-calendar">
-                        <col class="schedule-col-team"><col class="schedule-col-team">
-                        <col class="schedule-col-division"><col class="schedule-col-status">
-                    </colgroup>
-                    <thead id="game-schedule-review-head"></thead>
-                    <tbody id="game-schedule-review-body"></tbody>
-                </table>
+            <div id="game-schedule-review-body" class="game-import-cards" aria-label="Partidos del archivo"></div>
+            <div class="game-import-confirm-bar">
+                <p id="game-schedule-confirm-count" class="form-help" aria-live="polite"></p>
+                <button id="confirm-game-schedule" type="button" data-primary-action>
+                    Confirmar importación
+                </button>
             </div>
-            <button id="confirm-game-schedule" type="button" data-primary-action>
-                Confirmar importación
-            </button>
         </div>
         <div id="game-schedule-save-progress" class="schedule-save-progress" role="progressbar" aria-label="Guardado de partidos" aria-valuemin="0" aria-valuemax="100" hidden><span class="schedule-save-progress-fill"></span></div>
         <p id="game-schedule-confirm-message" class="form-message" role="status" aria-live="polite"></p>
@@ -339,6 +329,6 @@
 <script src="/static/api.js?v=20261104-1"></script>
 <script src="/static/schedule_ocr_cells.js?v=20261023-1"></script>
 <script src="/static/weekly_featured.js?v=20261019-1"></script>
-<script src="/static/games.js?v=20261104-1"></script>
+<script src="/static/games.js?v=20261104-2"></script>
 <script src="/static/schedule_board.js?v=20261104-1"></script>
 {% endblock %}

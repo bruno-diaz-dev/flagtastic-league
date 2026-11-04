@@ -124,29 +124,47 @@ const assert=require('node:assert/strict');
  assert.equal(imported.games[0].away_team_id,3);
  assert.equal(imported.games[0].home_guest_name,null);
  assert.equal(imported.games[0].is_friendly,false);
- await page.evaluate(()=>renderGameScheduleReview({matched:1,unmatched:1,proposals:[
-  {week:3,field_number:1,start_time:'19:00',home_team:'Seleccion Aguascalientes',away_team:'Diablos del Sol',home_match_branch:'femenil',home_match_category:'libre',ready:true},
-  {week:3,field_number:7,start_time:'19:00',home_team:'Lobos del Norte',away_team:'Vikingos',home_match_branch:'varonil',home_match_category:'libre',ready:false}
- ]}));
- for(const width of [1920,1546,1280,390,320]) {
+ // Both sides and all calendar context must fit without horizontal scrolling.
+ const longHome='Selección Aguascalientes Femenil U18 Cuernos Largos';
+ const longAway='Diablos del Sol Tinto Femenil Libre';
+ await page.evaluate(({longHome,longAway})=>renderGameScheduleReview({matched:0,unmatched:2,proposals:[
+  {week:5,field_number:2,start_time:'16:00',game_date:'2026-11-07',venue:'Cd Industrial',home_team:longHome,away_team:longAway,home_match_branch:'femenil',home_match_category:'u18',ready:false},
+  {week:5,field_number:7,start_time:'19:00',home_team:'Lobos del Norte',away_team:'Vikingos',home_match_branch:'varonil',home_match_category:'libre',ready:false}
+ ]}),{longHome,longAway});
+ for(const width of [1920,1546,1280,820,390,320]) {
   await page.setViewportSize({width,height:960});
   const layout=await page.evaluate(()=>{
-   const row=document.querySelector('#game-schedule-review-body tr:last-child');
-   const home=row.querySelector('[data-schedule-home]').getBoundingClientRect();
-   const category=row.querySelector('[data-schedule-category]').getBoundingClientRect();
-   const status=row.lastElementChild;
-   const checkbox=row.querySelector('[type=checkbox]').getBoundingClientRect();
-   return {pageFits:document.documentElement.scrollWidth<=innerWidth,homeWidth:home.width,
-    headersFit:[...document.querySelectorAll("#game-schedule-review-head th")].every(th=>th.scrollWidth<=th.clientWidth),statusFits:status.scrollWidth<=status.clientWidth,categoryEnds:category.right,statusStarts:status.getBoundingClientRect().left,checkboxWidth:checkbox.width};
+   const review=document.querySelector('#game-schedule-review-body');
+   const cards=[...review.querySelectorAll('.game-import-card')];
+   const fits=el=>el.scrollWidth<=el.clientWidth+1;
+   const inside=(el,parent)=>{const r=el.getBoundingClientRect(),p=parent.getBoundingClientRect();return r.left>=p.left&&r.right<=p.right;};
+   return {pageFits:document.documentElement.scrollWidth<=innerWidth,reviewFits:fits(review),
+    cardsFit:cards.every(fits),namesFit:cards.every(card=>[...card.querySelectorAll('[data-summary-home],[data-summary-away]')].every(fits)),
+    fieldsFit:cards.every(card=>[...card.querySelectorAll('input,select')].filter(el=>!el.hidden).every(el=>inside(el,card))),
+    warningsFit:cards.every(card=>fits(card.querySelector('.game-import-status'))),
+    checkboxesFit:cards.every(card=>card.querySelector('[type=checkbox]').getBoundingClientRect().width<=20)};
   });
-  assert.equal(layout.pageFits,true,`review must scroll inside its container at ${width}`);
-  assert.ok(layout.homeWidth>=200,`readable team inputs at ${width}: ${layout.homeWidth}`);
-  assert.equal(layout.statusFits,true,`warning must wrap at ${width}`);
-  assert.equal(layout.headersFit,true,`headers must not overlap at ${width}`);
-  assert.ok(layout.categoryEnds<=layout.statusStarts,`category and warning overlap at ${width}`);
-  assert.ok(layout.checkboxWidth<=20,`compact checkbox at ${width}`);
-  if(width===1546)await page.locator('#game-schedule-review').screenshot({path:'desktop-schedule-review.png'});
+  for(const [key,value] of Object.entries(layout))assert.equal(value,true,`${key} at ${width}: ${JSON.stringify(layout)}`);
+  const first=page.locator('.game-import-card').first();
+  assert.equal(await first.locator('[data-summary-home]').textContent(),longHome);
+  assert.equal(await first.locator('[data-summary-away]').textContent(),longAway);
+  assert.match(await first.locator('.game-import-calendar').textContent(),/Campo 2.*16:00.*2026.*Cd Industrial/s);
+  if(width===1546)await page.locator('#game-schedule-review').screenshot({path:'/tmp/game-import-cards-desktop.png'});
+  if(width===390)await first.screenshot({path:'/tmp/game-import-cards-mobile.png'});
  }
+ // Editing always updates the visible names and calendar, including guest names.
+ await page.locator('[data-schedule-friendly="0"]').check();
+ await page.locator('[data-schedule-home="0"]').fill('Selección local corregida');
+ await page.locator('[data-schedule-time="0"]').fill('17:30');
+ await page.locator('[data-schedule-date="0"]').fill('2026-11-08');
+ await page.locator('[data-schedule-date="0"]').press('Tab');
+ await page.locator('[data-schedule-venue="0"]').fill('Cuernos Largos');
+ const edited=page.locator('.game-import-card').first();
+ assert.equal(await edited.locator('[data-summary-home]').textContent(),'Selección local corregida');
+ assert.equal(await edited.locator('[data-summary-time]').textContent(),'17:30');
+ assert.equal(await edited.locator('[data-summary-venue]').textContent(),'Cuernos Largos');
+ assert.match(await edited.locator('[data-summary-date]').textContent(),/8.*nov.*2026/);
+ assert.equal(await edited.locator('[data-summary-kind]').textContent(),'Amistoso');
  // Exercise the first image upload through the real form and lazy-loader entry point.
  assert.equal(ocrDownloads,0);assert.equal(await page.evaluate(()=>Boolean(window.Tesseract)),false);
  await page.evaluate(()=>{
@@ -194,8 +212,12 @@ const assert=require('node:assert/strict');
  await imageForm.locator('[name=file]').setInputFiles({name:'two-days.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from('controlled calendar blocks')});
  await imageForm.locator('button').click();
  await page.waitForFunction(()=>document.querySelector('#game-schedule-review-scope').textContent.includes('jornada 5'));
+ assert.equal(await page.locator('.game-import-editor').first().getAttribute('open'),null);
+ assert.equal(await page.locator('.game-import-card').first().locator('[data-summary-home]').textContent(),team.name);
  assert.equal(await page.locator('[data-schedule-row="2"]').isDisabled(),true);
  assert.equal(await page.locator('[data-schedule-row]:checked').count(),2);
+ assert.equal(await page.locator('.game-import-editor').nth(2).getAttribute('open'),null);
+ await page.locator('.game-import-editor').nth(2).locator('summary').click();
  const venue=page.locator('[data-schedule-venue="2"]');
  assert.equal(await venue.inputValue(),calendarRows[2].venue);assert.equal(await venue.getAttribute('onfocus'),null);
  await venue.fill('Cd Industrial');assert.equal(await page.evaluate(()=>window.__calendarXss),undefined);
@@ -207,7 +229,10 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('[data-schedule-row]:checked').count(),3);
  assert.match(await page.locator('#game-schedule-selection-summary').textContent(),/3 de 3/);
  for(const width of [1546,390,320]){await page.setViewportSize({width,height:960});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'calendar review '+width);}
- await page.setViewportSize({width:1546,height:960});await page.locator('#game-schedule-review').screenshot({path:'/tmp/calendar-import-desktop.png'});
+ await page.locator('.game-import-editor').nth(2).locator('summary').click();
+ await page.setViewportSize({width:1546,height:960});await page.locator('#game-schedule-review').screenshot({path:'/tmp/game-import-ready-desktop.png'});
+ await page.setViewportSize({width:390,height:844});await page.locator('.game-import-card').first().screenshot({path:'/tmp/game-import-ready-mobile.png'});
+ await page.setViewportSize({width:1546,height:960});
  await page.locator('#confirm-game-schedule').click();
  await page.waitForFunction(()=>document.querySelector('#game-schedule-import-message').textContent.includes('creados'));
  assert.equal(imported.games.length,3);assert.equal(imported.games[0].game_date,'2026-11-04');assert.equal(imported.games[2].game_date,'2026-11-08');assert.equal(imported.games[2].venue,'Cd Industrial');
