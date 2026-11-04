@@ -205,10 +205,24 @@ class GameCreate(BaseModel):
     week: int = Field(default=1, gt=0)
     field_number: int = Field(ge=1, le=8)
     start_time: time | None = None
+    game_date: date | None = None
+    venue: str | None = Field(default=None, max_length=120)
+
+    @field_validator("venue")
+    @classmethod
+    def normalize_venue(cls, value):
+        return " ".join(value.split()) or None if value is not None else None
 
 class GameScheduleUpdate(BaseModel):
     """Change a fixture's scheduled time without replacing its identity."""
     start_time: time
+    game_date: date | None = None
+    venue: str | None = Field(default=None, max_length=120)
+
+    @field_validator("venue")
+    @classmethod
+    def normalize_venue(cls, value):
+        return " ".join(value.split()) or None if value is not None else None
     field_number: int | None = Field(default=None, ge=1, le=8)
 
     @field_validator("start_time")
@@ -481,7 +495,14 @@ class RefereeScheduleAssignment(BaseModel):
     game_id: int = Field(gt=0)
     field_number: int = Field(ge=1, le=8)
     scheduled_time: time | None = None
+    game_date: date | None = None
+    venue: str | None = Field(default=None, max_length=120)
     officials: list[GameOfficialAssignment] = Field(default_factory=list)
+
+    @field_validator("venue")
+    @classmethod
+    def normalize_venue(cls, value):
+        return " ".join(value.split()) or None if value is not None else None
 
 
 class RefereeScheduleConfirmation(BaseModel):

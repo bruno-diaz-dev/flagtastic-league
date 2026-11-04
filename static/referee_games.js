@@ -73,7 +73,7 @@ function refereeGameCard(game) {
                     <span class="matchup-versus">vs</span>
                     <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
                 </h4>
-                <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
+                <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.game_date || game.venue ? escapeHtml(gameCalendarLabel(game)) + " · " : ""}${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
                 <p>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
                 <div class="game-crew" aria-label="Planilla arbitral del partido">
                     <strong>Planilla arbitral</strong>
@@ -281,12 +281,13 @@ function renderScheduleReview(result) {
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => {
         const week = result.selected_week || proposal.game_label.match(/^J(\d+):/)?.[1];
         const label = proposal.game_label.replace(/^J\d+:\s*/, "");
-        return `<article class="schedule-review-card" data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}" aria-labelledby="schedule-match-${index}">
+        return `<article class="schedule-review-card" data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}" data-has-calendar="${Object.hasOwn(proposal,"game_date") || Object.hasOwn(proposal,"venue")}" aria-labelledby="schedule-match-${index}">
             <header class="schedule-review-card-header">
                 <div class="schedule-review-match">
                     <p class="schedule-review-meta">${week ? `Jornada ${escapeHtml(week)} · ` : ""}<span class="schedule-review-time">${proposal.scheduled_time ? `${escapeHtml(proposal.scheduled_time.slice(0, 5))} h` : "Hora por asignar"}</span></p>
                     <h4 id="schedule-match-${index}">${escapeHtml(label)}</h4>
                 </div>
+                <div class="schedule-review-calendar"><label>Fecha<input name="game_date" type="date" value="${escapeHtml(proposal.game_date || "")}" ${proposal.date_required ? "required" : ""}></label><label>Sede<input name="venue" maxlength="120" value="${escapeHtml(proposal.venue || "")}"></label></div>
                 <label class="schedule-review-field">Campo de asignación
                 <select name="field_number" aria-label="Campo para ${escapeHtml(label)}">
                     ${Array.from({length: 8}, (_, index) => index + 1).map((number) =>
@@ -379,10 +380,17 @@ scheduleForm?.addEventListener("submit", async (event) => {
 confirmScheduleButton?.addEventListener("click", async () => {
     if (confirmScheduleButton.disabled) return;
     confirmScheduleButton.disabled = true;
+    if ([...scheduleReviewBody.querySelectorAll('input[required]')].some(input => !input.reportValidity())) {
+        setOfficialConfirmMessage("Completa la fecha inválida del archivo antes de confirmar.");
+        confirmScheduleButton.disabled = false;
+        return;
+    }
     const assignments = [...scheduleReviewBody.querySelectorAll(".schedule-review-card")].map((row) => ({
         game_id: Number(row.dataset.gameId),
         field_number: Number(row.querySelector("[name='field_number']").value),
         scheduled_time: row.dataset.scheduledTime || null,
+        ...((row.dataset.hasCalendar === "true" || row.querySelector('[name="game_date"]').value || row.querySelector('[name="venue"]').value)
+            ? {game_date:row.querySelector('[name="game_date"]').value || null,venue:row.querySelector('[name="venue"]').value.trim() || null}:{}),
         officials: [...row.querySelectorAll("[data-position]")]
             .filter((select) => select.value)
             .map((select) => ({

@@ -29,7 +29,7 @@ function renderRefereeAssignments() {
             <span class="referee-audit-total">${person.games.length} ${person.games.length===1?'juego':'juegos'}</span></summary>
         <div class="referee-audit-games">${person.games.length ? person.games.map(game=>`<article>
             <div><p class="referee-audit-slot">J${game.week} · ${game.start_time ? escapeHtml(game.start_time.slice(0,5))+' h' : 'Hora por asignar'} · ${game.field_number ? `Campo ${game.field_number}`:'Campo por asignar'}</p>
-                <h4>${escapeHtml(game.home_team)} vs ${escapeHtml(game.away_team)}</h4>
+                ${game.game_date || game.venue ? `<p>${escapeHtml(gameCalendarLabel(game))}</p>` : ""}<h4>${escapeHtml(game.home_team)} vs ${escapeHtml(game.away_team)}</h4>
                 <p>${escapeHtml(auditPositionLabels[game.position] || game.position)} · ${escapeHtml(auditStatusLabels[game.status] || game.status)}</p></div>
             <a href="/games/${game.id}" class="secondary-button">Abrir partido</a></article>`).join('') : '<p>Sin juegos asignados en esta consulta.</p>'}</div>
         </details>`).join('') || '<p>No se encontraron cuentas con esa búsqueda.</p>';

@@ -23,6 +23,7 @@ from repositories.games import (
     get_game_referees,
     get_games_for_referee,
     get_games,
+    get_calendar_capabilities,
     import_game_schedule,
     remove_referee,
     update_game_score,
@@ -39,6 +40,7 @@ from dependencies.auth import (
     user_has_role
 )
 from repositories.referees import get_referee_match_candidates
+from services.schedule_context import venue_key
 from repositories.users import get_user_by_id
 from repositories.statistics import get_game_statistics
 from repositories.teams import get_represented_team_ids
@@ -89,6 +91,14 @@ def list_games(response: Response):
     response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=15"
     return get_games()
+
+
+@router.get("/calendar-capabilities")
+def calendar_capabilities(response: Response):
+    """Let clients distinguish deployed controls from an activated calendar."""
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Vercel-CDN-Cache-Control"] = "no-store"
+    return get_calendar_capabilities()
 
 
 @router.post("/schedule/analyze")
@@ -164,7 +174,7 @@ def confirm_game_schedule(
         for team_id in (game.home_team_id, game.away_team_id):
             if team_id and get_team_by_id(team_id) is None:
                 raise HTTPException(status_code=404, detail="Equipo no encontrado")
-        slot = (game.week, game.field_number, game.start_time)
+        slot = (game.week, game.game_date, venue_key(game.venue), game.field_number, game.start_time)
         if slot in slots:
             raise HTTPException(status_code=409, detail="El rol contiene dos partidos en el mismo horario y campo")
         slots.add(slot)
@@ -282,6 +292,8 @@ def confirm_referee_schedule(
             raise HTTPException(status_code=409, detail="El usuario no es arbitro")
     try:
         result = apply_referee_schedule(confirmation.assignments, admin["id"])
+    except ScheduleConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     return result
@@ -367,7 +379,8 @@ def change_game_schedule(
 ):
     """Edit an existing fixture's time/field and retain its assigned crew."""
     try:
-        game = update_game_schedule(game_id, change.start_time, change.field_number)
+        metadata = {key: getattr(change, key) for key in ("game_date", "venue") if key in change.model_fields_set}
+        game = update_game_schedule(game_id, change.start_time, change.field_number, **metadata)
     except GameStateConflictError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     if game is None:

@@ -18,16 +18,12 @@ function populateBoardDestination() {
     const game = boardSelectedGame();
     boardForm.elements.start_time.value = game?.start_time?.slice(0, 5) || '';
     boardForm.elements.field_number.value = String(game?.field_number || 1);
+    boardForm.elements.game_date.value = game?.game_date || "";
+    boardForm.elements.venue.value = game?.venue || "";
     loadBoardOfficials();
 }
-function renderScheduleBoard() {
-    if (!scheduleBoard) return;
-    const weeks = [...new Set(gamesState.map(game => game.week))].sort((a, b) => a - b);
-    const chosenWeek = Number(boardWeek.value);
-    const initialWeek = weeks.find(week => gamesState.some(game => game.week === week && boardGameEditable(game))) || weeks[0];
-    boardWeek.innerHTML = weeks.map(week => `<option value="${week}">Jornada ${week}</option>`).join('');
-    boardWeek.value = String(weeks.includes(chosenWeek) ? chosenWeek : initialWeek || '');
-    const games = gamesState.filter(game => String(game.week) === boardWeek.value);
+function renderBoardGroup(games) {
+    const first = games[0];
     const hours = games.filter(game => game.start_time).map(game => Number(game.start_time.slice(0, 2)));
     const firstHour = hours.length ? Math.max(0, Math.min(...hours) - 1) : 8;
     const lastHour = hours.length ? Math.min(23, Math.max(...hours) + 2) : 22;
@@ -36,24 +32,40 @@ function renderScheduleBoard() {
     const card = game => `<button type="button" class="schedule-board-card ${game.status === 'postponed' ? 'is-postponed' : ''}" data-board-game="${game.id}" draggable="${boardGameEditable(game) && !boardSaving && !boardCrewSaving}" ${!boardGameEditable(game) || boardSaving || boardCrewSaving ? 'disabled' : ''} aria-label="Administrar ${escapeHtml(gameLabel(game))}">
         <strong>${escapeHtml(game.home_team.name)}</strong><span>vs ${escapeHtml(game.away_team.name)}</span>
         <small>${escapeHtml(game.home_team.category.toUpperCase())} · ${escapeHtml(game.home_team.branch)}${game.is_friendly ? ' · Amistoso' : ''}${game.status === 'postponed' ? ' · Pospuesto' : ''}${!boardGameEditable(game) ? ' · Finalizado' : ''}</small></button>`;
-    boardGrid.innerHTML = !games.length ? '<p>No hay partidos en esta jornada.</p>' : `<table class="schedule-board-table"><thead><tr><th scope="col">Hora</th>${Array.from({length: 8}, (_, i) => `<th scope="col">Campo ${i + 1}</th>`).join('')}</tr></thead><tbody>${[...times].sort().map(time => `<tr><th scope="row">${time}</th>${Array.from({length: 8}, (_, i) => `<td data-board-time="${time}" data-board-field="${i + 1}" aria-label="${time}, campo ${i + 1}">${games.filter(game => game.field_number === i + 1 && game.start_time?.slice(0, 5) === time).map(card).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-    const unscheduled = games.filter(game => !game.start_time);
-    if (unscheduled.length) boardGrid.insertAdjacentHTML('beforeend', `<div class="schedule-board-unscheduled"><strong>Sin horario</strong>${unscheduled.map(card).join('')}</div>`);
-    const selectedId = boardForm.elements.game_id.value;
-    const editable = games.filter(boardGameEditable);
-    boardForm.elements.game_id.innerHTML = editable.map(game => `<option value="${game.id}">${escapeHtml(gameLabel(game))} · ${gameTime(game)} · Campo ${game.field_number}</option>`).join('');
-    if (editable.some(game => String(game.id) === selectedId)) boardForm.elements.game_id.value = selectedId;
-    boardForm.querySelectorAll('input, select, button').forEach(control => {control.disabled = boardSaving || boardCrewSaving || !editable.length;});
-    boardWeek.disabled = boardSaving || boardCrewSaving || !weeks.length;
+    const date = escapeHtml(first.game_date || ''), venue = escapeHtml(first.venue || '');
+    const table = `<table class="schedule-board-table"><thead><tr><th scope="col">Hora</th>${Array.from({length:8},(_,i)=>`<th scope="col">Campo ${i+1}</th>`).join('')}</tr></thead><tbody>${[...times].sort().map(time=>`<tr><th scope="row">${time}</th>${Array.from({length:8},(_,i)=>`<td data-board-time="${time}" data-board-field="${i+1}" data-board-date="${date}" data-board-venue="${venue}" aria-label="${time}, campo ${i+1}, ${escapeHtml(gameCalendarLabel(first))}">${games.filter(game=>game.field_number===i+1&&game.start_time?.slice(0,5)===time).map(card).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const unscheduled = games.filter(game=>!game.start_time);
+    return `<section class="schedule-board-group" data-board-group-date="${date}" data-board-group-venue="${venue}"><h4>${escapeHtml(gameCalendarLabel(first))}</h4>${table}${unscheduled.length?`<div class="schedule-board-unscheduled"><strong>Sin horario</strong>${unscheduled.map(card).join('')}</div>`:''}</section>`;
+}
+function renderScheduleBoard() {
+    if (!scheduleBoard) return;
+    const weeks = [...new Set(gamesState.map(game=>game.week))].sort((a,b)=>a-b);
+    const chosenWeek = Number(boardWeek.value);
+    const initialWeek = weeks.find(week=>gamesState.some(game=>game.week===week&&boardGameEditable(game)))||weeks[0];
+    boardWeek.innerHTML = weeks.map(week=>`<option value="${week}">Jornada ${week}</option>`).join('');
+    boardWeek.value = String(weeks.includes(chosenWeek)?chosenWeek:initialWeek||'');
+    const games = gamesState.filter(game=>String(game.week)===boardWeek.value).sort(compareGames);
+    const groups = new Map();
+    games.forEach(game=>{const key=JSON.stringify([game.game_date||'',gameVenueKey(game.venue)]);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(game);});
+    boardGrid.innerHTML = games.length?[...groups.values()].map(renderBoardGroup).join(''):'<p>No hay partidos en esta jornada.</p>';
+    const selectedId = boardForm.elements.game_id.value, editable = games.filter(boardGameEditable);
+    boardForm.elements.game_id.innerHTML = editable.map(game=>`<option value="${game.id}">${escapeHtml(gameLabel(game))} · ${escapeHtml(gameCalendarLabel(game))} · ${gameTime(game)} · Campo ${game.field_number}</option>`).join('');
+    if(editable.some(game=>String(game.id)===selectedId))boardForm.elements.game_id.value=selectedId;
+    boardForm.querySelectorAll('input, select, button').forEach(control=>{control.disabled=boardSaving||boardCrewSaving||!editable.length;});
+    boardWeek.disabled=boardSaving||boardCrewSaving||!weeks.length;
     populateBoardDestination();
 }
-async function saveBoardMove(gameId, time, field) {
+async function saveBoardMove(gameId, time, field, metadata = null) {
     if (boardSaving || boardCrewSaving) return;
     const game = gamesState.find(game => game.id === gameId && String(game.week) === boardWeek.value);
     if (!game || !boardGameEditable(game)) return;
+    metadata = metadata || {};
+    const targetDate = Object.hasOwn(metadata, 'game_date') ? metadata.game_date : (game.game_date || null);
+    const targetVenue = Object.hasOwn(metadata, 'venue') ? metadata.venue : (game.venue || null);
     if (gamesState.some(other => other.id !== gameId && other.week === game.week
+        && (other.game_date || null) === targetDate && gameVenueKey(other.venue) === gameVenueKey(targetVenue)
         && other.field_number === field && other.start_time?.slice(0, 5) === time)) {
-        boardMessage.textContent = 'Ese campo ya tiene otro partido en la misma jornada y hora. Elige un espacio libre.';
+        boardMessage.textContent = 'Ese campo ya tiene otro partido en la misma fecha, sede y hora. Elige un espacio libre.';
         return;
     }
     boardSaving = true;
@@ -63,7 +75,7 @@ async function saveBoardMove(gameId, time, field) {
     boardForm.querySelectorAll('input, select, button').forEach(control => {control.disabled = true;});
     boardWeek.disabled = true;
     try {
-        const response = await updateGameSchedule(gameId, time, field);
+        const response = await updateGameSchedule(gameId, time, field, metadata);
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
             const detail = Array.isArray(body.detail) ? body.detail.map(error => error.msg).join('. ') : body.detail;
@@ -71,8 +83,8 @@ async function saveBoardMove(gameId, time, field) {
             return;
         }
         gamesState = gamesState.map(current => current.id === body.id
-            ? {...current, start_time: body.start_time, field_number: body.field_number} : current);
-        boardMessage.textContent = `Cambio guardado: ${body.start_time.slice(0, 5)}, campo ${body.field_number}. Se conservan los oficiales.`;
+            ? {...current, ...body} : current);
+        boardMessage.textContent = `Cambio guardado: ${gameCalendarLabel({...game,...body})} · ${body.start_time.slice(0, 5)}, campo ${body.field_number}. Se conservan los oficiales.`;
         renderFilteredGames();
     } catch (error) {
         boardMessage.textContent = 'No se pudo confirmar el cambio. Revisa el rol antes de reintentar.';
@@ -87,8 +99,13 @@ boardWeek?.addEventListener('change', () => {boardMessage.textContent = ''; rend
 boardForm?.elements.game_id.addEventListener('change', populateBoardDestination);
 boardForm?.addEventListener('submit', event => {
     event.preventDefault();
+    const game = boardSelectedGame(), metadata = {};
+    for (const key of ['game_date','venue']) {
+        const value = boardForm.elements[key].value || null;
+        if (value || Object.hasOwn(game || {},key)) metadata[key]=value;
+    }
     saveBoardMove(Number(boardForm.elements.game_id.value), boardForm.elements.start_time.value,
-        Number(boardForm.elements.field_number.value));
+        Number(boardForm.elements.field_number.value), metadata);
 });
 boardGrid?.addEventListener('click', event => {
     const card = event.target.closest('[data-board-game]');
@@ -123,8 +140,11 @@ boardGrid?.addEventListener('drop', event => {
     const cell = event.target.closest('[data-board-time]');
     if (!cell || boardSaving || boardCrewSaving) return;
     event.preventDefault();
-    saveBoardMove(Number(event.dataTransfer.getData('application/x-flagtastic-game')),
-        cell.dataset.boardTime, Number(cell.dataset.boardField));
+    const id = Number(event.dataTransfer.getData('application/x-flagtastic-game'));
+    const game = gamesState.find(item=>item.id===id), metadata = {};
+    if (cell.dataset.boardDate || Object.hasOwn(game || {},'game_date')) metadata.game_date=cell.dataset.boardDate||null;
+    if (cell.dataset.boardVenue || Object.hasOwn(game || {},'venue')) metadata.venue=cell.dataset.boardVenue||null;
+    saveBoardMove(id, cell.dataset.boardTime, Number(cell.dataset.boardField), metadata);
 });
 
 
@@ -159,7 +179,7 @@ async function loadBoardOfficials(force = false) {
         return;
     }
     boardCrewPanel.classList.remove('hidden');
-    boardCrewGameLabel.textContent = gameLabel(game);
+    boardCrewGameLabel.textContent = `${gameLabel(game)} · ${gameCalendarLabel(game)} · ${gameTime(game)} · Campo ${game.field_number}`;
     if (!force && boardCrewLoadedId === game.id) return;
     const request = ++boardCrewRequest;
     boardCrewLoadedId = game.id;
