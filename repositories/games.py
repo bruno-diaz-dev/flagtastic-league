@@ -675,6 +675,9 @@ def apply_referee_schedule(assignments, assigned_by):
             game = connection.execute(f"SELECT games.*, {CALENDAR_COLUMNS} FROM games WHERE id=%s FOR UPDATE", (assignment.game_id,)).fetchone()
             if game is None:
                 raise ValueError(f"No existe el partido {assignment.game_id}")
+            positions = {official.position for official in assignment.officials}
+            if not game['is_friendly'] and not {'referee', 'down_judge'}.issubset(positions):
+                raise ScheduleConflictError("Referee y Down Judge son obligatorios")
             wanted_time = assignment.scheduled_time or game['start_time']
             wanted_date = assignment.game_date if 'game_date' in assignment.model_fields_set else game.get('game_date')
             wanted_venue = assignment.venue if 'venue' in assignment.model_fields_set else game.get('venue')

@@ -297,6 +297,7 @@ def _parse_grid_schedule(image, raw_text, games, referees, warnings=None):
                 })
             proposal = {
                 "game_id": game["id"],
+                "is_friendly": bool(game.get("is_friendly")),
                 "game_label": (
                     f"J{game['week']}: {game['home_team']['name']} vs "
                     f"{game['away_team']['name']}"
@@ -393,6 +394,7 @@ def parse_referee_schedule_image(content, games, referees):
             })
         proposals.append({
             "game_id": matched_game["id"],
+            "is_friendly": bool(matched_game.get("is_friendly")),
             "game_label": (
                 f"J{matched_game['week']}: "
                 f"{matched_game['home_team']['name']} vs "

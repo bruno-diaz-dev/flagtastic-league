@@ -15,7 +15,7 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
         {game_id:84,game_label:'J4: Sel AGS Var U17 vs Sel AGS Var U15',field_number:1,scheduled_time:'11:00'},
         {game_id:85,game_label:'J4: RANCHEROS INFANTIL A.C. vs DIABLOS DEL SOL TINTO',field_number:4,scheduled_time:'15:00'},
         {game_id:86,game_label:'J4: Eagles Flag vs Nómadas',field_number:7,scheduled_time:'19:00'}
-    ].map(proposal=>({...proposal,source_text:`Semana 4!4: ${proposal.game_label} | Cam / Alan`,
+    ].map(proposal=>({...proposal,is_friendly:proposal.game_id===84,source_text:`Semana 4!4: ${proposal.game_label} | Cam / Alan`,
         officials:[{user_id:11,position:'referee'},{user_id:12,position:'down_judge'}]}));
     await page.route('https://import.test/**',async route=>{
         const path=new URL(route.request().url()).pathname;
@@ -72,6 +72,18 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
     assert.equal(await page.locator('#schedule-review').isVisible(),false);
     await form.locator('[name=week]').fill('4');await form.locator('button').click();
     await cards.nth(1).locator('[name=field_number]').selectOption('8');
+    assert.match(await cards.first().locator('.schedule-review-meta').textContent(),/Amistoso/);
+    assert.equal(await cards.first().locator('[data-position][required]').count(),0);
+    assert.equal(await cards.nth(1).locator('[data-position][required]').count(),2);
+    // A mixed review still blocks a missing core official on an official game.
+    await cards.nth(1).locator('[data-position="referee"]').selectOption('');
+    await page.locator('#confirm-schedule').click();
+    assert.equal(confirmed,null);
+    assert.match(await page.locator('#official-schedule-confirm-message').textContent(),/partidos oficiales/);
+    await cards.nth(1).locator('[data-position="referee"]').selectOption('11');
+    // An empty friendly crew must not block the valid official assignments.
+    await cards.first().locator('[data-position="referee"]').selectOption('');
+    await cards.first().locator('[data-position="down_judge"]').selectOption('');
     await page.locator('#confirm-schedule').click();
     await page.waitForFunction(()=>document.querySelector('#confirm-schedule').hasAttribute('aria-busy'));
     assert.equal(await cards.first().locator('[name=field_number]').isDisabled(),true);
@@ -80,7 +92,8 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
     await page.waitForFunction(()=>document.querySelector('#official-schedule-confirm-message').textContent.includes('actualizado'));
     assert.deepEqual(confirmed.assignments.map(assignment=>[assignment.game_id,assignment.field_number,assignment.scheduled_time]),
         [[84,1,'11:00'],[85,8,'15:00'],[86,7,'19:00']]);
-    assert.deepEqual(confirmed.assignments[0].officials,[{user_id:11,position:'referee'},{user_id:12,position:'down_judge'}]);
+    assert.deepEqual(confirmed.assignments[0].officials,[]);
+    assert.deepEqual(confirmed.assignments[1].officials,[{user_id:11,position:'referee'},{user_id:12,position:'down_judge'}]);
     assert.deepEqual(errors,[]);await browser.close();
     console.log('Referee import: original file and selected week, explicit scope, invalidation and confirmation verified.');
 })().catch(error=>{console.error(error);process.exit(1);});

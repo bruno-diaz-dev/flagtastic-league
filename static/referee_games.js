@@ -237,11 +237,13 @@ async function loadRefereeGames() {
 }
 
 
-function officialSelects(selectedOfficials) {
+function officialSelects(selectedOfficials, isFriendly = false) {
     const selectedByPosition = new Map(
         selectedOfficials.map((official) => [official.position, official.user_id])
     );
-    return officialPositions.map(([position, label, required]) => `
+    return officialPositions.map(([position, label, officialRequired]) => {
+        const required = officialRequired && !isFriendly;
+        return `
         <label class="schedule-official-slot">
             ${label}${required ? " *" : ""}
             <select data-position="${position}" ${required ? "required" : ""}>
@@ -252,7 +254,8 @@ function officialSelects(selectedOfficials) {
                     </option>`).join("")}
             </select>
         </label>
-    `).join("");
+    `;
+    }).join("");
 }
 
 
@@ -284,7 +287,7 @@ function renderScheduleReview(result) {
         return `<article class="schedule-review-card" data-game-id="${proposal.game_id}" data-scheduled-time="${proposal.scheduled_time || ""}" data-has-calendar="${Object.hasOwn(proposal,"game_date") || Object.hasOwn(proposal,"venue")}" aria-labelledby="schedule-match-${index}">
             <header class="schedule-review-card-header">
                 <div class="schedule-review-match">
-                    <p class="schedule-review-meta">${week ? `Jornada ${escapeHtml(week)} · ` : ""}<span class="schedule-review-time">${proposal.scheduled_time ? `${escapeHtml(proposal.scheduled_time.slice(0, 5))} h` : "Hora por asignar"}</span></p>
+                    <p class="schedule-review-meta">${week ? `Jornada ${escapeHtml(week)} · ` : ""}<span class="schedule-review-time">${proposal.scheduled_time ? `${escapeHtml(proposal.scheduled_time.slice(0, 5))} h` : "Hora por asignar"}</span>${proposal.is_friendly ? " · Amistoso" : ""}</p>
                     <h4 id="schedule-match-${index}">${escapeHtml(label)}</h4>
                 </div>
                 <div class="schedule-review-calendar"><label>Fecha<input name="game_date" type="date" value="${escapeHtml(proposal.game_date || "")}" ${proposal.date_required ? "required" : ""}></label><label>Sede<input name="venue" maxlength="120" value="${escapeHtml(proposal.venue || "")}"></label></div>
@@ -296,7 +299,7 @@ function renderScheduleReview(result) {
                 </select>
                 </label>
             </header>
-            <div class="schedule-referees" role="group" aria-label="Planilla para ${escapeHtml(label)}">${officialSelects(proposal.officials || [])}</div>
+            <div class="schedule-referees" role="group" aria-label="Planilla para ${escapeHtml(label)}">${officialSelects(proposal.officials || [], proposal.is_friendly === true)}</div>
             <details class="schedule-review-source"><summary>Ver texto del archivo</summary><p>${escapeHtml(proposal.source_text || "")}</p></details>
         </article>`;
     }).join("");
@@ -382,6 +385,11 @@ confirmScheduleButton?.addEventListener("click", async () => {
     confirmScheduleButton.disabled = true;
     if ([...scheduleReviewBody.querySelectorAll('input[required]')].some(input => !input.reportValidity())) {
         setOfficialConfirmMessage("Completa la fecha inválida del archivo antes de confirmar.");
+        confirmScheduleButton.disabled = false;
+        return;
+    }
+    if ([...scheduleReviewBody.querySelectorAll('select[data-position][required]')].some(select => !select.reportValidity())) {
+        setOfficialConfirmMessage("Referee y Down Judge son obligatorios en los partidos oficiales.");
         confirmScheduleButton.disabled = false;
         return;
     }
