@@ -2,6 +2,8 @@
 
 from io import BytesIO
 
+import pytest
+
 from PIL import Image
 
 from services.referee_schedule_ocr import _best_referee, _grid_row_time, parse_referee_schedule_image
@@ -63,7 +65,8 @@ def test_grid_time_uses_printed_hour_instead_of_row_position():
     assert _grid_row_time(words, 300, 400, 50) is None
 
 
-def test_schedule_ocr_matches_game_referee_and_field(monkeypatch):
+@pytest.mark.parametrize("is_friendly", [False, True])
+def test_schedule_ocr_matches_game_referee_and_field(monkeypatch, is_friendly):
     image = Image.new("RGB", (40, 40), "white")
     content = BytesIO()
     image.save(content, format="PNG")
@@ -74,6 +77,7 @@ def test_schedule_ocr_matches_game_referee_and_field(monkeypatch):
     games = [{
         "id": 44,
         "week": 3,
+        "is_friendly": is_friendly,
         "home_team": {"name": "Tigres"},
         "away_team": {"name": "Ravens"}
     }]
@@ -83,6 +87,7 @@ def test_schedule_ocr_matches_game_referee_and_field(monkeypatch):
 
     assert parsed["proposals"] == [{
         "game_id": 44,
+        "is_friendly": is_friendly,
         "game_label": "J3: Tigres vs Ravens",
         "field_number": 5,
         "officials": [{

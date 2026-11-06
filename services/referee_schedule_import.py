@@ -71,6 +71,7 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
             )
         proposals.append({
             "game_id": game["id"],
+            "is_friendly": bool(game.get("is_friendly")),
             "game_label": (
                 f"J{game['week']}: {game['home_team']['name']} vs "
                 f"{game['away_team']['name']}"

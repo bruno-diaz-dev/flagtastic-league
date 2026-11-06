@@ -96,3 +96,14 @@ independently using existing admin assignment endpoints; selecting “Sin asigna
 and saving removes that assignment. Existing crew values are loaded, duplicate
 people are rejected, and “Actualizar lista” refreshes active referee accounts.
 Stale crew responses cannot overwrite the editor after selecting another game.
+
+## Friendly referee crews
+
+The referee import review identifies friendlies from the stored game, for images
+as well as XLSX/CSV. All five crew slots are optional on those games, including
+Referee and Down Judge. Official games still require both core positions. The
+server enforces this using the locked database row when confirming the batch,
+regardless of fields supplied by the browser. A mixed batch is saved atomically.
+Missing slots do not remove previous assignments; individual slot controls are
+available for explicitly removing an official. Duplicate positions, duplicate
+people and unregistered referees remain invalid.

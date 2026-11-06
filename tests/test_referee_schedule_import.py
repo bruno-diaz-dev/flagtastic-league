@@ -85,6 +85,7 @@ def test_invited_friendly_teams_use_unique_exact_names_not_a_guessed_category():
     result = parse_referee_schedule_file("rol.csv", content, [game], REFEREES, selected_week=4)
     assert result["matched"] == 1
     assert result["warnings"] == []
+    assert result["proposals"][0]["is_friendly"] is True
     # U16 must not silently become the registered U17 guest, even at this slot.
     assert parse_referee_schedule_file(
         "rol.csv", content.replace(b"U17", b"U16"), [game], REFEREES, selected_week=4

@@ -167,8 +167,10 @@ def test_crew_import_preserves_calendar_when_missing_and_validates_cross_day_mov
     game = client.post('/api/games', json=fixture(ids, game_date='2026-11-04', venue='Cuernos Largos')).json()
     other = client.post('/api/games', json=fixture(ids, game_date='2026-11-08', venue='Cd Industrial')).json()
     official = referee()
+    down_judge = referee()
     assignment = lambda **changes: RefereeScheduleAssignment(game_id=game['id'], field_number=1,
-        officials=[GameOfficialAssignment(user_id=official, position='referee')], **changes)
+        officials=[GameOfficialAssignment(user_id=official, position='referee'),
+                   GameOfficialAssignment(user_id=down_judge, position='down_judge')], **changes)
     apply_referee_schedule([assignment(scheduled_time='20:15')], official)
     assert client.get('/api/games').json()[0]['game_date'] == '2026-11-04'
     with pytest.raises(ScheduleConflictError):

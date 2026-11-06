@@ -275,11 +275,6 @@ def confirm_referee_schedule(
     for assignment in confirmation.assignments:
         positions = [official.position for official in assignment.officials]
         official_ids = [official.user_id for official in assignment.officials]
-        if not {"referee", "down_judge"}.issubset(positions):
-            raise HTTPException(
-                status_code=409,
-                detail="Referee y Down Judge son obligatorios"
-            )
         if len(positions) != len(set(positions)) or len(official_ids) != len(set(official_ids)):
             raise HTTPException(
                 status_code=409,
