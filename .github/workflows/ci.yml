@@ -70,6 +70,7 @@ jobs:
         run: node --test tests/js/*.test.cjs
   
   Docker:
+    needs: [Test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
