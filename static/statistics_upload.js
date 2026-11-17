@@ -1,9 +1,10 @@
 // Keep multipart uploads below the 1 MiB spool threshold on the server.
-const STATISTICS_UPLOAD_LIMIT = 900 * 1024;
+const STATISTICS_UPLOAD_LIMIT = 1000 * 1024;
+const STATISTICS_SOURCE_LIMIT = 32 * 1024 * 1024;
 
 async function prepareStatisticsUpload(file) {
     if (!file || !/\.xlsx$/i.test(file.name)) throw new Error('Selecciona un archivo .xlsx.');
-    if (file.size > 15 * 1024 * 1024) throw new Error('El archivo excede 15 MB.');
+    if (file.size > STATISTICS_SOURCE_LIMIT) throw new Error('El archivo excede 32 MB.');
     if (file.size <= STATISTICS_UPLOAD_LIMIT) return file;
     let buffer;
     try {
@@ -12,7 +13,7 @@ async function prepareStatisticsUpload(file) {
         throw new Error('No se pudo leer el archivo del dispositivo. Descárgalo por completo y selecciónalo de nuevo.');
     }
     return new Promise((resolve, reject) => {
-        const worker = new Worker('/static/statistics_upload_worker.js?v=20261015-1');
+        const worker = new Worker('/static/statistics_upload_worker.js?v=20261117-1');
         const timeout = setTimeout(() => finish(new Error('El Excel tardo demasiado en prepararse. Intenta con una copia mas pequena.')), 120000);
         function finish(error, result) {
             clearTimeout(timeout);

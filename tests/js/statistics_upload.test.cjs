@@ -9,7 +9,7 @@ const context = vm.createContext({File, Error, setTimeout, clearTimeout});
 vm.runInContext(fs.readFileSync(path.join(root, 'static/statistics_upload.js'), 'utf8'), context);
 
 test('oversized and invalid source files fail before starting a worker', async () => {
-    await assert.rejects(context.prepareStatisticsUpload({name:'test.xlsx',size:16*1024*1024}), /15 MB/);
+    await assert.rejects(context.prepareStatisticsUpload({name:'test.xlsx',size:33*1024*1024}), /32 MB/);
     await assert.rejects(context.prepareStatisticsUpload({name:'test.csv',size:10}), /xlsx/);
     const file = new File(['test'], 'test.xlsx');
     assert.equal(await context.prepareStatisticsUpload(file), file);
@@ -60,6 +60,9 @@ test('worker drops unused Wk templates without collapsing blank rows in populate
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
         ['Equipo', 'Categoria', 'Estadistica'], [null, null, 'Intentos Pase'], [null, null, 'TD']
     ]), 'Wk 2');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+        ['Equipo', 'Categoria', 'Estadistica'], [0, 0, 'Intentos Pase', 0], [0, 0, 'TD', 0]
+    ]), 'Wk 3');
     let result;
     const worker = {postMessage: value => {result = value;}};
     vm.runInNewContext(fs.readFileSync(path.join(root, 'static/statistics_upload_worker.js'), 'utf8'), {XLSX, self: worker, importScripts: () => {}});
@@ -87,4 +90,53 @@ test('worker also preserves compact and single-sheet import layouts', () => {
         assert.deepEqual(output.SheetNames, [name]);
         assert.equal(output.Sheets[name].D2.v, 8);
     }
+});
+
+
+test('a source above the old 15 MiB cap is prepared and may exceed the old 900 KiB payload cap', async () => {
+    let terminated=false, posted=false;
+    class Worker {
+        postMessage() {posted=true;this.onmessage({data:{bytes:new Uint8Array(949697)}});}
+        terminate() {terminated=true;}
+    }
+    const largeContext=vm.createContext({File,Error,setTimeout,clearTimeout,Worker});
+    vm.runInContext(fs.readFileSync(path.join(root,'static/statistics_upload.js'),'utf8'),largeContext);
+    const source={name:'Stats ALL.xlsx',type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        size:15871030,arrayBuffer:async()=>new ArrayBuffer(1)};
+    const prepared=await largeContext.prepareStatisticsUpload(source);
+    assert.equal(prepared.size,949697);
+    assert.ok(prepared.size<1024*1024);
+    assert.equal(prepared.name,source.name);
+    assert.equal(prepared.type,source.type);
+    assert.equal(posted,true);assert.equal(terminated,true);
+});
+
+test('oversized prepared content is rejected before an upload can start', async () => {
+    let terminated=false;
+    class Worker {
+        postMessage() {this.onmessage({data:{bytes:new Uint8Array(1000*1024+1)}});}
+        terminate() {terminated=true;}
+    }
+    const largeContext=vm.createContext({File,Error,setTimeout,clearTimeout,Worker});
+    vm.runInContext(fs.readFileSync(path.join(root,'static/statistics_upload.js'),'utf8'),largeContext);
+    await assert.rejects(largeContext.prepareStatisticsUpload({name:'stats.xlsx',size:16*1024*1024,
+        arrayBuffer:async()=>new ArrayBuffer(1)}),/reducir el Excel/);
+    assert.equal(terminated,true);
+});
+
+
+test('a populated sheet with invalid numeric category is retained for server validation', () => {
+    const book=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet([
+        ['Equipo','Categoria','Estadistica'],['Storms',0,'TD',0]
+    ]),'Wk 1');
+    let result;
+    const worker={postMessage:value=>{result=value;}};
+    vm.runInNewContext(fs.readFileSync(path.join(root,'static/statistics_upload_worker.js'),'utf8'),{XLSX,self:worker,importScripts:()=>{}});
+    worker.onmessage({data:XLSX.write(book,{type:'array',bookType:'xlsx'})});
+    assert.equal(result.error,undefined);
+    const output=XLSX.read(result.bytes,{type:'array'});
+    assert.deepEqual(output.SheetNames,['Wk 1']);
+    assert.equal(output.Sheets['Wk 1'].B2.v,0);
+    assert.equal(output.Sheets['Wk 1'].D2.v,0);
 });
