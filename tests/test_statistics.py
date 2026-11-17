@@ -1167,3 +1167,55 @@ def test_confirmed_valkirias_name_imports_into_white_team_without_changing_blue(
     assert saved[0]['points']==6
     assert upload_week(3,[row]).status_code==200
     assert client.get('/api/weeks/3/player-stats').json()==saved
+
+
+@pytest.mark.parametrize('existing_records', ['preserve', 'update'])
+@pytest.mark.parametrize('registered_games', [False, True])
+def test_empty_named_games_do_not_block_import_or_shift_doubleheader_stats(existing_records, registered_games):
+    home = create_team('Home')
+    away = create_team('Away')
+    player = create_player(home, 'Home Player', 'EMPT010101HASXX001', 7)
+    if registered_games:
+        with get_connection() as connection:
+            for score in (6, 18):
+                connection.execute(
+                    """INSERT INTO games (home_team_id, away_team_id, week, status,
+                       home_score, away_score) VALUES (%s, %s, 3, 'completed', %s, 0)""",
+                    (home, away, score),
+                )
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 3'
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    for names, category, touchdowns in [
+        (('Home', 'Away'), 'Var Libre', 1),
+        (('ECA', 'Vikingos Azul'), 'Var U14', 0),
+        (('Home', 'Away'), 'Var Libre', 3),
+    ]:
+        for side, team in enumerate(names):
+            for label in labels:
+                events = [7] * touchdowns if side == 0 and label == 'TD' else []
+                sheet.append([team, category, label, *events])
+    content = BytesIO()
+    workbook.save(content)
+    workbook.close()
+
+    for _ in range(2):
+        response = client.post('/api/statistics/import',
+            files={'file': ('source.xlsx', content.getvalue())},
+            data={'existing_records': existing_records})
+        assert response.status_code == 200, response.text
+        games = sorted(client.get('/api/games').json(), key=lambda game: game['id'])
+        assert len(games) == 2
+        assert [(game['home_team']['id'], game['away_team']['id']) for game in games] == [(home, away)] * 2
+        assert [game['home_score'] for game in games] == [6, 18]
+        rows = client.get('/api/weeks/3/player-stats').json()
+        assert len(rows) == 2
+        assert {row['player_id'] for row in rows} == {player}
+        assert {row['game_id']: row['points'] for row in rows} == {
+            games[0]['id']: 6, games[1]['id']: 18,
+        }

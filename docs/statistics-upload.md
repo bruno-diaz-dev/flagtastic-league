@@ -23,6 +23,13 @@ Populated weeks with invalid data still fail instead
 of being silently skipped. Both game and player parsers use the same block
 reader so a repeated header cannot shift one parser's game identities.
 
+Named game pairs without any recognized player events or attendance on either
+side are schedule placeholders, not results. The game parser omits those pairs
+before matching teams or inferring scores. It retains each remaining game's
+original block index so player statistics after an empty pair keep the correct
+match association. Attendance-only records (including jersey zero) and pairs
+with data on just one side are retained.
+
 Sources above 32 MiB, preparation failures, and prepared uploads above 1000 KiB
 are rejected before submission. A platform 413 response produces a size error
 even if the response is plain text, rather than a misleading connection error.

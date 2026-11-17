@@ -182,3 +182,32 @@ def test_only_confirmed_jornada_three_pairs_change_branch(names,source_category,
     assert {game['category'] for game in games}=={expected_category}
     assert sum(row['points'] for row in rows)==12
     assert {row['game_index'] for row in rows}=={0}
+
+
+@pytest.mark.parametrize('event,jersey', [('TD', 7), ('Asistencia', 0)])
+@pytest.mark.parametrize('populated_indices', [(0, 2), (1,)])
+def test_empty_game_pairs_are_omitted_without_shifting_later_player_indices(event, jersey, populated_indices):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 3'
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    for game_index in range(3):
+        for side in ('Home', 'Away'):
+            for label in labels:
+                values = [jersey] if game_index in populated_indices and side == 'Home' and label == event else []
+                # Helper totals must not make a blank scheduled game count as played.
+                sheet.append([side, 'Fem U14', label, *values])
+                sheet.cell(sheet.max_row, 54, 999)
+    content = BytesIO()
+    workbook.save(content)
+    workbook.close()
+
+    rows = parse_statistics_workbook(content.getvalue())[3]
+    games = parse_games_workbook(content.getvalue())[3]
+    assert [game['game_index'] for game in games] == list(populated_indices)
+    assert {row['game_index'] for row in rows} == set(populated_indices)
+    assert {row['jersey_number'] for row in rows} == {jersey}
+    assert all(game['home_team'] == 'Home' and game['away_team'] == 'Away' for game in games)

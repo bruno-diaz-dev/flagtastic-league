@@ -70,7 +70,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             ).fetchall()
             claimed_games = set()
             for week, source_games in games.items():
-                for game_index, source_game in enumerate(source_games):
+                for fallback_index, source_game in enumerate(source_games):
+                    game_index = source_game.get("game_index", fallback_index)
                     category = source_game["category"]
                     branch = (
                         None if category_allows_cross_branch_games(category)
@@ -226,7 +227,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
 
         resolved_games = []
         for week, week_games in (games or {}).items():
-            for game_index, game in enumerate(week_games):
+            for fallback_index, game in enumerate(week_games):
+                game_index = game.get("game_index", fallback_index)
                 game = {**game, "game_index": game_index}
                 pair = recorded_game_pairs.get((week, game_index))
                 if pair:
