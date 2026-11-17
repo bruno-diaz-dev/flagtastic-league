@@ -186,6 +186,11 @@ def _parse_official_games(sheet, week):
             "branch": branch,
             "category": category,
             "team": str(block[0][0]).strip(),
+            "has_player_data": any(
+                next(_jersey_numbers(_official_event_values(values)), None) is not None
+                for values in block
+                if _normalized_text(values[2]) in IDENTITY_EVENT_LABELS
+            ),
             "score": _score_block(block),
             "defensive_events": _defensive_events(block)
         })
@@ -198,6 +203,10 @@ def _parse_official_games(sheet, week):
     games = []
     for index in range(0, len(blocks), 2):
         home, away = blocks[index:index + 2]
+        # Named schedule placeholders are not played results. Keep the source
+        # index for later pairs so their player rows still link to the right game.
+        if not home["has_player_data"] and not away["has_player_data"]:
+            continue
         if not teams_share_game_division(home, away):
             raise StatisticsFileError(
                 f"{sheet.title}: los rivales no pertenecen a la misma division"
@@ -211,6 +220,7 @@ def _parse_official_games(sheet, week):
             else:
                 home_score += 1
         games.append({
+            "game_index": index // 2,
             "week": week,
             "branch": home["branch"],
             "category": home["category"],
