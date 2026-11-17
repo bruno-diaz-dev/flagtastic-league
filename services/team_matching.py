@@ -17,6 +17,12 @@ _DIVISION_TOKENS = {
     "6", "8", "10", "12", "14", "16", "18",
 }
 
+# Confirmed by the league administrator; these are division-specific upload
+# labels, not a rename of every Valkirias team or of other Vikingos colors.
+_CONFIRMED_UPLOAD_ALIASES = {
+    ("femenil", "u14", "valkirias blanco"): "vikingos blanco",
+}
+
 
 def normalize_team_text(value):
     """Return accent-insensitive lowercase words for matching and identity."""
@@ -184,6 +190,18 @@ def match_team_name(label, teams, branch=None, category=None):
     if len(compact_matches) > 1:
         # Two teams with indistinguishable names need admin confirmation.
         return None
+
+    canonical = _CONFIRMED_UPLOAD_ALIASES.get((
+        normalized_branch, normalized_category, normalize_team_identity(label)
+    ))
+    if canonical is not None:
+        target_variants = _compact_name_variants(canonical)
+        confirmed = [team for team in teams
+                     if _same_requested_division(team, normalized_branch, normalized_category)
+                     and target_variants.intersection(_compact_name_variants(team["name"]))]
+        # An approved alias must resolve to its actual target uniquely. Do not
+        # fall back to a similarly named squad if the target is absent.
+        return confirmed[0] if len(confirmed) == 1 else None
 
     ranked = rank_team_matches(label, teams, branch, category)
     if not ranked or ranked[0][0] < 0.76:

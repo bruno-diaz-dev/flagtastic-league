@@ -150,13 +150,38 @@ def _official_team_blocks(sheet):
     return blocks
 
 
-def _parse_official_games(sheet, week):
-    """Read consecutive 15-row team blocks as inferred game results."""
+# Confirmed by the league administrator for the original jornada-3 workbook.
+# The age stays unchanged; only these exact paired source labels change branch.
+_CONFIRMED_SOURCE_BRANCHES = {
+    (3, "mixto", "u18", frozenset({"diablos rojo", "lanceros"})): "femenil",
+    (3, "mixto", "u18", frozenset({"diablos amarillo", "uca"})): "femenil",
+    (3, "varonil", "libre", frozenset({"diablos", "ravens"})): "femenil",
+}
+
+
+def _official_blocks_with_divisions(sheet, week):
+    """Share approved source corrections between player and game readers."""
     blocks = []
     for row_number, block in _official_team_blocks(sheet):
         branch, category = _division_from_official_category(
             block[0][1], sheet.title, row_number
         )
+        blocks.append([row_number, block, branch, category])
+    for index in range(0, len(blocks) - 1, 2):
+        home, away = blocks[index:index + 2]
+        if home[2:] != away[2:]:
+            continue
+        names = frozenset(" ".join(_normalized_text(item[1][0][0]).split()) for item in (home, away))
+        branch = _CONFIRMED_SOURCE_BRANCHES.get((week, home[2], home[3], names))
+        if branch:
+            home[2] = away[2] = branch
+    return blocks
+
+
+def _parse_official_games(sheet, week):
+    """Read consecutive 15-row team blocks as inferred game results."""
+    blocks = []
+    for row_number, block, branch, category in _official_blocks_with_divisions(sheet, week):
         blocks.append({
             "branch": branch,
             "category": category,
@@ -204,15 +229,12 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
         "sacks": 0, "tackles": 0, "passes_completed": 0,
         "passes_attempted": 0
     }))
-    blocks = _official_team_blocks(sheet)
+    blocks = _official_blocks_with_divisions(sheet, week)
     if not blocks:
         return []
     source_rows = {}
-    for block_index, (row_number, block) in enumerate(blocks):
+    for block_index, (row_number, block, branch, category) in enumerate(blocks):
         team = str(block[0][0]).strip()
-        branch, category = _division_from_official_category(
-            block[0][1], sheet.title, row_number
-        )
         game_index = block_index // 2
         source_rows[(game_index, branch, category, team)] = row_number
         for values in block:

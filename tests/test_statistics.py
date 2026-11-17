@@ -1153,3 +1153,17 @@ def test_full_import_shared_opponents_use_exact_published_scores_to_disambiguate
         assert next(row for row in rows if row['team_id'] == fem)['game_id'] == game_ids[1]
         assert next(row for row in rows if row['team_id'] == mixto)['game_id'] == game_ids[0]
         assert len(client.get('/api/games').json()) == 2
+
+
+def test_confirmed_valkirias_name_imports_into_white_team_without_changing_blue():
+    white=create_team('Vikingos Blanco','femenil','u14')
+    blue=create_team('Vikingos Azul','femenil','u14')
+    player=create_player(white,'White Player','ALIB010101MASXX001',7)
+    create_player(blue,'Blue Player','ALIC010101MASXX002',7)
+    row=['femenil','u14','Valkirias Blanco',7,6,2,0,0,0,0,0]
+    assert upload_week(3,[row]).status_code==200
+    saved=client.get('/api/weeks/3/player-stats').json()
+    assert len(saved)==1 and saved[0]['team_id']==white and saved[0]['player_id']==player
+    assert saved[0]['points']==6
+    assert upload_week(3,[row]).status_code==200
+    assert client.get('/api/weeks/3/player-stats').json()==saved

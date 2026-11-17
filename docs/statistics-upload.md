@@ -58,3 +58,16 @@ The QB's passing pair is omitted together: existing passing totals for that
 player/game are preserved on update; a new record has no credited passing stats.
 No attempts are inferred and a valid jersey zero is treated like any other number.
 Strict parser callers without a warning collector still reject the inconsistency.
+
+## Confirmed source identities
+
+The league administrator confirmed `Valkirias Blanco` as the workbook label for
+`Vikingos Blanco` in **femenil U14**. This fallback is limited to that division
+and requires one unambiguous registered target. Literal registered identities
+still take precedence; missing or duplicate targets remain errors.
+
+For jornada 3, the administrator also confirmed three mislabeled source pairs:
+`Diablos Rojo–Lanceros` and `Diablos Amarillo–UCA` are **femenil U18**, and
+`Diablos–Ravens` is **femenil libre**. Both the game reader and the player reader
+apply the same correction to those exact paired labels and source divisions.
+Other jornadas, ages, names and matchups retain their original divisions.
