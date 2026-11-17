@@ -155,3 +155,30 @@ def test_incomplete_official_passing_warns_and_preserves_other_metrics(jersey):
     assert warnings[0]['jersey_number'] == jersey
     assert warnings[0]['sheet'] == 'Wk 2'
     assert warnings[0]['row'] == 2
+
+
+@pytest.mark.parametrize('names,source_category,expected_category,confirmed', [
+    (('Diablos Rojo','Lanceros'),'Mix U18','u18',True),
+    (('Diablos Amarillo','UCA'),'Mix U18','u18',True),
+    (('Diablos','Ravens'),'Var Libre','libre',True),
+    (('Other Home','Other Away'),'Mix U18','u18',False),
+])
+@pytest.mark.parametrize('week,expected_branch',[(3,'femenil'),(4,None)])
+def test_only_confirmed_jornada_three_pairs_change_branch(names,source_category,expected_category,confirmed,week,expected_branch):
+    workbook=Workbook();sheet=workbook.active;sheet.title=f'Wk {week}'
+    sheet.append(['Equipo','Categoria','Estadistica'])
+    labels=['Intentos Pase','Completos Pase','Para % pases','Puntos Pase',
+            '6 Puntos','2 Puntos','1 Puntos','Intercepciones Pase','TD',
+            'Conv 1','Conv 2','Sacks','Tacleo','Intercepciones Def','Asistencia']
+    for team in names:
+        for label in labels:sheet.append([team,source_category,label,7 if label=='TD' else None])
+    content=BytesIO();workbook.save(content);workbook.close()
+    rows=parse_statistics_workbook(content.getvalue())[week]
+    games=parse_games_workbook(content.getvalue())[week]
+    branch=(expected_branch if confirmed else None) or ('varonil' if source_category=='Var Libre' else 'mixto')
+    assert {row['branch'] for row in rows}=={branch}
+    assert {game['branch'] for game in games}=={branch}
+    assert {row['category'] for row in rows}=={expected_category}
+    assert {game['category'] for game in games}=={expected_category}
+    assert sum(row['points'] for row in rows)==12
+    assert {row['game_index'] for row in rows}=={0}

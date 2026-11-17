@@ -22,6 +22,7 @@
       "retain-game-258-result": true,
       "optional-friendly-import-officials": true,
       "fix-statistics-source-size": true,
+      "alias-valkirias-vikingos-blanco": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,
