@@ -156,6 +156,7 @@ jobs:
           node tests/browser/schedule_board.cjs
           node tests/browser/weekly_featured.cjs
           node tests/browser/player_statistics_scope.cjs
+          node tests/browser/statistics_upload.cjs
           node tests/browser/game_officials.cjs
           node tests/browser/referee_import_week.cjs
           node tests/browser/referee_assignment_audit.cjs

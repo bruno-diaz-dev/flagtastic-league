@@ -4,7 +4,11 @@ Vercel limits Function request bodies to 4.5 MB, independently of the
 application's 15 MiB workbook validation limit. Increasing the Python limit
 does not allow larger requests through the hosting platform.
 
-Official files above 4 MiB are prepared in a browser worker before upload.
+The browser accepts original XLSX files up to **32 MiB**. Files above
+**1000 KiB** are prepared in a browser worker before upload. The prepared file
+must fit within **1000 KiB**, below the multipart parser's 1 MiB spooling
+threshold as well as Vercel's request limit. The server-side 15 MiB validation
+is a separate limit on the received file; large originals are not sent as-is.
 SheetJS CE 0.20.3 reads only `Wk` sheets. The worker exports the source columns
 A:BA (team, division, event label and 50 event cells), preserving cached values,
 sheet names and blank row positions required by the 15-row block parser.
@@ -13,11 +17,13 @@ upload. The user's original workbook remains unchanged. The server still
 performs authorization, parsing, identity validation and transactional writes.
 
 The server ignores repeated `Equipo / Categoria / Estadistica` print headers
-and unused week templates. Populated weeks with invalid data still fail instead
+and unused week templates. The worker also recognizes empty team cells
+whose formulas cache numeric zero, without dropping jersey zero in event cells.
+Populated weeks with invalid data still fail instead
 of being silently skipped. Both game and player parsers use the same block
 reader so a repeated header cannot shift one parser's game identities.
 
-Sources above 15 MiB, preparation failures, and prepared uploads above 4 MiB
+Sources above 32 MiB, preparation failures, and prepared uploads above 1000 KiB
 are rejected before submission. A platform 413 response produces a size error
 even if the response is plain text, rather than a misleading connection error.
 The submit button remains disabled while preparation and import are running.

@@ -21,6 +21,7 @@
       "fix-import-form-alignment": true,
       "retain-game-258-result": true,
       "optional-friendly-import-officials": true,
+      "fix-statistics-source-size": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
       "chore/vercel-storage-optimization": true,

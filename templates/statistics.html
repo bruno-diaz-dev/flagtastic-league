@@ -65,7 +65,8 @@
             </div>
             <label>
                 Archivo de estadísticas (.xlsx)
-                <input name="file" type="file" accept=".xlsx" required>
+                <input name="file" type="file" accept=".xlsx" aria-describedby="statistics-source-size-help" required>
+                <small id="statistics-source-size-help">Hasta 32 MB. La página prepara el archivo automáticamente antes de enviarlo.</small>
             </label>
             <label>Registros ya publicados
                 <select name="existing_records">
@@ -122,7 +123,7 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261015-1"></script>
-<script src="/static/statistics_upload.js?v=20261015-1"></script>
+<script src="/static/statistics_upload.js?v=20261117-1"></script>
 <script src="/static/statistics.js?v=20261020-2"></script>
 {% endblock %}
 

@@ -24,7 +24,10 @@ self.onmessage = ({data}) => {
                 range: {s: {r: 0, c: 0}, e: {r: end, c: 52}}
             });
             const hasTeam = rows.some(row => {
-                const team = String(row[0] ?? '').trim();
+                // Empty template formulas can cache numeric zero in the team
+                // cell. This matches the server's empty-team rule;
+                // event cells, including a genuine jersey zero, stay intact.
+                const team = String(row[0] || '').trim();
                 return team && team.toLocaleLowerCase('es-MX') !== 'equipo'
                     && String(row[1] ?? '').trim() && String(row[2] ?? '').trim();
             });
