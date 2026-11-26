@@ -318,7 +318,13 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             team_ids = list({team["id"] for _, team, _ in resolved_rows})
             if team_ids and connection.execute(
                 """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
-                WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s)) LIMIT 1""",
+                WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s))
+                  AND (live.state = 'live' OR EXISTS (
+                      SELECT 1 FROM game_live_events event
+                      WHERE event.game_id = live.game_id
+                        AND event.kind <> 'attendance'
+                        AND event.voided_at IS NULL
+                  )) LIMIT 1""",
                 (week, team_ids, team_ids),
             ).fetchone():
                 raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
