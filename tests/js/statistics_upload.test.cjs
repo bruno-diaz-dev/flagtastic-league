@@ -47,7 +47,7 @@ test('worker preserves source positions, zeroes and cached formulas, removing he
 
 test('file read failures explain local access rather than claiming a network failure', async () => {
     await assert.rejects(context.prepareStatisticsUpload({
-        name: 'mobile.xlsx', size: 1024 * 1024,
+        name: 'mobile.xlsx', size: 5 * 1024 * 1024,
         arrayBuffer: async () => {throw new TypeError('Read failed');}
     }), /leer el archivo del dispositivo/);
 });
@@ -114,7 +114,7 @@ test('a source above the old 15 MiB cap is prepared and may exceed the old 900 K
 test('oversized prepared content is rejected before an upload can start', async () => {
     let terminated=false;
     class Worker {
-        postMessage() {this.onmessage({data:{bytes:new Uint8Array(1000*1024+1)}});}
+        postMessage() {this.onmessage({data:{bytes:new Uint8Array(4*1024*1024+1)}});}
         terminate() {terminated=true;}
     }
     const largeContext=vm.createContext({File,Error,setTimeout,clearTimeout,Worker});

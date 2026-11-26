@@ -1,5 +1,5 @@
-// Keep multipart uploads below the 1 MiB spool threshold on the server.
-const STATISTICS_UPLOAD_LIMIT = 1000 * 1024;
+// Keep compressed workbooks below Vercel's request body limit.
+const STATISTICS_UPLOAD_LIMIT = 4 * 1024 * 1024;
 const STATISTICS_SOURCE_LIMIT = 32 * 1024 * 1024;
 
 async function prepareStatisticsUpload(file) {
@@ -13,7 +13,7 @@ async function prepareStatisticsUpload(file) {
         throw new Error('No se pudo leer el archivo del dispositivo. Descárgalo por completo y selecciónalo de nuevo.');
     }
     return new Promise((resolve, reject) => {
-        const worker = new Worker('/static/statistics_upload_worker.js?v=20261117-1');
+        const worker = new Worker('/static/statistics_upload_worker.js?v=20261126-1');
         const timeout = setTimeout(() => finish(new Error('El Excel tardo demasiado en prepararse. Intenta con una copia mas pequena.')), 120000);
         function finish(error, result) {
             clearTimeout(timeout);
@@ -25,7 +25,7 @@ async function prepareStatisticsUpload(file) {
             if (data.error) return finish(new Error(data.error));
             const prepared = new File([data.bytes], file.name, {type: file.type});
             if (prepared.size > STATISTICS_UPLOAD_LIMIT) {
-                return finish(new Error('No se pudo reducir el Excel lo suficiente para enviarlo de forma segura. No se enviaron datos al servidor.'));
+                return finish(new Error('No se pudo reducir el Excel por debajo de 4 MiB para enviarlo de forma segura. No se enviaron datos al servidor.'));
             }
             finish(null, prepared);
         };
