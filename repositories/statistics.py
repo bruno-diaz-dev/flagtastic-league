@@ -57,6 +57,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         recorded_game_pairs = {}
         recorded_game_ids = {}
         recorded_game_home_ids = {}
+        unresolved_game_indices = {}
         if games:
             teams_by_id = {team["id"]: team for team in teams}
             registered_games = connection.execute(
@@ -101,12 +102,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     if not candidates:
                         if not link_existing_games_only:
                             continue
-                        raise StatisticsValidationError(
-                            f"Jornada {week}: el partido #{game_index + 1} "
-                            f"({source_game['home_team']} vs "
-                            f"{source_game['away_team']}) no coincide con un "
-                            "encuentro registrado. No se modificaron datos."
-                        )
+                        unresolved_game_indices.setdefault(week, set()).add(game_index)
+                        continue
                     distinct_pairs = {
                         tuple(sorted((home["id"], away["id"])))
                         for _, home, away in candidates
@@ -131,11 +128,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                                 for _, home, away in candidates
                             }
                     if len(distinct_pairs) > 1:
-                        raise StatisticsValidationError(
-                            f"Jornada {week}: el partido #{game_index + 1} "
-                            "coincide con varios encuentros distintos. "
-                            "Revisa el rol oficial antes de importar."
-                        )
+                        unresolved_game_indices.setdefault(week, set()).add(game_index)
+                        continue
                     official_game, home, away = candidates[0]
                     claimed_games.add(official_game["id"])
                     recorded_game_pairs[(week, game_index)] = (home, away)
@@ -156,11 +150,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 )
                 if matched:
                     return matched
-                raise StatisticsValidationError(
-                    f"Jornada {week}, partido #{game_index + 1}: "
-                    f"no se pudo identificar '{row['team']}' "
-                    "entre los dos equipos del encuentro registrado."
-                )
+                return None
             return resolve_team(
                 row["team"], row["branch"], row["category"]
             )
@@ -174,6 +164,13 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         for week, rows in weeks.items():
             resolved_candidates[week] = []
             for row_number, row in enumerate(rows, start=2):
+                game_index = row.get("game_index")
+                if game_index in unresolved_game_indices.get(week, set()):
+                    skipped.append({"week": week, "team_name": row["team"],
+                        "branch": row["branch"], "category": row["category"],
+                        "jersey_number": row["jersey_number"], "game_index": game_index,
+                        "reason": "game_unresolved"})
+                    continue
                 team = resolve_stats_team(row, week)
                 if team is None:
                     possibilities = rank_team_matches(
@@ -188,11 +185,14 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         + ". Confirma cuál corresponde."
                         if suggestions else ""
                     )
-                    raise StatisticsValidationError(
-                        f"Jornada {week}, registro {row_number}: no se pudo "
-                        f"identificar con seguridad el equipo '{row['team']}' "
-                        f"en {row['branch']} {row['category']}." + hint
-                    )
+                    if game_index is not None:
+                        unresolved_game_indices.setdefault(week, set()).add(game_index)
+                    skipped.append({"week": week, "team_name": row["team"],
+                        "branch": row["branch"], "category": row["category"],
+                        "jersey_number": row["jersey_number"], "game_index": game_index,
+                        "reason": "team_unresolved", "candidate_names": suggestions,
+                        "row_number": row_number})
+                    continue
                 resolved_candidates[week].append((team, row_number, row))
                 candidate_team_ids.add(team["id"])
                 candidate_jersey_numbers.add(row["jersey_number"])
@@ -219,6 +219,13 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             resolved_rows = []
             seen_memberships = set()
             for team, row_number, row in candidates:
+                game_index = row.get("game_index")
+                if game_index in unresolved_game_indices.get(week, set()):
+                    skipped.append({"week": week, "team_name": team["name"],
+                        "branch": team["branch"], "category": team["category"],
+                        "jersey_number": row["jersey_number"], "game_index": game_index,
+                        "reason": "game_team_unresolved"})
+                    continue
                 player = players_by_team_jersey.get(
                     (team["id"], row["jersey_number"])
                 )
@@ -263,9 +270,12 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     )
                 if home is None or away is None:
                     missing = game["home_team"] if home is None else game["away_team"]
-                    raise StatisticsValidationError(
-                        f"Jornada {week}: no existe el equipo {missing} en esa division"
-                    )
+                    unresolved_game_indices.setdefault(week, set()).add(game_index)
+                    skipped.append({"week": week, "team_name": missing,
+                        "branch": game["branch"], "category": game["category"],
+                        "game_index": game_index, "reason": "team_unresolved",
+                        "candidate_names": []})
+                    continue
                 # Only import games for divisions with valid statistics.
                 # A missing jersey in another division must not alter its games.
                 game_division = (
@@ -281,6 +291,23 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 }
                 if game_division in imported_divisions:
                     resolved_games.append((week, home["id"], away["id"], game))
+
+        for week, blocked_indices in unresolved_game_indices.items():
+            if not blocked_indices or week not in resolved_weeks:
+                continue
+            kept = []
+            for player, team, row in resolved_weeks[week]:
+                if row.get("game_index") in blocked_indices:
+                    skipped.append({"week": week, "team_name": team["name"],
+                        "branch": team["branch"], "category": team["category"],
+                        "jersey_number": row["jersey_number"],
+                        "game_index": row.get("game_index"),
+                        "reason": "game_team_unresolved"})
+                else:
+                    kept.append((player, team, row))
+            resolved_weeks[week] = kept
+            if not kept and week not in preserved_weeks:
+                preserved_weeks.append(week)
 
         for week, resolved_rows in resolved_weeks.items():
             team_ids = list({team["id"] for _, team, _ in resolved_rows})
@@ -331,11 +358,11 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             )
             if existing is None:
                 if link_existing_games_only:
-                    raise StatisticsValidationError(
-                        f"Jornada {week}: el partido #{game['game_index'] + 1} "
-                        "no coincide con un encuentro registrado. "
-                        "No se crearon partidos ni se cambiaron marcadores."
-                    )
+                    skipped.append({"week": week, "team_name": game["home_team"],
+                        "branch": game["branch"], "category": game["category"],
+                        "game_index": game["game_index"],
+                        "reason": "game_unresolved", "candidate_names": []})
+                    continue
                 saved_game = connection.execute(
                     """
                     INSERT INTO games (
@@ -793,3 +820,4 @@ def get_leaderboards(branch, category, limit=5):
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }
     return result
+

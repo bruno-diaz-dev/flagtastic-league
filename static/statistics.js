@@ -118,19 +118,42 @@ function renderSkippedStatistics(data) {
         statisticsImportSkipped.append(heading, list);
     }
     if (!skipped.length) return;
-    const heading = document.createElement("p");
-    heading.textContent = `${skipped.length} registros omitidos: número no registrado en el equipo.`;
-    const list = document.createElement("ul");
-    const identities = new Set();
-    for (const row of skipped) {
-        const identity = JSON.stringify([row.week, row.team_id, row.jersey_number]);
-        if (identities.has(identity)) continue;
-        identities.add(identity);
-        const item = document.createElement("li");
-        item.textContent = `Jornada ${row.week} · ${row.team_name} (${row.branch} / ${row.category}) · #${row.jersey_number}`;
-        list.append(item);
+    const unresolvedReasons = new Set(["team_unresolved", "game_unresolved", "game_team_unresolved"]);
+    const unresolved = skipped.filter(row => unresolvedReasons.has(row.reason));
+    const missingJersey = skipped.filter(row => row.reason === "jersey_number_not_found");
+    if (unresolved.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${unresolved.length} registros omitidos porque no se pudo identificar con seguridad su equipo o partido. Los demás datos válidos sí se importaron.`;
+        const list = document.createElement("ul");
+        const identities = new Set();
+        for (const row of unresolved) {
+            const identity = JSON.stringify([row.week, row.game_index, row.team_name, row.branch, row.category, row.reason]);
+            if (identities.has(identity)) continue;
+            identities.add(identity);
+            const item = document.createElement("li");
+            const gameLabel = row.game_index == null ? "" : ` · partido #${row.game_index + 1}`;
+            const candidates = row.candidate_names?.length
+                ? ` · Posibles equipos: ${row.candidate_names.join(", ")}` : "";
+            item.textContent = `Jornada ${row.week}${gameLabel} · ${row.team_name} (${row.branch} / ${row.category})${candidates}`;
+            list.append(item);
+        }
+        statisticsImportSkipped.append(heading, list);
     }
-    statisticsImportSkipped.append(heading, list);
+    if (missingJersey.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${missingJersey.length} registros omitidos: número no registrado en el equipo.`;
+        const list = document.createElement("ul");
+        const identities = new Set();
+        for (const row of missingJersey) {
+            const identity = JSON.stringify([row.week, row.team_id, row.jersey_number]);
+            if (identities.has(identity)) continue;
+            identities.add(identity);
+            const item = document.createElement("li");
+            item.textContent = `Jornada ${row.week} · ${row.team_name} (${row.branch} / ${row.category}) · #${row.jersey_number}`;
+            list.append(item);
+        }
+        statisticsImportSkipped.append(heading, list);
+    }
     if (data.preserved_weeks?.length) {
         const notice = document.createElement("p");
         notice.textContent = `Sin registros válidos en las jornadas ${data.preserved_weeks.join(", ")}. Se conservaron sus datos anteriores.`;
@@ -249,4 +272,5 @@ if (statisticsImportForm) {
 }
 updateLeaderboardBranchControl();
 loadLeaderboards();
+
 
