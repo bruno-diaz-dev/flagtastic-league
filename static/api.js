@@ -6,6 +6,12 @@ function escapeHtml(value) {
     return element.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function sendImportRequest(url, options, onProgress) {
+    return typeof importRequest === "function"
+        ? importRequest(url, options, onProgress)
+        : fetch(url, options);
+}
+
 async function getTeams() {
     const response = await fetch("/api/teams");
     return response;
@@ -129,7 +135,7 @@ async function addRegisteredPlayer(teamId, payload) {
 async function importRoster(teamId, file, onProgress) {
     const formData = new FormData();
     formData.append("file", file);
-    return importRequest(`/api/teams/${teamId}/players/import`, {
+    return sendImportRequest(`/api/teams/${teamId}/players/import`, {
         method: "POST",
         body: formData
     }, onProgress);
@@ -264,7 +270,7 @@ async function importWeekStatistics(week, file, existingRecords = "preserve", on
     const formData = new FormData();
     formData.append("file", file);
     formData.append("existing_records", existingRecords);
-    return importRequest(`/api/weeks/${week}/player-stats/import`, {
+    return sendImportRequest(`/api/weeks/${week}/player-stats/import`, {
         method: "POST",
         body: formData
     }, onProgress);
@@ -276,7 +282,7 @@ async function importDivisionStatistics(week, branch, category, file, existingRe
     formData.append("existing_records", existingRecords);
     formData.append("branch", branch);
     formData.append("category", category);
-    return importRequest(`/api/weeks/${week}/player-stats/import-division`, {
+    return sendImportRequest(`/api/weeks/${week}/player-stats/import-division`, {
         method: "POST",
         body: formData
     }, onProgress);
@@ -286,7 +292,7 @@ async function importOfficialStatistics(file, existingRecords = "preserve", onPr
     const formData = new FormData();
     formData.append("file", file);
     formData.append("existing_records", existingRecords);
-    return importRequest("/api/statistics/import", {
+    return sendImportRequest("/api/statistics/import", {
         method: "POST",
         body: formData
     }, onProgress);
@@ -416,14 +422,14 @@ async function analyzeRefereeSchedule(file, week = null, onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     if (week !== null && week !== "") formData.append("week", week);
-    return importRequest("/api/games/referee-schedule/analyze", {
+    return sendImportRequest("/api/games/referee-schedule/analyze", {
         method: "POST",
         body: formData
     }, onProgress);
 }
 
 async function confirmRefereeSchedule(assignments, onProgress) {
-    return importRequest("/api/games/referee-schedule/confirm", {
+    return sendImportRequest("/api/games/referee-schedule/confirm", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({assignments})
@@ -434,14 +440,14 @@ async function analyzeGameSchedule(file, week = null, onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     if (week !== null && week !== "") formData.append("week_override", week);
-    return importRequest("/api/games/schedule/analyze", {
+    return sendImportRequest("/api/games/schedule/analyze", {
         method: "POST",
         body: formData
     }, onProgress);
 }
 
 async function analyzeGameScheduleOcr(payload, onProgress) {
-    return importRequest("/api/games/schedule/analyze-ocr", {
+    return sendImportRequest("/api/games/schedule/analyze-ocr", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
@@ -449,7 +455,7 @@ async function analyzeGameScheduleOcr(payload, onProgress) {
 }
 
 async function confirmGameSchedule(games, bracketSlots = [], onProgress) {
-    return importRequest("/api/games/schedule/confirm", {
+    return sendImportRequest("/api/games/schedule/confirm", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({games, bracket_slots: bracketSlots})

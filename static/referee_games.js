@@ -264,8 +264,10 @@ function setOfficialSaveProgress(state) {
     if (!scheduleSaveProgress) return;
     scheduleSaveProgress.hidden = state === "idle";
     scheduleSaveProgress.classList.toggle("is-complete", state === "complete");
-    if (state === "complete") updateImportProgress(scheduleSaveProgress, 100, "Completado");
-    else if (state === "saving") updateImportProgress(scheduleSaveProgress, 1, "Enviando cambios");
+    if (state === "complete" && typeof updateImportProgress === "function") updateImportProgress(scheduleSaveProgress, 100, "Completado");
+    else if (state === "saving" && typeof updateImportProgress === "function") updateImportProgress(scheduleSaveProgress, 1, "Enviando cambios");
+    else if (state === "complete") scheduleSaveProgress.setAttribute("aria-valuenow", "100");
+    else if (state === "idle") scheduleSaveProgress.removeAttribute("aria-valuenow");
 }
 function setOfficialConfirmMessage(message) {
     scheduleMessage.textContent = message;
@@ -370,21 +372,21 @@ scheduleForm?.addEventListener("submit", async (event) => {
     scheduleReview.classList.add("hidden");
     confirmScheduleButton.disabled = true;
     try {
-        const response = await analyzeRefereeSchedule(file, week, event => updateRequestProgress(scheduleImportProgress, event));
+        const response = await analyzeRefereeSchedule(file, week, event => { if (typeof updateRequestProgress === "function") updateRequestProgress(scheduleImportProgress, event); });
         const body = await response.json();
         if (request !== scheduleAnalysisRequest) return;
         if (!response.ok) {
             const detail = Array.isArray(body.detail) ? body.detail.map(error => error.msg).join(". ") : body.detail;
             scheduleMessage.textContent = detail || "No se pudo analizar el archivo.";
-            finishImportProgress(scheduleImportProgress, false);
+            if (typeof finishImportProgress === "function") finishImportProgress(scheduleImportProgress, false); else scheduleImportProgress.hidden = true;
             return;
         }
         renderScheduleReview(body);
-        finishImportProgress(scheduleImportProgress, true);
+        if (typeof finishImportProgress === "function") finishImportProgress(scheduleImportProgress, true); else scheduleImportProgress.hidden = true;
     } catch (error) {
         if (request === scheduleAnalysisRequest) {
             scheduleMessage.textContent = "No se pudo analizar el rol. Reintenta sin cambiar el archivo.";
-            finishImportProgress(scheduleImportProgress, false);
+            if (typeof finishImportProgress === "function") finishImportProgress(scheduleImportProgress, false); else scheduleImportProgress.hidden = true;
         }
     } finally {
         if (request === scheduleAnalysisRequest) {
@@ -435,14 +437,15 @@ confirmScheduleButton?.addEventListener("click", async () => {
     setOfficialSaveProgress("saving");
     setOfficialConfirmMessage(`Guardando asignaciones de ${assignments.length} partido(s)… Espera a que termine.`);
     try {
-        const response = await confirmRefereeSchedule(assignments, event => updateRequestProgress(scheduleSaveProgress, event));
+        const response = await confirmRefereeSchedule(assignments, event => { if (typeof updateRequestProgress === "function") updateRequestProgress(scheduleSaveProgress, event); });
         // A successful save can finish even if the response body is interrupted.
         // Record the HTTP result before parsing so the UI never invites a
         // duplicate retry after the server has committed the transaction.
         saved = response.ok;
         const body = await response.json();
         if (saved) setOfficialSaveProgress("complete");
-        else finishImportProgress(scheduleSaveProgress, false);
+        else if (typeof finishImportProgress === "function") finishImportProgress(scheduleSaveProgress, false);
+        else setOfficialSaveProgress("idle");
         const detail = Array.isArray(body.detail)
             ? body.detail.map(error => error.msg).join(". ") : body.detail;
         setOfficialConfirmMessage(saved
@@ -458,7 +461,8 @@ confirmScheduleButton?.addEventListener("click", async () => {
         if (saved) {
             setOfficialConfirmMessage("Asignaciones guardadas. No se pudo actualizar la agenda; recarga la página para consultarla.");
         } else {
-            finishImportProgress(scheduleSaveProgress, false);
+            if (typeof finishImportProgress === "function") finishImportProgress(scheduleSaveProgress, false);
+            else setOfficialSaveProgress("idle");
             setOfficialConfirmMessage("No se pudo confirmar el guardado de las asignaciones. Revisa la agenda antes de volver a intentar.");
         }
     } finally {

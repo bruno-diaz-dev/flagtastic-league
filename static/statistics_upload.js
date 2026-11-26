@@ -8,13 +8,15 @@ async function prepareStatisticsUpload(file, onProgress = () => {}) {
     if (file.size <= STATISTICS_UPLOAD_LIMIT) { onProgress(20, "Archivo listo"); return file; }
     let buffer;
     try {
-        buffer = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onprogress = event => { if (event.lengthComputable) onProgress(2 + 5 * event.loaded / event.total, "Leyendo Excel"); };
-            reader.onerror = () => reject(reader.error);
-            reader.onload = () => resolve(reader.result);
-            reader.readAsArrayBuffer(file);
-        });
+        buffer = typeof FileReader === "undefined"
+            ? await file.arrayBuffer()
+            : await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onprogress = event => { if (event.lengthComputable) onProgress(2 + 5 * event.loaded / event.total, "Leyendo Excel"); };
+                reader.onerror = () => reject(reader.error);
+                reader.onload = () => resolve(reader.result);
+                reader.readAsArrayBuffer(file);
+            });
     } catch {
         throw new Error('No se pudo leer el archivo del dispositivo. Descárgalo por completo y selecciónalo de nuevo.');
     }

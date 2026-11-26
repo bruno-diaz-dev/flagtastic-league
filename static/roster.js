@@ -343,11 +343,11 @@ rosterImportForm.addEventListener("submit", async (event) => {
     rosterImportMessage.textContent = "Validando e importando roster...";
 
     try {
-        const response = await importRoster(teamId, fields.get("file"), event => updateRequestProgress(rosterImportProgress, event));
+        const response = await importRoster(teamId, fields.get("file"), event => { if (typeof updateRequestProgress === "function") updateRequestProgress(rosterImportProgress, event); });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             rosterImportMessage.textContent = data.detail || "No se pudo importar el roster.";
-            finishImportProgress(rosterImportProgress, false);
+            if (typeof finishImportProgress === "function") finishImportProgress(rosterImportProgress, false); else rosterImportProgress.hidden = true;
             return;
         }
 
@@ -363,10 +363,10 @@ rosterImportForm.addEventListener("submit", async (event) => {
         }
         rosterImportMessage.textContent = parts.join(" · ") + ".";
         await loadRoster();
-        finishImportProgress(rosterImportProgress, true);
+        if (typeof finishImportProgress === "function") finishImportProgress(rosterImportProgress, true); else rosterImportProgress.hidden = true;
     } catch (error) {
         rosterImportMessage.textContent = "Ocurrió un error al procesar el roster. Intenta nuevamente.";
-        finishImportProgress(rosterImportProgress, false);
+        if (typeof finishImportProgress === "function") finishImportProgress(rosterImportProgress, false); else rosterImportProgress.hidden = true;
     } finally {
         rosterImportForm.removeAttribute("aria-busy");
         submitButton.disabled = false;

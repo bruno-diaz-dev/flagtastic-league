@@ -409,15 +409,19 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
         if (!payloadRows.length) throw new Error("No se reconocieron partidos en la imagen.");
 
         progress("Relacionando equipos reconocidos...", 80);
-        return importRequest("/api/games/schedule/analyze-cells", {
+        const request = {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({week: Number(week), rows: payloadRows})
-        }, event => {
+        };
+        const onRequestProgress = event => {
             if (event.phase === "upload") progress("Enviando imagen analizada...", 80 + 12 * event.loaded / event.total);
             else if (event.phase === "processing") progress("Relacionando equipos en servidor...", 94);
             else if (event.phase === "response") progress("Recibiendo resultado...", 98);
-        });
+        };
+        return typeof importRequest === "function"
+            ? importRequest("/api/games/schedule/analyze-cells", request, onRequestProgress)
+            : fetch("/api/games/schedule/analyze-cells", request);
     } finally {
         if (worker) await worker.terminate();
     }
