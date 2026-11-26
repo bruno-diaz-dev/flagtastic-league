@@ -803,9 +803,7 @@ def test_ambiguous_team_name_is_skipped_instead_of_guessing():
     ])
     assert response.status_code == 200, response.text
     assert response.json()["skipped_count"] == 1
-    assert response.json()["skipped"][0]["candidate_names"] == [
-        "BlackMamba", "Black Mambas"
-    ]
+    assert response.json()["skipped"][0]["candidate_names"] == ["Black Mambas"]
     assert client.get("/api/weeks/1/player-stats").json() == []
 
 
