@@ -27,6 +27,8 @@ def session_for(connection, game_id):
 
 
 def require_live(game, session):
+    if game["home_team_id"] is None or game["away_team_id"] is None:
+        raise LiveGameError("El partido espera a los equipos semifinalistas antes de iniciar la captura")
     if session is None or session["state"] != "live" or game["status"] != "scheduled":
         raise LiveGameError("La captura solo está disponible mientras el partido está en vivo")
     if game["home_score"] is not None or game["away_score"] is not None:

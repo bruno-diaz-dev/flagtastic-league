@@ -19,10 +19,12 @@ def get_referee_assignment_audit():
             SELECT game_referees.user_id, game_referees.position, game_referees.assigned_at,
                    games.id, games.week, games.field_number, games.start_time, games.status,
                    (to_jsonb(games)->>'game_date')::date AS game_date, to_jsonb(games)->>'venue' AS venue,
-                   home.name AS home_team, away.name AS away_team
+                   COALESCE(home.name, games.home_pending_label, bracket.label || ' en espera de equipos') AS home_team,
+                   COALESCE(away.name, games.away_pending_label, bracket.label || ' en espera de equipos') AS away_team
             FROM game_referees JOIN games ON games.id=game_referees.game_id
-            JOIN teams home ON home.id=games.home_team_id
-            JOIN teams away ON away.id=games.away_team_id
+            LEFT JOIN teams home ON home.id=games.home_team_id
+            LEFT JOIN teams away ON away.id=games.away_team_id
+            LEFT JOIN game_bracket_slots bracket ON bracket.target_game_id=games.id
             ORDER BY games.week DESC, games.start_time NULLS LAST, games.field_number, games.id
         """).fetchall()
     people = {row["id"]: {**dict(row), "games": []} for row in people}

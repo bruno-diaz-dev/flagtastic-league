@@ -212,7 +212,7 @@ def import_game_schedule(games, *, bracket_slots=None):
                 raise ScheduleConflictError(
                     f"No puedo determinar con seguridad las dos semifinales de {slot['label']}"
                 )
-            connection.execute("""
+            stored_slot = connection.execute("""
                 INSERT INTO game_bracket_slots
                     (week, field_number, start_time, game_date, venue, branch,
                      category, bracket_tier, placement, label, source_game_id,
@@ -224,10 +224,24 @@ def import_game_schedule(games, *, bracket_slots=None):
                     bracket_tier=EXCLUDED.bracket_tier, placement=EXCLUDED.placement,
                     label=EXCLUDED.label, source_game_id=EXCLUDED.source_game_id,
                     opponent_game_id=EXCLUDED.opponent_game_id
+                RETURNING id, target_game_id
             """, (slot["week"], slot["field_number"], slot["start_time"],
                   slot.get("game_date"), slot.get("venue"), slot.get("branch"),
                   slot["category"], slot.get("bracket_tier"), slot["bracket_placement"],
-                  slot["label"], feeders[0]["id"], feeders[1]["id"]))
+                  slot["label"], feeders[0]["id"], feeders[1]["id"])).fetchone()
+            if stored_slot["target_game_id"] is None:
+                game_columns = "home_team_id,away_team_id,week,field_number,start_time,is_friendly,home_pending_label,away_pending_label"
+                game_values = [None, None, slot["week"], slot["field_number"], slot["start_time"], False,
+                               slot["label"] + " en espera de equipos", slot["label"] + " en espera de equipos"]
+                if has_calendar:
+                    game_columns += ",game_date,venue"
+                    game_values.extend([slot.get("game_date"), slot.get("venue")])
+                pending_game = connection.execute(
+                    f"INSERT INTO games ({game_columns}) VALUES ({','.join(['%s'] * len(game_values))}) RETURNING id",
+                    game_values,
+                ).fetchone()
+                connection.execute("UPDATE game_bracket_slots SET target_game_id=%s WHERE id=%s",
+                                   (pending_game["id"], stored_slot["id"]))
             bracket_created += 1
             resolve_completed_bracket_slots(connection, feeders[0]["id"])
         result = {"created": created, "updated": updated, "skipped": skipped}
@@ -253,6 +267,11 @@ def get_games():
             games.status,
             games.is_friendly,
             bracket.label AS bracket_label,
+            (games.home_team_id IS NULL AND games.away_team_id IS NULL) AS bracket_pending,
+            games.home_pending_label,
+            games.away_pending_label,
+            bracket.branch AS bracket_branch,
+            bracket.category AS bracket_category,
             home_team.is_guest AS home_is_guest,
             home_team.id AS "home_team_id",
             home_team.name AS "home_team_name",
@@ -266,9 +285,9 @@ def get_games():
             away_team.category AS "away_team_category",
             away_team.logo_version AS "away_team_has_logo"
         FROM games
-        JOIN teams AS home_team
+        LEFT JOIN teams AS home_team
             ON games.home_team_id = home_team.id
-        JOIN teams AS away_team
+        LEFT JOIN teams AS away_team
             ON games.away_team_id = away_team.id
         LEFT JOIN game_bracket_slots AS bracket
             ON bracket.target_game_id = games.id
@@ -283,9 +302,9 @@ def get_games():
             "id": row["id"],
             "home_team": {
                 "id": row["home_team_id"], **({"is_guest": True} if row["home_is_guest"] else {}),
-                "name": row["home_team_name"],
-                "branch": row["home_team_branch"],
-                "category": row["home_team_category"],
+                "name": row["home_team_name"] or row["home_pending_label"],
+                "branch": row["home_team_branch"] or row["bracket_branch"],
+                "category": row["home_team_category"] or row["bracket_category"],
                 **(
                     {"logo_url": f"/api/teams/{row['home_team_id']}/logo?v={row['home_team_has_logo']}&size=256"}
                     if row["home_team_has_logo"] else {}
@@ -294,9 +313,9 @@ def get_games():
 
             "away_team": {
                 "id": row["away_team_id"], **({"is_guest": True} if row["away_is_guest"] else {}),
-                "name": row["away_team_name"],
-                "branch": row["away_team_branch"],
-                "category": row["away_team_category"],
+                "name": row["away_team_name"] or row["away_pending_label"],
+                "branch": row["away_team_branch"] or row["bracket_branch"],
+                "category": row["away_team_category"] or row["bracket_category"],
                 **(
                     {"logo_url": f"/api/teams/{row['away_team_id']}/logo?v={row['away_team_has_logo']}&size=256"}
                     if row["away_team_has_logo"] else {}
@@ -308,7 +327,8 @@ def get_games():
             "field_number": row["field_number"],
             "start_time": row["start_time"], "game_date": row["game_date"], "venue": row["venue"],
             "status": row["status"], "is_friendly": row["is_friendly"],
-            "bracket_label": row["bracket_label"]
+            "bracket_label": row["bracket_label"],
+            "bracket_pending": row["bracket_pending"]
         }
         for row in rows
     ]
@@ -319,7 +339,9 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
     connection = get_connection()
 
     try:
-        connection.execute("SELECT id FROM games WHERE id = %s FOR UPDATE", (game_id,))
+        locked = connection.execute("SELECT id,home_team_id,away_team_id FROM games WHERE id = %s FOR UPDATE", (game_id,)).fetchone()
+        if locked is not None and (locked["home_team_id"] is None or locked["away_team_id"] is None):
+            raise GameStateConflictError("El partido espera a los equipos semifinalistas antes de recibir marcador")
         if connection.execute(
             "SELECT 1 FROM game_live_sessions WHERE game_id = %s AND state = 'live'",
             (game_id,),
@@ -336,6 +358,8 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
                 status = 'completed'
             WHERE id = %s
               AND status <> 'postponed'
+              AND home_team_id IS NOT NULL
+              AND away_team_id IS NOT NULL
               AND (%s OR (
                   status <> 'completed'
                   AND home_score IS NULL
@@ -358,7 +382,7 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
 
         if updated_game is None:
             existing = connection.execute(
-                "SELECT status, home_score, away_score FROM games WHERE id = %s",
+                "SELECT status, home_score, away_score, home_team_id, away_team_id FROM games WHERE id = %s",
                 (game_id,),
             ).fetchone()
             if existing is not None and existing["status"] == "postponed":
@@ -626,6 +650,12 @@ def get_games_for_referee(user_id):
             to_jsonb(games)->>'venue' AS venue,
             games.status,
             games.is_friendly,
+            bracket.label AS bracket_label,
+            (games.home_team_id IS NULL AND games.away_team_id IS NULL) AS bracket_pending,
+            games.home_pending_label,
+            games.away_pending_label,
+            bracket.branch AS bracket_branch,
+            bracket.category AS bracket_category,
             game_referees.position AS official_position,
             home_team.is_guest AS home_is_guest,
             home_team.id AS home_team_id,
@@ -641,8 +671,9 @@ def get_games_for_referee(user_id):
             away_team.logo_version AS away_team_has_logo
         FROM game_referees
         JOIN games ON games.id = game_referees.game_id
-        JOIN teams AS home_team ON home_team.id = games.home_team_id
-        JOIN teams AS away_team ON away_team.id = games.away_team_id
+        LEFT JOIN teams AS home_team ON home_team.id = games.home_team_id
+        LEFT JOIN teams AS away_team ON away_team.id = games.away_team_id
+        LEFT JOIN game_bracket_slots AS bracket ON bracket.target_game_id = games.id
         WHERE game_referees.user_id = %s
         ORDER BY games.week, games.id
         """,
@@ -692,9 +723,9 @@ def get_games_for_referee(user_id):
             "id": row["id"],
             "home_team": {
                 "id": row["home_team_id"], **({"is_guest": True} if row["home_is_guest"] else {}),
-                "name": row["home_team_name"],
-                "branch": row["home_team_branch"],
-                "category": row["home_team_category"],
+                "name": row["home_team_name"] or row["home_pending_label"],
+                "branch": row["home_team_branch"] or row["bracket_branch"],
+                "category": row["home_team_category"] or row["bracket_category"],
                 **(
                     {"logo_url": f"/api/teams/{row['home_team_id']}/logo?v={row['home_team_has_logo']}&size=256"}
                     if row["home_team_has_logo"] else {}
@@ -702,9 +733,9 @@ def get_games_for_referee(user_id):
             },
             "away_team": {
                 "id": row["away_team_id"], **({"is_guest": True} if row["away_is_guest"] else {}),
-                "name": row["away_team_name"],
-                "branch": row["away_team_branch"],
-                "category": row["away_team_category"],
+                "name": row["away_team_name"] or row["away_pending_label"],
+                "branch": row["away_team_branch"] or row["bracket_branch"],
+                "category": row["away_team_category"] or row["bracket_category"],
                 **(
                     {"logo_url": f"/api/teams/{row['away_team_id']}/logo?v={row['away_team_has_logo']}&size=256"}
                     if row["away_team_has_logo"] else {}
@@ -716,6 +747,7 @@ def get_games_for_referee(user_id):
             "field_number": row["field_number"],
             "start_time": row["start_time"], "game_date": row["game_date"], "venue": row["venue"],
             "status": row["status"], "is_friendly": row["is_friendly"],
+            "bracket_label": row["bracket_label"], "bracket_pending": row["bracket_pending"],
             "official_position": row["official_position"],
             "officials": crew_by_game[row["id"]]
         }
