@@ -120,7 +120,9 @@ function renderSkippedStatistics(data) {
     if (!skipped.length) return;
     const unresolvedReasons = new Set(["team_unresolved", "game_unresolved", "game_team_unresolved"]);
     const unresolved = skipped.filter(row => unresolvedReasons.has(row.reason));
-    const missingJersey = skipped.filter(row => row.reason === "jersey_number_not_found");
+    const missingJersey = skipped.filter(row =>
+        row.reason === "jersey_number_not_found" || !row.reason
+    );
     if (unresolved.length) {
         const heading = document.createElement("p");
         heading.textContent = `${unresolved.length} registros omitidos porque no se pudo identificar con seguridad su equipo o partido. Los demás datos válidos sí se importaron.`;
