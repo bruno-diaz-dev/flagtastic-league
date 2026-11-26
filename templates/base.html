@@ -6,7 +6,7 @@
     <title>Flagtastic League</title>
     <link rel="icon" type="image/jpeg" href="/static/assets/flagtastic.jpeg?v=20260927-1">
     <link rel="apple-touch-icon" href="/static/assets/flagtastic.jpeg?v=20260927-1">
-    <link rel="stylesheet" href="/static/style.css?v=20261126-5">
+    <link rel="stylesheet" href="/static/style.css?v=20261126-6">
     <link rel="stylesheet" href="/static/ui.css?v=20261017-1">
 </head>
 <body class="sidebar-collapsed">
@@ -79,6 +79,11 @@
                     <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m8 13 2 2 6-6"/></svg></span>
                 </a>
 
+                <a id="admin-finals-eligibility-link" class="nav-link hidden" href="/admin/finals-eligibility">
+                    <span class="nav-text">Elegibilidad a finales</span>
+                    <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h3"/><path d="m15 15 2 2 3-4"/></svg></span>
+                </a>
+
                 <a id="referee-games-link" class="nav-link hidden" href="/referee/games">
                     <span class="nav-text">Dashboard de árbitro</span>
                     <span class="nav-short" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
@@ -125,4 +130,5 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
+
 
