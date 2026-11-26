@@ -68,7 +68,13 @@ def attendance_for(connection, game, roster):
     """Explicit check-ins, deduplicated by match; never infer from statistics."""
     rows = connection.execute("""
         SELECT e.team_id, e.player_id,
-               COUNT(DISTINCT e.game_id) FILTER (WHERE g.status = 'completed' AND NOT g.is_friendly) AS attended,
+               COUNT(DISTINCT e.game_id) FILTER (
+                   WHERE g.status = 'completed' AND NOT g.is_friendly
+                     AND NOT EXISTS (
+                         SELECT 1 FROM game_bracket_slots slots
+                         WHERE slots.target_game_id = g.id
+                     )
+               ) AS attended,
                BOOL_OR(e.game_id = %s) AS present,
                MAX(e.id) FILTER (WHERE e.game_id = %s) AS entry_id
         FROM game_live_events e JOIN games g ON g.id = e.game_id
@@ -79,9 +85,19 @@ def attendance_for(connection, game, roster):
     records = {(r['team_id'], r['player_id']): r for r in rows}
     scheduled = connection.execute("""
         SELECT team_id, COUNT(*) AS total FROM (
-            SELECT home_team_id AS team_id FROM games WHERE NOT is_friendly AND home_team_id IN (%s, %s)
+            SELECT home_team_id AS team_id FROM games
+            WHERE NOT is_friendly AND home_team_id IN (%s, %s)
+              AND NOT EXISTS (
+                  SELECT 1 FROM game_bracket_slots slots
+                  WHERE slots.target_game_id = games.id
+              )
             UNION ALL
-            SELECT away_team_id AS team_id FROM games WHERE NOT is_friendly AND away_team_id IN (%s, %s)
+            SELECT away_team_id AS team_id FROM games
+            WHERE NOT is_friendly AND away_team_id IN (%s, %s)
+              AND NOT EXISTS (
+                  SELECT 1 FROM game_bracket_slots slots
+                  WHERE slots.target_game_id = games.id
+              )
         ) calendar GROUP BY team_id
     """, (game['home_team_id'], game['away_team_id']) * 2).fetchall()
     totals = {r['team_id']: r['total'] for r in scheduled}
@@ -316,3 +332,4 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
+
