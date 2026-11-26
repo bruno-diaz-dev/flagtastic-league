@@ -65,7 +65,7 @@ def roster_for(connection, game):
 
 
 def attendance_for(connection, game, roster):
-    """Explicit check-ins, deduplicated by match; never infer from statistics."""
+    """Explicit check-ins for this category, deduplicated by match."""
     rows = connection.execute("""
         SELECT e.team_id, e.player_id,
                COUNT(DISTINCT e.game_id) FILTER (
@@ -78,28 +78,38 @@ def attendance_for(connection, game, roster):
                BOOL_OR(e.game_id = %s) AS present,
                MAX(e.id) FILTER (WHERE e.game_id = %s) AS entry_id
         FROM game_live_events e JOIN games g ON g.id = e.game_id
+        JOIN teams home ON home.id = g.home_team_id
+        JOIN teams away ON away.id = g.away_team_id
         WHERE e.kind = 'attendance' AND e.voided_at IS NULL
           AND e.team_id IN (%s, %s)
+          AND home.category = %s AND away.category = %s
         GROUP BY e.team_id, e.player_id
-    """, (game['id'], game['id'], game['home_team_id'], game['away_team_id'])).fetchall()
+    """, (game['id'], game['id'], game['home_team_id'], game['away_team_id'],
+          game['home_category'], game['away_category'])).fetchall()
     records = {(r['team_id'], r['player_id']): r for r in rows}
     scheduled = connection.execute("""
         SELECT team_id, COUNT(*) AS total FROM (
-            SELECT home_team_id AS team_id FROM games
-            WHERE NOT is_friendly AND home_team_id IN (%s, %s)
+            SELECT g.home_team_id AS team_id FROM games g
+            JOIN teams home ON home.id = g.home_team_id
+            JOIN teams away ON away.id = g.away_team_id
+            WHERE NOT g.is_friendly AND g.home_team_id IN (%s, %s)
+              AND home.category = %s AND away.category = %s
               AND NOT EXISTS (
                   SELECT 1 FROM game_bracket_slots slots
-                  WHERE slots.target_game_id = games.id
+                  WHERE slots.target_game_id = g.id
               )
             UNION ALL
-            SELECT away_team_id AS team_id FROM games
-            WHERE NOT is_friendly AND away_team_id IN (%s, %s)
+            SELECT g.away_team_id AS team_id FROM games g
+            JOIN teams home ON home.id = g.home_team_id
+            JOIN teams away ON away.id = g.away_team_id
+            WHERE NOT g.is_friendly AND g.away_team_id IN (%s, %s)
+              AND home.category = %s AND away.category = %s
               AND NOT EXISTS (
                   SELECT 1 FROM game_bracket_slots slots
-                  WHERE slots.target_game_id = games.id
+                  WHERE slots.target_game_id = g.id
               )
         ) calendar GROUP BY team_id
-    """, (game['home_team_id'], game['away_team_id']) * 2).fetchall()
+    """, (game['home_team_id'], game['away_team_id'], game['home_category'], game['away_category']) * 2).fetchall()
     totals = {r['team_id']: r['total'] for r in scheduled}
     result = []
     for player in roster:
@@ -119,7 +129,8 @@ def read_live_game(game_id):
     with get_connection() as connection:
         connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         game = connection.execute("""
-            SELECT g.*, h.name AS home_name, a.name AS away_name
+            SELECT g.*, h.name AS home_name, a.name AS away_name,
+                   h.category AS home_category, a.category AS away_category
             FROM games g JOIN teams h ON h.id = g.home_team_id
             JOIN teams a ON a.id = g.away_team_id WHERE g.id = %s
         """, (game_id,)).fetchone()
@@ -332,4 +343,5 @@ def void_event(game_id, event_id, payload, user_id, is_admin, is_referee):
                 publish(connection, game)
             connection.execute("UPDATE game_live_sessions SET version = version + 1 WHERE game_id = %s", (game_id,))
         return {"voided": True}
+
 
