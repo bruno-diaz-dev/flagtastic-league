@@ -27,6 +27,7 @@ const refereeAssignmentMessage = document.querySelector("#referee-assignment-mes
 const assignedReferees = document.querySelector("#assigned-referees");
 const scheduleImportForm = document.querySelector("#game-schedule-import-form");
 const scheduleImportMessage = document.querySelector("#game-schedule-import-message");
+const scheduleImportProgress = document.querySelector("#game-schedule-import-progress");
 const scheduleReview = document.querySelector("#game-schedule-review");
 const scheduleReviewBody = document.querySelector("#game-schedule-review-body");
 const confirmScheduleButton = document.querySelector("#confirm-game-schedule");
@@ -1058,6 +1059,8 @@ scheduleReviewBody.addEventListener("input", event => {
 
 scheduleImportForm?.addEventListener("change", () => {
     gameScheduleAnalysisRequest++;
+    scheduleImportProgress.hidden = true;
+    scheduleImportForm.removeAttribute("aria-busy");
     scheduleImportState = null;
     scheduleReview.classList.add("hidden");
     confirmScheduleButton.disabled = true;
@@ -1076,6 +1079,8 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
     scheduleImportState = null;
     confirmScheduleButton.disabled = true;
     scheduleImportMessage.textContent = "Analizando archivo...";
+    scheduleImportProgress.hidden = false;
+    scheduleImportForm.setAttribute("aria-busy", "true");
     setScheduleSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
 
@@ -1098,6 +1103,11 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
         renderGameScheduleReview(body);
     } catch (error) {
         if (request === gameScheduleAnalysisRequest) scheduleImportMessage.textContent = error.message || "No se pudo analizar el rol.";
+    } finally {
+        if (request === gameScheduleAnalysisRequest) {
+            scheduleImportProgress.hidden = true;
+            scheduleImportForm.removeAttribute("aria-busy");
+        }
     }
 });
 

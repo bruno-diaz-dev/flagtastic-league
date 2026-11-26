@@ -21,6 +21,8 @@ _DIVISION_TOKENS = {
 # labels, not a rename of every Valkirias team or of other Vikingos colors.
 _CONFIRMED_UPLOAD_ALIASES = {
     ("femenil", "u14", "valkirias blanco"): "vikingos blanco",
+    # Official stats calls registered SelAgsFemU14 "Sele Ags U14".
+    ("femenil", "libre", "sele ags"): "sel ags",
 }
 
 

@@ -13,6 +13,7 @@ const registeredPlayerResults = document.querySelector("#registered-player-resul
 const registeredPlayerMessage = document.querySelector("#registered-player-message");
 const rosterImportForm = document.querySelector("#roster-import-form");
 const rosterImportMessage = document.querySelector("#roster-import-message");
+const rosterImportProgress = document.querySelector("#roster-import-progress");
 const teamLogoForm = document.querySelector("#team-logo-form");
 const teamLogoMessage = document.querySelector("#team-logo-message");
 const teamStaff = document.querySelector("#team-staff");
@@ -251,6 +252,8 @@ playerForm.addEventListener("submit", async (event) => {
         playerFormMessage.textContent = "Jugador registrado correctamente.";
         await loadRoster();
     } finally {
+        rosterImportProgress.hidden = true;
+        rosterImportForm.removeAttribute("aria-busy");
         submitButton.disabled = false;
     }
 });
@@ -338,6 +341,8 @@ rosterImportForm.addEventListener("submit", async (event) => {
     const fields = new FormData(rosterImportForm);
     const submitButton = rosterImportForm.querySelector('button[type="submit"]');
     submitButton.disabled = true;
+    rosterImportProgress.hidden = false;
+    rosterImportForm.setAttribute("aria-busy", "true");
     rosterImportMessage.textContent = "Validando e importando roster...";
 
     try {

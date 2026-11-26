@@ -76,6 +76,7 @@
             </label>
             <button type="submit">Importar estadísticas</button>
         </form>
+        <div id="statistics-import-progress" class="import-progress" role="progressbar" aria-label="Importando estadísticas" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span></div>
         <a class="secondary-action" href="/api/statistics/import-template">
             Descargar plantilla Excel
         </a>
@@ -124,6 +125,6 @@
 {% block scripts %}
 <script src="/static/api.js?v=20261015-1"></script>
 <script src="/static/statistics_upload.js?v=20261126-1"></script>
-<script src="/static/statistics.js?v=20261020-2"></script>
+<script src="/static/statistics.js?v=20261126-1"></script>
 {% endblock %}
 

@@ -4,6 +4,7 @@ const leaderboardForm = document.querySelector("#leaderboard-form");
 const leaderboardsContainer = document.querySelector("#leaderboards");
 const statisticsImportForm = document.querySelector("#statistics-import-form");
 const statisticsImportMessage = document.querySelector("#statistics-import-message");
+const statisticsImportProgress = document.querySelector("#statistics-import-progress");
 const statisticsImportSkipped = document.querySelector("#statistics-import-skipped");
 const statisticsImportMode = document.querySelector("#statistics-import-mode");
 const statisticsDivisionFields = document.querySelector("#statistics-division-fields");
@@ -155,6 +156,8 @@ async function submitStatisticsImport(event) {
     const submit = statisticsImportForm.querySelector('button[type="submit"]');
     if (submit.disabled) return;
     submit.disabled = true;
+    statisticsImportProgress.hidden = false;
+    statisticsImportForm.setAttribute("aria-busy", "true");
     statisticsImportSkipped.replaceChildren();
     statisticsImportMessage.textContent = "Preparando archivo...";
     let stage = "prepare";
@@ -192,6 +195,8 @@ async function submitStatisticsImport(event) {
                     : "No se pudo procesar la respuesta del servidor. Revisa las estadísticas antes de repetir la carga.")
             : error.message || "No se pudo importar el archivo.";
     } finally {
+        statisticsImportProgress.hidden = true;
+        statisticsImportForm.removeAttribute("aria-busy");
         submit.disabled = false;
     }
 }
