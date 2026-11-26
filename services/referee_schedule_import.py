@@ -61,6 +61,7 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
 
         officials, unmatched_names = _match_officials(row["officials"], referees)
         proposal_date = row.get("game_date") or game.get("game_date")
+        game_label = _referee_import_game_label(game)
         if row.get("date_required"):
             warnings.append(f"{row['source_row']}: fecha inválida del archivo; " + (
                 "se conserva la fecha guardada del partido" if proposal_date else "complétala en la revisión"))
@@ -72,10 +73,7 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
         proposals.append({
             "game_id": game["id"],
             "is_friendly": bool(game.get("is_friendly")),
-            "game_label": (
-                f"J{game['week']}: {game['home_team']['name']} vs "
-                f"{game['away_team']['name']}"
-            ),
+            "game_label": game_label,
             "field_number": row["field_number"],
             "scheduled_time": row["start_time"].strftime("%H:%M"),
             "officials": officials,
@@ -304,31 +302,51 @@ def _match_game(row, games):
     # occur in multiple games before testing identity ambiguity.
     week_games = [game for game in games if game["week"] == row["week"]]
     teams = list({team["id"]: team for game in week_games
-                  for team in (game["home_team"], game["away_team"])}.values())
+                  for team in (game["home_team"], game["away_team"])
+                  if team.get("id") is not None}.values())
     home = _match_participant(row["home_team"], teams)
     away = _match_participant(row["away_team"], teams)
-    if home is None or away is None or home["id"] == away["id"]:
-        return None
-    participant_ids = {home["id"], away["id"]}
-    candidates = []
-    for game in week_games:
-        if {game["home_team"]["id"], game["away_team"]["id"]} != participant_ids:
-            continue
-        if row.get("game_date") and game.get("game_date") and str(row["game_date"]) != str(game["game_date"]):
-            continue
-        if row.get("venue") and game.get("venue") and venue_key(row["venue"]) != venue_key(game["venue"]):
-            continue
-        field_bonus = 0.35 if game.get("field_number") == row["field_number"] else 0
-        time_bonus = 0.35 if _same_time(game.get("start_time"), row["start_time"]) else 0
-        date_bonus = 2 if row.get("game_date") and str(row["game_date"]) == str(game.get("game_date")) else 0
-        venue_bonus = 1 if row.get("venue") and venue_key(row["venue"]) == venue_key(game.get("venue")) else 0
-        candidates.append((field_bonus + time_bonus + date_bonus + venue_bonus, game))
-    candidates.sort(key=lambda candidate: candidate[0], reverse=True)
-    if not candidates:
-        return None
-    if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.08:
-        return None
-    return candidates[0][1]
+    if home is not None and away is not None and home["id"] != away["id"]:
+        participant_ids = {home["id"], away["id"]}
+        candidates = []
+        for game in week_games:
+            if {game["home_team"]["id"], game["away_team"]["id"]} != participant_ids:
+                continue
+            if row.get("game_date") and game.get("game_date") and str(row["game_date"]) != str(game["game_date"]):
+                continue
+            if row.get("venue") and game.get("venue") and venue_key(row["venue"]) != venue_key(game["venue"]):
+                continue
+            field_bonus = 0.35 if game.get("field_number") == row["field_number"] else 0
+            time_bonus = 0.35 if _same_time(game.get("start_time"), row["start_time"]) else 0
+            date_bonus = 2 if row.get("game_date") and str(row["game_date"]) == str(game.get("game_date")) else 0
+            venue_bonus = 1 if row.get("venue") and venue_key(row["venue"]) == venue_key(game.get("venue")) else 0
+            candidates.append((field_bonus + time_bonus + date_bonus + venue_bonus, game))
+        candidates.sort(key=lambda candidate: candidate[0], reverse=True)
+        if candidates and (len(candidates) == 1 or candidates[0][0] - candidates[1][0] >= 0.08):
+            return candidates[0][1]
+
+    # Finals have no participant IDs until the semifinals are resolved. In an
+    # officials' role, those rows still have a definitive schedule slot, so
+    # bind them to the single pending bracket game at that exact week/time/field.
+    pending = [game for game in week_games if game.get("bracket_pending")]
+    pending = [game for game in pending
+               if game.get("field_number") == row["field_number"]
+               and _same_time(game.get("start_time"), row["start_time"])
+               and (not row.get("game_date") or not game.get("game_date")
+                    or str(row["game_date"]) == str(game["game_date"]))
+               and (not row.get("venue") or not game.get("venue")
+                    or venue_key(row["venue"]) == venue_key(game["venue"]))]
+    return pending[0] if len(pending) == 1 else None
+
+
+def _referee_import_game_label(game):
+    if game.get("bracket_pending"):
+        label = game.get("bracket_label") or game["home_team"].get("name") or "Final"
+        return f"J{game['week']}: {label} en espera de equipos"
+    return (
+        f"J{game['week']}: {game['home_team']['name']} vs "
+        f"{game['away_team']['name']}"
+    )
 
 
 def _match_participant(label, teams):
