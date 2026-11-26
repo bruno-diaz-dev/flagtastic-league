@@ -881,4 +881,3 @@ def apply_referee_schedule(assignments, assigned_by):
         raise
     finally:
         connection.close()
-
