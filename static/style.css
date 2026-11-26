@@ -2953,6 +2953,22 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 }
 #game-calendar-management [hidden] { display: none; }
 
+.import-progress {
+    height: 10px;
+    width: min(100%, 32rem);
+    margin: .75rem 0;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--color-border);
+}
+.import-progress-fill {
+    display: block;
+    height: 100%;
+    width: 40%;
+    background: var(--color-gold);
+    border-radius: inherit;
+    animation: schedule-saving 1.4s ease-in-out infinite;
+}
 .schedule-save-progress {
     height: 10px;
     width: min(100%, 32rem);
@@ -2978,7 +2994,7 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
     to { transform: translateX(350%); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .schedule-save-progress-fill { animation: none; }
+    .schedule-save-progress-fill, .import-progress-fill { animation: none; }
 }
 
 .game-time-form {

@@ -5,6 +5,7 @@ const refereeGamesMessage = document.querySelector("#referee-games-message");
 const refereeSummary = document.querySelector("#referee-summary");
 const scheduleForm = document.querySelector("#referee-schedule-form");
 const scheduleMessage = document.querySelector("#schedule-import-message");
+const scheduleImportProgress = document.querySelector("#official-schedule-import-progress");
 const scheduleReview = document.querySelector("#schedule-review");
 const scheduleReviewBody = document.querySelector("#schedule-review-body");
 const scheduleRawText = document.querySelector("#schedule-raw-text");
@@ -347,6 +348,8 @@ dashboardPhotoForm?.addEventListener("submit", async (event) => {
 
 scheduleForm?.addEventListener("change", () => {
     scheduleAnalysisRequest++;
+    scheduleImportProgress.hidden = true;
+    scheduleForm.removeAttribute("aria-busy");
     scheduleReview.classList.add("hidden");
     confirmScheduleButton.disabled = true;
     scheduleMessage.textContent = "Pulsa Analizar rol para revisar el archivo y la jornada seleccionados.";
@@ -360,6 +363,8 @@ scheduleForm?.addEventListener("submit", async (event) => {
     const week = data.get("week") || null;
     const request = ++scheduleAnalysisRequest;
     scheduleMessage.textContent = week ? `Analizando solo la jornada ${week}…` : "Analizando archivo...";
+    scheduleImportProgress.hidden = false;
+    scheduleForm.setAttribute("aria-busy", "true");
     setOfficialSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
     scheduleReview.classList.add("hidden");
@@ -376,6 +381,11 @@ scheduleForm?.addEventListener("submit", async (event) => {
         renderScheduleReview(body);
     } catch (error) {
         if (request === scheduleAnalysisRequest) scheduleMessage.textContent = "No se pudo analizar el rol. Reintenta sin cambiar el archivo.";
+    } finally {
+        if (request === scheduleAnalysisRequest) {
+            scheduleImportProgress.hidden = true;
+            scheduleForm.removeAttribute("aria-busy");
+        }
     }
 });
 
