@@ -252,6 +252,7 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
     if not blocks:
         return []
     source_rows = {}
+    attendance_by_player = set()
     for block_index, (row_number, block, branch, category) in enumerate(blocks):
         team = str(block[0][0]).strip()
         game_index = block_index // 2
@@ -261,6 +262,11 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
             if label not in IDENTITY_EVENT_LABELS:
                 continue
             numbers = list(_jersey_numbers(_official_event_values(values)))
+            if label == "asistencia":
+                attendance_by_player.update(
+                    (game_index, branch, category, team, jersey_number)
+                    for jersey_number in numbers
+                )
             for jersey_number in numbers:
                 players[(game_index, branch, category, team, jersey_number)]
             metric = EVENT_METRICS.get(label)
@@ -303,6 +309,7 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
             "jersey_number": jersey_number,
             "game_index": game_index,
             **dict(metrics),
+            "attendance": (game_index, branch, category, team, jersey_number) in attendance_by_player,
             **({"passing_incomplete": True} if passing_incomplete else {})
         })
     rows.sort(key=lambda row: (
@@ -446,3 +453,4 @@ def parse_games_workbook(content, selected_week=None):
         return parsed
     finally:
         workbook.close()
+
