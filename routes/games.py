@@ -179,7 +179,9 @@ def confirm_game_schedule(
             raise HTTPException(status_code=409, detail="El rol contiene dos partidos en el mismo horario y campo")
         slots.add(slot)
     try:
-        return import_game_schedule(confirmation.games)
+        return import_game_schedule(
+            confirmation.games, bracket_slots=confirmation.bracket_slots
+        )
     except ScheduleConflictError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 

@@ -278,6 +278,7 @@ function renderGames(games) {
                         <span class="game-field">${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</span>
                         ${status}
                         ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
+                        ${game.bracket_label ? `<span class="game-friendly-badge">${escapeHtml(game.bracket_label)}</span>` : ""}
                     </header>
                     <div class="game-teams">
                         ${gameTeamRow(game.home_team, "Local", game.home_score)}
@@ -982,6 +983,9 @@ function renderGameScheduleReview(result) {
     scope.textContent = result.selected_week
         ? `Solo jornada ${result.selected_week}. Se importan partidos; las asignaciones arbitrales del archivo no se incluyen.`
         : "Revisa los partidos reconocidos. Las asignaciones arbitrales del archivo no se incluyen.";
+    if (result.bracket_slots?.length) {
+        scope.textContent += ` ${result.bracket_slots.length} partido(s) de finales detectado(s); se completarán con los resultados de sus semifinales.`;
+    }
     scheduleReview.classList.remove("hidden");
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
         <article class="game-import-card" data-import-card="${index}" aria-labelledby="import-game-${index}">
@@ -1019,7 +1023,7 @@ function renderGameScheduleReview(result) {
             </details>
         </article>`).join("");
     result.proposals.forEach((_, index) => refreshScheduleRow(index));
-    confirmScheduleButton.disabled = result.proposals.length === 0;
+    confirmScheduleButton.disabled = result.proposals.length === 0 && !(result.bracket_slots || []).length;
     scheduleImportMessage.textContent = `${(result.warnings || []).join(" ")} ${result.matched} partido(s) listos y ${result.unmatched} partido(s) por revisar. Abre «Editar partido» para corregir los pendientes. Usa Amistoso únicamente si el partido corresponde a invitados o divisiones distintas.`;
 }
 scheduleReviewBody.addEventListener("change", event => {
@@ -1112,7 +1116,8 @@ confirmScheduleButton?.addEventListener("click", async () => {
         confirmScheduleButton.disabled = false;
         return;
     }
-    if (!selected.length) {
+    const bracketSlots = scheduleImportState.bracket_slots || [];
+    if (!selected.length && !bracketSlots.length) {
         setScheduleConfirmMessage("Selecciona al menos un partido listo.");
         confirmScheduleButton.disabled = false;
         return;
@@ -1129,15 +1134,15 @@ confirmScheduleButton?.addEventListener("click", async () => {
     confirmScheduleButton.textContent = "Guardando partidos…";
     confirmScheduleButton.setAttribute("aria-busy", "true");
     setScheduleSaveProgress("saving");
-    setScheduleConfirmMessage(`Guardando ${selected.length} partido(s)… Espera a que termine la importación.`);
+    setScheduleConfirmMessage(`Guardando ${selected.length} partido(s) y ${bracketSlots.length} finales pendientes…`);
     try {
-        const response = await confirmGameSchedule(selected);
+        const response = await confirmGameSchedule(selected, bracketSlots);
         const body = await response.json();
         setScheduleSaveProgress(response.ok ? "complete" : "idle");
         const detail = Array.isArray(body.detail)
             ? body.detail.map(error => error.msg).join(". ") : body.detail;
         setScheduleConfirmMessage(response.ok
-            ? `${body.created} partido(s) creados; ${body.updated || 0} corregido(s); ${body.skipped} sin cambios.`
+            ? `${body.created} partido(s) creados; ${body.updated || 0} corregido(s); ${body.skipped} sin cambios; ${body.bracket_slots_created || 0} finales enlazados a sus semifinales.`
             : (detail || "No se pudo guardar el rol."));
         if (response.ok) {
             scheduleImportState = null;

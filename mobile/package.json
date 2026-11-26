@@ -34,5 +34,16 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo",
+        "expo-constants",
+        "expo-router",
+        "expo-splash-screen",
+        "expo-updates"
+      ]
+    }
+  }
 }
