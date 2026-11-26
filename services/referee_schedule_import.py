@@ -249,7 +249,7 @@ def _read_grid_rows(matrix, source_name, selected_week=None):
             for column, field_number in field_columns.items():
                 home_team = _cell(values, column)
                 away_team = _cell(values, column + 1)
-                if home_team and away_team:
+                if home_team and (away_team or _is_bracket_fixture_placeholder(home_team)):
                     pending_games[column] = (
                         field_number, start_time, home_team, away_team, row_number, dict(context)
                     )
@@ -296,6 +296,11 @@ def _schedule_row(source, row_number, week, field_number, start_time, home, away
     }
 
 
+def _is_bracket_fixture_placeholder(label):
+    """Recognize playoff labels that occupy one merged team cell in role grids."""
+    return bool(re.match(r"^(?:final|3ro|3er(?:\s+lugar)?|tercer(?:\s+lugar)?)\b", _normalize(label)))
+
+
 def _match_game(row, games):
     # Resolve names with the same division/alias rules used to register the
     # schedule, including invited friendly identities. Deduplicate teams that
@@ -304,8 +309,8 @@ def _match_game(row, games):
     teams = list({team["id"]: team for game in week_games
                   for team in (game["home_team"], game["away_team"])
                   if team.get("id") is not None}.values())
-    home = _match_participant(row["home_team"], teams)
-    away = _match_participant(row["away_team"], teams)
+    home = _match_participant(row["home_team"], teams) if row["home_team"] else None
+    away = _match_participant(row["away_team"], teams) if row["away_team"] else None
     if home is not None and away is not None and home["id"] != away["id"]:
         participant_ids = {home["id"], away["id"]}
         candidates = []
@@ -398,7 +403,10 @@ def _time_value(value):
         return time((minutes // 60) % 24, minutes % 60)
     text = _text(value).lower().replace("a. m.", "am").replace("p. m.", "pm")
     text = text.replace("a.m.", "am").replace("p.m.", "pm")
-    for pattern in ("%H:%M", "%H.%M", "%I:%M %p", "%I %p"):
+    for pattern in (
+        "%H:%M", "%H:%M:%S", "%H:%M:%S.%f", "%H.%M",
+        "%I:%M %p", "%I:%M:%S %p", "%I %p",
+    ):
         try:
             return datetime.strptime(text.upper(), pattern).time()
         except ValueError:
