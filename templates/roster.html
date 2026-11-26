@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="roster-page" data-team-id="{{ team_id }}" class="league-page">
+    <a class="back-link" href="/teams">← Volver a equipos</a>
+
+    <header class="section-header roster-header">
+        <img id="roster-team-logo" class="team-logo roster-team-logo hidden" alt="">
+        <div>
+            <p class="ui-kicker">FlagTastic · Plantilla del equipo</p>
+            <h2 id="roster-title">Roster</h2>
+            <p id="roster-subtitle">Cargando equipo...</p>
+        </div>
+    </header>
+
+    <p id="roster-deadline-message" class="form-message" role="status"></p>
+    <section id="team-staff" class="team-staff" aria-label="Cuerpo técnico"></section>
+
+    <section class="form-panel team-scope-manager-only">
+        <details class="ui-disclosure"><summary>Actualizar logo<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+        <form id="team-logo-form" class="stats-import-form">
+            <label>
+                Nuevo logo del equipo
+                <input name="logo" type="file" accept="image/jpeg,image/png,image/webp" required>
+                <small>JPG, PNG o WebP. Máximo 5 MB.</small>
+            </label>
+            <button type="submit">Guardar logo</button>
+        </form>
+        <p id="team-logo-message" class="form-message" role="status"></p>
+
+        </div></details>
+<details class="ui-disclosure"><summary>Cuerpo técnico<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+        <form id="team-staff-form" class="player-form">
+            <label>Head Coach<input name="head_coach" maxlength="120"></label>
+            <label>Coach<input name="coach" maxlength="120"></label>
+            <label>Manager<input name="manager" maxlength="120"></label>
+            <button type="submit">Guardar cuerpo técnico</button>
+        </form>
+        <p id="team-staff-message" class="form-message" role="status"></p>
+
+        </div></details>
+<details class="ui-disclosure"><summary>Registrar jugador<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+        <form id="player-form" class="player-form">
+            <label>Nombre<input name="name" autocomplete="off" required></label>
+            <label>Tipo de identificación<select name="identity_type"><option value="curp">CURP (18 caracteres)</option><option value="provisional">Documento provisional o escolar</option></select></label>
+            <label><span data-identity-label>CURP</span><input name="curp" autocomplete="off" minlength="18" maxlength="18" required></label>
+            <label class="hidden" data-birth-date-field>Fecha de nacimiento<input name="birth_date" type="date" disabled></label>
+            <p class="form-help">Para un documento escolar corto, selecciona identificación provisional y conserva sus caracteres originales. La fecha de nacimiento se guarda de forma privada.</p>
+            <label>Edad cumplida<input name="age" type="number" readonly tabindex="-1"></label>
+            <label>Número<input name="jersey_number" type="number" min="0" required></label>
+            <button type="submit">Registrar jugador</button>
+        </form>
+        <p id="player-form-message" class="form-message" role="status"></p>
+
+        </div></details>
+<details class="ui-disclosure"><summary>Agregar jugador existente<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+        <form id="registered-player-form" class="player-form">
+            <label>
+                Buscar por nombre o AKA
+                <input id="registered-player-search" type="search" minlength="2" autocomplete="off" placeholder="Escribe al menos 2 caracteres">
+            </label>
+            <label>
+                Jugador
+                <select id="registered-player-results" name="player_id" disabled required>
+                    <option value="">Busca un perfil de jugador</option>
+                </select>
+            </label>
+            <label>
+                Número
+                <input name="jersey_number" type="number" min="0" required>
+            </label>
+            <button type="submit" disabled>Agregar al roster</button>
+        </form>
+        <p id="registered-player-message" class="form-message" role="status"></p>
+
+        </div></details>
+        <details class="ui-disclosure"><summary>Importar plantilla de jugadores<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
+        <form id="roster-import-form" class="stats-import-form">
+            <label>Importar roster (.csv o .xlsx)
+                <input name="file" type="file" accept=".csv,.xlsx" required>
+                <small>Columnas requeridas: nombre, CURP y número. La edad se calcula automáticamente.</small>
+            </label>
+            <button type="submit">Importar roster</button>
+        </form>
+        <div id="roster-import-progress" class="import-progress" role="progressbar" aria-label="Importando roster" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span><span class="import-progress-percent">0%</span></div>
+        <a class="secondary-link" href="/api/teams/{{ team_id }}/players/import/template.csv">
+            Descargar plantilla CSV
+        </a>
+        <p id="roster-import-message" class="form-message" role="status"></p>
+        </div></details>
+    </section>
+
+    <div id="roster" class="roster-list" aria-live="polite"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/api.js?v=20261126-2"></script>
+<script src="/static/import_progress.js?v=20261126-1"></script>
+<script src="/static/player_identity.js?v=20261004-1"></script>
+<script src="/static/roster.js?v=20261126-2"></script>
+{% endblock %}
