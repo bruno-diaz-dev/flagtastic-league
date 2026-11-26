@@ -24,6 +24,7 @@
       "fix-statistics-source-size": true,
       "alias-valkirias-vikingos-blanco": true,
       "playoff-bracket-auto-advancement": true,
+      "finals-advancement": true,
       "skip-empty-statistics-games": true,
       "feature/friendly-games": true,
       "expand-team-audit": true,
