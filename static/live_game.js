@@ -272,7 +272,7 @@ function renderLiveAttendance(data, official) {
     document.querySelector("#attendance-permission").textContent = canTakeAttendance ? "Usa Marcar presente junto a cada jugador. No necesitas iniciar la captura en vivo." : data.state === "completed" ? "Partido finalizado: solo un administrador puede registrar o corregir la asistencia." : data.state === "postponed" ? "El partido está pospuesto." : "Inicia sesión con una cuenta de árbitro o administrador para tomar asistencia.";
     document.querySelector("#live-attendance").innerHTML = [data.home_team, data.away_team].map(team =>
         `<h4>${escapeHtml(team.name)}</h4><div class="attendance-roster">${(data.attendance || []).filter(row => row.team_id === team.id).map(row =>
-            `<div class="attendance-player"><strong>#${row.jersey_number} ${escapeHtml(row.display_name)}</strong><p>${row.present ? "Presente en este juego" : "Sin asistencia registrada"} · ${row.attended_games}/${row.required_games} juegos requeridos · ${row.eligible ? "Cumple según calendario actual" : "Aún no cumple"}</p>${canTakeAttendance && !row.present ? `<button type="button" class="secondary-button" data-live-attendance="${row.player_id}" data-live-attendance-team="${row.team_id}">Marcar presente</button>` : ""}${row.present && canTakeAttendance ? `<button type="button" class="secondary-button" data-attendance-void="${row.entry_id}">Corregir asistencia</button>` : ""}</div>`
+            `<div class="attendance-player"><strong>#${row.jersey_number} ${escapeHtml(row.display_name)}</strong><p>${row.present ? "Presente en este juego" : "Sin asistencia registrada"} · ${row.attended_games}/${row.scheduled_games} juegos regulares · requiere ${row.required_games} · ${row.eligible ? "Cumple según calendario actual" : "Aún no cumple"}</p>${canTakeAttendance && !row.present ? `<button type="button" class="secondary-button" data-live-attendance="${row.player_id}" data-live-attendance-team="${row.team_id}">Marcar presente</button>` : ""}${row.present && canTakeAttendance ? `<button type="button" class="secondary-button" data-attendance-void="${row.entry_id}">Corregir asistencia</button>` : ""}</div>`
         ).join("")}</div>`
     ).join("");
 }
@@ -481,5 +481,6 @@ window.addEventListener("beforeunload", event => { if (liveCaptureSaving || live
     await initializeLiveQueue();
     await refreshLive();
 })();
+
 
 
