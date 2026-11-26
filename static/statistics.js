@@ -102,6 +102,58 @@ function renderLeaderboards(leaderboards) {
 }
 
 
+function csvReportCell(value) {
+    let text = value == null ? "" : String(value);
+    if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replaceAll('"', '""')}"`;
+}
+
+function downloadSkippedStatisticsReport(data) {
+    const columns = [
+        "Tipo", "Motivo", "Jornada", "Hoja", "Fila", "Partido",
+        "Equipo en archivo", "Equipo registrado", "Rama", "Categoría",
+        "Número", "Puntos", "Recepciones", "Intercepciones", "Capturas",
+        "Tacleadas", "Pases completos", "Pases intentados", "Posibles equipos",
+        "Detalle",
+    ];
+    const reasonLabels = {
+        team_unresolved: "No se pudo identificar el equipo",
+        game_unresolved: "No se pudo identificar o enlazar el partido",
+        game_team_unresolved: "Se omitió el partido completo por equipo no identificado",
+        jersey_number_not_found: "Número no registrado en el equipo",
+    };
+    const rows = (data.skipped || []).map(row => [
+        "Registro omitido", reasonLabels[row.reason] || row.reason || "Registro omitido",
+        row.week, row.sheet, row.row_number ?? row.source_row,
+        row.game_index == null ? "" : row.game_index + 1,
+        row.source_team_name || row.team_name,
+        row.team_id == null ? "" : row.team_name,
+        row.branch, row.category, row.jersey_number, row.points, row.receptions,
+        row.interceptions, row.sacks, row.tackles, row.passes_completed,
+        row.passes_attempted, (row.candidate_names || []).join("; "), row.detail,
+    ]);
+    for (const warning of data.warnings || []) {
+        rows.push([
+            "Dato omitido", "Pases inconsistentes omitidos", warning.week,
+            warning.sheet, warning.row, "", warning.team_name, warning.team_name,
+            warning.branch, warning.category, warning.jersey_number, "", "", "", "",
+            "", warning.source_completed, warning.source_attempted, "",
+            `${warning.source_completed} completos y ${warning.source_attempted} intentos en el archivo; se conservaron los pases publicados si existían.`,
+        ]);
+    }
+    const csv = "\uFEFF" + [columns, ...rows]
+        .map(row => row.map(csvReportCell).join(","))
+        .join("\r\n");
+    const blobUrl = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));
+    const link = document.createElement("a");
+    const timestamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+    link.href = blobUrl;
+    link.download = `estadisticas-omitidas-${timestamp}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
+
+
 function renderSkippedStatistics(data) {
     statisticsImportSkipped.replaceChildren();
     const skipped = data.skipped || [];
@@ -117,7 +169,7 @@ function renderSkippedStatistics(data) {
         }
         statisticsImportSkipped.append(heading, list);
     }
-    if (!skipped.length) return;
+    if (!skipped.length && !warnings.length) return;
     const unresolvedReasons = new Set(["team_unresolved", "game_unresolved", "game_team_unresolved"]);
     const unresolved = skipped.filter(row => unresolvedReasons.has(row.reason));
     const missingJersey = skipped.filter(row =>
@@ -161,6 +213,13 @@ function renderSkippedStatistics(data) {
         notice.textContent = `Sin registros válidos en las jornadas ${data.preserved_weeks.join(", ")}. Se conservaron sus datos anteriores.`;
         statisticsImportSkipped.append(notice);
     }
+    const download = document.createElement("button");
+    download.type = "button";
+    download.className = "secondary-action";
+    download.style.cssText = "border: 0; background: transparent; padding: 0; font: inherit; cursor: pointer; text-decoration: underline;";
+    download.textContent = "Descargar archivo de registros omitidos (CSV)";
+    download.addEventListener("click", () => downloadSkippedStatisticsReport(data));
+    statisticsImportSkipped.append(download);
 }
 
 
@@ -274,5 +333,6 @@ if (statisticsImportForm) {
 }
 updateLeaderboardBranchControl();
 loadLeaderboards();
+
 
 

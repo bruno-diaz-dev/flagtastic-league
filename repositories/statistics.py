@@ -157,6 +157,22 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
 
         resolved_weeks = {}
         skipped = []
+
+        def skipped_record(week, row, reason, **details):
+            record = {
+                "week": week, "source_team_name": row["team"],
+                "team_name": row["team"], "branch": row["branch"],
+                "category": row["category"],
+                "jersey_number": row["jersey_number"],
+                "game_index": row.get("game_index"), "reason": reason,
+                **{field: row.get(field) for field in (
+                    "points", "receptions", "interceptions", "sacks",
+                    "tackles", "passes_completed", "passes_attempted",
+                )},
+            }
+            record.update(details)
+            return record
+
         preserved_weeks = []
         resolved_candidates = {}
         candidate_team_ids = set()
@@ -166,10 +182,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             for row_number, row in enumerate(rows, start=2):
                 game_index = row.get("game_index")
                 if game_index in unresolved_game_indices.get(week, set()):
-                    skipped.append({"week": week, "team_name": row["team"],
-                        "branch": row["branch"], "category": row["category"],
-                        "jersey_number": row["jersey_number"], "game_index": game_index,
-                        "reason": "game_unresolved"})
+                    skipped.append(skipped_record(
+                        week, row, "game_unresolved"
+                    ))
                     continue
                 team = resolve_stats_team(row, week)
                 if team is None:
@@ -180,18 +195,12 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         candidate["name"] for confidence, candidate
                         in possibilities if confidence >= 0.65
                     ][:3]
-                    hint = (
-                        " Posibles equipos: " + ", ".join(suggestions)
-                        + ". Confirma cuál corresponde."
-                        if suggestions else ""
-                    )
                     if game_index is not None:
                         unresolved_game_indices.setdefault(week, set()).add(game_index)
-                    skipped.append({"week": week, "team_name": row["team"],
-                        "branch": row["branch"], "category": row["category"],
-                        "jersey_number": row["jersey_number"], "game_index": game_index,
-                        "reason": "team_unresolved", "candidate_names": suggestions,
-                        "row_number": row_number})
+                    skipped.append(skipped_record(
+                        week, row, "team_unresolved",
+                        candidate_names=suggestions, row_number=row_number,
+                    ))
                     continue
                 resolved_candidates[week].append((team, row_number, row))
                 candidate_team_ids.add(team["id"])
@@ -221,23 +230,19 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             for team, row_number, row in candidates:
                 game_index = row.get("game_index")
                 if game_index in unresolved_game_indices.get(week, set()):
-                    skipped.append({"week": week, "team_name": team["name"],
-                        "branch": team["branch"], "category": team["category"],
-                        "jersey_number": row["jersey_number"], "game_index": game_index,
-                        "reason": "game_team_unresolved"})
+                    skipped.append(skipped_record(
+                        week, row, "game_team_unresolved",
+                        team_id=team["id"], team_name=team["name"],
+                    ))
                     continue
                 player = players_by_team_jersey.get(
                     (team["id"], row["jersey_number"])
                 )
                 if player is None:
-                    skipped.append({
-                        "week": week, "team_id": team["id"],
-                        "team_name": team["name"], "branch": team["branch"],
-                        "category": team["category"],
-                        "jersey_number": row["jersey_number"],
-                        "game_index": row.get("game_index"),
-                        "reason": "jersey_number_not_found",
-                    })
+                    skipped.append(skipped_record(
+                        week, row, "jersey_number_not_found",
+                        team_id=team["id"], team_name=team["name"],
+                    ))
                     continue
                 membership = (
                     row.get("game_index"), player["id"], team["id"]
@@ -298,11 +303,10 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             kept = []
             for player, team, row in resolved_weeks[week]:
                 if row.get("game_index") in blocked_indices:
-                    skipped.append({"week": week, "team_name": team["name"],
-                        "branch": team["branch"], "category": team["category"],
-                        "jersey_number": row["jersey_number"],
-                        "game_index": row.get("game_index"),
-                        "reason": "game_team_unresolved"})
+                    skipped.append(skipped_record(
+                        week, row, "game_team_unresolved",
+                        team_id=team["id"], team_name=team["name"],
+                    ))
                 else:
                     kept.append((player, team, row))
             resolved_weeks[week] = kept
@@ -820,4 +824,5 @@ def get_leaderboards(branch, category, limit=5):
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }
     return result
+
 
