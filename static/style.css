@@ -382,6 +382,35 @@ select option {
     border-bottom: 1px solid var(--color-border);
 }
 
+.finals-eligibility-filters {
+    grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(150px, 1fr));
+}
+.finals-eligibility-results { display: grid; gap: 12px; }
+.finals-eligibility-player {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: rgba(16, 27, 49, 0.86);
+}
+.finals-eligibility-identity,
+.finals-eligibility-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.finals-eligibility-identity h3,
+.finals-eligibility-identity p,
+.finals-eligibility-progress { margin: 4px 0 0; }
+.finals-eligibility-progress span { color: var(--color-muted); }
+.finals-eligibility-player progress {
+    width: 100%;
+    height: 10px;
+    accent-color: var(--color-gold);
+}
+
 .duplicate-team-group h3,
 .duplicate-team-row p {
     margin: 4px 0 0;
@@ -2463,6 +2492,12 @@ body.role-league_admin .week-admin-actions.admin-only {
         grid-template-columns: 1fr;
     }
 
+    .finals-eligibility-identity,
+    .finals-eligibility-progress {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .duplicate-team-group > header,
     .duplicate-team-row {
         align-items: flex-start;
@@ -3066,4 +3101,5 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 .schedule-board-official-slot select { width: 100%; min-width: 0; }
 .schedule-board-official-slot button:disabled { opacity: .65; cursor: wait; }
 .schedule-board-official-slot .form-message { margin: 0; }
+
 
