@@ -17,12 +17,18 @@ _DIVISION_TOKENS = {
     "6", "8", "10", "12", "14", "16", "18",
 }
 
-# Confirmed by the league administrator; these are division-specific upload
-# labels, not a rename of every Valkirias team or of other Vikingos colors.
+# Confirmed upload labels are scoped to the source division so they cannot
+# rename a similarly named team in another age group or branch.
 _CONFIRMED_UPLOAD_ALIASES = {
     ("femenil", "u14", "valkirias blanco"): "vikingos blanco",
-    # Official stats calls registered SelAgsFemU14 "Sele Ags U14".
+    # The official stats workbook spells the registered SelAgsFemU14 team as
+    # "Sele Ags U14". Keep this alias limited to its actual division.
     ("femenil", "libre", "sele ags"): "sel ags",
+    # The workbook's Mixto Libre block labels the registered CUERNOS team as
+    # "Cuernos Largos"; other Cuernos Largos teams are in different divisions.
+    ("mixto", "libre", "cuernos largos"): "cuernos",
+    # Another official spelling for the same SelAgs Fem U14 roster.
+    ("femenil", "libre", "sel ags fem14"): "sel ags",
 }
 
 

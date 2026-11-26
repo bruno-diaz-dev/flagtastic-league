@@ -156,6 +156,15 @@ _CONFIRMED_SOURCE_BRANCHES = {
     (3, "mixto", "u18", frozenset({"diablos rojo", "lanceros"})): "femenil",
     (3, "mixto", "u18", frozenset({"diablos amarillo", "uca"})): "femenil",
     (3, "varonil", "libre", frozenset({"diablos", "ravens"})): "femenil",
+    # These official sheets label the following completed girls' divisions as
+    # Mixto. Exact pair and week are corroborated by the registered schedule.
+    (4, "mixto", "u14", frozenset({"black mamba", "vikingos blanco"})): "femenil",
+    (4, "mixto", "u14", frozenset({"flamingos", "nomadas amarillo"})): "femenil",
+    (4, "mixto", "u14", frozenset({"nomadas amarillo", "pitbulls"})): "femenil",
+    (4, "mixto", "u14", frozenset({"nomadas negro", "vikingos blanco"})): "femenil",
+    (4, "mixto", "u18", frozenset({"black mamba", "pitbulls"})): "femenil",
+    (5, "mixto", "u14", frozenset({"eca", "flamingos"})): "femenil",
+    (5, "mixto", "u14", frozenset({"diablos del sol", "ducks"})): "femenil",
 }
 
 

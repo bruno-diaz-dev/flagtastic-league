@@ -2953,8 +2953,18 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 }
 #game-calendar-management [hidden] { display: none; }
 
+.schedule-save-progress {
+    position: relative;
+    height: 20px;
+    width: min(100%, 32rem);
+    margin-top: 1rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--color-border);
+}
 .import-progress {
-    height: 10px;
+    position: relative;
+    height: 20px;
     width: min(100%, 32rem);
     margin: .75rem 0;
     border-radius: 999px;
@@ -2964,27 +2974,33 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 .import-progress-fill {
     display: block;
     height: 100%;
-    width: 40%;
+    width: 0%;
     background: var(--color-gold);
     border-radius: inherit;
-    animation: schedule-saving 1.4s ease-in-out infinite;
-}
-.schedule-save-progress {
-    height: 10px;
-    width: min(100%, 32rem);
-    margin-top: 1rem;
-    border-radius: 999px;
-    overflow: hidden;
-    background: var(--color-border);
+    transition: width .18s ease-out;
 }
 .schedule-save-progress-fill {
     display: block;
     height: 100%;
-    width: 40%;
+    width: 0%;
     background: var(--color-gold);
     border-radius: inherit;
-    animation: schedule-saving 1.4s ease-in-out infinite;
+    transition: width .18s ease-out;
 }
+.import-progress-percent {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    z-index: 1;
+    transform: translate(-50%, -50%);
+    color: var(--color-text);
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px var(--color-background), 0 -1px 3px var(--color-background);
+}
+.import-progress.is-complete, .schedule-save-progress.is-complete { background: var(--color-success, var(--color-gold)); }
+.import-progress.is-error, .schedule-save-progress.is-error { background: var(--color-border); }
 .schedule-save-progress.is-complete .schedule-save-progress-fill {
     animation: none;
     width: 100%;
@@ -2993,9 +3009,7 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
     from { transform: translateX(-100%); }
     to { transform: translateX(350%); }
 }
-@media (prefers-reduced-motion: reduce) {
-    .schedule-save-progress-fill, .import-progress-fill { animation: none; }
-}
+@media (prefers-reduced-motion: reduce) { .schedule-save-progress-fill, .import-progress-fill { transition: none; } }
 
 .game-time-form {
     display: grid;

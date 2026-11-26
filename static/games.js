@@ -972,8 +972,10 @@ function setScheduleSaveProgress(state) {
     if (!scheduleSaveProgress) return;
     scheduleSaveProgress.hidden = state === "idle";
     scheduleSaveProgress.classList.toggle("is-complete", state === "complete");
-    if (state === "complete") scheduleSaveProgress.setAttribute("aria-valuenow", "100");
-    else scheduleSaveProgress.removeAttribute("aria-valuenow");
+    if (state === "complete" && typeof updateImportProgress === "function") updateImportProgress(scheduleSaveProgress, 100, "Completado");
+    else if (state === "saving" && typeof updateImportProgress === "function") updateImportProgress(scheduleSaveProgress, 1, "Enviando cambios");
+    else if (state === "complete") scheduleSaveProgress.setAttribute("aria-valuenow", "100");
+    else if (state === "idle") scheduleSaveProgress.removeAttribute("aria-valuenow");
 }
 function setScheduleConfirmMessage(message) {
     scheduleImportMessage.textContent = message;
@@ -1091,21 +1093,25 @@ scheduleImportForm?.addEventListener("submit", async (event) => {
             ? await window.analyzeScheduleImageCells(
                 file,
                 weekOverride,
-                (message) => { if (request === gameScheduleAnalysisRequest) scheduleImportMessage.textContent = message; }
+                (message, percent) => { if (request === gameScheduleAnalysisRequest) { scheduleImportMessage.textContent = message; if (Number.isFinite(percent) && typeof updateImportProgress === "function") updateImportProgress(scheduleImportProgress, percent, message); } }
             )
-            : await analyzeGameSchedule(file, weekOverride);
+            : await analyzeGameSchedule(file, weekOverride, event => { if (typeof updateRequestProgress === "function") updateRequestProgress(scheduleImportProgress, event); });
         const body = await response.json();
         if (request !== gameScheduleAnalysisRequest) return;
         if (!response.ok) {
             scheduleImportMessage.textContent = body.detail || "No se pudo analizar el rol.";
+            if (typeof finishImportProgress === "function") finishImportProgress(scheduleImportProgress, false); else scheduleImportProgress.hidden = true;
             return;
         }
         renderGameScheduleReview(body);
+        if (typeof finishImportProgress === "function") finishImportProgress(scheduleImportProgress, true); else scheduleImportProgress.hidden = true;
     } catch (error) {
-        if (request === gameScheduleAnalysisRequest) scheduleImportMessage.textContent = error.message || "No se pudo analizar el rol.";
+        if (request === gameScheduleAnalysisRequest) {
+            scheduleImportMessage.textContent = error.message || "No se pudo analizar el rol.";
+            if (typeof finishImportProgress === "function") finishImportProgress(scheduleImportProgress, false); else scheduleImportProgress.hidden = true;
+        }
     } finally {
         if (request === gameScheduleAnalysisRequest) {
-            scheduleImportProgress.hidden = true;
             scheduleImportForm.removeAttribute("aria-busy");
         }
     }
@@ -1164,9 +1170,11 @@ confirmScheduleButton?.addEventListener("click", async () => {
     setScheduleSaveProgress("saving");
     setScheduleConfirmMessage(`Guardando ${selected.length} partido(s) y ${bracketSlots.length} finales pendientes…`);
     try {
-        const response = await confirmGameSchedule(selected, bracketSlots);
+        const response = await confirmGameSchedule(selected, bracketSlots, event => updateRequestProgress(scheduleSaveProgress, event));
         const body = await response.json();
-        setScheduleSaveProgress(response.ok ? "complete" : "idle");
+        if (response.ok) setScheduleSaveProgress("complete");
+        else if (typeof finishImportProgress === "function") finishImportProgress(scheduleSaveProgress, false);
+        else setScheduleSaveProgress("idle");
         const detail = Array.isArray(body.detail)
             ? body.detail.map(error => error.msg).join(". ") : body.detail;
         setScheduleConfirmMessage(response.ok
@@ -1178,7 +1186,8 @@ confirmScheduleButton?.addEventListener("click", async () => {
             await loadGames();
         }
     } catch (error) {
-        setScheduleSaveProgress("idle");
+        if (typeof finishImportProgress === "function") finishImportProgress(scheduleSaveProgress, false);
+        else setScheduleSaveProgress("idle");
         setScheduleConfirmMessage("No se pudo confirmar el resultado del guardado. Reintenta la confirmación para verificarlo; los mismos partidos no se duplicarán.");
     } finally {
         gameScheduleSaving = false;

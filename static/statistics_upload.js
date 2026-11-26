@@ -2,13 +2,21 @@
 const STATISTICS_UPLOAD_LIMIT = 4 * 1024 * 1024;
 const STATISTICS_SOURCE_LIMIT = 32 * 1024 * 1024;
 
-async function prepareStatisticsUpload(file) {
+async function prepareStatisticsUpload(file, onProgress = () => {}) {
     if (!file || !/\.xlsx$/i.test(file.name)) throw new Error('Selecciona un archivo .xlsx.');
     if (file.size > STATISTICS_SOURCE_LIMIT) throw new Error('El archivo excede 32 MB.');
-    if (file.size <= STATISTICS_UPLOAD_LIMIT) return file;
+    if (file.size <= STATISTICS_UPLOAD_LIMIT) { onProgress(20, "Archivo listo"); return file; }
     let buffer;
     try {
-        buffer = await file.arrayBuffer();
+        buffer = typeof FileReader === "undefined"
+            ? await file.arrayBuffer()
+            : await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onprogress = event => { if (event.lengthComputable) onProgress(2 + 5 * event.loaded / event.total, "Leyendo Excel"); };
+                reader.onerror = () => reject(reader.error);
+                reader.onload = () => resolve(reader.result);
+                reader.readAsArrayBuffer(file);
+            });
     } catch {
         throw new Error('No se pudo leer el archivo del dispositivo. Descárgalo por completo y selecciónalo de nuevo.');
     }
@@ -22,6 +30,7 @@ async function prepareStatisticsUpload(file) {
         }
         worker.onerror = () => finish(new Error('No se pudo preparar el Excel. Recarga la pagina e intenta de nuevo.'));
         worker.onmessage = ({data}) => {
+            if (Number.isFinite(data.progress)) { onProgress(data.progress, "Preparando Excel"); return; }
             if (data.error) return finish(new Error(data.error));
             const prepared = new File([data.bytes], file.name, {type: file.type});
             if (prepared.size > STATISTICS_UPLOAD_LIMIT) {

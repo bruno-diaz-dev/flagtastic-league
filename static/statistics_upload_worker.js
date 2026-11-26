@@ -8,13 +8,14 @@ self.onmessage = ({data}) => {
         // Compact templates and single-sheet official imports have no Wk name.
         if (!names.length) names = allNames.slice(0, 1);
         if (!names.length) throw new Error('El archivo no contiene hojas.');
+        self.postMessage({progress: 10});
         const input = XLSX.read(data, {
             type: 'array', sheets: names, dense: true,
             cellFormula: false, cellHTML: false, cellText: false
         });
         const output = XLSX.utils.book_new();
         let included = 0;
-        for (const name of names) {
+        for (const [sheetIndex, name] of names.entries()) {
             const source = input.Sheets[name];
             if (!source || !source['!ref']) throw new Error(`La hoja ${name} esta vacia.`);
             const end = XLSX.utils.decode_range(source['!ref']).e.r;
@@ -43,8 +44,10 @@ self.onmessage = ({data}) => {
             while (rows.length && rows.at(-1).length === 0) rows.pop();
             XLSX.utils.book_append_sheet(output, XLSX.utils.aoa_to_sheet(rows), name);
             included += 1;
+            self.postMessage({progress: 10 + 20 * (sheetIndex + 1) / names.length});
         }
         if (!included) throw new Error('El archivo no contiene jornadas con equipos.');
+        self.postMessage({progress: 35});
         const bytes = XLSX.write(output, {type: 'array', bookType: 'xlsx', compression: true, bookSST: true});
         self.postMessage({bytes}, [bytes]);
     } catch (error) {

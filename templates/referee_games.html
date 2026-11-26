@@ -45,14 +45,14 @@
             <button type="submit">Analizar rol</button>
         </form>
         <p id="schedule-import-message" class="form-message" role="status"></p>
-        <div id="official-schedule-import-progress" class="import-progress" role="progressbar" aria-label="Analizando rol de oficiales" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span></div>
+        <div id="official-schedule-import-progress" class="import-progress" role="progressbar" aria-label="Analizando rol de oficiales" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span><span class="import-progress-percent">0%</span></div>
         <div id="schedule-review" class="schedule-review hidden">
             <p id="schedule-review-scope" class="form-help"></p>
             <div id="schedule-review-body" class="schedule-review-cards"></div>
             <button id="confirm-schedule" type="button">Confirmar asignaciones</button>
             <details><summary>Contenido reconocido</summary><pre id="schedule-raw-text"></pre></details>
         </div>
-        <div id="official-schedule-save-progress" class="schedule-save-progress" role="progressbar" aria-label="Guardado de asignaciones de oficiales" aria-valuemin="0" aria-valuemax="100" hidden><span class="schedule-save-progress-fill"></span></div>
+        <div id="official-schedule-save-progress" class="schedule-save-progress" role="progressbar" aria-label="Guardado de asignaciones de oficiales" aria-valuemin="0" aria-valuemax="100" hidden><span class="schedule-save-progress-fill"></span><span class="import-progress-percent">0%</span></div>
         <p id="official-schedule-confirm-message" class="form-message" role="status" aria-live="polite"></p>
     
         </div></details>
@@ -61,6 +61,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261104-1"></script>
-<script src="/static/referee_games.js?v=20261126-2"></script>
+<script src="/static/api.js?v=20261126-2"></script>
+<script src="/static/import_progress.js?v=20261126-1"></script>
+<script src="/static/referee_games.js?v=20261126-4"></script>
 {% endblock %}

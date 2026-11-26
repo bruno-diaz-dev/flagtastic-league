@@ -142,7 +142,7 @@
         </form>
         <p id="game-schedule-week-help" class="form-help">En XLSX o CSV se importa solo esa jornada. Para imágenes, indica la jornada del rol.</p>
         <p id="game-schedule-import-message" class="form-message" role="status"></p>
-        <div id="game-schedule-import-progress" class="import-progress" role="progressbar" aria-label="Analizando rol de juegos" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span></div>
+        <div id="game-schedule-import-progress" class="import-progress" role="progressbar" aria-label="Analizando rol de juegos" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span><span class="import-progress-percent">0%</span></div>
         <div id="game-schedule-review" class="schedule-review hidden">
             <p id="game-schedule-review-scope" class="form-help"></p>
             <div class="calendar-bulk-fill">
@@ -158,7 +158,7 @@
                 </button>
             </div>
         </div>
-        <div id="game-schedule-save-progress" class="schedule-save-progress" role="progressbar" aria-label="Guardado de partidos" aria-valuemin="0" aria-valuemax="100" hidden><span class="schedule-save-progress-fill"></span></div>
+        <div id="game-schedule-save-progress" class="schedule-save-progress" role="progressbar" aria-label="Guardado de partidos" aria-valuemin="0" aria-valuemax="100" hidden><span class="schedule-save-progress-fill"></span><span class="import-progress-percent">0%</span></div>
         <p id="game-schedule-confirm-message" class="form-message" role="status" aria-live="polite"></p>
     
         </div></details>
@@ -327,9 +327,10 @@
 
 {% block scripts %}
 <script src="/static/ocr_loader.js?v=20261004-1"></script>
-<script src="/static/api.js?v=20261104-1"></script>
-<script src="/static/schedule_ocr_cells.js?v=20261023-1"></script>
+<script src="/static/api.js?v=20261126-2"></script>
+<script src="/static/import_progress.js?v=20261126-1"></script>
+<script src="/static/schedule_ocr_cells.js?v=20261126-2"></script>
 <script src="/static/weekly_featured.js?v=20261019-1"></script>
-<script src="/static/games.js?v=20261126-4"></script>
+<script src="/static/games.js?v=20261126-6"></script>
 <script src="/static/schedule_board.js?v=20261104-1"></script>
 {% endblock %}

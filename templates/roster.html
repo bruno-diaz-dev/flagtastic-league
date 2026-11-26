@@ -82,7 +82,7 @@
             </label>
             <button type="submit">Importar roster</button>
         </form>
-        <div id="roster-import-progress" class="import-progress" role="progressbar" aria-label="Importando roster" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span></div>
+        <div id="roster-import-progress" class="import-progress" role="progressbar" aria-label="Importando roster" aria-valuemin="0" aria-valuemax="100" hidden><span class="import-progress-fill"></span><span class="import-progress-percent">0%</span></div>
         <a class="secondary-link" href="/api/teams/{{ team_id }}/players/import/template.csv">
             Descargar plantilla CSV
         </a>
@@ -95,7 +95,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261001-2"></script>
+<script src="/static/api.js?v=20261126-2"></script>
+<script src="/static/import_progress.js?v=20261126-1"></script>
 <script src="/static/player_identity.js?v=20261004-1"></script>
-<script src="/static/roster.js?v=20261126-1"></script>
+<script src="/static/roster.js?v=20261126-3"></script>
 {% endblock %}

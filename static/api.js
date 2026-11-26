@@ -6,6 +6,12 @@ function escapeHtml(value) {
     return element.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function sendImportRequest(url, options, onProgress) {
+    return typeof importRequest === "function"
+        ? importRequest(url, options, onProgress)
+        : fetch(url, options);
+}
+
 async function getTeams() {
     const response = await fetch("/api/teams");
     return response;
@@ -126,13 +132,13 @@ async function addRegisteredPlayer(teamId, payload) {
     });
 }
 
-async function importRoster(teamId, file) {
+async function importRoster(teamId, file, onProgress) {
     const formData = new FormData();
     formData.append("file", file);
-    return fetch(`/api/teams/${teamId}/players/import`, {
+    return sendImportRequest(`/api/teams/${teamId}/players/import`, {
         method: "POST",
         body: formData
-    });
+    }, onProgress);
 }
 
 async function uploadTeamLogo(teamId, file) {
@@ -260,36 +266,36 @@ async function getLeaderboards(branch, category) {
     );
 }
 
-async function importWeekStatistics(week, file, existingRecords = "preserve") {
+async function importWeekStatistics(week, file, existingRecords = "preserve", onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("existing_records", existingRecords);
-    return fetch(`/api/weeks/${week}/player-stats/import`, {
+    return sendImportRequest(`/api/weeks/${week}/player-stats/import`, {
         method: "POST",
         body: formData
-    });
+    }, onProgress);
 }
 
-async function importDivisionStatistics(week, branch, category, file, existingRecords = "preserve") {
+async function importDivisionStatistics(week, branch, category, file, existingRecords = "preserve", onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("existing_records", existingRecords);
     formData.append("branch", branch);
     formData.append("category", category);
-    return fetch(`/api/weeks/${week}/player-stats/import-division`, {
+    return sendImportRequest(`/api/weeks/${week}/player-stats/import-division`, {
         method: "POST",
         body: formData
-    });
+    }, onProgress);
 }
 
-async function importOfficialStatistics(file, existingRecords = "preserve") {
+async function importOfficialStatistics(file, existingRecords = "preserve", onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("existing_records", existingRecords);
-    return fetch("/api/statistics/import", {
+    return sendImportRequest("/api/statistics/import", {
         method: "POST",
         body: formData
-    });
+    }, onProgress);
 }
 
 async function registerPlayerAccount(payload) {
@@ -412,48 +418,48 @@ async function removeGameReferee(gameId, userId) {
     return fetch(`/api/games/${gameId}/referees/${userId}`, {method: "DELETE"});
 }
 
-async function analyzeRefereeSchedule(file, week = null) {
+async function analyzeRefereeSchedule(file, week = null, onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     if (week !== null && week !== "") formData.append("week", week);
-    return fetch("/api/games/referee-schedule/analyze", {
+    return sendImportRequest("/api/games/referee-schedule/analyze", {
         method: "POST",
         body: formData
-    });
+    }, onProgress);
 }
 
-async function confirmRefereeSchedule(assignments) {
-    return fetch("/api/games/referee-schedule/confirm", {
+async function confirmRefereeSchedule(assignments, onProgress) {
+    return sendImportRequest("/api/games/referee-schedule/confirm", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({assignments})
-    });
+    }, onProgress);
 }
 
-async function analyzeGameSchedule(file, week = null) {
+async function analyzeGameSchedule(file, week = null, onProgress) {
     const formData = new FormData();
     formData.append("file", file);
     if (week !== null && week !== "") formData.append("week_override", week);
-    return fetch("/api/games/schedule/analyze", {
+    return sendImportRequest("/api/games/schedule/analyze", {
         method: "POST",
         body: formData
-    });
+    }, onProgress);
 }
 
-async function analyzeGameScheduleOcr(payload) {
-    return fetch("/api/games/schedule/analyze-ocr", {
+async function analyzeGameScheduleOcr(payload, onProgress) {
+    return sendImportRequest("/api/games/schedule/analyze-ocr", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
-    });
+    }, onProgress);
 }
 
-async function confirmGameSchedule(games, bracketSlots = []) {
-    return fetch("/api/games/schedule/confirm", {
+async function confirmGameSchedule(games, bracketSlots = [], onProgress) {
+    return sendImportRequest("/api/games/schedule/confirm", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({games, bracket_slots: bracketSlots})
-    });
+    }, onProgress);
 }
 
 async function getRefereeRoster() {
