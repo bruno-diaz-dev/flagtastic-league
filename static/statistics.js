@@ -273,7 +273,11 @@ async function submitStatisticsImport(event) {
         const data = await readStatisticsImportResponse(response);
         statisticsImportForm.reset();
         updateStatisticsImportMode();
-        statisticsImportMessage.textContent = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados, ${data.retained_count || 0} existentes conservados) en ${data.weeks?.length ?? 1} jornada(s).`;
+        const omittedCount = (data.skipped?.length || 0) + (data.warnings?.length || 0);
+        const importSummary = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados, ${data.retained_count || 0} existentes conservados) en ${data.weeks?.length ?? 1} jornada(s).`;
+        statisticsImportMessage.textContent = omittedCount
+            ? `${importSummary} Se omitieron ${omittedCount} registros o datos; el resumen y la descarga CSV están debajo.`
+            : `${importSummary} No se omitieron registros.`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
         finishImportProgress(statisticsImportProgress, true);
@@ -332,6 +336,7 @@ if (statisticsImportForm) {
 }
 updateLeaderboardBranchControl();
 loadLeaderboards();
+
 
 
 
