@@ -15,6 +15,7 @@ from routes.auth import router as auth_router
 from routes.statistics import router as statistics_router
 from routes.dashboard import router as dashboard_router
 from routes.admin import router as admin_router
+from routes.admin_finals_eligibility import router as admin_finals_eligibility_router
 from routes.referees import router as referees_router
 from routes.live_games import router as live_games_router
 
@@ -47,6 +48,7 @@ app.include_router(auth_router)
 app.include_router(statistics_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
+app.include_router(admin_finals_eligibility_router)
 app.include_router(referees_router)
 app.include_router(live_games_router)
 
@@ -253,6 +255,12 @@ def team_duplicate_audit_page(request: Request):
     return templates.TemplateResponse(request, "admin_team_duplicates.html")
 
 
+@app.get("/admin/finals-eligibility")
+def finals_eligibility_page(request: Request):
+    """Render the administrator view of players below finals attendance."""
+    return templates.TemplateResponse(request, "admin_finals_eligibility.html")
+
+
 @app.get("/referee/games")
 def referee_games_page(request: Request):
     """Render the private schedule shell; its API enforces referee access."""
@@ -273,3 +281,4 @@ def public_referee_profile_page(request: Request, user_id: int):
         name="referee_profile.html",
         context={"user_id": user_id},
     )
+
