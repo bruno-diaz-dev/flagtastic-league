@@ -1,6 +1,7 @@
 """Persistence and aggregate queries for weekly player statistics."""
 
 from fractions import Fraction
+from uuid import uuid4
 
 from database import get_connection
 from services.divisions import (
@@ -553,6 +554,70 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     "team_name": team["name"], "branch": team["branch"],
                     "category": team["category"]
                 })
+        # Official Wk sheets carry attendance as jersey numbers in an
+        # "Asistencia" row. Save those check-ins in the source used by the
+        # finals-eligibility view; repeated workbook imports remain idempotent.
+        attendance_entries = []
+        for week, resolved_rows in resolved_weeks.items():
+            for player, team, row in resolved_rows:
+                game_id = game_ids.get((week, row.get("game_index")))
+                if row.get("attendance") and game_id is not None:
+                    attendance_entries.append((
+                        game_id, team["id"], player["id"],
+                        row["jersey_number"], player["name"],
+                    ))
+        attendance_entries = list({entry[:3]: entry for entry in attendance_entries}.values())
+        if attendance_entries:
+            attendance_game_ids = list({entry[0] for entry in attendance_entries})
+            game_status = {
+                row["id"]: row for row in connection.execute(
+                    "SELECT id, status, is_friendly FROM games WHERE id = ANY(%s)",
+                    (attendance_game_ids,),
+                ).fetchall()
+            }
+            attendance_entries = [
+                entry for entry in attendance_entries
+                if entry[0] in game_status and not game_status[entry[0]]["is_friendly"]
+            ]
+        if attendance_entries:
+            attendance_game_ids = list({entry[0] for entry in attendance_entries})
+            session_values = ", ".join(["(%s, 'completed')"] * len(attendance_game_ids))
+            connection.execute(
+                "INSERT INTO game_live_sessions (game_id, state) VALUES "
+                + session_values + " ON CONFLICT (game_id) DO NOTHING",
+                attendance_game_ids,
+            )
+            current_attendance = connection.execute(
+                """SELECT game_id, team_id, player_id FROM game_live_events
+                WHERE kind = 'attendance' AND voided_at IS NULL
+                  AND game_id = ANY(%s) AND player_id = ANY(%s)""",
+                (attendance_game_ids, list({entry[2] for entry in attendance_entries})),
+            ).fetchall()
+            current_pairs = {
+                (row["game_id"], row["team_id"], row["player_id"])
+                for row in current_attendance
+            }
+            missing_attendance = [
+                entry for entry in attendance_entries
+                if entry[:3] not in current_pairs
+            ]
+            for offset in range(0, len(missing_attendance), 400):
+                batch = missing_attendance[offset:offset + 400]
+                values_sql = ", ".join(["(%s, %s, 'attendance', %s, %s, %s, 1, 0, 0, %s)"] * len(batch))
+                parameters = []
+                for game_id, team_id, player_id, jersey_number, player_name in batch:
+                    parameters.extend((
+                        game_id, str(uuid4()), team_id, player_id,
+                        f"#{jersey_number} {player_name}",
+                        "Importada desde estadísticas",
+                    ))
+                connection.execute(
+                    """INSERT INTO game_live_events (
+                        game_id, client_id, kind, team_id, player_id,
+                        player_label, period, minute, second, note
+                    ) VALUES """ + values_sql,
+                    parameters,
+                )
         # Associate only imported rows when exactly one registered match fits.
         if imported:
             connection.execute(
@@ -824,5 +889,6 @@ def get_leaderboards(branch, category, limit=5):
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }
     return result
+
 
 
