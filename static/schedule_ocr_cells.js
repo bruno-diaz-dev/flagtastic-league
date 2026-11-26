@@ -311,9 +311,9 @@ function scheduleTimeText(minutes) {
 }
 
 window.analyzeScheduleImageCells = async function(file, week, progress) {
-    progress("Cargando lector de imágenes...");
+    progress("Cargando lector de imágenes...", 1);
     const ocr = await loadScheduleOcr();
-    progress("Detectando cuadrícula...");
+    progress("Detectando cuadrícula...", 8);
     const canvas = await scheduleSourceCanvas(file);
     const lines = scheduleGridLines(canvas);
     const rows = lines.slice(0, -1).map((top, index) => ({
@@ -334,9 +334,10 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
             y1: row.bottom
         }));
 
-        progress("Leyendo horarios...");
+        progress("Leyendo horarios...", 12);
         const timeLabels = await recognizeScheduleCells(worker, canvas, timeCells, {
-            whitelist: "0123456789:"
+            whitelist: "0123456789:",
+            progress: (done, total) => progress("Leyendo horarios...", 12 + 20 * done / Math.max(total, 1))
         });
         // Narrow time cells often disappear in block OCR. Retry individually
         // as a single line, with padding and enlarged glyphs, never inferred hours.
@@ -392,7 +393,7 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
 
         progress("Leyendo equipos...");
         const labels = await recognizeScheduleCells(worker, canvas, teamCells, {
-            progress: (done, total) => progress("Leyendo equipos... " + done + "/" + total)
+            progress: (done, total) => progress("Leyendo equipos... " + done + "/" + total, 35 + 43 * done / Math.max(total, 1))
         });
 
         const payloadRows = games.map((game) => ({
@@ -407,11 +408,15 @@ window.analyzeScheduleImageCells = async function(file, week, progress) {
         }));
         if (!payloadRows.length) throw new Error("No se reconocieron partidos en la imagen.");
 
-        progress("Relacionando equipos reconocidos...");
-        return fetch("/api/games/schedule/analyze-cells", {
+        progress("Relacionando equipos reconocidos...", 80);
+        return importRequest("/api/games/schedule/analyze-cells", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({week: Number(week), rows: payloadRows})
+        }, event => {
+            if (event.phase === "upload") progress("Enviando imagen analizada...", 80 + 12 * event.loaded / event.total);
+            else if (event.phase === "processing") progress("Relacionando equipos en servidor...", 94);
+            else if (event.phase === "response") progress("Recibiendo resultado...", 98);
         });
     } finally {
         if (worker) await worker.terminate();

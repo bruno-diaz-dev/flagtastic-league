@@ -157,12 +157,19 @@ async function submitStatisticsImport(event) {
     if (submit.disabled) return;
     submit.disabled = true;
     statisticsImportProgress.hidden = false;
+    updateImportProgress(statisticsImportProgress, 1, "Preparando archivo");
     statisticsImportForm.setAttribute("aria-busy", "true");
     statisticsImportSkipped.replaceChildren();
     statisticsImportMessage.textContent = "Preparando archivo...";
     let stage = "prepare";
     try {
-        const file = await prepareStatisticsUpload(fields.get("file"));
+        const file = await prepareStatisticsUpload(fields.get("file"), (percent, message) => updateImportProgress(statisticsImportProgress, percent, message));
+        updateImportProgress(statisticsImportProgress, 40, "Archivo preparado");
+        const onProgress = event => {
+            if (event.phase === "upload") updateImportProgress(statisticsImportProgress, 40 + 50 * event.loaded / event.total, "Enviando archivo");
+            else if (event.phase === "processing") updateImportProgress(statisticsImportProgress, 92, "Procesando en servidor");
+            else if (event.phase === "response") updateImportProgress(statisticsImportProgress, 98, "Recibiendo resultado");
+        };
         stage = "send";
         statisticsImportMessage.textContent = "Importando estadísticas...";
         const mode = statisticsImportMode.value;
@@ -172,12 +179,12 @@ async function submitStatisticsImport(event) {
                 Number(statisticsWeekInput.value),
                 statisticsBranchInput.value,
                 statisticsCategoryInput.value,
-                file, existingRecords
+                file, existingRecords, onProgress
             );
         } else if (statisticsAllWeekInput.value) {
-            response = await importWeekStatistics(Number(statisticsAllWeekInput.value), file, existingRecords);
+            response = await importWeekStatistics(Number(statisticsAllWeekInput.value), file, existingRecords, onProgress);
         } else {
-            response = await importOfficialStatistics(file, existingRecords);
+            response = await importOfficialStatistics(file, existingRecords, onProgress);
         }
         stage = "response";
         const data = await readStatisticsImportResponse(response);
@@ -186,7 +193,9 @@ async function submitStatisticsImport(event) {
         statisticsImportMessage.textContent = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados, ${data.retained_count || 0} existentes conservados) en ${data.weeks?.length ?? 1} jornada(s).`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
+        finishImportProgress(statisticsImportProgress, true);
     } catch (error) {
+        finishImportProgress(statisticsImportProgress, false);
         statisticsImportMessage.textContent = error instanceof TypeError
             ? (stage === "send"
                 ? "Se interrumpió el envío del Excel y no se pudo confirmar el resultado. Comprueba la conexión y vuelve a intentar con el mismo archivo y modo."
@@ -195,7 +204,6 @@ async function submitStatisticsImport(event) {
                     : "No se pudo procesar la respuesta del servidor. Revisa las estadísticas antes de repetir la carga.")
             : error.message || "No se pudo importar el archivo.";
     } finally {
-        statisticsImportProgress.hidden = true;
         statisticsImportForm.removeAttribute("aria-busy");
         submit.disabled = false;
     }

@@ -252,8 +252,6 @@ playerForm.addEventListener("submit", async (event) => {
         playerFormMessage.textContent = "Jugador registrado correctamente.";
         await loadRoster();
     } finally {
-        rosterImportProgress.hidden = true;
-        rosterImportForm.removeAttribute("aria-busy");
         submitButton.disabled = false;
     }
 });
@@ -341,15 +339,15 @@ rosterImportForm.addEventListener("submit", async (event) => {
     const fields = new FormData(rosterImportForm);
     const submitButton = rosterImportForm.querySelector('button[type="submit"]');
     submitButton.disabled = true;
-    rosterImportProgress.hidden = false;
     rosterImportForm.setAttribute("aria-busy", "true");
     rosterImportMessage.textContent = "Validando e importando roster...";
 
     try {
-        const response = await importRoster(teamId, fields.get("file"));
+        const response = await importRoster(teamId, fields.get("file"), event => updateRequestProgress(rosterImportProgress, event));
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             rosterImportMessage.textContent = data.detail || "No se pudo importar el roster.";
+            finishImportProgress(rosterImportProgress, false);
             return;
         }
 
@@ -365,9 +363,12 @@ rosterImportForm.addEventListener("submit", async (event) => {
         }
         rosterImportMessage.textContent = parts.join(" · ") + ".";
         await loadRoster();
+        finishImportProgress(rosterImportProgress, true);
     } catch (error) {
         rosterImportMessage.textContent = "Ocurrió un error al procesar el roster. Intenta nuevamente.";
+        finishImportProgress(rosterImportProgress, false);
     } finally {
+        rosterImportForm.removeAttribute("aria-busy");
         submitButton.disabled = false;
     }
 });
