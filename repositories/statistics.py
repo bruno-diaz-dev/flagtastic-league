@@ -168,9 +168,11 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         resolved_weeks = {}
         skipped = []
         preserved_weeks = []
+        resolved_candidates = {}
+        candidate_team_ids = set()
+        candidate_jersey_numbers = set()
         for week, rows in weeks.items():
-            resolved_rows = []
-            seen_memberships = set()
+            resolved_candidates[week] = []
             for row_number, row in enumerate(rows, start=2):
                 team = resolve_stats_team(row, week)
                 if team is None:
@@ -191,16 +193,35 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         f"identificar con seguridad el equipo '{row['team']}' "
                         f"en {row['branch']} {row['category']}." + hint
                     )
-                player = connection.execute(
-                    """
-                    SELECT players.id, players.name
-                    FROM team_players
-                    JOIN players ON players.id = team_players.player_id
-                    WHERE team_players.team_id = %s
-                      AND team_players.jersey_number = %s
-                    """,
+                resolved_candidates[week].append((team, row_number, row))
+                candidate_team_ids.add(team["id"])
+                candidate_jersey_numbers.add(row["jersey_number"])
+
+        players_by_team_jersey = {}
+        if candidate_team_ids and candidate_jersey_numbers:
+            player_rows = connection.execute(
+                """
+                SELECT team_players.team_id, team_players.jersey_number,
+                       players.id, players.name
+                FROM team_players
+                JOIN players ON players.id = team_players.player_id
+                WHERE team_players.team_id = ANY(%s)
+                  AND team_players.jersey_number = ANY(%s)
+                """,
+                (list(candidate_team_ids), list(candidate_jersey_numbers))
+            ).fetchall()
+            players_by_team_jersey = {
+                (row["team_id"], row["jersey_number"]): row
+                for row in player_rows
+            }
+
+        for week, candidates in resolved_candidates.items():
+            resolved_rows = []
+            seen_memberships = set()
+            for team, row_number, row in candidates:
+                player = players_by_team_jersey.get(
                     (team["id"], row["jersey_number"])
-                ).fetchone()
+                )
                 if player is None:
                     skipped.append({
                         "week": week, "team_id": team["id"],
@@ -346,9 +367,44 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 ).fetchone()
             used_existing_game_ids.add(saved_game["id"])
             game_ids[(week, game["game_index"])] = saved_game["id"]
+
+        existing_stats_by_identity = {}
+        stats_weeks = list(resolved_weeks)
+        stats_team_ids = list({
+            team["id"]
+            for rows in resolved_weeks.values()
+            for _, team, _ in rows
+        })
+        stats_player_ids = list({
+            player["id"]
+            for rows in resolved_weeks.values()
+            for player, _, _ in rows
+        })
+        if stats_weeks and stats_team_ids and stats_player_ids:
+            existing_stats = connection.execute(
+                """
+                SELECT id, week, team_id, player_id, game_id,
+                       passes_completed, passes_attempted
+                FROM player_week_stats
+                WHERE week = ANY(%s)
+                  AND team_id = ANY(%s)
+                  AND player_id = ANY(%s)
+                ORDER BY id FOR UPDATE
+                """,
+                (stats_weeks, stats_team_ids, stats_player_ids)
+            ).fetchall()
+            for existing in existing_stats:
+                identity = (
+                    existing["week"], existing["team_id"],
+                    existing["player_id"]
+                )
+                existing_stats_by_identity.setdefault(identity, []).append(existing)
+
         imported = []
         updated_count = 0
         retained_count = 0
+        pending_inserts = []
+        pending_updates = []
         for week, resolved_rows in resolved_weeks.items():
             if not (games or {}).get(week):
                 # Official Wk sheets may contain multiple games by one player.
@@ -366,16 +422,15 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     )
             for player, team, row in resolved_rows:
                 game_id = game_ids.get((week, row.get("game_index")))
-                existing_rows = connection.execute(
-                    """
-                    SELECT id, game_id, passes_completed, passes_attempted
-                    FROM player_week_stats
-                    WHERE week = %s AND team_id = %s AND player_id = %s
-                      AND (%s::integer IS NULL OR game_id = %s OR game_id IS NULL)
-                    ORDER BY id FOR UPDATE
-                    """,
-                    (week, team["id"], player["id"], game_id, game_id)
-                ).fetchall()
+                matching_stats = existing_stats_by_identity.get(
+                    (week, team["id"], player["id"]), []
+                )
+                existing_rows = (
+                    matching_stats if game_id is None else [
+                        existing for existing in matching_stats
+                        if existing["game_id"] in (None, game_id)
+                    ]
+                )
                 if existing_rows and existing_records == "preserve":
                     retained_count += 1
                     continue
@@ -395,31 +450,73 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     if row.get("passing_incomplete"):
                         values = (*values[:5], existing_rows[0]["passes_completed"],
                                   existing_rows[0]["passes_attempted"])
-                    saved = connection.execute(
-                        """
-                        UPDATE player_week_stats
-                        SET game_id = COALESCE(%s, game_id),
-                            points = %s, receptions = %s, interceptions = %s,
-                            sacks = %s, tackles = %s, passes_completed = %s,
-                            passes_attempted = %s
-                        WHERE id = %s RETURNING *
-                        """,
-                        (game_id, *values, existing_rows[0]["id"])
-                    ).fetchone()
-                    updated_count += 1
+                    pending_updates.append((
+                        existing_rows[0]["id"], game_id, values, player, team
+                    ))
+                    continue
                 else:
-                    saved = connection.execute(
-                        """
-                        INSERT INTO player_week_stats (
-                            week, game_id, player_id, team_id, points, receptions,
-                            interceptions, sacks, tackles, passes_completed,
-                            passes_attempted
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING *
-                        """,
-                        (week, game_id, player["id"], team["id"], *values)
-                    ).fetchone()
+                    pending_inserts.append((week, game_id, player, team, values))
+                    continue
+                imported.append({
+                    **dict(saved), "player_name": player["name"],
+                    "team_name": team["name"], "branch": team["branch"],
+                    "category": team["category"]
+                })
+        update_columns = (
+            "id, game_id, points, receptions, interceptions, sacks, tackles, "
+            "passes_completed, passes_attempted"
+        )
+        for offset in range(0, len(pending_updates), 400):
+            batch = pending_updates[offset:offset + 400]
+            values_sql = ", ".join(
+                "(" + ", ".join(["%s"] * 9) + ")" for _ in batch
+            )
+            parameters = []
+            identities = {}
+            for row_id, game_id, values, player, team in batch:
+                parameters.extend((row_id, game_id, *values))
+                identities[row_id] = (player, team)
+            saved_rows = connection.execute(
+                "UPDATE player_week_stats AS stats "
+                "SET game_id = COALESCE(incoming.game_id, stats.game_id), "
+                "points = incoming.points, receptions = incoming.receptions, "
+                "interceptions = incoming.interceptions, sacks = incoming.sacks, "
+                "tackles = incoming.tackles, "
+                "passes_completed = incoming.passes_completed, "
+                "passes_attempted = incoming.passes_attempted "
+                f"FROM (VALUES {values_sql}) AS incoming({update_columns}) "
+                "WHERE stats.id = incoming.id RETURNING stats.*",
+                parameters
+            ).fetchall()
+            updated_count += len(saved_rows)
+            for saved in saved_rows:
+                player, team = identities[saved["id"]]
+                imported.append({
+                    **dict(saved), "player_name": player["name"],
+                    "team_name": team["name"], "branch": team["branch"],
+                    "category": team["category"]
+                })
+        insert_columns = (
+            "week, game_id, player_id, team_id, points, receptions, "
+            "interceptions, sacks, tackles, passes_completed, passes_attempted"
+        )
+        for offset in range(0, len(pending_inserts), 400):
+            batch = pending_inserts[offset:offset + 400]
+            values_sql = ", ".join(
+                "(" + ", ".join(["%s"] * 11) + ")" for _ in batch
+            )
+            parameters = []
+            identities = {}
+            for week, game_id, player, team, values in batch:
+                parameters.extend((week, game_id, player["id"], team["id"], *values))
+                identities.setdefault((player["id"], team["id"]), (player, team))
+            saved_rows = connection.execute(
+                f"INSERT INTO player_week_stats ({insert_columns}) "
+                f"VALUES {values_sql} RETURNING *",
+                parameters
+            ).fetchall()
+            for saved in saved_rows:
+                player, team = identities[(saved["player_id"], saved["team_id"])]
                 imported.append({
                     **dict(saved), "player_name": player["name"],
                     "team_name": team["name"], "branch": team["branch"],
