@@ -984,7 +984,7 @@ function renderGameScheduleReview(result) {
         ? `Solo jornada ${result.selected_week}. Se importan partidos; las asignaciones arbitrales del archivo no se incluyen.`
         : "Revisa los partidos reconocidos. Las asignaciones arbitrales del archivo no se incluyen.";
     if (result.bracket_slots?.length) {
-        scope.textContent += ` ${result.bracket_slots.length} partido(s) de finales detectado(s); se completarán con los resultados de sus semifinales.`;
+        scope.textContent += ` Se detectaron ${result.bracket_slots.length} espacios de finales y tercer lugar. Se guardarán automáticamente y se convertirán en partidos cuando terminen sus semifinales.`;
     }
     scheduleReview.classList.remove("hidden");
     scheduleReviewBody.innerHTML = result.proposals.map((proposal, index) => `
@@ -1021,10 +1021,25 @@ function renderGameScheduleReview(result) {
                     <label>Categoría<select data-schedule-category="${index}" aria-label="Categoría ${index + 1}">${scheduleDivisionOptions(["u6","u7","u8","u10","u12","u14","u16","u18","libre"],proposal.suggested_category || proposal.home_match_category || proposal.away_match_category)}</select></label>
                 </div>
             </details>
+        </article>`).join("") + (result.bracket_slots || []).map(slot => `
+        <article class="game-import-card game-bracket-slot-card">
+            <header class="game-import-card-top">
+                <span>Jornada ${escapeHtml(slot.week)} · Campo ${escapeHtml(slot.field_number)}</span>
+                <span class="game-import-kind">Se completa automáticamente</span>
+            </header>
+            <h4 class="game-import-match">${escapeHtml(slot.label)}</h4>
+            <dl class="game-import-calendar">
+                <div><dt>Hora</dt><dd>${escapeHtml((slot.start_time || "").slice(0, 5) || "Pendiente")}</dd></div>
+                <div><dt>Fecha</dt><dd>${slot.game_date ? escapeHtml(gameDateLabel(slot.game_date)) : "Pendiente"}</dd></div>
+                <div><dt>Sede</dt><dd>${escapeHtml(slot.venue || "Pendiente")}</dd></div>
+                <div><dt>Tipo</dt><dd>${slot.bracket_placement === "third" ? "Tercer lugar" : "Final"}${slot.bracket_tier ? ` · ${escapeHtml(slot.bracket_tier)}` : ""}</dd></div>
+            </dl>
+            <p class="game-import-status">Se crearán los equipos cuando ambas semifinales tengan marcador final.</p>
         </article>`).join("");
     result.proposals.forEach((_, index) => refreshScheduleRow(index));
     confirmScheduleButton.disabled = result.proposals.length === 0 && !(result.bracket_slots || []).length;
-    scheduleImportMessage.textContent = `${(result.warnings || []).join(" ")} ${result.matched} partido(s) listos y ${result.unmatched} partido(s) por revisar. Abre «Editar partido» para corregir los pendientes. Usa Amistoso únicamente si el partido corresponde a invitados o divisiones distintas.`;
+    const totalRecognized = result.proposals.length + (result.bracket_slots || []).length;
+    scheduleImportMessage.textContent = `${(result.warnings || []).join(" ")} ${result.proposals.length} partidos con equipos (${result.matched} listos y ${result.unmatched} por revisar) + ${(result.bracket_slots || []).length} espacios automáticos de finales/tercer lugar. Total detectado: ${totalRecognized} espacios. Abre «Editar partido» para corregir los partidos por revisar. Usa Amistoso únicamente si el partido corresponde a invitados o divisiones distintas.`;
 }
 scheduleReviewBody.addEventListener("change", event => {
     if (!scheduleImportState || gameScheduleSaving) return;
@@ -1167,9 +1182,11 @@ function updateScheduleSelectionSummary() {
     const summary = document.querySelector("#game-schedule-selection-summary");
     if (!scheduleImportState) return;
     const selected = scheduleReviewBody.querySelectorAll("[data-schedule-row]:checked").length;
-    if (summary) summary.textContent = `Seleccionados ${selected} de ${scheduleImportState.proposals.length} partidos. Los pendientes no se importarán.`;
+    const bracketSlots = scheduleImportState.bracket_slots || [];
+    const totalRecognized = scheduleImportState.proposals.length + bracketSlots.length;
+    if (summary) summary.textContent = `${selected} de ${scheduleImportState.proposals.length} partidos con equipos seleccionados. ${bracketSlots.length} espacios de finales/tercer lugar incluidos automáticamente. Total del rol: ${totalRecognized} espacios.`;
     const count = document.querySelector("#game-schedule-confirm-count");
-    if (count) count.textContent = `${selected} de ${scheduleImportState.proposals.length} partidos seleccionados`;
+    if (count) count.textContent = `Se enviarán ${selected} partidos seleccionados + ${bracketSlots.length} espacios automáticos de finales (${totalRecognized} detectados en total)`;
 }
 document.querySelector("#game-schedule-apply-date")?.addEventListener("click", () => {
     const date = document.querySelector("#game-schedule-fill-date").value;
