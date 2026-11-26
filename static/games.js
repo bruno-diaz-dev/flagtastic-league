@@ -51,6 +51,7 @@ const officialPositionLabels = {
 
 
 function gameLabel(game) {
+    if (game.bracket_pending) return `${game.is_friendly ? "Amistoso · " : ""}J${game.week}: ${game.bracket_label || game.home_team.name} en espera de equipos`;
     return `${game.is_friendly ? "Amistoso · " : ""}J${game.week}: ${game.home_team.name} vs ${game.away_team.name}`;
 }
 
@@ -252,7 +253,7 @@ function renderGames(games) {
                 : isPostponed
                     ? `<span class="game-status game-status-postponed">Pospuesto</span>`
                     : `<span class="game-status game-status-scheduled">Programado</span>`;
-            const scoreEditor = !isPostponed
+            const scoreEditor = !isPostponed && !game.bracket_pending
                 ? `
                         <form class="score-form ${hasScore ? "admin-only" : "scorekeeper-only"}" data-game-id="${game.id}">
                             <div class="score-fields">
@@ -280,16 +281,18 @@ function renderGames(games) {
                         ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
                         ${game.bracket_label ? `<span class="game-friendly-badge">${escapeHtml(game.bracket_label)}</span>` : ""}
                     </header>
-                    <div class="game-teams">
-                        ${gameTeamRow(game.home_team, "Local", game.home_score)}
-                        ${gameTeamRow(game.away_team, "Visitante", game.away_score)}
-                    </div>
+                    ${game.bracket_pending
+                        ? `<div class="game-teams game-bracket-pending"><strong>${escapeHtml(game.bracket_label || "Final")} en espera de equipos</strong></div>`
+                        : `<div class="game-teams">
+                            ${gameTeamRow(game.home_team, "Local", game.home_score)}
+                            ${gameTeamRow(game.away_team, "Visitante", game.away_score)}
+                        </div>`}
                     <footer class="game-card-footer">
                         <span>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} · ${escapeHtml(game.home_team.category)}</span>
-                        <a class="secondary-link game-details-link" href="/games/${game.id}">Ver partido / En vivo</a>
+                        ${game.bracket_pending ? "" : `<a class="secondary-link game-details-link" href="/games/${game.id}">Ver partido / En vivo</a>`}
                     </footer>
                     <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
-                        <summary>${!hasScore && !isPostponed ? "Resultado y horario" : "Administrar partido"}</summary>
+                        <summary>${game.bracket_pending ? "Horario" : !hasScore && !isPostponed ? "Resultado y horario" : "Administrar partido"}</summary>
                         <div class="game-admin-controls">
                             ${scoreEditor}
                             ${!hasScore ? `
@@ -1206,3 +1209,4 @@ async function refreshCalendarAvailability() {
         document.querySelector('#calendar-migration-notice')?.classList.toggle('hidden', capabilities.date_and_venue !== false);
     } catch { /* An unavailable feature check must not block the calendar. */ }
 }
+
