@@ -426,13 +426,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
         // Record the HTTP result before parsing so the UI never invites a
         // duplicate retry after the server has committed the transaction.
         saved = response.ok;
-        const responseText = await response.text();
-        let body = {};
-        try {
-            body = responseText ? JSON.parse(responseText) : {};
-        } catch (_) {
-            // The status code is still authoritative for whether the save ran.
-        }
+        const body = await response.json();
         setOfficialSaveProgress(saved ? "complete" : "idle");
         const detail = Array.isArray(body.detail)
             ? body.detail.map(error => error.msg).join(". ") : body.detail;
@@ -450,7 +444,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
             setOfficialConfirmMessage("Asignaciones guardadas. No se pudo actualizar la agenda; recarga la página para consultarla.");
         } else {
             setOfficialSaveProgress("idle");
-            setOfficialConfirmMessage("No se recibió confirmación del servidor. Revisa la agenda antes de volver a intentar.");
+            setOfficialConfirmMessage("No se pudo confirmar el guardado de las asignaciones. Revisa la agenda antes de volver a intentar.");
         }
     } finally {
         scheduleConfirming = false;
