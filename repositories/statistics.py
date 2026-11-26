@@ -478,7 +478,7 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 identities[row_id] = (player, team)
             saved_rows = connection.execute(
                 "UPDATE player_week_stats AS stats "
-                "SET game_id = COALESCE(incoming.game_id, stats.game_id), "
+                "SET game_id = COALESCE(incoming.game_id::integer, stats.game_id), "
                 "points = incoming.points, receptions = incoming.receptions, "
                 "interceptions = incoming.interceptions, sacks = incoming.sacks, "
                 "tackles = incoming.tackles, "
