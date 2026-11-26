@@ -47,20 +47,22 @@ def parse_game_schedule_file(filename, content, teams, *, selected_week=None):
     else:
         raise GameScheduleImportError("Se requiere un archivo XLSX o CSV")
 
-    proposals = [_match_row(row, teams, spreadsheet=True) for row in rows]
-    if not proposals:
+    bracket_slots = [row for row in rows if row.get("bracket_placement")]
+    proposals = [_match_row(row, teams, spreadsheet=True) for row in rows if not row.get("bracket_placement")]
+    if not proposals and not bracket_slots:
         if selected_week is not None:
             raise GameScheduleImportError(
                 f"El archivo no contiene partidos para la jornada {selected_week}"
             )
         raise GameScheduleImportError("El archivo no contiene partidos reconocibles")
-    if len(proposals) > MAX_SCHEDULE_GAMES:
+    if len(proposals) + len(bracket_slots) > MAX_SCHEDULE_GAMES:
         raise GameScheduleImportError(
             f"El archivo no puede contener mas de {MAX_SCHEDULE_GAMES} partidos"
         )
     return {
         "kind": "games",
         "proposals": proposals,
+        "bracket_slots": bracket_slots,
         "matched": sum(proposal["ready"] for proposal in proposals),
         "unmatched": sum(not proposal["ready"] for proposal in proposals),
         "selected_week": selected_week,
@@ -537,9 +539,9 @@ def _read_calendar_workbook(content, selected_week=None):
                 for column, field_number in field_columns.items():
                     home = _text(cells[column])
                     away = _text(cells[column + 1])
-                    if not home or not away or "copa aguascalientes" in _normalize(home):
+                    if not home or "copa aguascalientes" in _normalize(home):
                         continue
-                    rows.append({
+                    row = {
                         "source_row": f"{sheet.title}!{row_number}",
                         "week": week,
                         "field_number": field_number,
@@ -547,7 +549,30 @@ def _read_calendar_workbook(content, selected_week=None):
                         "home_team": home,
                         "away_team": away,
                         **context_fields(context),
-                    })
+                    }
+                    if not away and re.search(r"\b(final|3ro|tercero)\b", _normalize(home)):
+                        placement = "third" if re.search(r"\b(3ro|tercero)\b", _normalize(home)) else "final"
+                        tier_match = re.search(r"\b(golden|gold|silver)\b", _normalize(home))
+                        label = _normalize(home)
+                        category = _spreadsheet_category_hint(label)
+                        if category is None:
+                            raise GameScheduleImportError(
+                                f"{sheet.title}!{row_number}: no pude reconocer la categoría de {home}"
+                            )
+                        branch = next((value for token, value in (("fem", "femenil"), ("var", "varonil"), ("mix", "mixto")) if re.search(rf"\b{token}", label)), None)
+                        row.update({
+                            "bracket_placement": placement,
+                            "bracket_tier": "golden" if tier_match and tier_match[1] in ("golden", "gold") else "silver" if tier_match else None,
+                            "home_team": "",
+                            "away_team": "",
+                            "branch": branch,
+                            "category": category,
+                            "label": home,
+                            "ready": True,
+                        })
+                    elif not away:
+                        continue
+                    rows.append(row)
     finally:
         workbook.close()
     return rows

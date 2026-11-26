@@ -448,11 +448,11 @@ async function analyzeGameScheduleOcr(payload) {
     });
 }
 
-async function confirmGameSchedule(games) {
+async function confirmGameSchedule(games, bracketSlots = []) {
     return fetch("/api/games/schedule/confirm", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({games})
+        body: JSON.stringify({games, bracket_slots: bracketSlots})
     });
 }
 

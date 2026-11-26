@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from database import get_connection
 from services.live_game import METRICS, project_events
+from services.bracket_advancement import resolve_completed_bracket_slots
 
 
 class LiveGameError(ValueError):
@@ -215,6 +216,7 @@ def publish(connection, game, final_score=None):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (game["week"], game["id"], player["player_id"], player["team_id"], *(player[key] for key in METRICS)))
     connection.execute("UPDATE games SET home_score = %s, away_score = %s, status = 'completed' WHERE id = %s", (scores[game["home_team_id"]], scores[game["away_team_id"]], game["id"]))
+    resolve_completed_bracket_slots(connection, game["id"])
 
 
 def finish_live_game(game_id, expected_version, user_id, final_score=None):

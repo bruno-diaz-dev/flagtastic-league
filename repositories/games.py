@@ -3,6 +3,7 @@
 from database import get_connection
 from collections import Counter
 from services.schedule_context import venue_key
+from services.bracket_advancement import resolve_completed_bracket_slots
 
 
 class ScheduleConflictError(ValueError):
@@ -113,12 +114,15 @@ def create_game(game):
         return dict(row)
 
 
-def import_game_schedule(games):
+def import_game_schedule(games, *, bracket_slots=None):
     """Upsert reviewed slots, distinguishing calendar day and venue."""
     with get_connection() as connection:
         connection.execute("LOCK TABLE games IN SHARE ROW EXCLUSIVE MODE")
         has_calendar = calendar_available(connection)
-        if not has_calendar and any(game.game_date is not None or game.venue is not None for game in games):
+        if not has_calendar and (
+            any(game.game_date is not None or game.venue is not None for game in games)
+            or any(slot.get("game_date") is not None or slot.get("venue") for slot in (bracket_slots or []))
+        ):
             require_calendar(connection)
         slot_counts = Counter((game.week, game.field_number, game.start_time) for game in games)
         created = updated = skipped = 0
@@ -175,7 +179,59 @@ def import_game_schedule(games):
                 args.extend([game.game_date, game.venue])
             connection.execute(f"INSERT INTO games ({columns}) VALUES ({','.join(['%s'] * len(args))})", args)
             created += 1
-        return {"created": created, "updated": updated, "skipped": skipped}
+        bracket_created = 0
+        for slot in bracket_slots or []:
+            candidates = connection.execute("""
+                SELECT g.id, g.start_time, g.field_number, h.branch AS home_branch,
+                       h.category AS home_category, a.branch AS away_branch,
+                       a.category AS away_category
+                FROM games g JOIN teams h ON h.id=g.home_team_id
+                JOIN teams a ON a.id=g.away_team_id
+                WHERE g.week=%s AND NOT g.is_friendly AND g.start_time < %s
+                  AND h.category=%s AND a.category=%s
+                  AND (%s::text IS NULL OR (h.branch=%s AND a.branch=%s))
+                ORDER BY g.start_time DESC, g.field_number
+            """, (slot["week"], slot["start_time"], slot["category"],
+                  slot["category"], slot.get("branch"), slot.get("branch"),
+                  slot.get("branch"))).fetchall()
+            if not candidates:
+                raise ScheduleConflictError(
+                    f"No encontré semifinales previas para {slot['label']}"
+                )
+            nearest_time = candidates[0]["start_time"]
+            feeders = [row for row in candidates if row["start_time"] == nearest_time]
+            if len(feeders) >= 4 and slot.get("bracket_tier"):
+                midpoint = len(feeders) // 2
+                feeders = feeders[:midpoint] if slot["bracket_tier"] == "golden" else feeders[midpoint:]
+            elif len(feeders) == 3 and not slot.get("branch"):
+                # The workbook's plain U12 title refers to the two open
+                # semifinals on fields 1–2; the adjacent U12 girls game is
+                # explicitly labeled Fem in the source schedule.
+                feeders = feeders[:2]
+            if len(feeders) != 2:
+                raise ScheduleConflictError(
+                    f"No puedo determinar con seguridad las dos semifinales de {slot['label']}"
+                )
+            connection.execute("""
+                INSERT INTO game_bracket_slots
+                    (week, field_number, start_time, game_date, venue, branch,
+                     category, bracket_tier, placement, label, source_game_id,
+                     opponent_game_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (week,field_number,start_time) DO UPDATE SET
+                    game_date=EXCLUDED.game_date, venue=EXCLUDED.venue,
+                    branch=EXCLUDED.branch, category=EXCLUDED.category,
+                    bracket_tier=EXCLUDED.bracket_tier, placement=EXCLUDED.placement,
+                    label=EXCLUDED.label, source_game_id=EXCLUDED.source_game_id,
+                    opponent_game_id=EXCLUDED.opponent_game_id
+            """, (slot["week"], slot["field_number"], slot["start_time"],
+                  slot.get("game_date"), slot.get("venue"), slot.get("branch"),
+                  slot["category"], slot.get("bracket_tier"), slot["bracket_placement"],
+                  slot["label"], feeders[0]["id"], feeders[1]["id"]))
+            bracket_created += 1
+            resolve_completed_bracket_slots(connection, feeders[0]["id"])
+        return {"created": created, "updated": updated, "skipped": skipped,
+                "bracket_slots_created": bracket_created}
 
 def get_games():
     """Return games with nested public summaries for both teams."""
@@ -194,6 +250,7 @@ def get_games():
             to_jsonb(games)->>'venue' AS venue,
             games.status,
             games.is_friendly,
+            bracket.label AS bracket_label,
             home_team.is_guest AS home_is_guest,
             home_team.id AS "home_team_id",
             home_team.name AS "home_team_name",
@@ -211,6 +268,8 @@ def get_games():
             ON games.home_team_id = home_team.id
         JOIN teams AS away_team
             ON games.away_team_id = away_team.id
+        LEFT JOIN game_bracket_slots AS bracket
+            ON bracket.target_game_id = games.id
         ORDER BY games.id
         """
     ).fetchall()
@@ -246,7 +305,8 @@ def get_games():
             "week": row["week"],
             "field_number": row["field_number"],
             "start_time": row["start_time"], "game_date": row["game_date"], "venue": row["venue"],
-            "status": row["status"], "is_friendly": row["is_friendly"]
+            "status": row["status"], "is_friendly": row["is_friendly"],
+            "bracket_label": row["bracket_label"]
         }
         for row in rows
     ]
@@ -309,6 +369,10 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
                     "puede modificarlo."
                 )
 
+        if updated_game is not None:
+            # Scores become final atomically; playoff slots appear in the same
+            # transaction only after both feeder semifinal results are known.
+            resolve_completed_bracket_slots(connection, game_id)
         connection.commit()
 
         return (

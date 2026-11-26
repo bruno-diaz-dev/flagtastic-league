@@ -550,4 +550,5 @@ class GameScheduleImportRow(GameCreate):
 class GameScheduleImportConfirmation(BaseModel):
     """Validate a reviewed batch before it is persisted atomically."""
 
-    games: list[GameScheduleImportRow] = Field(min_length=1, max_length=500)
+    games: list[GameScheduleImportRow] = Field(default_factory=list, max_length=500)
+    bracket_slots: list[dict] = Field(default_factory=list, max_length=100)
