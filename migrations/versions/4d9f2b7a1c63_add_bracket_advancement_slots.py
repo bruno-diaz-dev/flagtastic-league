@@ -38,9 +38,9 @@ def upgrade():
     op.execute("""
         DO $$ BEGIN
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='flagtastic_app') THEN
-            CREATE POLICY backend_full_access_game_bracket_slots
-            ON game_bracket_slots FOR ALL TO flagtastic_app
-            USING (true) WITH CHECK (true);
+            EXECUTE 'CREATE POLICY backend_full_access_game_bracket_slots
+              ON game_bracket_slots FOR ALL TO flagtastic_app
+              USING (true) WITH CHECK (true)';
           END IF;
         END $$
     """)
