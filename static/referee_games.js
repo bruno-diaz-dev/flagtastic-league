@@ -422,14 +422,19 @@ confirmScheduleButton?.addEventListener("click", async () => {
     setOfficialConfirmMessage(`Guardando asignaciones de ${assignments.length} partido(s)… Espera a que termine.`);
     try {
         const response = await confirmRefereeSchedule(assignments);
-        const body = await response.json();
+        // A successful save can finish even if the response body is interrupted.
+        // Record the HTTP result before parsing so the UI never invites a
+        // duplicate retry after the server has committed the transaction.
         saved = response.ok;
+        const body = await response.json();
         setOfficialSaveProgress(saved ? "complete" : "idle");
         const detail = Array.isArray(body.detail)
             ? body.detail.map(error => error.msg).join(". ") : body.detail;
         setOfficialConfirmMessage(saved
-            ? `${body.updated} partido(s) actualizado(s).`
-            : (detail || "No se pudieron guardar las asignaciones."));
+            ? (Number.isFinite(body.updated)
+                ? `${body.updated} partido(s) actualizado(s).`
+                : "Asignaciones guardadas. Actualizando la agenda…")
+            : (detail || `No se pudieron guardar las asignaciones (HTTP ${response.status}).`));
         if (saved) {
             scheduleReview.classList.add("hidden");
             await loadRefereeGames();
@@ -439,7 +444,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
             setOfficialConfirmMessage("Asignaciones guardadas. No se pudo actualizar la agenda; recarga la página para consultarla.");
         } else {
             setOfficialSaveProgress("idle");
-            setOfficialConfirmMessage("No se pudo confirmar el guardado de las asignaciones. Reintenta la confirmación.");
+            setOfficialConfirmMessage("No se pudo confirmar el guardado de las asignaciones. Revisa la agenda antes de volver a intentar.");
         }
     } finally {
         scheduleConfirming = false;

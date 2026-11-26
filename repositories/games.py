@@ -806,69 +806,58 @@ def apply_referee_schedule(assignments, assigned_by):
                     args.extend([desired_date, desired_venue])
                 connection.execute('UPDATE games SET field_number=%s, start_time=%s' + sql_meta + ' WHERE id=%s', [*args, game['id']])
 
-            for official in assignment.officials:
-                current_position = connection.execute(
-                    """
-                    SELECT user_id
-                    FROM game_referees
-                    WHERE game_id = %s AND position = %s
-                    """,
-                    (assignment.game_id, official.position)
-                ).fetchone()
-
-                if (
-                    current_position is not None
-                    and current_position["user_id"] == official.user_id
-                ):
+        # Read and persist every crew in batches. The previous per-position
+        # queries made a 26-game role import take over 20 seconds on production
+        # PostgreSQL, long enough for the browser request to be interrupted.
+        game_ids = list(plans)
+        current_rows = connection.execute(
+            """
+            SELECT game_id, user_id, position
+            FROM game_referees
+            WHERE game_id = ANY(%s)
+            """,
+            (game_ids,),
+        ).fetchall()
+        current_by_slot = {(row["game_id"], row["position"]): row["user_id"] for row in current_rows}
+        desired = [
+            (assignment.game_id, official.user_id, official.position, assigned_by)
+            for assignment in assignments
+            for official in assignment.officials
+        ]
+        if desired:
+            for game_id, user_id, position, _ in desired:
+                existing_user = current_by_slot.get((game_id, position))
+                if existing_user == user_id:
                     skipped += 1
-                    continue
-
-                connection.execute(
-                    """
-                    DELETE FROM game_referees
-                    WHERE game_id = %s
-                      AND user_id = %s
-                      AND position <> %s
-                    """,
-                    (
-                        assignment.game_id,
-                        official.user_id,
-                        official.position,
-                    )
-                )
-
-                if current_position is None:
-                    connection.execute(
-                        """
-                        INSERT INTO game_referees
-                            (game_id, user_id, position, assigned_by)
-                        VALUES (%s, %s, %s, %s)
-                        """,
-                        (
-                            assignment.game_id,
-                            official.user_id,
-                            official.position,
-                            assigned_by,
-                        )
-                    )
+                elif existing_user is None:
                     created += 1
                 else:
-                    connection.execute(
-                        """
-                        UPDATE game_referees
-                        SET user_id = %s,
-                            assigned_by = %s,
-                            assigned_at = CURRENT_TIMESTAMP
-                        WHERE game_id = %s AND position = %s
-                        """,
-                        (
-                            official.user_id,
-                            assigned_by,
-                            assignment.game_id,
-                            official.position,
-                        )
-                    )
                     updated += 1
+
+            desired_values = ", ".join(["(%s, %s, %s, %s)"] * len(desired))
+            desired_parameters = [value for row in desired for value in row]
+            connection.execute(
+                f"""
+                DELETE FROM game_referees AS existing
+                USING (VALUES {desired_values}) AS wanted(game_id, user_id, position, assigned_by)
+                WHERE existing.game_id = wanted.game_id
+                  AND existing.user_id = wanted.user_id
+                  AND existing.position <> wanted.position
+                """,
+                desired_parameters,
+            )
+            connection.execute(
+                f"""
+                INSERT INTO game_referees (game_id, user_id, position, assigned_by)
+                VALUES {desired_values}
+                ON CONFLICT (game_id, position) DO UPDATE
+                SET user_id = EXCLUDED.user_id,
+                    assigned_by = EXCLUDED.assigned_by,
+                    assigned_at = CURRENT_TIMESTAMP
+                WHERE game_referees.user_id <> EXCLUDED.user_id
+                """,
+                desired_parameters,
+            )
 
         connection.commit()
         return {
