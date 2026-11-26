@@ -339,7 +339,7 @@ def test_official_import_reports_missing_numbers_and_keeps_valid_stats():
     assert len(client.get("/api/weeks/1/player-stats").json()) == 1
 
 
-def test_unknown_team_still_rolls_back_after_skipped_number():
+def test_unknown_team_is_skipped_after_missing_number():
     create_rosters()
     upload_week(1, [
         ["varonil", "libre", "Tigres", 83, 12, 3, 0, 0, 1, 5, 10]
@@ -348,7 +348,11 @@ def test_unknown_team_still_rolls_back_after_skipped_number():
         ["varonil", "libre", "Tigres", 999, 0, 0, 0, 0, 0, 0, 0],
         ["varonil", "libre", "Unknown", 83, 6, 1, 0, 0, 0, 0, 0],
     ])
-    assert response.status_code == 422
+    assert response.status_code == 200, response.text
+    assert response.json()["skipped_count"] == 2
+    assert {row["reason"] for row in response.json()["skipped"]} == {
+        "jersey_number_not_found", "team_unresolved"
+    }
     assert client.get("/api/weeks/1/player-stats").json()[0]["points"] == 12
 
 
@@ -716,7 +720,7 @@ def test_single_sheet_week1_fem_u14_links_existing_games_without_changing_scores
     ]
 
 
-def test_single_sheet_week2_fails_when_matches_only_exist_in_week1():
+def test_single_sheet_week2_skips_when_matches_only_exist_in_week1():
     lobos = create_team("Lobos", "femenil", "u14")
     ducks = create_team("Ducks", "femenil", "u14")
     pitbulls = create_team("Pitbulls", "femenil", "u14")
@@ -739,7 +743,9 @@ def test_single_sheet_week2_fails_when_matches_only_exist_in_week1():
         data={"branch": "femenil", "category": "u14"},
         files={"file": ("Week 1 U14 Femenil.xlsx", create_single_sheet_u14_workbook())},
     )
-    assert imported.status_code == 422, imported.text
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["skipped_count"] == 4
+    assert imported.json()["preserved_weeks"] == [2]
     assert client.get("/api/weeks/2/player-stats").json() == []
 
 
@@ -786,7 +792,7 @@ def test_spacing_and_plural_matching_applies_to_other_categories():
     assert client.get("/api/weeks/2/player-stats").json()[0]["team_name"] == "BlackMamba"
 
 
-def test_ambiguous_team_name_stops_import_instead_of_guessing():
+def test_ambiguous_team_name_is_skipped_instead_of_guessing():
     """Similar teams in one division require an explicit choice."""
     first = create_team("BlackMamba", "femenil", "u14")
     second = create_team("Black Mambas", "femenil", "u14")
@@ -795,8 +801,9 @@ def test_ambiguous_team_name_stops_import_instead_of_guessing():
     response = upload_week(1, [
         ["femenil", "u14", "Black Mamba", 7, 6, 0, 0, 0, 0, 0, 0]
     ])
-    assert response.status_code == 422, response.text
-    assert "Black Mamba" in response.json()["detail"]
+    assert response.status_code == 200, response.text
+    assert response.json()["skipped_count"] == 1
+    assert response.json()["skipped"][0]["candidate_names"] == ["Black Mambas"]
     assert client.get("/api/weeks/1/player-stats").json() == []
 
 
@@ -1219,3 +1226,4 @@ def test_empty_named_games_do_not_block_import_or_shift_doubleheader_stats(exist
         assert {row['game_id']: row['points'] for row in rows} == {
             games[0]['id']: 6, games[1]['id']: 18,
         }
+
