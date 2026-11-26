@@ -534,6 +534,19 @@ select option {
     font-weight: 700;
 }
 
+.statistics-skipped-download {
+    display: inline-block;
+    margin-top: 14px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--color-gold);
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .leaderboard-table {
     width: 100%;
     border-collapse: collapse;
@@ -3053,3 +3066,4 @@ body.role-league_admin form.scorekeeper-only, body.role-referee form.scorekeeper
 .schedule-board-official-slot select { width: 100%; min-width: 0; }
 .schedule-board-official-slot button:disabled { opacity: .65; cursor: wait; }
 .schedule-board-official-slot .form-message { margin: 0; }
+

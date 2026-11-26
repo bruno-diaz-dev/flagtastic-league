@@ -215,8 +215,7 @@ function renderSkippedStatistics(data) {
     }
     const download = document.createElement("button");
     download.type = "button";
-    download.className = "secondary-action";
-    download.style.cssText = "border: 0; background: transparent; padding: 0; font: inherit; cursor: pointer; text-decoration: underline;";
+    download.className = "statistics-skipped-download";
     download.textContent = "Descargar archivo de registros omitidos (CSV)";
     download.addEventListener("click", () => downloadSkippedStatisticsReport(data));
     statisticsImportSkipped.append(download);
