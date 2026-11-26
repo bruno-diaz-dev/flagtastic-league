@@ -230,8 +230,10 @@ def import_game_schedule(games, *, bracket_slots=None):
                   slot["label"], feeders[0]["id"], feeders[1]["id"]))
             bracket_created += 1
             resolve_completed_bracket_slots(connection, feeders[0]["id"])
-        return {"created": created, "updated": updated, "skipped": skipped,
-                "bracket_slots_created": bracket_created}
+        result = {"created": created, "updated": updated, "skipped": skipped}
+        if bracket_created:
+            result["bracket_slots_created"] = bracket_created
+        return result
 
 def get_games():
     """Return games with nested public summaries for both teams."""
