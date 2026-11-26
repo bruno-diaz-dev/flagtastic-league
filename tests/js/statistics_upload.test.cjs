@@ -47,7 +47,7 @@ test('worker preserves source positions, zeroes and cached formulas, removing he
 
 test('file read failures explain local access rather than claiming a network failure', async () => {
     await assert.rejects(context.prepareStatisticsUpload({
-        name: 'mobile.xlsx', size: 1024 * 1024,
+        name: 'mobile.xlsx', size: 5 * 1024 * 1024,
         arrayBuffer: async () => {throw new TypeError('Read failed');}
     }), /leer el archivo del dispositivo/);
 });
