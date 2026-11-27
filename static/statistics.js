@@ -125,6 +125,32 @@ function quarterbackWarningText(warning) {
     return null;
 }
 
+// Workbook problems that skip one game or one sheet instead of the import.
+const SHEET_WARNING_REASONS = {
+    unknown_category: "Categoría desconocida: se omitió ese partido",
+    incomplete_block: "Bloque de equipo incompleto: se omitió",
+    unpaired_block: "Equipo sin rival: se omitió la hoja completa",
+    division_mismatch: "Rivales de distinta división: se omitió ese partido",
+    empty_week: "Hoja sin estadísticas: se omitió",
+};
+
+// Individual records skipped so the rest of the workbook still imports.
+const OTHER_SKIPPED_REASONS = {
+    live_capture_game: "Partido con captura en vivo: se corrige solo desde la captura",
+    duplicate_player_row: "Jugador repetido en el mismo partido: se conservó la primera fila",
+    player_game_unidentified: "Jugador en varios partidos sin partido identificado",
+    several_stored_rows: "Varios registros guardados para el jugador: no se actualizó",
+};
+
+function sheetWarningText(warning) {
+    const reason = SHEET_WARNING_REASONS[warning.reason];
+    return reason ? {reason, detail: warning.detail || ""} : null;
+}
+
+function isPassingWarning(warning) {
+    return !quarterbackWarningText(warning) && !sheetWarningText(warning);
+}
+
 function downloadSkippedStatisticsReport(data) {
     const columns = [
         "Tipo", "Motivo", "Jornada", "Hoja", "Fila", "Partido",
@@ -139,6 +165,7 @@ function downloadSkippedStatisticsReport(data) {
         game_team_unresolved: "Se omitió el partido completo por equipo no identificado",
         jersey_number_not_found: "Número no registrado en el equipo",
         unlinked_duplicate_retained: "Registro anterior sin partido conservado para revisión",
+        ...OTHER_SKIPPED_REASONS,
     };
     const rows = (data.skipped || []).map(row => [
         "Registro omitido", reasonLabels[row.reason] || row.reason || "Registro omitido",
@@ -151,6 +178,15 @@ function downloadSkippedStatisticsReport(data) {
         row.passes_attempted, (row.candidate_names || []).join("; "), row.detail,
     ]);
     for (const warning of data.warnings || []) {
+        const sheetIssue = sheetWarningText(warning);
+        if (sheetIssue) {
+            rows.push([
+                "Dato omitido", sheetIssue.reason, warning.week, warning.sheet,
+                warning.row ?? "", "", warning.team_name, "", "", "", "", "", "",
+                "", "", "", "", "", "", sheetIssue.detail,
+            ]);
+            continue;
+        }
         const quarterback = quarterbackWarningText(warning);
         rows.push(quarterback
             ? [
@@ -185,8 +221,20 @@ function renderSkippedStatistics(data) {
     statisticsImportSkipped.replaceChildren();
     const skipped = data.skipped || [];
     const warnings = data.warnings || [];
-    const passingWarnings = warnings.filter(warning => !quarterbackWarningText(warning));
+    const passingWarnings = warnings.filter(isPassingWarning);
     const quarterbackWarnings = warnings.filter(warning => quarterbackWarningText(warning));
+    const sheetWarnings = warnings.filter(warning => sheetWarningText(warning));
+    if (sheetWarnings.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${sheetWarnings.length} problema(s) del archivo omitieron partidos u hojas; el resto se importó.`;
+        const list = document.createElement("ul");
+        for (const warning of sheetWarnings) {
+            const item = document.createElement("li");
+            item.textContent = `Jornada ${warning.week} · ${sheetWarningText(warning).reason}. ${warning.detail || ""}`;
+            list.append(item);
+        }
+        statisticsImportSkipped.append(heading, list);
+    }
     if (passingWarnings.length) {
         const heading = document.createElement("p");
         heading.textContent = `${passingWarnings.length} advertencia(s): pases inconsistentes omitidos. No se inventaron intentos; si había pases publicados, se conservaron.`;
@@ -209,6 +257,20 @@ function renderSkippedStatistics(data) {
     const missingJersey = skipped.filter(row =>
         row.reason === "jersey_number_not_found" || !row.reason
     );
+    const otherSkipped = skipped.filter(row => OTHER_SKIPPED_REASONS[row.reason]);
+    if (otherSkipped.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${otherSkipped.length} registro(s) omitidos por reglas de seguridad de datos; el resto se importó.`;
+        const list = document.createElement("ul");
+        const counts = {};
+        for (const row of otherSkipped) counts[row.reason] = (counts[row.reason] || 0) + 1;
+        for (const [reason, count] of Object.entries(counts)) {
+            const item = document.createElement("li");
+            item.textContent = `${OTHER_SKIPPED_REASONS[reason]}: ${count}`;
+            list.append(item);
+        }
+        statisticsImportSkipped.append(heading, list);
+    }
     const unlinkedDuplicates = skipped.filter(row => row.reason === "unlinked_duplicate_retained");
     if (unlinkedDuplicates.length) {
         const heading = document.createElement("p");

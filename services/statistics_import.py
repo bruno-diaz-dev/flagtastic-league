@@ -145,8 +145,12 @@ def _defensive_events(block):
     )
 
 
-def _official_team_blocks(sheet):
-    """Ignore repeated print headers without shifting fixed-size team blocks."""
+def _official_team_blocks(sheet, issues=None):
+    """Ignore repeated print headers without shifting fixed-size team blocks.
+
+    With ``issues`` (a list) an incomplete trailing block is reported there
+    and skipped; without it the workbook is rejected (strict mode).
+    """
     rows = [
         (number, values)
         for number, values in enumerate(
@@ -161,7 +165,14 @@ def _official_team_blocks(sheet):
         if not section or not section[0][1][0]:
             continue
         if len(section) != 15:
-            raise StatisticsFileError(f"{sheet.title}, fila {section[0][0]}: bloque de equipo incompleto")
+            message = f"{sheet.title}, fila {section[0][0]}: bloque de equipo incompleto"
+            if issues is None:
+                raise StatisticsFileError(message)
+            issues.append({
+                "reason": "incomplete_block", "row": section[0][0],
+                "team_name": str(section[0][1][0]).strip(), "detail": message,
+            })
+            continue
         blocks.append((section[0][0], [values for _, values in section]))
     return blocks
 
@@ -184,17 +195,40 @@ _CONFIRMED_SOURCE_BRANCHES = {
 }
 
 
-def _official_blocks_with_divisions(sheet, week):
-    """Share approved source corrections between player and game readers."""
+def _block_has_player_data(block):
+    return any(
+        next(_jersey_numbers(_official_event_values(values)), None) is not None
+        for values in block
+        if _normalized_text(values[2]) in IDENTITY_EVENT_LABELS
+        and _normalized_text(values[2]) not in NON_JERSEY_LABELS
+    )
+
+
+def _official_blocks_with_divisions(sheet, week, issues=None):
+    """Share approved source corrections between player and game readers.
+
+    Strict mode (``issues`` is None) rejects the workbook on a block it cannot
+    read. Otherwise the block keeps ``None`` as division, the problem is
+    appended to ``issues`` and callers skip that block's game.
+    """
     blocks = []
-    for row_number, block in _official_team_blocks(sheet):
-        branch, category = _division_from_official_category(
-            block[0][1], sheet.title, row_number
-        )
+    for row_number, block in _official_team_blocks(sheet, issues):
+        try:
+            branch, category = _division_from_official_category(
+                block[0][1], sheet.title, row_number
+            )
+        except StatisticsFileError as error:
+            if issues is None:
+                raise
+            issues.append({
+                "reason": "unknown_category", "row": row_number,
+                "team_name": str(block[0][0]).strip(), "detail": str(error),
+            })
+            branch = category = None
         blocks.append([row_number, block, branch, category])
     for index in range(0, len(blocks) - 1, 2):
         home, away = blocks[index:index + 2]
-        if home[2:] != away[2:]:
+        if home[2] is None or home[2:] != away[2:]:
             continue
         names = frozenset(" ".join(_normalized_text(item[1][0][0]).split()) for item in (home, away))
         branch = _CONFIRMED_SOURCE_BRANCHES.get((week, home[2], home[3], names))
@@ -203,40 +237,80 @@ def _official_blocks_with_divisions(sheet, week):
     return blocks
 
 
+def _official_sheet_layout(sheet, week, issues):
+    """Blocks plus the game pairs that cannot be imported safely.
+
+    Returns ``(blocks, skipped_pairs)``. ``skipped_pairs`` holds game indexes
+    to skip, or is None when the whole sheet must be skipped because blocks
+    cannot be paired reliably. Both readers use it, so player rows and games
+    are always skipped together. Problems are appended to ``issues``.
+    """
+    blocks = _official_blocks_with_divisions(sheet, week, issues)
+    if len(blocks) % 2:
+        issues.append({
+            "reason": "unpaired_block", "row": blocks[-1][0] if blocks else None,
+            "team_name": "",
+            "detail": (
+                f"{sheet.title}: existe un equipo sin rival en los bloques de "
+                "partido; se omitió la hoja completa para no emparejar equipos "
+                "equivocados"
+            ),
+        })
+        return blocks, None
+    skipped_pairs = set()
+    for index in range(0, len(blocks), 2):
+        home, away = blocks[index:index + 2]
+        if home[2] is None or away[2] is None:
+            skipped_pairs.add(index // 2)
+            continue
+        # Named schedule placeholders carry no data and are skipped anyway.
+        if not _block_has_player_data(home[1]) and not _block_has_player_data(away[1]):
+            continue
+        if not teams_share_game_division(
+            {"branch": home[2], "category": home[3]},
+            {"branch": away[2], "category": away[3]},
+        ):
+            issues.append({
+                "reason": "division_mismatch", "row": home[0],
+                "team_name": f"{str(home[1][0][0]).strip()} vs {str(away[1][0][0]).strip()}",
+                "detail": (
+                    f"{sheet.title}, fila {home[0]}: los rivales no pertenecen a "
+                    "la misma división; se omitió ese partido"
+                ),
+            })
+            skipped_pairs.add(index // 2)
+    return blocks, skipped_pairs
+
+
 def _parse_official_games(sheet, week):
-    """Read consecutive 15-row team blocks as inferred game results."""
+    """Read consecutive 15-row team blocks as inferred game results.
+
+    Games that cannot be read safely are skipped; the statistics reader
+    reports the same problems as warnings.
+    """
+    raw_blocks, skipped_pairs = _official_sheet_layout(sheet, week, [])
+    if skipped_pairs is None:
+        return []
     blocks = []
-    for row_number, block, branch, category in _official_blocks_with_divisions(sheet, week):
+    for row_number, block, branch, category in raw_blocks:
         blocks.append({
             "branch": branch,
             "category": category,
             "team": str(block[0][0]).strip(),
-            "has_player_data": any(
-                next(_jersey_numbers(_official_event_values(values)), None) is not None
-                for values in block
-                if _normalized_text(values[2]) in IDENTITY_EVENT_LABELS
-                and _normalized_text(values[2]) not in NON_JERSEY_LABELS
-            ),
+            "has_player_data": _block_has_player_data(block),
             "score": _score_block(block),
             "defensive_events": _defensive_events(block)
         })
 
-    if len(blocks) % 2:
-        raise StatisticsFileError(
-            f"{sheet.title}: existe un equipo sin rival en los bloques de partido"
-        )
-
     games = []
     for index in range(0, len(blocks), 2):
         home, away = blocks[index:index + 2]
+        if index // 2 in skipped_pairs:
+            continue
         # Named schedule placeholders are not played results. Keep the source
         # index for later pairs so their player rows still link to the right game.
         if not home["has_player_data"] and not away["has_player_data"]:
             continue
-        if not teams_share_game_division(home, away):
-            raise StatisticsFileError(
-                f"{sheet.title}: los rivales no pertenecen a la misma division"
-            )
         home_score, away_score = home["score"], away["score"]
         if home_score == away_score:
             # The source tracks individual events, not an official scoreboard.
@@ -265,7 +339,19 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
         "sacks": 0, "tackles": 0, "passes_completed": 0,
         "passes_attempted": 0, "passing_points": 0, "passes_intercepted": 0
     }))
-    blocks = _official_blocks_with_divisions(sheet, week)
+    if warnings is None:
+        # Strict mode (scripts and direct callers): unreadable blocks raise.
+        blocks = _official_blocks_with_divisions(sheet, week)
+        skipped_pairs = set()
+    else:
+        # Imports skip the affected game (or sheet) and keep going.
+        issues = []
+        blocks, skipped_pairs = _official_sheet_layout(sheet, week, issues)
+        warnings.extend(
+            {**issue, "week": week, "sheet": sheet.title} for issue in issues
+        )
+        if skipped_pairs is None:
+            return []
     if not blocks:
         return []
     source_rows = {}
@@ -273,6 +359,8 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
     for block_index, (row_number, block, branch, category) in enumerate(blocks):
         team = str(block[0][0]).strip()
         game_index = block_index // 2
+        if game_index in skipped_pairs:
+            continue
         source_rows[(game_index, branch, category, team)] = row_number
         quarterbacks = {
             jersey_number
@@ -366,9 +454,15 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
         row["jersey_number"]
     ))
     if not rows:
-        raise StatisticsFileError(
-            f"La hoja de jornada {week} no contiene estadisticas reconocibles"
-        )
+        message = f"La hoja de jornada {week} no contiene estadisticas reconocibles"
+        if warnings is None:
+            raise StatisticsFileError(message)
+        # A future sheet that only lists matchups has nothing to import yet.
+        warnings.append({
+            "reason": "empty_week", "week": week, "sheet": sheet.title,
+            "row": None, "team_name": "",
+            "detail": message + "; se omitió esa hoja",
+        })
     return rows
 
 
@@ -454,6 +548,8 @@ def parse_statistics_workbook(content, selected_week=None, *, warnings=None):
             if not parsed:
                 raise StatisticsFileError(
                     f"El archivo no contiene la jornada {selected_week}"
+                    if selected_week is not None
+                    else "El archivo no contiene estadisticas importables"
                 )
             return parsed
         if selected_week is None:

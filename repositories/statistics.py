@@ -71,6 +71,38 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 (list(games),),
             ).fetchall()
             claimed_games = set()
+            division_matches = {}
+
+            def names_another_team(label, participant, branch, category):
+                """True when a label clearly names a different division team.
+
+                Matching only against a game's two participants would credit
+                "Lobos" to "Lobos Kids" whenever that game exists, even if a
+                team named exactly "Lobos" is in the division. Homonymous
+                teams (the two U12 Nómadas) remain valid participants.
+                """
+                key = (label, branch, category)
+                if key not in division_matches:
+                    division_teams = [
+                        team for team in teams
+                        if normalize_division(team["branch"], team["category"])[1] == category
+                        and (branch is None or normalize_division(
+                            team["branch"], team["category"])[0] == branch)
+                    ]
+                    normalized = normalize_team_text(label)
+                    exact = {
+                        team["id"] for team in division_teams
+                        if normalize_team_text(team["name"]) == normalized
+                    }
+                    if not exact:
+                        confident = match_team_name(
+                            label, division_teams, branch=branch, category=category,
+                        )
+                        exact = {confident["id"]} if confident else set()
+                    division_matches[key] = exact
+                named = division_matches[key]
+                return bool(named) and participant["id"] not in named
+
             for week, source_games in games.items():
                 for fallback_index, source_game in enumerate(source_games):
                     game_index = source_game.get("game_index", fallback_index)
@@ -98,7 +130,11 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                             source_game["away_team"], participants,
                             branch=branch, category=category,
                         )
-                        if home and away and home["id"] != away["id"]:
+                        if (home and away and home["id"] != away["id"]
+                                and not names_another_team(
+                                    source_game["home_team"], home, branch, category)
+                                and not names_another_team(
+                                    source_game["away_team"], away, branch, category)):
                             candidates.append((official_game, home, away))
                     if not candidates:
                         if not link_existing_games_only:
@@ -251,9 +287,14 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     row.get("game_index"), player["id"], team["id"]
                 )
                 if membership in seen_memberships:
-                    raise StatisticsValidationError(
-                        f"Jornada {week}, fila {row_number}: jugador repetido"
-                    )
+                    # Keep the first row for this player in this game; never
+                    # add or guess between two different lines.
+                    skipped.append(skipped_record(
+                        week, row, "duplicate_player_row",
+                        team_id=team["id"], team_name=team["name"],
+                        detail=f"Fila {row_number}: el jugador aparece repetido en el mismo partido; se conservó la primera fila.",
+                    ))
+                    continue
                 seen_memberships.add(membership)
                 resolved_rows.append((player, team, row))
             if rows and not resolved_rows:
@@ -316,20 +357,25 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             if not kept and week not in preserved_weeks:
                 preserved_weeks.append(week)
 
+        # Games with live capture are audited: their statistics come only from
+        # the capture. Skip just those games (reported below) and keep going.
+        live_games_by_week = {}
         for week, resolved_rows in resolved_weeks.items():
             team_ids = list({team["id"] for _, team, _ in resolved_rows})
-            if team_ids and connection.execute(
-                """SELECT 1 FROM game_live_sessions live JOIN games g ON g.id = live.game_id
+            if not team_ids:
+                continue
+            live_games_by_week[week] = connection.execute(
+                """SELECT g.id, g.home_team_id, g.away_team_id
+                FROM game_live_sessions live JOIN games g ON g.id = live.game_id
                 WHERE g.week = %s AND (g.home_team_id = ANY(%s) OR g.away_team_id = ANY(%s))
                   AND (live.state = 'live' OR EXISTS (
                       SELECT 1 FROM game_live_events event
                       WHERE event.game_id = live.game_id
                         AND event.kind <> 'attendance'
                         AND event.voided_at IS NULL
-                  )) LIMIT 1""",
+                  ))""",
                 (week, team_ids, team_ids),
-            ).fetchone():
-                raise StatisticsValidationError("Los equipos incluidos tienen captura en vivo en esta jornada. Corrige esos partidos individualmente.")
+            ).fetchall()
 
         # Never delete all statistics for a week or division. A file may
         # contain only one team, or even one player. Reimports update exact
@@ -408,6 +454,29 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             used_existing_game_ids.add(saved_game["id"])
             game_ids[(week, game["game_index"])] = saved_game["id"]
 
+        for week, live_games in live_games_by_week.items():
+            if not live_games:
+                continue
+            live_ids = {live["id"] for live in live_games}
+            live_team_ids = {
+                team_id for live in live_games
+                for team_id in (live["home_team_id"], live["away_team_id"])
+            }
+            kept = []
+            for player, team, row in resolved_weeks[week]:
+                game_id = game_ids.get((week, row.get("game_index")))
+                # Without a linked game (compact template) the row cannot be
+                # told apart from the team's live-captured game: skip it too.
+                if game_id in live_ids or (game_id is None and team["id"] in live_team_ids):
+                    skipped.append(skipped_record(
+                        week, row, "live_capture_game",
+                        team_id=team["id"], team_name=team["name"],
+                        detail="El partido tiene captura en vivo; sus estadísticas solo se corrigen desde la captura.",
+                    ))
+                else:
+                    kept.append((player, team, row))
+            resolved_weeks[week] = kept
+
         existing_stats_by_identity = {}
         stats_weeks = list(resolved_weeks)
         stats_team_ids = list({
@@ -458,12 +527,24 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 for player, team, row in resolved_rows:
                     key = (player["id"], team["id"])
                     player_counts[key] = player_counts.get(key, 0) + 1
-                if any(count > 1 for count in player_counts.values()):
-                    raise StatisticsValidationError(
-                        f"Jornada {week}: el archivo contiene un jugador en "
-                        "varios partidos. Usa Archivo completo con hojas Wk "
-                        "para identificar cada encuentro."
-                    )
+                repeated = {key for key, count in player_counts.items() if count > 1}
+                if repeated:
+                    # Only this player's lines are ambiguous; import the rest.
+                    kept = []
+                    for player, team, row in resolved_rows:
+                        if (player["id"], team["id"]) in repeated:
+                            skipped.append(skipped_record(
+                                week, row, "player_game_unidentified",
+                                team_id=team["id"], team_name=team["name"],
+                                detail=(
+                                    "El jugador aparece en varios partidos de la "
+                                    "jornada sin partido identificado; usa Archivo "
+                                    "completo con hojas Wk."
+                                ),
+                            ))
+                        else:
+                            kept.append((player, team, row))
+                    resolved_rows = kept
             for player, team, row in resolved_rows:
                 game_id = game_ids.get((week, row.get("game_index")))
                 matching_stats = existing_stats_by_identity.get(
@@ -507,17 +588,23 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     else:
                         # Claim at most one unlinked row for this game.
                         existing_rows = unlinked[:1]
-                claimed_stat_ids.update(existing["id"] for existing in existing_rows[:1])
+                if len(existing_rows) <= 1:
+                    claimed_stat_ids.update(existing["id"] for existing in existing_rows)
                 if existing_rows and existing_records == "preserve":
                     retained_count += 1
                     continue
                 if len(existing_rows) > 1:
-                    raise StatisticsValidationError(
-                        f"Jornada {week}, equipo {team['name']}, jugador "
-                        f"#{row['jersey_number']}: hay varios partidos "
-                        "registrados. Importa el Excel oficial completo "
-                        "para evitar mezclar estadísticas."
-                    )
+                    # Several stored rows could be this line: never pick one.
+                    skipped.append(skipped_record(
+                        week, row, "several_stored_rows",
+                        team_id=team["id"], team_name=team["name"],
+                        detail=(
+                            "Hay varios registros guardados para este jugador en "
+                            "la jornada y no se puede saber cuál actualizar; "
+                            "importa el Excel oficial completo."
+                        ),
+                    ))
+                    continue
                 passes_completed = row["passes_completed"]
                 passes_attempted = row["passes_attempted"]
                 if existing_rows and row.get("passing_incomplete"):
