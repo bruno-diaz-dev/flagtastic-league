@@ -75,6 +75,8 @@ team representatives, referees, and league administrators.
   slots; move games on the schedule board; schedule friendly games with guest
   teams; postpone, restore, or delete games or a jornada.
 - Import referee roles from XLSX, CSV, or images and assign officials manually.
+  Role imports identify each game by jornada, field and time and only assign
+  officials; a game is moved only when its row is explicitly marked to move.
 - Import the official statistics workbook. Imports link statistics to existing
   games only, show progress, and list skipped records with a CSV download.
 - Review finals eligibility at `/admin/finals-eligibility`.
@@ -121,7 +123,8 @@ productivity (passing points per completion ÷ 2.5, capped at 1), and safety
 cumulative attempts at all times to qualify.
 
 Final and third-place games are created in advance with pending labels and
-filled automatically when both semifinals have final scores. Players qualify
+filled automatically when both semifinals have final scores; a corrected
+semifinal updates them until that game starts. Players qualify
 for the finals by attending at least half + 1 of their team's regular-season
 games (6 games → 4). See [`docs/architecture.md`](docs/architecture.md#finals-eligibility).
 

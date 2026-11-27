@@ -83,12 +83,20 @@ Friendlies may pair registered teams from different divisions without changing
 those teams' categories. U7 is accepted for invited friendly participants only;
 it does not add an official league registration category.
 
-Referee spreadsheet imports share the same team identity resolver as game
-registration. They compare registered participant IDs (including friendly guests)
-within the jornada, then use field/time to distinguish repeated pairings. Joined
-names, explicit divisions, Lobos Inf and the U12 mixto convention therefore
-resolve consistently in both imports. Ambiguous games and unknown referees
-remain warnings; importing never creates referee accounts.
+Referee-role imports identify the game by its slot first: jornada, field and
+time (plus date and venue when present). Team names, resolved with the same
+identity rules as game registration (including friendly guests), only confirm
+it: a regular game needs both names to be the slot's teams, and playoff rows
+such as "Final U12" bind to their slot before and after the semifinals resolve.
+If the names point to a game at another slot, that game is proposed with a
+"move" notice. Image grids narrow candidates to the cell's field and time.
+Ambiguous games and unknown referees remain warnings; importing never creates
+referee accounts.
+
+Confirming a role assigns officials only. A game is moved to the role's field,
+time, date or venue only when the administrator ticks **Mover el partido** for
+that row (`apply_calendar_change`); the review shows the game's current slot.
+Editing the field, date or venue of a row ticks it automatically.
 
 The admin board includes five separate official selectors for the selected game:
 Referee, Down Judge, Field Judge, Side Judge and Statistician. Each slot saves

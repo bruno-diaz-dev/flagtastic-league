@@ -45,8 +45,23 @@ than rejecting the file. Responses include `skipped`, `skipped_count`,
 | `game_team_unresolved` | A record belongs to a source game that was skipped because one of its teams or games could not be resolved |
 | `jersey_number_not_found` | The jersey number is not on the resolved team's roster; no player is created and the stats are not given to anyone else |
 | `unlinked_duplicate_retained` | An older row for the same player and jornada with no game link coexists with the row for this game; it is kept unchanged for review |
+| `live_capture_game` | The game has live-captured plays (or is live); its statistics are corrected only from the capture |
+| `duplicate_player_row` | The same player appears twice in one game; the first line is kept |
+| `player_game_unidentified` | A file without game blocks lists the player in several games of the jornada |
+| `several_stored_rows` | Several stored rows could be this line; none is updated |
 
-Warnings (the rest of the record still imports):
+Workbook problems that skip one game or block (reported as warnings, the rest
+of the file still imports):
+
+| Warning | Meaning |
+|---|---|
+| `unknown_category` | A block's category cannot be read; that game is skipped |
+| `incomplete_block` | A trailing block has fewer than 15 rows; it is skipped |
+| `unpaired_block` | The sheet has an odd number of blocks; the trailing block has no rival and is skipped (earlier pairs are kept and must still match a registered game) |
+| `division_mismatch` | The two rivals belong to different divisions; that game is skipped |
+| `empty_week` | A sheet lists matchups but no events yet; it is skipped |
+
+Record warnings (the rest of the record still imports):
 
 | Warning | Meaning |
 |---|---|
@@ -59,13 +74,17 @@ them as a CSV download (`estadisticas-omitidas-<timestamp>.csv`). If no record
 of a jornada can be resolved, that jornada is reported in `preserved_weeks` and
 its stored data stays unchanged.
 
-The following still reject the **whole** import (nothing is written):
-malformed workbooks or values, an incomplete 15-row block, a block without a
-rival, rivals from different divisions, the same player twice in one game, a
-player/jornada with several stored rows that cannot be told apart, a
-single-jornada file in which a player appears in several games without game
-blocks, and any jornada where an included team has a game in live capture or
-with live-captured plays (attendance alone does not block).
+Only problems with the file itself still reject the **whole** import (nothing
+is written): a file that is not a valid `.xlsx`, a compact template with
+invalid columns or values, a division file containing other divisions, or a
+workbook with no importable statistics at all. Scripts that call the parser
+without a warnings list (strict mode) still reject unreadable blocks.
+
+Team matching against registered games: a source label must name one of the
+game's two teams. A registered game is rejected as a match when a label names
+a different team of the division exactly or confidently (for example "Lobos"
+when both "Lobos" and "Lobos Kids" exist). Homonymous teams in unified U8–U12
+(the two U12 Nómadas) are told apart by the registered opponent.
 
 `GET /api/statistics/import-template` downloads the compact one-row-per-player
 template (`rama`, `categoria`, `equipo`, `numero`, metric columns). It has no
