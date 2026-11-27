@@ -498,6 +498,9 @@ class RefereeScheduleAssignment(BaseModel):
     game_date: date | None = None
     venue: str | None = Field(default=None, max_length=120)
     officials: list[GameOfficialAssignment] = Field(default_factory=list)
+    # Assigning officials never moves a game unless the administrator ticks
+    # "move this game" for that row in the review.
+    apply_calendar_change: bool = False
 
     @field_validator("venue")
     @classmethod

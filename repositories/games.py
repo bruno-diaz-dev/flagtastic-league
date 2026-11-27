@@ -2,8 +2,11 @@
 
 from database import get_connection
 from collections import Counter
+from psycopg.errors import UniqueViolation
 from services.schedule_context import venue_key
-from services.bracket_advancement import resolve_completed_bracket_slots
+from services.bracket_advancement import (
+    BracketConflictError, resolve_completed_bracket_slots,
+)
 
 
 class ScheduleConflictError(ValueError):
@@ -38,6 +41,26 @@ def get_calendar_capabilities():
     """Expose a feature flag, never schema contents or credentials."""
     with get_connection() as connection:
         return {"date_and_venue": calendar_available(connection)}
+
+
+def sync_bracket_slot(connection, game_id, field_number, start_time, game_date, venue):
+    """Keep a playoff game's bracket slot on the game's current calendar.
+
+    Otherwise re-importing the schedule would no longer find the slot by its
+    old field and time and would create a second pending final.
+    """
+    try:
+        with connection.transaction():
+            connection.execute(
+                """UPDATE game_bracket_slots
+                   SET field_number=%s, start_time=%s, game_date=%s, venue=%s
+                   WHERE target_game_id=%s""",
+                (field_number, start_time, game_date, venue, game_id),
+            )
+    except UniqueViolation as error:
+        raise ScheduleConflictError(
+            "Ya existe otro cruce de finales en esa jornada, campo y hora"
+        ) from error
 
 
 def calendar_slot_rows(connection, week, field_number, start_time, exclude=None):
@@ -181,6 +204,39 @@ def import_game_schedule(games, *, bracket_slots=None):
             created += 1
         bracket_created = 0
         for slot in bracket_slots or []:
+            missing = [key for key in ("week", "field_number", "start_time", "category",
+                                       "bracket_placement", "label") if not slot.get(key)]
+            if missing or slot["bracket_placement"] not in ("final", "third"):
+                raise ScheduleConflictError(
+                    f"Cruce de finales incompleto o inválido: {slot.get('label') or slot}"
+                )
+            existing_slot = connection.execute("""
+                SELECT slots.*, target.home_team_id AS target_home_id
+                FROM game_bracket_slots slots
+                LEFT JOIN games target ON target.id = slots.target_game_id
+                WHERE slots.week=%s AND slots.field_number=%s AND slots.start_time=%s
+            """, (slot["week"], slot["field_number"], slot["start_time"])).fetchone()
+            if existing_slot and any(
+                str(existing_slot[key] or "") != str(slot.get(source) or "")
+                for key, source in (("category", "category"), ("branch", "branch"),
+                                    ("bracket_tier", "bracket_tier"),
+                                    ("placement", "bracket_placement"))
+            ) or existing_slot and (
+                str(existing_slot["game_date"] or "") != str(slot.get("game_date") or existing_slot["game_date"] or "")
+                or venue_key(existing_slot["venue"]) != venue_key(slot.get("venue") or existing_slot["venue"])
+            ):
+                # The slot key is week + field + time; a different day, venue or
+                # division at that slot is another bracket game. Never overwrite
+                # its label and feeders silently.
+                raise ScheduleConflictError(
+                    f"{slot['label']}: ya existe otro cruce de finales en la jornada "
+                    f"{slot['week']}, campo {slot['field_number']} y esa hora "
+                    f"({existing_slot['label']}). Usa otro campo u hora."
+                )
+            if existing_slot and existing_slot["target_home_id"] is not None:
+                # The final already has teams: never rewire its semifinals.
+                bracket_created += 1
+                continue
             candidates = connection.execute("""
                 SELECT g.id, g.start_time, g.field_number, h.branch AS home_branch,
                        h.category AS home_category, a.branch AS away_branch,
@@ -188,6 +244,11 @@ def import_game_schedule(games, *, bracket_slots=None):
                 FROM games g JOIN teams h ON h.id=g.home_team_id
                 JOIN teams a ON a.id=g.away_team_id
                 WHERE g.week=%s AND NOT g.is_friendly AND g.start_time < %s
+                  AND g.status <> 'postponed'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM game_bracket_slots target_slot
+                      WHERE target_slot.target_game_id = g.id
+                  )
                   AND h.category=%s AND a.category=%s
                   AND (%s::text IS NULL OR (h.branch=%s AND a.branch=%s))
                 ORDER BY g.start_time DESC, g.field_number
@@ -243,7 +304,10 @@ def import_game_schedule(games, *, bracket_slots=None):
                 connection.execute("UPDATE game_bracket_slots SET target_game_id=%s WHERE id=%s",
                                    (pending_game["id"], stored_slot["id"]))
             bracket_created += 1
-            resolve_completed_bracket_slots(connection, feeders[0]["id"])
+            try:
+                resolve_completed_bracket_slots(connection, feeders[0]["id"])
+            except BracketConflictError as error:
+                raise ScheduleConflictError(str(error)) from error
         result = {"created": created, "updated": updated, "skipped": skipped}
         if bracket_created:
             result["bracket_slots_created"] = bracket_created
@@ -398,7 +462,10 @@ def update_game_score(game_id, score, *, allow_overwrite=False):
         if updated_game is not None:
             # Scores become final atomically; playoff slots appear in the same
             # transaction only after both feeder semifinal results are known.
-            resolve_completed_bracket_slots(connection, game_id)
+            try:
+                resolve_completed_bracket_slots(connection, game_id)
+            except BracketConflictError as error:
+                raise GameStateConflictError(str(error)) from error
         connection.commit()
 
         return (
@@ -441,6 +508,12 @@ def update_game_schedule(game_id, start_time, field_number=None, *, game_date=UN
             args.extend([desired_date, desired_venue])
         updated = connection.execute("UPDATE games SET start_time=%s, field_number=%s" + metadata_sql
             + f" WHERE id=%s RETURNING id, week, field_number, start_time, status, {CALENDAR_COLUMNS}", [*args, game_id]).fetchone()
+        if changed:
+            try:
+                sync_bracket_slot(connection, game_id, desired_field, start_time,
+                                  desired_date, desired_venue)
+            except ScheduleConflictError as error:
+                raise GameStateConflictError(str(error)) from error
         return dict(updated)
 
 
@@ -776,35 +849,45 @@ def apply_referee_schedule(assignments, assigned_by):
             positions = {official.position for official in assignment.officials}
             if not game['is_friendly'] and not {'referee', 'down_judge'}.issubset(positions):
                 raise ScheduleConflictError("Referee y Down Judge son obligatorios")
-            wanted_time = assignment.scheduled_time or game['start_time']
-            wanted_date = assignment.game_date if 'game_date' in assignment.model_fields_set else game.get('game_date')
-            wanted_venue = assignment.venue if 'venue' in assignment.model_fields_set else game.get('venue')
+            if assignment.apply_calendar_change:
+                wanted_field = assignment.field_number
+                wanted_time = assignment.scheduled_time or game['start_time']
+                wanted_date = assignment.game_date if 'game_date' in assignment.model_fields_set else game.get('game_date')
+                wanted_venue = assignment.venue if 'venue' in assignment.model_fields_set else game.get('venue')
+            else:
+                # Officials only: the reviewed row never moves the game.
+                wanted_field = game['field_number']
+                wanted_time = game['start_time']
+                wanted_date = game.get('game_date')
+                wanted_venue = game.get('venue')
             changed_meta = not same_calendar(game, wanted_date, wanted_venue)
-            changed = changed_meta or game['field_number'] != assignment.field_number or game['start_time'] != wanted_time
+            changed = changed_meta or game['field_number'] != wanted_field or game['start_time'] != wanted_time
             if changed and (game['status'] == 'completed' or game['home_score'] is not None or game['away_score'] is not None):
                 raise ScheduleConflictError("No se puede cambiar el calendario de un partido finalizado")
             if changed_meta:
                 require_calendar(connection)
-            plans[game['id']] = (game, wanted_time, wanted_date, wanted_venue, changed_meta, changed)
+            plans[game['id']] = (game, wanted_time, wanted_date, wanted_venue, changed_meta, changed, wanted_field)
         occupied = {}
         for assignment in assignments:
-            game, wanted_time, wanted_date, wanted_venue, changed_meta, changed = plans[assignment.game_id]
+            game, wanted_time, wanted_date, wanted_venue, changed_meta, changed, wanted_field = plans[assignment.game_id]
             if wanted_time is not None:
-                key = (game['week'], wanted_date, venue_key(wanted_venue), assignment.field_number, wanted_time)
+                key = (game['week'], wanted_date, venue_key(wanted_venue), wanted_field, wanted_time)
                 if key in occupied and (changed or plans[occupied[key]][5]):
                     raise ScheduleConflictError("Dos partidos ocuparían la misma fecha, sede, campo y hora")
                 occupied[key] = game['id']
                 if changed and any(row['id'] not in plans and same_calendar(row, wanted_date, wanted_venue)
-                        for row in calendar_slot_rows(connection, game['week'], assignment.field_number, wanted_time, game['id'])):
+                        for row in calendar_slot_rows(connection, game['week'], wanted_field, wanted_time, game['id'])):
                     raise ScheduleConflictError("Ese campo ya tiene otro partido en la misma fecha, sede y hora")
         for assignment in assignments:
-            game, desired_time, desired_date, desired_venue, changed_meta, changed = plans[assignment.game_id]
+            game, desired_time, desired_date, desired_venue, changed_meta, changed, wanted_field = plans[assignment.game_id]
             if changed:
                 sql_meta = ', game_date=%s, venue=%s' if changed_meta else ''
-                args = [assignment.field_number, desired_time]
+                args = [wanted_field, desired_time]
                 if changed_meta:
                     args.extend([desired_date, desired_venue])
                 connection.execute('UPDATE games SET field_number=%s, start_time=%s' + sql_meta + ' WHERE id=%s', [*args, game['id']])
+                sync_bracket_slot(connection, game['id'], wanted_field, desired_time,
+                                  desired_date, desired_venue)
 
         # Read and persist every crew in batches. The previous per-position
         # queries made a 26-game role import take over 20 seconds on production
