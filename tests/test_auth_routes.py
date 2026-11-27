@@ -325,7 +325,8 @@ def test_password_reset_is_private_single_use_and_revokes_sessions(monkeypatch):
     assert response.status_code == 202
     assert "player@flagtastic.com" not in response.text
     assert delivered["email"] == "player@flagtastic.com"
-    token = parse_qs(urlparse(delivered["url"]).query)["token"][0]
+    # The token travels in the fragment so it never reaches request logs.
+    token = parse_qs(urlparse(delivered["url"]).fragment)["token"][0]
 
     connection = get_connection()
     stored = connection.execute(
