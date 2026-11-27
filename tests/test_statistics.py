@@ -584,6 +584,74 @@ def test_unified_leaderboards_list_a_player_once_with_best_team_record():
             for row in leaders["points"]] == [(shared, female, 18), (other, female, 12)]
 
 
+def upload_week_with_quarterback_columns(week, rows):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append([*HEADERS, "puntos_pase", "intercepciones_lanzadas"])
+    for row in rows:
+        sheet.append(row)
+    content = BytesIO()
+    workbook.save(content)
+    workbook.close()
+    return client.post(
+        f"/api/weeks/{week}/player-stats/import",
+        files={"file": ("qb.xlsx", content.getvalue())},
+    )
+
+
+def test_passer_rating_combines_precision_productivity_and_safety():
+    team = create_team("Halcones")
+    productive = create_player(team, "Productive QB", "PROD010101HASXX001", 1)
+    accurate = create_player(team, "Accurate QB", "ACCU010101HASXX002", 2)
+    # Productive: 30/50, 60 passing points, 0 interceptions.
+    #   (0.60 + min((60/30)/2.5, 1) + 1) / 3 = (0.60 + 0.80 + 1) / 3 = 80.0
+    # Accurate: 35/50, 10 passing points, 5 interceptions (10% = cap).
+    #   (0.70 + (10/35)/2.5 + 0) / 3 = 27.1
+    response = upload_week_with_quarterback_columns(1, [
+        ["varonil", "libre", "Halcones", 1, 0, 0, 0, 0, 0, 30, 50, 60, 0],
+        ["varonil", "libre", "Halcones", 2, 0, 0, 0, 0, 0, 35, 50, 10, 5],
+    ])
+    assert response.status_code == 200, response.text
+
+    leaders = client.get(
+        "/api/statistics/leaderboards?branch=varonil&category=libre"
+    ).json()
+    rating = leaders["passer_rating"]
+    assert [row["player_id"] for row in rating] == [productive, accurate]
+    assert [row["value"] for row in rating] == [80.0, 27.1]
+    assert rating[0]["components"] == {
+        "precision": 60.0, "productivity": 80.0, "safety": 100.0,
+    }
+    assert (rating[1]["passing_points"], rating[1]["passes_intercepted"]) == (10, 5)
+    assert rating[1]["components"]["safety"] == 0.0
+    # The legacy completion ranking is unchanged for installed app versions.
+    assert [row["player_id"] for row in leaders["completion_percentage"]] == [
+        accurate, productive
+    ]
+
+    # Older compact files without the quarterback columns keep stored values.
+    assert upload_week(1, [
+        ["varonil", "libre", "Halcones", 1, 0, 0, 0, 0, 0, 30, 50],
+        ["varonil", "libre", "Halcones", 2, 0, 0, 0, 0, 0, 35, 50],
+    ]).status_code == 200
+    again = client.get(
+        "/api/statistics/leaderboards?branch=varonil&category=libre"
+    ).json()["passer_rating"]
+    assert [row["value"] for row in again] == [80.0, 27.1]
+
+
+def test_passer_rating_requires_fifty_attempts():
+    team = create_team("Halcones")
+    create_player(team, "Short QB", "SHRT010101HASXX001", 1)
+    assert upload_week_with_quarterback_columns(1, [
+        ["varonil", "libre", "Halcones", 1, 0, 0, 0, 0, 0, 49, 49, 120, 0],
+    ]).status_code == 200
+    leaders = client.get(
+        "/api/statistics/leaderboards?branch=varonil&category=libre"
+    ).json()
+    assert leaders["passer_rating"] == []
+
+
 def test_leaderboards_use_unique_places_and_limit_to_five():
     team = create_team('Tied Leaders')
     rows = []

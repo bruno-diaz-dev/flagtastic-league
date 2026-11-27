@@ -29,13 +29,18 @@ HEADER_ALIASES = {
     "pases_completos": "passes_completed",
     "passes_completed": "passes_completed",
     "pases_lanzados": "passes_attempted",
-    "passes_attempted": "passes_attempted"
+    "passes_attempted": "passes_attempted",
+    "puntos_pase": "passing_points", "passing_points": "passing_points",
+    "intercepciones_lanzadas": "passes_intercepted",
+    "passes_intercepted": "passes_intercepted",
 }
 REQUIRED_COLUMNS = {
     "branch", "category", "team", "jersey_number", "points",
     "receptions", "interceptions", "sacks", "tackles",
     "passes_completed", "passes_attempted"
 }
+# Older compact templates lack these; their values stay unchanged on update.
+OPTIONAL_COLUMNS = {"passing_points", "passes_intercepted"}
 WEEK_SHEET_PATTERN = re.compile(r"^wk\s*(\d+)$", re.IGNORECASE)
 
 # Official labels used in the league workbook. Values are jersey numbers;
@@ -54,6 +59,17 @@ IDENTITY_EVENT_LABELS = set(EVENT_METRICS) | {
     "asistencia", "puntos pase", "intercepciones pase", "para % pases",
     "6 puntos", "2 puntos", "1 puntos"
 }
+# Quarterback rows. "6/2/1 Puntos" carry the jersey of the QB who threw a
+# scoring pass (TD, 2-point or 1-point conversion); "Intercepciones Pase"
+# carries the jersey of the QB who threw an interception. Both are credited
+# only when the jersey passed in that same game block; otherwise the datum is
+# reported instead of being attributed to someone else.
+PASSING_SCORE_LABELS = {"6 puntos": 6, "2 puntos": 2, "1 puntos": 1}
+QUARTERBACK_EVENT_LABELS = {*PASSING_SCORE_LABELS, "intercepciones pase"}
+QUARTERBACK_IDENTITY_LABELS = {"intentos pase", "para % pases"}
+# "Puntos Pase" holds point values (6, 2, 1) aligned with the rows above, not
+# jersey numbers, so it never identifies a player.
+NON_JERSEY_LABELS = {"puntos pase"}
 
 
 def _normalized_text(value):
@@ -199,6 +215,7 @@ def _parse_official_games(sheet, week):
                 next(_jersey_numbers(_official_event_values(values)), None) is not None
                 for values in block
                 if _normalized_text(values[2]) in IDENTITY_EVENT_LABELS
+                and _normalized_text(values[2]) not in NON_JERSEY_LABELS
             ),
             "score": _score_block(block),
             "defensive_events": _defensive_events(block)
@@ -246,7 +263,7 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
     players = defaultdict(lambda: Counter({
         "points": 0, "receptions": 0, "interceptions": 0,
         "sacks": 0, "tackles": 0, "passes_completed": 0,
-        "passes_attempted": 0
+        "passes_attempted": 0, "passing_points": 0, "passes_intercepted": 0
     }))
     blocks = _official_blocks_with_divisions(sheet, week)
     if not blocks:
@@ -257,11 +274,43 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
         team = str(block[0][0]).strip()
         game_index = block_index // 2
         source_rows[(game_index, branch, category, team)] = row_number
+        quarterbacks = {
+            jersey_number
+            for values in block
+            if _normalized_text(values[2]) in QUARTERBACK_IDENTITY_LABELS
+            for jersey_number in _jersey_numbers(_official_event_values(values))
+        }
         for values in block:
             label = _normalized_text(values[2])
-            if label not in IDENTITY_EVENT_LABELS:
+            if label not in IDENTITY_EVENT_LABELS or label in NON_JERSEY_LABELS:
                 continue
             numbers = list(_jersey_numbers(_official_event_values(values)))
+            if label in QUARTERBACK_EVENT_LABELS:
+                for jersey_number, count in Counter(numbers).items():
+                    if jersey_number not in quarterbacks:
+                        if warnings is not None:
+                            warnings.append({
+                                "reason": (
+                                    "interception_thrower_unresolved"
+                                    if label == "intercepciones pase"
+                                    else "passing_points_thrower_unresolved"
+                                ),
+                                "week": week, "sheet": sheet.title,
+                                "row": row_number, "team_name": team,
+                                "branch": branch, "category": category,
+                                "jersey_number": jersey_number,
+                                "game_index": game_index, "count": count,
+                                "label": str(values[2]).strip(),
+                            })
+                        continue
+                    identity = (game_index, branch, category, team, jersey_number)
+                    if label == "intercepciones pase":
+                        players[identity]["passes_intercepted"] += count
+                    else:
+                        players[identity]["passing_points"] += (
+                            count * PASSING_SCORE_LABELS[label]
+                        )
+                continue
             if label == "asistencia":
                 attendance_by_player.update(
                     (game_index, branch, category, team, jersey_number)
@@ -341,7 +390,9 @@ def _parse_flat_sheet(sheet):
     """Keep support for the application's compact one-row-per-player template."""
     raw_headers = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
     headers = [HEADER_ALIASES.get(_normalize_header(value)) for value in raw_headers]
-    if None in headers or len(headers) != len(REQUIRED_COLUMNS) or set(headers) != REQUIRED_COLUMNS:
+    if (None in headers or len(headers) != len(set(headers))
+            or not REQUIRED_COLUMNS <= set(headers)
+            or not set(headers) <= REQUIRED_COLUMNS | OPTIONAL_COLUMNS):
         raise StatisticsFileError(
             "El archivo no tiene hojas Wk ni las columnas de la plantilla compacta"
         )
@@ -367,7 +418,16 @@ def _parse_flat_sheet(sheet):
             "interceptions": _non_negative_integer(data["interceptions"], row_number, "intercepciones"),
             "sacks": _non_negative_integer(data["sacks"], row_number, "capturas"),
             "tackles": _non_negative_integer(data["tackles"], row_number, "tacleadas"),
-            "passes_completed": completed, "passes_attempted": attempted
+            "passes_completed": completed, "passes_attempted": attempted,
+            **{
+                column: (
+                    # Missing column or blank cell: keep the stored value.
+                    None if data.get(column) is None
+                    or str(data[column]).strip() == ""
+                    else _non_negative_integer(data[column], row_number, column)
+                )
+                for column in sorted(OPTIONAL_COLUMNS)
+            },
         })
     return rows
 

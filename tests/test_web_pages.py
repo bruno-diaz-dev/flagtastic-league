@@ -92,7 +92,7 @@ def test_statistics_client_keeps_import_and_official_leaderboard_contract():
 
     assert response.status_code == 200
     assert "submitStatisticsImport" in response.text
-    assert "completion_percentage" in response.text
+    assert "passer_rating" in response.text
     assert "El Francotirador" in response.text
     assert "profile_photo_url" in response.text
     assert "player_aka" in response.text

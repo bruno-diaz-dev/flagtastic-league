@@ -20,9 +20,9 @@ const leaderboardBranchField = document.querySelector("#leaderboard-branch-field
 const leaderboardYouthBranch = document.querySelector("#leaderboard-youth-branch");
 
 const leaderboardDefinitions = {
-    completion_percentage: {
+    passer_rating: {
         title: "El Francotirador",
-        statistic: "Porcentaje de pases completos · mínimo 50 intentos totales (completos + incompletos)"
+        statistic: "Índice de QB (0–100): promedio de precisión (completos/intentos), productividad (puntos por pase completo) y seguridad (intercepciones por intento) · mínimo 50 intentos totales"
     },
     receptions: {title: "Manos de Acero", statistic: "Recepciones"},
     points: {title: "Máquina de Puntos", statistic: "Puntos"},
@@ -68,20 +68,20 @@ function leaderboardIdentity(leader) {
 function renderLeaderboards(leaderboards) {
     leaderboardsContainer.innerHTML = Object.entries(leaderboardDefinitions)
         .map(([metric, definition]) => {
-            const leaders = leaderboards[metric];
+            const leaders = leaderboards[metric] || [];
             const rows = leaders.length
                 ? leaders.map((leader, index) => `
                     <tr>
                         <td class="rank-cell">${leader.rank ?? index + 1}</td>
                         <td>${leaderboardIdentity(leader)}</td>
                         <td class="stat-value">${
-                            metric === "completion_percentage"
-                                ? `<strong>${leader.value}%</strong><small class="leaderboard-pass-detail">${leader.passes_completed}/${leader.passes_attempted} C/I</small>`
+                            metric === "passer_rating"
+                                ? `<strong>${leader.value}</strong><small class="leaderboard-pass-detail">${leader.passes_completed}/${leader.passes_attempted} C/I</small><small class="leaderboard-pass-detail">${leader.passing_points ?? 0} pts · ${leader.passes_intercepted ?? 0} int</small>`
                                 : `<strong>${leader.value}</strong>`
                         }</td>
                     </tr>
                 `).join("")
-                : `<tr><td colspan="3">${metric === "completion_percentage"
+                : `<tr><td colspan="3">${metric === "passer_rating"
                     ? `Sin pasadores con ${leaderboards.passing_qualification?.minimum_attempts ?? 50} intentos acumulados.`
                     : "Sin estadísticas registradas."}</td></tr>`;
 
@@ -92,7 +92,7 @@ function renderLeaderboards(leaderboards) {
                     <p class="leaderboard-statistic">${definition.statistic}</p>
                     <table class="leaderboard-table">
                         <colgroup><col class="leaderboard-rank-column"><col><col class="leaderboard-total-column"></colgroup>
-                        <thead><tr><th>Pos.</th><th>Jugador</th><th>${metric === "completion_percentage" ? "% (C/I)" : "Total"}</th></tr></thead>
+                        <thead><tr><th>Pos.</th><th>Jugador</th><th>${metric === "passer_rating" ? "Índice" : "Total"}</th></tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
                 </section>
@@ -106,6 +106,23 @@ function csvReportCell(value) {
     let text = value == null ? "" : String(value);
     if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
     return `"${text.replaceAll('"', '""')}"`;
+}
+
+function quarterbackWarningText(warning) {
+    const times = warning.count > 1 ? ` (${warning.count} veces)` : "";
+    if (warning.reason === "interception_thrower_unresolved") {
+        return {
+            reason: "Intercepción lanzada sin QB identificado",
+            detail: `"${warning.label}": el #${warning.jersey_number}${times} no lanzó pases en este partido; la intercepción no se atribuyó a ningún QB.`,
+        };
+    }
+    if (warning.reason === "passing_points_thrower_unresolved") {
+        return {
+            reason: "Puntos de pase sin QB identificado",
+            detail: `"${warning.label}": el #${warning.jersey_number}${times} no lanzó pases en este partido; los puntos de pase no se atribuyeron a ningún QB.`,
+        };
+    }
+    return null;
 }
 
 function downloadSkippedStatisticsReport(data) {
@@ -133,13 +150,22 @@ function downloadSkippedStatisticsReport(data) {
         row.passes_attempted, (row.candidate_names || []).join("; "), row.detail,
     ]);
     for (const warning of data.warnings || []) {
-        rows.push([
-            "Dato omitido", "Pases inconsistentes omitidos", warning.week,
-            warning.sheet, warning.row, "", warning.team_name, warning.team_name,
-            warning.branch, warning.category, warning.jersey_number, "", "", "", "",
-            "", warning.source_completed, warning.source_attempted, "",
-            `${warning.source_completed} completos y ${warning.source_attempted} intentos en el archivo; se conservaron los pases publicados si existían.`,
-        ]);
+        const quarterback = quarterbackWarningText(warning);
+        rows.push(quarterback
+            ? [
+                "Dato omitido", quarterback.reason, warning.week, warning.sheet,
+                warning.row, warning.game_index == null ? "" : warning.game_index + 1,
+                warning.team_name, warning.team_name, warning.branch,
+                warning.category, warning.jersey_number, "", "", "", "", "", "",
+                "", "", quarterback.detail,
+            ]
+            : [
+                "Dato omitido", "Pases inconsistentes omitidos", warning.week,
+                warning.sheet, warning.row, "", warning.team_name, warning.team_name,
+                warning.branch, warning.category, warning.jersey_number, "", "", "", "",
+                "", warning.source_completed, warning.source_attempted, "",
+                `${warning.source_completed} completos y ${warning.source_attempted} intentos en el archivo; se conservaron los pases publicados si existían.`,
+            ]);
     }
     const csv = "\uFEFF" + [columns, ...rows]
         .map(row => row.map(csvReportCell).join(","))
@@ -158,16 +184,23 @@ function renderSkippedStatistics(data) {
     statisticsImportSkipped.replaceChildren();
     const skipped = data.skipped || [];
     const warnings = data.warnings || [];
-    if (warnings.length) {
+    const passingWarnings = warnings.filter(warning => !quarterbackWarningText(warning));
+    const quarterbackWarnings = warnings.filter(warning => quarterbackWarningText(warning));
+    if (passingWarnings.length) {
         const heading = document.createElement("p");
-        heading.textContent = `${warnings.length} advertencia(s): pases inconsistentes omitidos. No se inventaron intentos; si había pases publicados, se conservaron.`;
+        heading.textContent = `${passingWarnings.length} advertencia(s): pases inconsistentes omitidos. No se inventaron intentos; si había pases publicados, se conservaron.`;
         const list = document.createElement("ul");
-        for (const warning of warnings) {
+        for (const warning of passingWarnings) {
             const item = document.createElement("li");
             item.textContent = `${warning.sheet}, bloque desde fila ${warning.row} · Jornada ${warning.week} · ${warning.team_name} (${warning.branch} / ${warning.category}) · #${warning.jersey_number}: ${warning.source_completed} completos y ${warning.source_attempted} intentos en el archivo. Se procesaron las demás estadísticas válidas.`;
             list.append(item);
         }
         statisticsImportSkipped.append(heading, list);
+    }
+    if (quarterbackWarnings.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${quarterbackWarnings.length} dato(s) de QB omitidos: el número anotado no lanzó pases en ese partido, así que no se atribuyeron a nadie. Detalle en el CSV.`;
+        statisticsImportSkipped.append(heading);
     }
     if (!skipped.length && !warnings.length) return;
     const unresolvedReasons = new Set(["team_unresolved", "game_unresolved", "game_team_unresolved"]);

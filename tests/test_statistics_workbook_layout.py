@@ -211,3 +211,50 @@ def test_empty_game_pairs_are_omitted_without_shifting_later_player_indices(even
     assert {row['game_index'] for row in rows} == set(populated_indices)
     assert {row['jersey_number'] for row in rows} == {jersey}
     assert all(game['home_team'] == 'Home' and game['away_team'] == 'Away' for game in games)
+
+
+def quarterback_workbook():
+    """Real-file shape: "Puntos Pase" holds point values aligned with the QB
+    jersey in "6/2/1 Puntos"; "Intercepciones Pase" holds the thrower."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Wk 1'
+    labels = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+              '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+              'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+    values = {
+        'Intentos Pase': [30, 30, 30, 30, 24], 'Completos Pase': [7, 7, 9],
+        'Para % pases': [30, 30, 24], 'Puntos Pase': [6, 2, 6],
+        # #30 threw a TD and a 2-point conversion; #24 threw a TD.
+        '6 Puntos': [30, 24], '2 Puntos': [30], '1 Puntos': [11],
+        # #30 threw one interception; #77 never passed in this game.
+        'Intercepciones Pase': [30, 77], 'TD': [7, 9], 'Conv 2': [7],
+        'Asistencia': [30, 24, 7, 9],
+    }
+    sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+    for label in labels:
+        sheet.append(['Vikingos', 'U8', label, *values.get(label, [])])
+    for label in labels:
+        sheet.append(['Rivals', 'U8', label])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    return output.getvalue()
+
+
+def test_quarterback_points_and_interceptions_credit_only_the_thrower():
+    warnings = []
+    rows = parse_statistics_workbook(quarterback_workbook(), warnings=warnings)[1]
+    by_number = {row['jersey_number']: row for row in rows}
+    assert (by_number[30]['passing_points'], by_number[30]['passes_intercepted']) == (8, 1)
+    assert (by_number[24]['passing_points'], by_number[24]['passes_intercepted']) == (6, 0)
+    # Passing points are not personal scoring; receivers keep their own points.
+    assert by_number[30]['points'] == 0
+    assert by_number[7]['points'] == 8
+    # "Puntos Pase" values (6, 2) are not jerseys, and non-throwers are never
+    # credited or given empty rows.
+    assert {2, 6, 11, 77}.isdisjoint(by_number)
+    assert sorted((w['reason'], w['jersey_number']) for w in warnings) == [
+        ('interception_thrower_unresolved', 77),
+        ('passing_points_thrower_unresolved', 11),
+    ]

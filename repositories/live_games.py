@@ -241,9 +241,12 @@ def publish(connection, game, final_score=None):
     for player in ([] if game["is_friendly"] else totals):
         connection.execute("""
             INSERT INTO player_week_stats (week, game_id, player_id, team_id, points, receptions,
-                interceptions, sacks, tackles, passes_completed, passes_attempted)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (game["week"], game["id"], player["player_id"], player["team_id"], *(player[key] for key in METRICS)))
+                interceptions, sacks, tackles, passes_completed, passes_attempted, passing_points)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (game["week"], game["id"], player["player_id"], player["team_id"],
+              *(player[key] for key in METRICS), player.get("passing_points", 0)))
+        # Live capture records the interceptor, not the thrower, so
+        # passes_intercepted keeps its default of 0 for live games.
     connection.execute("UPDATE games SET home_score = %s, away_score = %s, status = 'completed' WHERE id = %s", (scores[game["home_team_id"]], scores[game["away_team_id"]], game["id"]))
     resolve_completed_bracket_slots(connection, game["id"])
 
