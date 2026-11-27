@@ -66,3 +66,39 @@ def context_fields(context):
     if context.get("date_required"):
         result["date_required"] = True
     return result
+
+
+def _clock(value):
+    """Return "HH:MM" for a time, datetime or "HH:MM[:SS]" string."""
+    if value is None or value == "":
+        return None
+    if hasattr(value, "strftime"):
+        return value.strftime("%H:%M")
+    return str(value).strip()[:5]
+
+
+def calendar_proposal_fields(game, field_number, scheduled_time=None,
+                             game_date=None, venue=None):
+    """Describe how a reviewed row would move a game, without moving it.
+
+    Imports identify the game first; changing its field, time, date or venue
+    is only applied when the administrator explicitly confirms it.
+    """
+    current_time = _clock(game.get("start_time"))
+    proposed_time = _clock(scheduled_time)
+    changes = []
+    if field_number is not None and game.get("field_number") != field_number:
+        changes.append("field")
+    if proposed_time and proposed_time != current_time:
+        changes.append("time")
+    if game_date and str(game.get("game_date") or "") != str(game_date):
+        changes.append("date")
+    if venue and venue_key(game.get("venue")) != venue_key(venue):
+        changes.append("venue")
+    return {
+        "current_field_number": game.get("field_number"),
+        "current_scheduled_time": current_time,
+        "current_game_date": str(game["game_date"]) if game.get("game_date") else None,
+        "current_venue": game.get("venue"),
+        "calendar_changes": changes,
+    }

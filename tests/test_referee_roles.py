@@ -213,6 +213,8 @@ def test_referee_sees_only_assigned_games(monkeypatch):
         json={"assignments": [{
             "game_id": game["id"],
             "field_number": 6,
+            # The admin explicitly moves the game to the field read from the role.
+            "apply_calendar_change": True,
             "officials": [
                 {"user_id": referee["id"], "position": "referee"},
                 {"user_id": down_judge["id"], "position": "down_judge"}

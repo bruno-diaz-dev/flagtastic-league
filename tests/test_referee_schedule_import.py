@@ -258,3 +258,34 @@ def test_referee_schedule_does_not_substitute_another_category_or_team():
     assert parse_referee_schedule_file("rol.csv", content, GAMES, REFEREES)["matched"] == 0
     content = b"jornada,campo,hora,local,visitante,referee\n5,1,12:00,ECA U8,Lobos U8,Cam\n"
     assert parse_referee_schedule_file("rol.csv", content, GAMES, REFEREES)["matched"] == 0
+
+
+def test_slot_confirmed_by_names_proposes_no_calendar_change():
+    content = b"jornada,campo,hora,local,visitante,referee\n5,1,12:00,Nomadas U8,Lobos U8,Cam\n"
+    proposal = parse_referee_schedule_file("rol.csv", content, GAMES, REFEREES)["proposals"][0]
+    assert proposal["game_id"] == 81
+    assert proposal["calendar_changes"] == []
+
+
+def test_named_game_at_another_slot_is_flagged_as_a_move_not_applied():
+    # The role prints field 3 at 15:00; the registered game is field 1 at
+    # 12:00. The game is identified by its teams, and the move is only a
+    # proposal the administrator must explicitly confirm.
+    content = b"jornada,campo,hora,local,visitante,referee\n5,3,15:00,Nomadas U8,Lobos U8,Cam\n"
+    proposal = parse_referee_schedule_file("rol.csv", content, GAMES, REFEREES)["proposals"][0]
+    assert proposal["game_id"] == 81
+    assert proposal["calendar_changes"] == ["field", "time"]
+    assert (proposal["current_field_number"], proposal["current_scheduled_time"]) == (1, "12:00")
+
+
+def test_playoff_row_binds_to_its_slot_after_semifinals_resolve():
+    final = {
+        "id": 90, "week": 7, "field_number": 3, "start_time": "18:00",
+        "bracket_label": "Final U12", "bracket_pending": False,
+        "home_team": {"id": 5, "name": "Rancheros", "branch": "mixto", "category": "u12"},
+        "away_team": {"id": 6, "name": "Vikingos", "branch": "mixto", "category": "u12"},
+    }
+    content = b"jornada,campo,hora,local,visitante,referee\n7,3,18:00,Final U12,Final U12,Cam\n"
+    result = parse_referee_schedule_file("rol.csv", content, [final], REFEREES)
+    assert [proposal["game_id"] for proposal in result["proposals"]] == [90]
+    assert result["proposals"][0]["calendar_changes"] == []

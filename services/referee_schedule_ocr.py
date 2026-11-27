@@ -11,6 +11,7 @@ from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
 import pytesseract
 
 from services.divisions import category_allows_cross_branch_games
+from services.schedule_context import calendar_proposal_fields
 
 
 POSITION_ALIASES = {
@@ -267,6 +268,17 @@ def _parse_grid_schedule(image, raw_text, games, referees, warnings=None):
             candidates = [game for game in week_games if game["id"] not in used_games]
             if not candidates:
                 continue
+            # The cell's field and time identify the game; names only
+            # confirm it. Fall back to the whole week only when no game sits
+            # in this slot, and then the move must be confirmed in review.
+            in_slot = [
+                game for game in candidates
+                if game.get("field_number") == field_index + 1
+                and (scheduled_time is None
+                     or str(game.get("start_time") or "")[:5] == str(scheduled_time)[:5])
+            ]
+            if in_slot:
+                candidates = in_slot
             scored = sorted(
                 ((_game_match_score(team_text, game), game) for game in candidates),
                 key=lambda candidate: candidate[0], reverse=True
@@ -305,6 +317,7 @@ def _parse_grid_schedule(image, raw_text, games, referees, warnings=None):
                 "field_number": field_index + 1,
                 "officials": officials,
                 "source_text": f"{team_text} | {official_text}",
+                **calendar_proposal_fields(game, field_index + 1, scheduled_time),
             }
             # A missing OCR time must preserve the game's current scheduled
             # time during confirmation instead of writing an invented value.
@@ -349,14 +362,25 @@ def parse_referee_schedule_image(content, games, referees):
         field_match = re.search(r"(?:campo|cancha)\s*#?\s*([1-8])\b", context)
         if not field_match:
             continue
-        matched_game = next((
+        named_games = [
             game for game in games
             if game["id"] not in used_games
             and _contains_name(context, game["home_team"]["name"])
             and _contains_name(context, game["away_team"]["name"])
-        ), None)
-        if matched_game is None:
+        ]
+        # Rematches exist across weeks: never take the first one by id.
+        if len(named_games) > 1:
+            named_games = [
+                game for game in named_games
+                if game.get("field_number") == int(field_match.group(1))
+            ] or named_games
+        if len(named_games) != 1:
+            if named_games:
+                warnings.append(
+                    f"{line}: hay varios partidos con esos equipos; asígnalo desde el calendario."
+                )
             continue
+        matched_game = named_games[0]
         matched_referees = []
         ambiguous = []
         for referee in referees:
@@ -402,7 +426,8 @@ def parse_referee_schedule_image(content, games, referees):
             ),
             "field_number": int(field_match.group(1)),
             "officials": officials,
-            "source_text": line
+            "source_text": line,
+            **calendar_proposal_fields(matched_game, int(field_match.group(1))),
         })
         used_games.add(matched_game["id"])
 
