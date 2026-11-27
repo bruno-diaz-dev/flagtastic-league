@@ -792,12 +792,27 @@ def get_game_statistics(game_id, team_ids=None, player_id=None):
     return results
 
 
-def _rank_leaders(rows, score, limit):
-    """Unique places: sporting metrics first, then stable administrative IDs."""
+def _rank_leaders(rows, score, limit, *, unique_players=False):
+    """Unique places: sporting metrics first, then stable administrative IDs.
+
+    With ``unique_players`` a player registered on several teams of the same
+    division (for example Nómadas mixto and Nómadas femenil in unified U12)
+    keeps only their best-ranked team record. Statistics are never summed
+    across teams.
+    """
     ordered = sorted(rows, key=lambda row: (
         tuple(-value for value in score(row)),
         row["player_id"], row["team_id"],
     ))
+    if unique_players:
+        seen_players = set()
+        best_records = []
+        for row in ordered:
+            if row["player_id"] in seen_players:
+                continue
+            seen_players.add(row["player_id"])
+            best_records.append(row)
+        ordered = best_records
     return [{**row, "rank": index + 1} for index, row in enumerate(ordered[:limit])]
 
 
@@ -869,6 +884,7 @@ def get_leaderboards(branch, category, limit=5):
         ranked = _rank_leaders(
             (row for row in rows if row[metric] > 0),
             lambda row: _leader_score(row, metric), limit,
+            unique_players=unified,
         )
         result[metric] = [
             {"player_id": row["player_id"], "player_name": row["player_name"],
@@ -887,6 +903,7 @@ def get_leaderboards(branch, category, limit=5):
          and row["passes_attempted"] >= minimum_attempts),
         lambda row: _leader_score(row, "completion_percentage"),
         limit,
+        unique_players=unified,
     )
     result["completion_percentage"] = [
         {"player_id": row["player_id"], "player_name": row["player_name"],

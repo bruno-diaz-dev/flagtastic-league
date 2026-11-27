@@ -551,6 +551,39 @@ def test_youth_leaderboards_combine_legacy_branches():
     ]
 
 
+def test_unified_leaderboards_list_a_player_once_with_best_team_record():
+    """U12 combines branches; a player on two rosters keeps her best record."""
+    mixed = create_team("Halcones", "mixto", "u12")
+    female = create_team("Gavilanes", "femenil", "u12")
+    shared = create_player(mixed, "Shared Passer", "SHAR010101MASXX001", 16)
+    joined = client.post(
+        f"/api/teams/{female}/players/registered",
+        json={"player_id": shared, "jersey_number": 16},
+    )
+    assert joined.status_code == 201, joined.text
+    other = create_player(female, "Other Passer", "OTHR010101MASXX002", 4)
+
+    assert upload_week(1, [
+        ["mixto", "u12", "Halcones", 16, 6, 3, 0, 0, 1, 42, 57],
+        ["femenil", "u12", "Gavilanes", 16, 18, 5, 0, 0, 2, 104, 150],
+        ["femenil", "u12", "Gavilanes", 4, 12, 4, 0, 0, 0, 30, 60],
+    ]).status_code == 200
+
+    leaders = client.get(
+        "/api/statistics/leaderboards?branch=mixto&category=u12"
+    ).json()
+    passing = leaders["completion_percentage"]
+    # Best record only (42/57 = 73.68% beats 104/150); never summed.
+    assert [(row["player_id"], row["team_id"]) for row in passing] == [
+        (shared, mixed), (other, female)
+    ]
+    assert (passing[0]["passes_completed"], passing[0]["passes_attempted"]) == (42, 57)
+    assert [row["rank"] for row in passing] == [1, 2]
+    # Each metric keeps the team record where she ranks best.
+    assert [(row["player_id"], row["team_id"], row["value"])
+            for row in leaders["points"]] == [(shared, female, 18), (other, female, 12)]
+
+
 def test_leaderboards_use_unique_places_and_limit_to_five():
     team = create_team('Tied Leaders')
     rows = []
