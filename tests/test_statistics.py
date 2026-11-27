@@ -1387,3 +1387,106 @@ def test_empty_named_games_do_not_block_import_or_shift_doubleheader_stats(exist
             games[0]['id']: 6, games[1]['id']: 18,
         }
 
+
+
+def insert_unlinked_stats_row(week, player_id, team_id, receptions):
+    """Rows like those left behind when a duplicate game was deleted."""
+    connection = get_connection()
+    row_id = connection.execute(
+        """INSERT INTO player_week_stats (week, player_id, team_id, receptions)
+           VALUES (%s, %s, %s, %s) RETURNING id""",
+        (week, player_id, team_id, receptions),
+    ).fetchone()["id"]
+    connection.commit()
+    connection.close()
+    return row_id
+
+
+def official_roster():
+    tigres = create_team("Tigres")
+    ravens = create_team("Ravens")
+    players = {
+        number: create_player(tigres, name, curp, number)
+        for number, name, curp in (
+            (83, "Quarterback", "QBXX010101HASXX001"),
+            (10, "Receiver", "RECX010101HASXX002"),
+            (22, "Defender", "DEFN010101HASXX003"),
+        )
+    }
+    return tigres, ravens, players
+
+
+def test_week_import_of_official_workbook_never_creates_or_completes_games():
+    tigres, ravens, _ = official_roster()
+    content = create_official_workbook()
+
+    # No registered game: nothing is created and every record is reported.
+    response = client.post(
+        "/api/weeks/1/player-stats/import", files={"file": ("wk.xlsx", content)}
+    )
+    assert response.status_code == 200, response.text
+    assert client.get("/api/games").json() == []
+    assert response.json()["imported"] == 0
+
+    # A scheduled game receives the stats but keeps its status and score.
+    registered = schedule_game(tigres, ravens)
+    response = client.post(
+        "/api/weeks/1/player-stats/import", files={"file": ("wk.xlsx", content)}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["imported"] == 3
+    games = client.get("/api/games").json()
+    assert [game["id"] for game in games] == [registered]
+    assert games[0]["status"] == "scheduled"
+    assert (games[0]["home_score"], games[0]["away_score"]) == (None, None)
+    assert {row["game_id"] for row in client.get("/api/weeks/1/player-stats").json()} == {registered}
+
+
+def test_unlinked_duplicate_row_is_reported_instead_of_aborting_import():
+    tigres, ravens, players = official_roster()
+    registered = schedule_game(tigres, ravens)
+    content = create_official_workbook()
+    assert client.post(
+        "/api/statistics/import", files={"file": ("all.xlsx", content)}
+    ).status_code == 200
+    orphan = insert_unlinked_stats_row(1, players[10], tigres, receptions=9)
+
+    response = client.post(
+        "/api/statistics/import", files={"file": ("all.xlsx", content)},
+        data={"existing_records": "update"},
+    )
+    assert response.status_code == 200, response.text
+    reported = [
+        row for row in response.json()["skipped"]
+        if row["reason"] == "unlinked_duplicate_retained"
+    ]
+    assert [row["stats_row_id"] for row in reported] == [orphan]
+    rows = client.get("/api/weeks/1/player-stats").json()
+    kept = next(row for row in rows if row["id"] == orphan)
+    assert (kept["game_id"], kept["receptions"]) == (None, 9)
+    linked = [row for row in rows if row["player_id"] == players[10] and row["game_id"] == registered]
+    assert len(linked) == 1 and linked[0]["receptions"] == 2
+
+
+def test_doubleheader_claims_an_unlinked_row_for_only_one_game():
+    kittys = create_team("Kittys", "mixto", "libre")
+    diablos = create_team("Diablos", "mixto", "libre")
+    apxgp = create_team("APXGP", "mixto", "libre")
+    create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
+    diablos_two = create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
+    create_player(apxgp, "APXGP Three", "APXX010101HASXX003", 3)
+    first = schedule_game(kittys, diablos, week=5, field_number=1)
+    second = schedule_game(diablos, apxgp, week=5, field_number=2)
+    insert_unlinked_stats_row(5, diablos_two, diablos, receptions=0)
+
+    response = client.post(
+        "/api/statistics/import",
+        files={"file": ("week5.xlsx", create_doubleheader_workbook())},
+        data={"existing_records": "update"},
+    )
+    assert response.status_code == 200, response.text
+    rows = [
+        row for row in client.get("/api/weeks/5/player-stats").json()
+        if row["player_id"] == diablos_two
+    ]
+    assert sorted(row["game_id"] for row in rows) == sorted([first, second])

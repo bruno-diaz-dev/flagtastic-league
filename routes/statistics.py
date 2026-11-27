@@ -91,10 +91,13 @@ async def import_statistics(
         except StatisticsFileError:
             # The legacy compact template has statistics but no game blocks.
             games = None
+        # Statistics never create games or write scores: the schedule is the
+        # source of truth, so unregistered games are skipped and reported.
         imported = import_week_statistics(
             week,
             weeks[week],
             games[week] if games is not None else None,
+            link_existing_games_only=True,
             existing_records=existing_records
         )
     except (StatisticsFileError, StatisticsValidationError) as error:

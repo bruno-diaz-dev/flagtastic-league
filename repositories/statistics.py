@@ -445,6 +445,10 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
         retained_count = 0
         pending_inserts = []
         pending_updates = []
+        # Each stored row may be reused by at most one incoming game record,
+        # so a doubleheader can never route two games onto the same row.
+        claimed_stat_ids = set()
+        reported_unlinked_ids = set()
         for week, resolved_rows in resolved_weeks.items():
             if not (games or {}).get(week):
                 # Official Wk sheets may contain multiple games by one player.
@@ -465,12 +469,45 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 matching_stats = existing_stats_by_identity.get(
                     (week, team["id"], player["id"]), []
                 )
-                existing_rows = (
-                    matching_stats if game_id is None else [
-                        existing for existing in matching_stats
-                        if existing["game_id"] in (None, game_id)
+                available = [
+                    existing for existing in matching_stats
+                    if existing["id"] not in claimed_stat_ids
+                ]
+                if game_id is None:
+                    existing_rows = available
+                else:
+                    exact = [
+                        existing for existing in available
+                        if existing["game_id"] == game_id
                     ]
-                )
+                    unlinked = [
+                        existing for existing in available
+                        if existing["game_id"] is None
+                    ]
+                    if exact:
+                        existing_rows = exact
+                        # A row without a game (for example, left behind when
+                        # a duplicate game was deleted) coexists with the row
+                        # for this exact game. Keep it untouched and report it
+                        # instead of aborting or guessing which one is right.
+                        for orphan in unlinked:
+                            if orphan["id"] in reported_unlinked_ids:
+                                continue
+                            reported_unlinked_ids.add(orphan["id"])
+                            skipped.append(skipped_record(
+                                week, row, "unlinked_duplicate_retained",
+                                team_id=team["id"], team_name=team["name"],
+                                stats_row_id=orphan["id"],
+                                detail=(
+                                    f"El registro {orphan['id']} no está ligado a "
+                                    "ningún partido y duplica a este jugador en la "
+                                    "jornada; se conservó sin cambios para revisión."
+                                ),
+                            ))
+                    else:
+                        # Claim at most one unlinked row for this game.
+                        existing_rows = unlinked[:1]
+                claimed_stat_ids.update(existing["id"] for existing in existing_rows[:1])
                 if existing_rows and existing_records == "preserve":
                     retained_count += 1
                     continue
@@ -498,15 +535,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                     pending_updates.append((
                         existing_rows[0]["id"], game_id, values, player, team
                     ))
-                    continue
                 else:
                     pending_inserts.append((week, game_id, player, team, values))
-                    continue
-                imported.append({
-                    **dict(saved), "player_name": player["name"],
-                    "team_name": team["name"], "branch": team["branch"],
-                    "category": team["category"]
-                })
         update_columns = (
             "id, game_id, points, receptions, interceptions, sacks, tackles, "
             "passes_completed, passes_attempted, passing_points, passes_intercepted"

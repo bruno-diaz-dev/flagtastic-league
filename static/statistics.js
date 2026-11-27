@@ -138,6 +138,7 @@ function downloadSkippedStatisticsReport(data) {
         game_unresolved: "No se pudo identificar o enlazar el partido",
         game_team_unresolved: "Se omitió el partido completo por equipo no identificado",
         jersey_number_not_found: "Número no registrado en el equipo",
+        unlinked_duplicate_retained: "Registro anterior sin partido conservado para revisión",
     };
     const rows = (data.skipped || []).map(row => [
         "Registro omitido", reasonLabels[row.reason] || row.reason || "Registro omitido",
@@ -208,6 +209,12 @@ function renderSkippedStatistics(data) {
     const missingJersey = skipped.filter(row =>
         row.reason === "jersey_number_not_found" || !row.reason
     );
+    const unlinkedDuplicates = skipped.filter(row => row.reason === "unlinked_duplicate_retained");
+    if (unlinkedDuplicates.length) {
+        const heading = document.createElement("p");
+        heading.textContent = `${unlinkedDuplicates.length} registro(s) anteriores sin partido ligado duplican a jugadores ya ligados a su partido. Se actualizó el registro del partido y el anterior se conservó sin cambios para revisión (detalle en el CSV).`;
+        statisticsImportSkipped.append(heading);
+    }
     if (unresolved.length) {
         const heading = document.createElement("p");
         heading.textContent = `${unresolved.length} registros omitidos porque no se pudo identificar con seguridad su equipo o partido. Los demás datos válidos sí se importaron.`;
