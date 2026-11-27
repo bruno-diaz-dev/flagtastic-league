@@ -383,7 +383,7 @@ class RegisteredPlayerMembershipCreate(BaseModel):
     """
 
     player_id: int = Field(gt=0)
-    jersey_number: int = Field(ge=0)
+    jersey_number: int = Field(ge=0, le=999)
     curp: str | None = Field(default=None, max_length=18)
 
     @field_validator("curp")
