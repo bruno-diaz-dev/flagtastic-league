@@ -48,9 +48,9 @@ Validation includes VM tests for per-team passer retention, non-blocking capture
 
 ### Attendance and match breaks
 
-Attendance is explicit check-in, not a sporting statistic. It is shown separately from the public timeline and never generates player statistical rows. Retries or repeated check-ins count once per player, team and completed match. Existing attendance ledger records are preserved. Corrections are audited and completed matches require an administrator. No attendance is inferred from scores or imported statistics.
+Attendance is explicit check-in, not a sporting statistic. It is shown separately from the public timeline and never generates player statistical rows. Retries or repeated check-ins count once per player, team and completed match. Existing attendance ledger records are preserved. Corrections are audited and completed matches require an administrator. No attendance is inferred from scores; the statistics import records only the workbook's explicit `Asistencia` row as check-ins for the linked game.
 
-Eligibility uses floor(team calendar games / 2) + 1, counting only attendance in completed matches. The UI clearly labels this provisional against the current calendar: it cannot distinguish regular season from playoffs or detect uncreated fixtures. Administrators must verify the regular-season calendar before approving final eligibility.
+Eligibility uses floor(team regular-season games / 2) + 1, counting only attendance in completed matches. Regular season follows `repositories/regular_season.py` (playoff jornadas, bracket games, friendlies and postponed games are excluded), the same rule as `/admin/finals-eligibility`. It cannot detect fixtures that were never created, so administrators must still verify the calendar before approving final eligibility.
 
 Halftime and the two-minute warning are neutral timeline entries using the official's current period and clock. They require no team or player, produce no points or statistics, and use the existing durable retry queue.
 

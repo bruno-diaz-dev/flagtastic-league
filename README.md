@@ -1,13 +1,18 @@
 # Flagtastic League
 
 Flagtastic League is the production platform for managing the Flagtastic
-Football League. It provides public schedules, standings, rosters, player
-profiles, and leaderboards together with private workflows for players, team
-representatives, referees, and league administrators.
+Football League. It provides public schedules, live games, standings, rosters,
+player profiles, and leaderboards together with private workflows for players,
+team representatives, referees, and league administrators.
 
 - Production: <https://flagtastic.online>
 - API docs: `/docs` and `/redoc`
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
+- Statistics import: [`docs/statistics-upload.md`](docs/statistics-upload.md)
+- Game schedule import: [`docs/game-schedule-import.md`](docs/game-schedule-import.md)
+- Playoff advancement: [`docs/playoff-advancement.md`](docs/playoff-advancement.md)
+- Live games: [`docs/live-games.md`](docs/live-games.md)
+- Mobile release: [`docs/mobile-release.md`](docs/mobile-release.md)
 - Release plan: [`docs/release-plan.md`](docs/release-plan.md)
 - Operations: [`docs/observability.md`](docs/observability.md)
 
@@ -15,115 +20,110 @@ representatives, referees, and league administrators.
 
 ### Public
 
-- Browse teams by branch and category and open dedicated roster pages from any
+- Browse teams by branch and category and open roster pages from any
   displayed team name across schedules, standings, statistics, and dashboards.
 - View player photos, AKA, legal roster names, numbers, ages, and team staff.
 - Open public player profiles without exposing CURP, email, roles, or credentials.
-- Filter games by team name, jornada, branch, category, or field; browse the
-  resulting schedule grouped chronologically by jornada and time.
-- Consult division standings with team logos and calculated records.
-- View top-five individual leaderboards by branch and category.
+- Filter games by team, jornada, branch, category, or field, grouped by
+  jornada and time, with a featured result per jornada.
+- Follow a game live: scoreboard, play-by-play feed, and illustrative field
+  view, refreshed while the game is in progress.
+- See pending playoff games ("Final … en espera de equipos") before their
+  teams are decided.
+- Consult division standings and top-five leaderboards per division.
 - Read the integral privacy notice at `/privacy`.
 
 ### Players
 
-- Create an account linked to an existing roster identity through CURP.
-- Upload a required profile photo, with automatic optimization for large mobile
-  camera images, and maintain an optional league AKA.
+- Create an account linked to an existing roster identity through CURP (or a
+  provisional identifier with a birth date).
+- Upload a required profile photo (large camera images are reduced in the
+  browser) and maintain an optional league AKA.
 - Join an eligible team with a jersey number from the personal dashboard.
 - See personal teams, standings, season totals, and game-level statistics.
 
 ### Team representatives
 
-- Create teams and become their representative automatically.
-- Manage only explicitly assigned teams.
-- Roster changes close for representatives on October 16, 2026 at 00:00
-  in `America/Mexico_City`; administrators retain editing access.
-- Update team logos and staff: Head Coach, Coach, and Manager.
-- Add, edit, deactivate, and photograph roster players.
-- Search all existing player profiles by legal name or AKA, including minors
-  created only through a roster, and add an eligible identity without creating
-  a duplicate player.
-- Import rosters from CSV or XLSX and download the CSV template.
-- View team standings, records, roster totals, and player statistics.
-- Use a responsive team dashboard whose mobile player cards avoid wide
-  statistics tables while preserving the complete desktop table.
+- Create teams and become their representative automatically; manage only
+  explicitly assigned teams.
+- Roster changes close for representatives on October 16, 2026 at 00:00 in
+  `America/Mexico_City`; administrators retain editing access.
+- Update team logos and staff (Head Coach, Coach, Manager).
+- Add, edit, deactivate, and photograph roster players; reuse existing player
+  identities instead of creating duplicates; import rosters from CSV or XLSX.
+- View team standings, records, and player statistics on web and mobile.
 
 ### Referees
 
-- Appear in a private referee roster visible to signed-in league users.
-- Have an authenticated profile with aggregate experience by jornada and
-  officiating position, without exposing email or specific assignments.
-- Upload or replace their own roster photo; player-referees reuse their player
-  profile photo instead of maintaining a duplicate.
-- View only their own pending and completed assignments.
-- See jornada, field, official position, and game details.
+- Appear in a private referee directory visible to signed-in users, with an
+  aggregate experience profile and a self-managed AKA and photo (player-referees
+  reuse their player photo).
+- View only their own pending and completed assignments, with jornada, field,
+  position, and the full crew.
+- Record final scores and run live capture: plays, attendance check-in,
+  corrections, and finalization that publishes score and statistics.
 - Combine the referee role with player, representative, or administrator roles.
 
 ### League administrators
 
-- Approve or reject teams, rename teams, manage representatives, and delete
-  erroneous teams.
-- Create staff accounts, grant cumulative roles, and delete login accounts
-  while preserving historical sports data.
-- Maintain the public AKA used for each official in referee directories,
-  assignments, and schedule matching.
-- Schedule games manually with division and independent team-name filters, postpone
-  or delete games, record scores, and manage official assignments.
-- Remove an entire jornada only through an explicit destructive confirmation.
-- Import a complete game role from its operational XLSX layout or a CSV, with
-  team matching and administrator review before any game is created.
-- Upload a game-role image for OCR-assisted matchup review. Referee roles remain
-  a separate workflow on the referee dashboard and accept JPG, PNG, WebP, XLSX,
-  or CSV with administrator review before assignments are saved.
-- Correct recognized times in the review table and import only selected rows
-  whose teams, jornada, field, and time are complete.
-- Import jornada statistics and inspect both teams in game-level statistics.
+- Approve, rename, and delete teams; manage representatives; review possible
+  duplicate team names.
+- Create staff accounts, grant cumulative roles, reset or recover accounts, and
+  delete logins while preserving sports history.
+- Import the game calendar from XLSX, CSV, or an image (browser OCR) with
+  review before any game is created, including pending final and third-place
+  slots; move games on the schedule board; schedule friendly games with guest
+  teams; postpone, restore, or delete games or a jornada.
+- Import referee roles from XLSX, CSV, or images and assign officials manually.
+- Import the official statistics workbook. Imports link statistics to existing
+  games only, show progress, and list skipped records with a CSV download.
+- Review finals eligibility at `/admin/finals-eligibility`.
 
-Schedule image recognition is an administrative aid, not an authoritative data
-source. The current league grid is segmented in the browser by hour, field, and
-home/away cell; every proposal must still be reviewed before confirmation. See
-[`docs/game-schedule-import.md`](docs/game-schedule-import.md) for matching,
-conflict, and verification rules.
+Image recognition is an administrative aid, not an authoritative source; every
+proposal must be reviewed before confirmation. See
+[`docs/game-schedule-import.md`](docs/game-schedule-import.md).
 
 ## Domain Rules
 
 Player identity is separate from roster membership. A player may belong to
-multiple teams across different branch/category combinations, but cannot join
-two teams in the same division. Jersey numbers are unique only within a team.
-CURP uniquely resolves the person and remains private administrative data.
+teams in different divisions but not to two active teams in the same division.
+Jersey numbers are unique within a team. CURP (or a provisional identifier)
+resolves the person and remains private. Age is the player's completed years,
+derived from the CURP birth date or the provisional birth date.
 
-Team identity is name + branch + category. Name comparison ignores letter case
-and surrounding whitespace, while the stored display name preserves intentional
-brand capitalization. The same name remains valid in a different division.
-Historical U8, U10, and U12 teams retain their stored branch so existing data
-does not need a risky bulk rewrite. The product exposes one **Infantiles**
-division for each of those categories: new teams are stored under the canonical
-`mixto` value, users are not asked to choose a branch, teams may play across
-legacy branches, and standings and leaderboards combine every branch. An
-administrator-only duplicate audit highlights equivalent youth team names
-registered in different branches so records can be reviewed without automatic
-deletion or merging.
+Team identity is name + branch + category, compared case-insensitively. U8,
+U10 and U12 are one **Infantiles** division per category: new teams are stored
+as `mixto`, historical teams keep their branch, teams may play across branches,
+and standings and leaderboards combine every branch.
 
-Statistics are stored per jornada and linked to a game, team, and player. The
-official workbook resolves players from branch, category, team, and jersey
-number; spreadsheet names are not treated as authoritative identities.
-Schedule and statistics files may use a unique word-based abbreviation such as
-`Diablos Ama` for `Diablos del Sol Amarillo`. Ambiguous shortened names remain
-unselected for administrator review instead of being guessed.
+The game schedule is the source of truth for games. Statistics imports resolve
+players from branch, category, team, and jersey number, and only link
+statistics to games that already exist; they never create games or write
+scores. Unresolved teams, games, or jersey numbers are skipped and reported.
+Ambiguous team abbreviations are left for review instead of guessed.
 
-Passing percentage is completed passes divided by attempted passes. During the
-first three jornadas there is no minimum; after jornada 3, a player needs at
-least 30 attempts to qualify for the passing leaderboard.
+Leaderboards show the top five per division. In unified U8–U12, a player on
+several rosters appears once with her best team record; records are never
+summed.
 
 | Statistic | Leaderboard |
 |---|---|
-| Passing completion | El Francotirador |
+| Quarterback index | El Francotirador |
 | Receptions | Manos de Acero |
 | Points | Maquina de Puntos |
 | Tackles | El Muro |
 | Interceptions | Cazador Aereo |
 | Sacks | Cazador de QBs |
+
+The quarterback index (0–100) averages precision (completions ÷ attempts),
+productivity (passing points per completion ÷ 2.5, capped at 1), and safety
+(1 − interception rate ÷ 10%, floored at 0). A player needs at least 50
+cumulative attempts at all times to qualify.
+
+Final and third-place games are created in advance with pending labels and
+filled automatically when both semifinals have final scores. Players qualify
+for the finals by attending at least half + 1 of their team's regular-season
+games (6 games → 4). See [`docs/architecture.md`](docs/architecture.md#finals-eligibility).
 
 ## Architecture
 
@@ -131,56 +131,31 @@ The application is a layered FastAPI monolith with a server-rendered frontend
 and an Expo client for players, referees, and team representatives:
 
 ```text
-Browser (Jinja, CSS, vanilla JavaScript)
-                  |
-             FastAPI routes
-                  |
-       services and authorization
-                  |
-             repositories
-                  |
-          PostgreSQL (Supabase)
-
-Expo mobile app (player, referee and representative views)
-                  |
-      Bearer session + same FastAPI API
+Browser (Jinja, CSS, vanilla JavaScript)     Expo mobile app (Bearer session)
+                  \                                  /
+                   +---------- FastAPI routes ------+
+                                  |
+                      dependencies (authorization)
+                                  |
+                      services and repositories
+                                  |
+                         PostgreSQL (Supabase)
 ```
 
-- `main.py` assembles the application, pages, media, and health endpoints.
-- `routes/` owns HTTP validation and role boundaries.
-- `services/` owns authentication, media validation, OCR, and import parsing.
-- `repositories/` owns PostgreSQL queries and database read models.
-- `models.py` contains Pydantic contracts.
-- `migrations/` is the authoritative Alembic schema history.
-- `templates/` and `static/` implement the responsive interface.
-- `mobile/` implements player, referee, and team-representative views with
-  Expo Router. Team/roster editing opens the existing web application.
-
-Profile photos and team logos are stored in PostgreSQL so they remain available
-across stateless Vercel deployments. The ignored local `uploads/` directory is
-legacy/test output, not the production media store.
-
-Versioned logos and generated profile-photo URLs are cached immutably by the
-browser and Vercel CDN. Collection views lazy-load and asynchronously decode
-their images so large leagues do not issue one database request per off-screen
-team or player during initial rendering.
-
-Authenticated roster reads resolve the session identity in one query and load
-team metadata, players, and team-scoped permission through one database
-connection. This avoids repeated Supabase connection setup on the highest-use
-team detail flow.
-
-See [`docs/architecture.md`](docs/architecture.md) for data ownership,
-authorization boundaries, and detailed flows.
+Profile photos and team logos are stored in PostgreSQL so they survive
+stateless Vercel deployments; versioned URLs are cached immutably. See
+[`docs/architecture.md`](docs/architecture.md) for layers, data model,
+endpoints, and authorization boundaries.
 
 ## Technology
 
 - Python 3.14, FastAPI, Pydantic, Jinja, and Uvicorn
-- PostgreSQL with Psycopg and Alembic
-- Vanilla JavaScript and responsive CSS
+- PostgreSQL with Psycopg; Alembic for schema history
+- Vanilla JavaScript and responsive CSS; SheetJS (vendored) and Tesseract.js in
+  the browser
 - Expo SDK 57, React Native, Expo Router, and TypeScript
-- OpenPyXL for workbooks; Pillow and Tesseract bindings for images and OCR
-- pytest and FastAPI TestClient
+- OpenPyXL for workbooks; Pillow and pytesseract for images and server OCR
+- pytest, Node's test runner, and Playwright
 - GitHub Actions, Docker/GHCR, Vercel, and Supabase
 - Sentry, Vercel Runtime Logs, Supabase Logs Explorer, and Better Stack
 
@@ -188,40 +163,41 @@ authorization boundaries, and detailed flows.
 
 ```text
 flagtastic-league/
-|-- main.py                 # Application assembly and page routes
+|-- main.py                 # Application assembly, pages, media, health
 |-- database.py             # PostgreSQL connection boundary
 |-- models.py               # Pydantic contracts
 |-- observability.py        # Structured logs and Sentry
 |-- settings.py             # Environment-backed settings
 |-- routes/                 # HTTP API endpoints
 |-- dependencies/           # Authentication and authorization
-|-- services/               # Domain, import, OCR, and media services
+|-- services/               # Domain rules, imports, OCR, media, email
 |-- repositories/           # PostgreSQL access and read models
 |-- migrations/             # Alembic migrations
 |-- templates/              # Jinja templates
-|-- static/                 # CSS, JavaScript, and assets
-|-- mobile/                 # Focused iOS/Android player application
-|-- scripts/                # Controlled admin/data utilities
-|-- tests/                  # Unit, integration, and smoke tests
-|-- docs/                   # Architecture, release, and operations docs
-|-- .github/workflows/      # CI pipeline
+|-- static/                 # CSS, JavaScript, vendored libraries, assets
+|-- mobile/                 # Expo app for players, referees, representatives
+|-- scripts/                # Development data utilities
+|-- tests/                  # pytest, tests/js (Node), tests/browser (Playwright)
+|-- docs/                   # Architecture, imports, operations; docs/sql twins
+|-- .github/workflows/      # CI and CodeQL
 |-- Dockerfile
 |-- alembic.ini
-`-- requirements.txt
+|-- requirements.txt        # Runtime dependencies
+`-- requirements-dev.txt    # Runtime + Alembic + pytest
 ```
 
 ### Mobile application
 
 The mobile client provides player views (`Inicio`, `Posiciones`, `Lideres`,
 `Mis Stats`), referee views (`Inicio`, `Mi agenda`, `Historial`), and
-representative views (`Inicio`, `Mis equipos`, `Partidos`, `Posiciones`). `Mi perfil`
-supports switching between assigned roles and signing out. Full game details
-and profile administration open the web application. It reads the
-same games, standings, statistics, media, and player dashboard data as the web
-client; it never maintains a second database or synthetic competition data.
+representative views (`Inicio`, `Mis equipos`, `Partidos`, `Posiciones`).
+`Mi perfil` switches between the account's roles and signs out. Roster editing,
+game details, and profile administration open the web application. It uses the
+same API and data as the web client.
 
-See [`mobile/README.md`](mobile/README.md) for local Expo setup and build
-commands. CI type-checks the client and validates its Expo dependency graph.
+See [`mobile/README.md`](mobile/README.md) for setup, environment variables,
+and builds, and [`docs/mobile-release.md`](docs/mobile-release.md) for
+distribution.
 
 ## Local Development
 
@@ -229,8 +205,11 @@ commands. CI type-checks the client and validates its Expo dependency graph.
 
 - Python 3.14
 - PostgreSQL 17 or newer
-- Tesseract OCR only for referee-role images; XLSX and CSV roles use deterministic
-  structured parsing and do not require OCR
+- Node.js 22 for JavaScript, browser, and mobile tests
+- Tesseract OCR only for server-side image OCR (referee-role images and the
+  server image path of the game calendar). It is installed in the Docker image
+  but not available on Vercel, where game-calendar images are read in the
+  browser (`static/ocr_loader.js`). XLSX and CSV imports need no OCR.
 
 ```powershell
 git clone <repository-url>
@@ -238,8 +217,11 @@ cd flagtastic-league
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
+
+`requirements.txt` is the runtime set used by Vercel and Docker; Alembic and
+pytest are only in `requirements-dev.txt`.
 
 Start PostgreSQL with Docker:
 
@@ -264,42 +246,62 @@ uvicorn main:app --reload
 ```
 
 Open <http://127.0.0.1:8000>. `DATABASE_URL` is mandatory; both the application
-and Alembic fail explicitly when it is absent.
+and Alembic fail explicitly when it is absent. `.env.example` lists local
+values.
 
 ### Environment variables
 
 | Variable | Required | Purpose |
 |---|---:|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection for the app and Alembic |
-| `TEST_DATABASE_URL` | Tests | Isolated local test database |
-| `SESSION_COOKIE_SECURE` | Production | Keep `true`; use `false` only for local HTTP |
-| `APP_ENV` | No | Environment name included in telemetry |
-| `LOG_LEVEL` | No | Structured application log level |
-| `SENTRY_DSN` | Production | Enables Sentry when configured |
-| `SENTRY_TRACES_SAMPLE_RATE` | No | Trace sampling rate |
-| `SENTRY_RELEASE` | No | Explicit release; Vercel Git SHA is the fallback |
+| `TEST_DATABASE_URL` | Tests | Local test database; `tests/conftest.py` uses it (default `.../flagtastic_test`) instead of `DATABASE_URL` |
+| `CI` | CI | When set, tests use `DATABASE_URL` as-is instead of `TEST_DATABASE_URL` |
+| `SESSION_COOKIE_SECURE` | Production | Keep `true` (default); use `false` only for local HTTP |
+| `PUBLIC_BASE_URL` | Password reset | Origin used in reset links (default `http://127.0.0.1:8000`) |
+| `RESEND_API_KEY` | Password reset | Resend API key for reset emails |
+| `PASSWORD_RESET_FROM_EMAIL` | Password reset | Sender on a verified Resend domain |
+| `APP_ENV` | No | Environment label for logs and Sentry; falls back to `VERCEL_ENV`, then `development` |
+| `LOG_LEVEL` | No | Structured log level (default `INFO`) |
+| `SENTRY_DSN` | Production | Enables Sentry when set |
+| `SENTRY_TRACES_SAMPLE_RATE` | No | Trace sampling rate (default `0.1`) |
+| `SENTRY_RELEASE` | No | Explicit release; falls back to `VERCEL_GIT_COMMIT_SHA` |
 
-Never commit database URLs, DSNs, cookies, tokens, or production credentials.
+`VERCEL_ENV` and `VERCEL_GIT_COMMIT_SHA` are supplied by Vercel. Mobile
+variables such as `EXPO_PUBLIC_API_URL` are documented in
+[`mobile/README.md`](mobile/README.md). Never commit database URLs, DSNs,
+cookies, tokens, or production credentials.
 
 ## Database Migrations
 
-Alembic migrations are the only supported schema-change mechanism:
+The current Alembic head is `c5e2a7f19d30`. Vercel deploys `main` on merge and
+**never runs migrations**, so a schema change must be applied to Preview and
+then Production **before** merging code that reads it. Two paths are
+supported:
 
-```powershell
-python -m alembic current
-python -m alembic upgrade head
-```
+1. **Alembic**, with the database owner credentials:
 
-Before merging a migration, verify both directions on an isolated database:
+   ```powershell
+   python -m alembic current
+   python -m alembic upgrade head
+   ```
 
-```powershell
-python -m alembic upgrade head
-python -m alembic downgrade base
-python -m alembic upgrade head
-```
+2. **SQL twin**, for additive changes: run the idempotent script in
+   [`docs/sql/`](docs/sql/) in the Supabase SQL editor (for example
+   `docs/sql/add-quarterback-passing-stats.sql`). These scripts do not edit
+   `alembic_version`; a later `alembic upgrade head` stays compatible because
+   the migration is idempotent.
 
-Do not run `stamp head` unless the physical schema already matches the complete
-migration history.
+Rules:
+
+- Always apply to Preview first, verify, then Production.
+- A migration that may be applied through the SQL editor must be idempotent and
+  ship with a `docs/sql/` twin.
+- Never downgrade Preview or Production: several downgrades delete data. Fix
+  forward with a new migration.
+- Verify the downgrade/upgrade cycle only on a disposable database (CI does
+  this on every run).
+- Do not run `stamp head` unless the physical schema already matches the
+  complete migration history.
 
 ## Tests and CI
 
@@ -316,17 +318,37 @@ python -m alembic upgrade head
 pytest
 ```
 
-Coverage includes sessions, cumulative roles and least privilege, team and
-roster administration, imports and eligibility, dashboards, games, officials,
-statistics, leaderboards, pages, observability, and release smoke behavior.
+JavaScript, browser, and mobile tests:
 
-GitHub Actions runs for pull requests and pushes to `main`. It installs and
-checks dependencies, compiles Python, performs a full migration
-upgrade/downgrade/upgrade cycle, runs pytest, and builds a Docker image.
-Non-PR images are published to GHCR. Changes should reach `main` through a pull
-request and Vercel Preview deployment before production promotion.
+```powershell
+node --test tests/js/*.test.cjs
+
+npm install --no-save --no-package-lock playwright@1.62.1
+npx playwright install chromium
+node tests/browser/live_capture.cjs   # each script in tests/browser runs the same way
+
+cd mobile
+npm ci
+node --test tests/*.test.mjs
+npm run typecheck
+```
+
+Browser tests mock the API and need no database.
+
+GitHub Actions runs on pull requests to `main` and pushes to `main`:
+
+| Job | What it does |
+|---|---|
+| Test | Installs `requirements-dev.txt`, compiles Python, runs Alembic upgrade/downgrade/upgrade on PostgreSQL 18, `pytest`, and `node --test tests/js/*.test.cjs` |
+| Docker | Builds the image; pushes to GHCR only for non-PR events |
+| Mobile | `npm ci`, mobile tests, type-check, and `expo-doctor` |
+| Live capture browser | Playwright scripts in `tests/browser/` on mobile Chromium |
+| CodeQL (Analyze Python) | Static analysis; also runs weekly |
 
 ## Administrative Utilities
+
+The scripts connect to whatever `DATABASE_URL` points at and have **no
+Production guard**. Run them only against local or Preview databases.
 
 Create or promote the first trusted administrator:
 
@@ -339,43 +361,43 @@ python -m scripts.create_admin `
 An existing player or representative keeps the same identity and password and
 receives the administrator role.
 
-Seed a controlled local environment from the official workbook:
+Seed a development database from the official workbook:
 
 ```powershell
 python -m scripts.seed_statistics_workbook "C:\path\to\Stats ALL.xlsx"
 ```
 
-The command is idempotent: it creates missing teams and mock roster identities,
-reuses matching games, and imports game-scoped statistics. It is intended for
-development or migration work, not normal production traffic.
+It creates missing teams and mock roster identities and imports statistics.
+Unlike the administrator import, this seed **creates missing games and writes
+scores inferred from the workbook**.
 
-For deterministic standings UI data:
-
-```powershell
-python -m scripts.balance_mock_games
-```
+Other utilities: `python -m scripts.balance_mock_games` (adds non-tied mock
+games so every team in a division has the same count),
+`python -m scripts.seed_referee_schedule` (development referee accounts), and
+`scripts/seed_preview_live_players.sql` (Preview-only test rosters; see
+[`docs/live-games.md`](docs/live-games.md)).
 
 ## Deployment and Operations
 
-Production runs on Vercel with PostgreSQL supplied by Supabase. The production
-database must be upgraded to the repository's Alembic head before code that
-depends on a new schema is promoted. Secure session cookies remain enabled.
-Deploying application code does not execute Alembic automatically. Apply and
-verify each pending migration independently in Preview and Production before
-promoting code that reads the new schema.
+Production runs on Vercel with PostgreSQL supplied by Supabase. Merging to
+`main` deploys Production. Every branch and pull request gets a Vercel Preview
+deployment (`vercel.json` enables Git deployments for all branches) backed by
+the separate `flagtastic-league-preview` Supabase project through a
+Preview-only `DATABASE_URL`. Preview data is test data and may be replaced
+freely; production data must never be copied into it. Apply schema changes as
+described in [Database Migrations](#database-migrations) before merging.
 
-Vercel Preview deployments use the separate `flagtastic-league-preview`
-Supabase project through a Preview-only `DATABASE_URL`. Preview data is test
-data and may be replaced freely; production data must never be copied into it.
-Every schema migration must be applied and verified in preview before it is
-promoted to production.
+Upload limits: Vercel rejects request bodies over 4.5 MB before the
+application runs. Server-side limits are 15 MiB for statistics workbooks and
+game calendars, 10 MiB for referee roles, and 5 MiB for roster imports,
+profile photos, referee photos, and team logos. Only statistics workbooks
+(above 4 MiB) and registration profile photos (above 3 MB) are reduced in the
+browser; every other upload must be under 4.5 MB in Production.
 
 Password recovery uses Resend and requires `PUBLIC_BASE_URL`, `RESEND_API_KEY`,
-and `PASSWORD_RESET_FROM_EMAIL` in Vercel. The sender must belong to a verified
-Resend domain. Reset links expire after 30 minutes, work once, and revoke every
-existing session after the password changes. The login link is intentionally
-hidden until the league has a verified sending domain; the backend remains
-covered and ready to enable without another schema change.
+and `PASSWORD_RESET_FROM_EMAIL`. Reset links expire after 30 minutes, work once,
+and revoke every existing session. The login page does not link to it until the
+league has a verified sending domain.
 
 - `GET /live` verifies the FastAPI process.
 - `GET /ready` verifies PostgreSQL and returns `503` without database details
@@ -384,14 +406,13 @@ covered and ready to enable without another schema change.
 Sentry captures scrubbed errors, logs, and sampled traces. Vercel Runtime Logs
 cover deployments and requests, Supabase Logs Explorer covers PostgreSQL, and
 Better Stack checks `/live` and `/ready` every three minutes with email alerts.
-See [`docs/observability.md`](docs/observability.md) for configuration, privacy
-safeguards, and incident response.
+See [`docs/observability.md`](docs/observability.md).
 
 ## Security and Privacy
 
 - Authentication uses random database sessions. Only a SHA-256 token hash is
   stored; the raw token uses an `HttpOnly`, `SameSite=Lax`, production `Secure`
-  cookie.
+  cookie, or a Bearer header in the mobile app.
 - Password reset tokens are also stored only as SHA-256 hashes, expire after
   30 minutes, and never disclose whether a submitted email exists.
 - Roles are cumulative; `user_roles` is the authorization source of truth.
@@ -405,12 +426,13 @@ safeguards, and incident response.
 
 ## Current Status
 
-The platform is deployed and in active use while receiving release-hardening
-and mobile usability improvements. Teams, rosters, profiles, games, standings,
-statistics imports, leaderboards, role dashboards, referee assignments,
-authentication, administration, privacy, and monitoring are implemented. Open
-work belongs in tracked issues or the release plan instead of being described
-as completed functionality here.
+The platform is deployed and in active use for the 2026 season. Teams,
+rosters, profiles, schedules and schedule imports, live capture, standings,
+statistics imports, leaderboards with the quarterback index, playoff
+advancement, finals eligibility, role dashboards, referee assignments, the
+mobile app, authentication, administration, privacy, and monitoring are
+implemented. Open work belongs in tracked issues or the release plan instead
+of being described as completed functionality here.
 
 ## License
 

@@ -1,171 +1,113 @@
 # Flagtastic Architecture
 
-Flagtastic is a platform for managing a flag football league. The current application focuses on registering teams, managing rosters, validating basic eligibility rules, and creating games between teams.
-
-The project follows a deliberately lightweight layered architecture. The current priority is to keep the domain clear, preserve data integrity, and allow the system to grow without introducing premature abstractions.
+Flagtastic runs the FlagTastic flag-football league: teams and rosters,
+player and referee accounts, schedules, live game capture, standings,
+statistics, leaderboards, playoffs and finals eligibility. It is a
+deliberately lightweight layered FastAPI monolith on PostgreSQL (Supabase),
+deployed to Vercel, with an Expo mobile client.
 
 ## Architectural Goals
 
-- Keep the HTTP API simple and predictable.
-- Separate input contracts from persistence logic.
+- Keep the HTTP API simple and predictable; enforce every authorization rule
+  on the server.
+- Separate input contracts, HTTP handling, domain services and SQL.
 - Model players as reusable people across multiple teams.
 - Protect critical integrity rules at the database level.
 - Keep league rules visible and covered by tests.
-- Make it easy to evolve toward seasons, statistics, and leaderboards.
 
 ## Overview
 
-The web application remains the complete operational product. A separate Expo
-client provides a deliberately narrow player experience with four native
-views: home, standings, leaders, and personal statistics. Navigation labeled
-`Perfil` and actions outside that scope open the canonical web application.
-Both clients share FastAPI, authorization rules, PostgreSQL data, and media.
+The web application is the complete operational product. The Expo client in
+`mobile/` offers focused views for three roles: players (home, standings,
+leaders, personal statistics), referees (home, agenda, history) and team
+representatives (home, teams, games, standings), plus a profile tab for role
+switching and sign-out. Actions outside that scope open the web application.
+Both clients share the same FastAPI API, authorization rules, PostgreSQL data
+and media.
 
-Native authentication uses `POST /api/auth/mobile/login`. The endpoint accepts
-only accounts carrying the player role and returns the same revocable session
-token used by browser sessions as a 12-hour Bearer credential. Protected
-dependencies resolve either the secure browser cookie or an Authorization
-header; they do not create parallel authorization behavior. The client stores
-the token in Expo SecureStore on iOS and Android and never persists a password.
+Native authentication uses `POST /api/auth/mobile/login`. It accepts accounts
+carrying at least one of the `player`, `referee` or `team_representative`
+roles, rejects accounts that must still change their password, and returns the
+same revocable database session used by browsers as a 12-hour Bearer token.
+Protected dependencies resolve either the secure browser cookie or an
+`Authorization` header; there is no parallel authorization path. The client
+stores the token in Expo SecureStore and never persists a password.
 
 ```mermaid
 flowchart TD
-    Client[HTTP Client / Frontend]
-    Static[HTML, CSS, JavaScript]
-    App[FastAPI app]
-    Routes[API Routes]
-    Dependencies[Authentication and authorization]
-    Models[Pydantic Models]
-    Repositories[Repositories]
-    DB[(PostgreSQL)]
-    Tests[pytest + TestClient]
+    Browser[Browser: Jinja, CSS, vanilla JS]
+    Mobile[Expo app]
+    App[FastAPI app: main.py]
+    Routes[routes/]
+    Deps[dependencies/: authentication and authorization]
+    Services[services/: rules, imports, OCR, media]
+    Repos[repositories/: SQL and read models]
+    DB[(PostgreSQL / Supabase)]
 
-    Client --> App
-    Static --> Client
+    Browser --> App
+    Mobile --> App
     App --> Routes
-    Routes --> Dependencies
-    Routes --> Models
-    Routes --> Repositories
-    Repositories --> DB
-    Tests --> App
-    Tests --> DB
+    Routes --> Deps
+    Routes --> Services
+    Routes --> Repos
+    Services --> Repos
+    Repos --> DB
 ```
-
-The application starts in `main.py`, creates the FastAPI instance, mounts static assets, and registers the application routers. Database schema changes are managed separately through versioned Alembic migrations.
 
 ## Layers
 
-### Application
+- **Application** (`main.py`): creates the app, registers routers, serves
+  pages, `/media/profiles/{filename}`, `/live` and `/ready`.
+- **Contracts** (`models.py`): Pydantic models for request payloads (teams,
+  players, games, friendly games, schedule imports, accounts, passwords).
+- **Dependencies** (`dependencies/auth.py`): resolve the session from cookie or
+  Bearer token and enforce `require_league_admin`, `require_team_manager`
+  (assigned team only, with the roster cutoff), `require_score_recorder`
+  (administrators and referees), `require_referee`, `require_player`, and
+  others. They return `401`/`403` regardless of what the frontend shows.
+- **Routes** (`routes/`): HTTP validation and error translation.
+- **Services** (`services/`): domain rules and parsers.
+- **Repositories** (`repositories/`): SQL, transactions and read models.
+- **Database** (`database.py`): psycopg connections from `DATABASE_URL`
+  (required; startup fails without it).
+- **Schema history** (`migrations/`): Alembic migrations; see
+  [Schema changes](#schema-changes).
 
-Main file: `main.py`
+| Router | Responsibility |
+|---|---|
+| `routes/auth.py` | Registration, web and mobile login, current user, password change/reset, logout |
+| `routes/teams.py` | Teams, logos, staff, status, names, representatives, duplicate audit |
+| `routes/players.py` | Roster reads, registration, existing-player search, CSV/XLSX import, edits, photos, deactivation |
+| `routes/games.py` | Games, schedule imports, referee-role imports, officials, scores, scheduling, status, deletion |
+| `routes/live_games.py` | Live capture, corrections, finalization and attendance check-in |
+| `routes/standings.py` | Division standings |
+| `routes/statistics.py` | Statistics imports, player totals and profiles, leaderboards |
+| `routes/dashboard.py` | Player and representative dashboards, player AKA, self-service team membership |
+| `routes/referees.py` | Referee directory, profiles, self-service AKA/photo, admin assignment audit |
+| `routes/admin.py` | Account and role administration |
+| `routes/admin_finals_eligibility.py` | Finals attendance eligibility report |
 
-Responsibilities:
+| Service | Responsibility |
+|---|---|
+| `auth.py` | Credential checks and session-backed identity |
+| `curp.py` | Birth date and completed age from CURP or provisional birth date |
+| `divisions.py` | Canonical divisions; unified U8–U12 cross-branch rules |
+| `team_matching.py` | Matching abbreviated upload labels to registered teams |
+| `game_schedule_import.py`, `schedule_context.py` | Game calendar parsing (XLSX, CSV, image, browser OCR words), dates and venues, bracket slots |
+| `referee_schedule_import.py`, `referee_schedule_ocr.py` | Referee-role parsing from XLSX/CSV and server-side image OCR |
+| `statistics_import.py` | Official statistics workbook parsing |
+| `roster_import.py`, `roster_policy.py` | Roster file parsing; representative roster cutoff |
+| `live_game.py` | Projection of live events into score and statistics |
+| `bracket_advancement.py` | Filling pre-created playoff games from feeder results |
+| `standings_adjustments.py` | Explicit league-approved standings credits |
+| `profile_photos.py`, `logo_thumbnails.py` | Image validation and display derivatives |
+| `email.py` | Password-reset email through Resend |
 
-- Create the FastAPI instance.
-- Register routers.
-- Expose the `GET /live` health check.
-
-### Contracts
-
-Main file: `models.py`
-
-Responsibilities:
-
-- Define Pydantic models that validate incoming payloads.
-- Keep basic shape and range validation close to the API boundary.
-
-Current models:
-
-- `TeamCreate`: identity, division, and optional Head Coach, Coach, and Manager.
-- `TeamStaffUpdate`: editable public staff names for an existing roster.
-- `PlayerCreate`: name, CURP, age, and jersey number.
-- `GameCreate`: home team and away team.
-- `UserCreate`: email, name, password, and role.
-- `LoginRequest`: normalized email and secret password input.
-
-### HTTP Routes
-
-Main folder: `routes/`
-
-Responsibilities:
-
-- Define public API endpoints.
-- Translate domain or persistence errors into HTTP responses.
-- Validate request flow rules that depend on existing resources.
-- Delegate data operations to repositories.
-
-Current routers:
-
-- `routes/auth.py`: login, current-session identity, and logout.
-- `routes/teams.py`: team registration and listing.
-- `routes/players.py`: player registration and roster listing by team.
-- `routes/games.py`: game creation and listing.
-- `routes/statistics.py`: Excel imports, game statistics, player totals, and leaderboards.
-- `routes/referees.py`: authenticated referee directory, aggregate referee
-  profiles, and referee-owned AKA/photo updates.
-
-### Dependencies
-
-Main folder: `dependencies/`
-
-Responsibilities:
-
-- Resolve the authenticated user from the `HttpOnly` session cookie.
-- Enforce league-administrator permissions for league-wide writes.
-- Restrict roster changes to administrators or assigned team representatives.
-- Return consistent `401` and `403` responses without relying on frontend visibility.
-
-### Repositories
-
-Main folder: `repositories/`
-
-Responsibilities:
-
-- Open PostgreSQL connections.
-- Execute SQL queries.
-- Control transactions with `commit` and `rollback`.
-- Convert database results into dictionaries.
-- Encapsulate queries by entity or aggregate.
-
-Current repositories:
-
-- `repositories/teams.py`
-- `repositories/players.py`
-- `repositories/games.py`
-- `repositories/users.py`
-- `repositories/statistics.py`
-- `repositories/representative_dashboard.py`
-- `repositories/referees.py`
-
-### Services
-
-Main folder: `services/`
-
-Responsibilities:
-
-- Coordinate business rules that span repositories.
-- Keep authentication decisions separate from password persistence.
-- Return public data without exposing credential hashes.
-
-Current services:
-
-- `services/auth.py`: credential authentication and account-status checks.
-- `services/statistics_import.py`: structured workbook parsing and row validation.
-
-### Database
-
-Main file: `database.py`
-
-Responsibilities:
-
-- Resolve `DATABASE_URL`.
-- Create psycopg connections using `dict_row`.
-- Manage schema evolution through versioned Alembic migrations in `migrations/`.
-
-Current engine:
-
-- PostgreSQL
-- Python client: `psycopg`
+Repositories are grouped by resource: `teams`, `players`, `games`,
+`live_games`, `statistics`, `standings`, `users`, `sessions`,
+`password_resets`, `referees`, `dashboard` (player dashboard and public
+profile), `representative_dashboard`, `finals_eligibility` and
+`regular_season` (shared regular-season SQL).
 
 ## Request Flow
 
@@ -173,72 +115,140 @@ Current engine:
 sequenceDiagram
     participant C as Client
     participant R as FastAPI route
-    participant M as Pydantic model
+    participant D as Auth dependency
     participant Repo as Repository
     participant DB as PostgreSQL
 
     C->>R: HTTP request
-    R->>M: Validate payload
-    R->>Repo: Execute requested use case
-    Repo->>DB: SQL query / transaction
+    R->>D: Resolve session and role
+    R->>R: Validate payload (Pydantic)
+    R->>Repo: Execute use case
+    Repo->>DB: SQL in one transaction
     DB-->>Repo: Row(s)
     Repo-->>R: dict / list
     R-->>C: JSON response
 ```
 
-Example for registering a player:
-
-1. The client calls `POST /api/teams/{team_id}/players`.
-2. FastAPI validates the body with `PlayerCreate`.
-3. The route verifies that the team exists.
-4. The repository finds or creates the player identity by CURP.
-5. The repository validates whether the player is already registered in the same branch and category.
-6. The repository creates the membership in `team_players`.
-7. The route returns `201 Created` or translates conflicts into `409 Conflict`.
+Example, registering a roster player (`POST /api/teams/{team_id}/players`):
+the dependency checks that the caller manages the team and the roster is open;
+`PlayerCreate` validates the body; the repository finds or creates the player
+identity by CURP, rejects a second active membership in the same division or a
+duplicate jersey, and inserts `team_players`; conflicts become `409`.
 
 ## Data Model
 
 ```mermaid
 erDiagram
+    USERS ||--o{ USER_ROLES : has
+    USERS ||--o{ SESSIONS : opens
+    USERS ||--o{ PASSWORD_RESET_TOKENS : requests
+    USERS }o--o| PLAYERS : "claims (player_id)"
+    USERS ||--o{ TEAM_REPRESENTATIVES : manages
+    TEAMS ||--o{ TEAM_REPRESENTATIVES : "managed by"
     TEAMS ||--o{ TEAM_PLAYERS : has
     PLAYERS ||--o{ TEAM_PLAYERS : joins
-    TEAMS ||--o{ GAMES : home_team
-    TEAMS ||--o{ GAMES : away_team
-    GAMES ||--o{ PLAYER_GAME_STATS : records
-    PLAYERS ||--o{ PLAYER_GAME_STATS : earns
+    TEAMS |o--o{ GAMES : "home / away"
+    GAMES ||--o{ GAME_REFEREES : officiated
+    USERS ||--o{ GAME_REFEREES : officiates
+    GAMES |o--o{ PLAYER_WEEK_STATS : records
+    PLAYERS ||--o{ PLAYER_WEEK_STATS : earns
     TEAMS ||--o{ PLAYER_WEEK_STATS : represents
+    GAMES ||--o| GAME_LIVE_SESSIONS : "captured in"
+    GAMES ||--o{ GAME_LIVE_EVENTS : logs
+    GAMES ||--o{ GAME_BRACKET_SLOTS : "feeds / targets"
 
+    USERS {
+        int id PK
+        text email UK
+        text name
+        text password_hash
+        text role "legacy primary role"
+        text status
+        int player_id FK
+        bool must_change_password
+        text aka
+        bytea profile_photo_data
+    }
+    USER_ROLES {
+        int user_id PK
+        text role PK "league_admin, team_representative, player, referee"
+    }
+    SESSIONS {
+        int id PK
+        int user_id FK
+        text token_hash UK
+        timestamptz expires_at
+        timestamptz revoked_at
+    }
+    PASSWORD_RESET_TOKENS {
+        int id PK
+        int user_id FK
+        text token_hash UK
+        timestamptz expires_at
+        timestamptz used_at
+    }
     TEAMS {
         int id PK
         text name
         text branch
         text category
         text status
+        text head_coach
+        text coach
+        text manager
+        bytea logo_data
+        text logo_version
+        bool is_guest
     }
-
     PLAYERS {
         int id PK
         text name
         text curp UK
+        text identity_type
+        date birth_date
         int age
+        text aka
+        bytea profile_photo_data
     }
-
+    TEAM_REPRESENTATIVES {
+        int id PK
+        int team_id FK
+        int user_id FK
+    }
     TEAM_PLAYERS {
         int id PK
         int team_id FK
         int player_id FK
         int jersey_number
+        bool active
     }
-
     GAMES {
         int id PK
-        int home_team_id FK
-        int away_team_id FK
+        int home_team_id FK "null while pending"
+        int away_team_id FK "null while pending"
+        text home_pending_label
+        text away_pending_label
+        int home_score
+        int away_score
+        int week
+        text status "scheduled, completed, postponed"
+        int field_number
+        time start_time
+        date game_date
+        text venue
+        bool is_friendly
     }
-
+    GAME_REFEREES {
+        int game_id PK
+        int user_id PK
+        text position
+        int assigned_by FK
+        timestamptz assigned_at
+    }
     PLAYER_WEEK_STATS {
         int id PK
         int week
+        int game_id FK
         int player_id FK
         int team_id FK
         int points
@@ -246,692 +256,434 @@ erDiagram
         int interceptions
         int sacks
         int tackles
+        int passes_completed
+        int passes_attempted
+        int passing_points
+        int passes_intercepted
+    }
+    GAME_LIVE_SESSIONS {
+        int game_id PK
+        text state "live, completed"
+        int version
+        timestamptz started_at
+        timestamptz finished_at
+    }
+    GAME_LIVE_EVENTS {
+        bigint id PK
+        int game_id FK
+        uuid client_id
+        text kind "plays, attendance, note"
+        int team_id FK
+        int player_id FK
+        int receiver_id FK
+        int period
+        int minute
+        int second
+        timestamptz voided_at
+    }
+    GAME_BRACKET_SLOTS {
+        int id PK
+        int week
+        int field_number
+        time start_time
+        text category
+        text bracket_tier "golden, silver"
+        text placement "final, third"
+        text label
+        int source_game_id FK
+        int opponent_game_id FK
+        int target_game_id FK
     }
 ```
 
-### Modeling Decisions
-
-A person's identity is separated from their participation in teams.
-
-- `players` represents the person.
-- `teams` represents a team registered in a branch and category.
-- `team_players` represents a person's membership in a team.
-- `games` represents a matchup between two teams.
-- `player_week_stats` stores one official row per jornada, player, and team.
-
-This separation allows the same person to play for multiple teams when league eligibility rules allow it.
+Players are people; teams belong to one branch and category; `team_players`
+is the membership; `player_week_stats` stores one row per jornada, player,
+team and game. Live and imported attendance are `attendance` rows in
+`game_live_events`. Row Level Security is enabled on application tables as
+defense in depth; FastAPI remains the only data path.
 
 ## Domain Rules
 
 ### Teams
 
-- Team identity is the normalized name, branch, and category combination.
-- Names preserve display casing but collapse repeated whitespace before writes.
-- PostgreSQL enforces case-insensitive uniqueness with a normalized expression
-  index, so concurrent requests and direct imports cannot create `Ravens` and
-  `RAVENS` in the same division.
+- Identity is the normalized name + branch + category. Display casing is
+  kept; a case-insensitive expression index prevents `Ravens` and `RAVENS` in
+  the same division.
+- New teams start `pending`; administrators move them among `pending`,
+  `active` and `inactive`.
+- U8, U10 and U12 are one **Infantiles** division per category: new teams are
+  stored as `mixto`, historical teams keep their stored branch, games may cross
+  branches, and standings and leaderboards combine every branch. Older
+  categories require a branch.
+- Guest teams (`is_guest`) exist only for friendly games and are excluded from
+  standings and statistics imports.
+- An administrator-only audit lists possible duplicate names across
+  divisions; it never merges or deletes.
 
-- Every team has `name`, `branch`, `category`, and `status`.
-- Existing U8, U10, and U12 teams retain their legacy stored branch, while new
-  registrations are canonicalized to `mixto`. The UI presents **Infantiles**
-  instead of a branch selector. Game validation and import matching allow
-  cross-branch opponents; standings and leaderboards combine `femenil`,
-  `varonil`, and `mixto` records. Older categories continue to require a branch.
-- The administrator duplicate audit groups canonical U8-U12 names that exist
-  in more than one branch. It is intentionally read-only: potential duplicates
-  require human review before an existing team is renamed or deleted.
-- New teams are created with `status = "pending"`.
-- League administrators transition teams among `pending`, `active`, and
-  `inactive`; the status is operational state, not free-form display text.
-- Team directories group records by branch (`Varonil`, `Femenil`, `Mixto`),
-  then category (`U6` through `Libre`), and finally by team name.
+### Players and rosters
 
-### Players
+- CURP uniquely identifies a person and is private. A provisional identity
+  (shorter identifier plus explicit birth date) is also supported; see
+  [`provisional-player-identities.md`](provisional-player-identities.md).
+- Age is completed years as of today, derived from the CURP birth date or the
+  provisional birth date.
+- A player may be on teams of different divisions, but not on two active
+  teams of the same division. Jersey numbers are unique per team.
+- Removing a player soft-deactivates the membership; identity, login and
+  statistics remain, and re-adding reactivates it.
+- Representatives may change rosters only for teams linked to them in
+  `team_representatives`, and only until **October 16, 2026 00:00
+  America/Mexico_City** (`services/roster_policy.py`, decided by server
+  time). Administrators keep write access. Reads are unaffected.
+- Bulk imports accept up to 100 players from CSV (comma or semicolon) or XLSX
+  with `nombre`, `curp`, `numero` (legacy `edad` accepted), in one
+  transaction.
 
-- CURP uniquely identifies a person.
-- The public roster does not expose CURP.
-- Public roster identity includes the optional AKA and profile-photo URL.
-- A player may participate in teams from different branches.
-- A player may participate in teams from different categories.
-- A player may not participate in two teams within the same branch and category combination.
-- A player may not be registered twice in the same team.
-- Jersey numbers must be unique within each team.
-- The same jersey number may be reused across different teams.
+### Games and schedule
 
-### Games
+- A game has a home and away team from the same division (cross-branch in
+  U8–U12), or two pending labels for a pre-created playoff game.
+- Status moves from `scheduled` to `completed` when a non-tied final score is
+  saved by an administrator, a referee, or live-capture finalization.
+  Administrators may postpone and restore unplayed games; postponed games
+  reject scores. Only administrators may change an existing score.
+- `PATCH /api/games/{id}/schedule` moves a fixture's time/field (and
+  date/venue) while keeping its ID, crew, statistics and live session.
+- Friendly games (`is_friendly`) may include guest teams and are excluded
+  from standings, statistics imports and finals eligibility.
+- Deleting a game cascades referee assignments; statistic rows keep their
+  data with the game link cleared.
+- Schedule imports and their review rules are described in
+  [`game-schedule-import.md`](game-schedule-import.md) and
+  [`calendar-dates-and-venues.md`](calendar-dates-and-venues.md).
 
-- A game has a home team and an away team.
-- Both teams must exist.
-- A team cannot play against itself.
-- Official workbook imports pair consecutive 15-row team blocks within the same division.
-- Imported scores are inferred from touchdowns and conversions; incomplete tied reconstructions use defensive events as a deterministic one-point tiebreak.
-- Games move from `scheduled` to `completed` when a final score is saved. League
-  administrators may mark an unplayed game `postponed` and restore it later;
-  postponed games reject score capture.
-- League administrators may delete one game or all games in a jornada. Referee
-  assignments cascade, while historical weekly statistics are preserved with
-  their nullable game link cleared by the database foreign key.
+### Playoffs
 
-## Data Integrity
+Final and third-place games are pre-created with pending labels and filled
+automatically when both semifinals have final scores. See
+[`playoff-advancement.md`](playoff-advancement.md).
 
-The database protects structural constraints:
+### Statistics
 
-```text
-players.curp UNIQUE
-team_players(team_id, player_id) UNIQUE
-team_players(team_id, jersey_number) UNIQUE
-```
+- Statistics come from the official workbook import or live-capture
+  finalization. The import only links statistics to existing games; it never
+  creates games or writes scores. Unresolved teams, games and jersey numbers
+  are skipped and reported. See [`statistics-upload.md`](statistics-upload.md).
+- Live capture is described in [`live-games.md`](live-games.md). Live capture
+  records the interceptor, not the thrower, so `passes_intercepted` stays 0 for
+  live-captured games.
+- Player names shown publicly always come from `players`, never from imported
+  text.
 
-Foreign keys use `ON DELETE CASCADE` to delete related memberships or games when a team or player is deleted.
+### Leaderboards
 
-Rules that need league context, such as preventing a player from registering twice in the same branch and category, are currently validated in the repository layer.
+`GET /api/statistics/leaderboards?branch=&category=` returns the top five per
+metric for one division. In unified U8–U12 a player on several rosters appears
+once, with her best team record; records are never summed. Ties use the
+documented secondary metrics, then player ID and team ID.
+
+| Metric | Leaderboard |
+|---|---|
+| Quarterback index (`passer_rating`) | El Francotirador |
+| Receptions | Manos de Acero |
+| Points | Maquina de Puntos |
+| Tackles | El Muro |
+| Interceptions | Cazador Aereo |
+| Sacks | Cazador de QBs |
+
+The quarterback index (0–100) is the average of three components, each from 0
+to 1:
+
+- precision = completions ÷ attempts;
+- productivity = (passing points ÷ completions) ÷ 2.5, capped at 1;
+- safety = 1 − (interceptions thrown ÷ attempts) ÷ 10%, floored at 0.
+
+A QB needs at least 50 cumulative attempts in the division at all times; there
+is no early-season exemption. The response also keeps `completion_percentage`
+(same 50-attempt rule) for installed app versions. Passing points and thrown
+interceptions were added in migration `c5e2a7f19d30` (SQL twin
+`docs/sql/add-quarterback-passing-stats.sql`).
+
+### Finals eligibility
+
+Administrators review `/admin/finals-eligibility`, backed by
+`GET /api/admin/finals-eligibility` (`league_admin` only). It lists active
+roster players who attended fewer than ⌊games ÷ 2⌋ + 1 of their team's
+regular-season games (6 games → 4).
+
+- Regular season (`repositories/regular_season.py`): non-friendly,
+  non-postponed games between teams of the same category, in jornadas before
+  the first jornada that holds a bracket slot, excluding bracket target games.
+- Attendance: non-voided `attendance` events from live check-in or the
+  statistics import, on `completed` games. Two games in one jornada count as
+  two.
+
+The live-game attendance panel uses the same regular-season rule.
+
+## Authorization
+
+Roles are cumulative in `user_roles` (`league_admin`, `team_representative`,
+`player`, `referee`); the legacy `users.role` column is kept but checks use
+the full set. Sessions store only a SHA-256 hash of a random token; cookies are
+`HttpOnly`, `SameSite=Lax` and `Secure` unless `SESSION_COOKIE_SECURE=false`.
+Staff accounts created by administrators start with `must_change_password`;
+protected dependencies reject their session until the password is replaced.
+Public responses never include CURP, email, roles, hashes or tokens.
+
+- **Players** claim an existing roster identity at registration when CURP,
+  legal name and age match; otherwise a new identity is created. Dashboards
+  are resolved from the session, never from a browser-supplied ID.
+- **Representatives** create teams (and are linked automatically) and manage
+  only linked teams. Administrators link or unlink representatives for older
+  teams; ownership is never guessed.
+- **Referees** see only their own assignments (with the full crew), may record
+  final scores, and are the only role that can run live capture. Their AKA and
+  photo appear in the private referee directory; player-referees reuse their
+  player photo.
+- **League administrators** manage teams, accounts and roles (they cannot
+  demote or delete themselves), schedules, officials, imports and corrections.
+  Deleting an account revokes access but keeps the linked player history.
+
+Game detail responses follow least privilege: everyone sees teams, jornada,
+time, field and score; players see their own row; representatives see their
+teams' rows; referees see the crew; administrators see both. Unauthorized
+sections are omitted, not returned empty.
+
+`game_referees` stores one row per game and official with `position`
+(Referee, Down Judge, Field Judge, Side Judge, Statistician). Imports require
+Referee and Down Judge; the others are optional. Assigning an occupied
+position replaces it atomically.
 
 ## Current Endpoints
 
-- `POST /api/auth/mobile/login` authenticates a player for the native client
-  and returns a revocable Bearer session.
+Interactive documentation is served at `/docs` and `/redoc`. Unless noted,
+writes require the role named in the description.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/live` | Application health check |
-| `POST` | `/api/auth/login` | Authenticates credentials and creates a session cookie |
-| `POST` | `/api/auth/forgot-password` | Returns an account-neutral response and emails a short-lived reset link when eligible |
-| `POST` | `/api/auth/reset-password` | Consumes a single-use token, replaces the password, and revokes existing sessions |
+| `GET` | `/live` | Process liveness check |
+| `GET` | `/ready` | PostgreSQL readiness; `503` without details on failure |
+| `GET` | `/media/profiles/{filename}` | Profile photo, immutable cache headers |
+| `POST` | `/api/auth/register/player` | Player self-registration with required photo |
+| `POST` | `/api/auth/login` | Web login; sets the session cookie |
+| `POST` | `/api/auth/mobile/login` | Mobile login for players, referees and representatives; returns a Bearer token |
+| `GET` | `/api/auth/me` | Current user for a cookie or Bearer session |
+| `POST` | `/api/auth/change-password` | Change password, including the mandatory first change |
+| `POST` | `/api/auth/forgot-password` | Account-neutral response; emails a reset link when eligible |
+| `POST` | `/api/auth/reset-password` | Consume a single-use token and revoke existing sessions |
+| `POST` | `/api/auth/logout` | Revoke the current session |
+| `POST` | `/api/teams` | Create a team (representatives and administrators) |
+| `GET` | `/api/teams` | List teams |
+| `GET` | `/api/teams/{team_id}` | Team with public roster, `can_manage`, roster cutoff fields |
+| `GET` | `/api/teams/{team_id}/logo` | Team logo |
+| `PUT` | `/api/teams/{team_id}/logo` | Replace logo; team managers |
+| `PATCH` | `/api/teams/{team_id}/staff` | Head Coach, Coach, Manager; team managers |
+| `PATCH` | `/api/teams/{team_id}/status` | Pending/active/inactive; administrators |
+| `PATCH` | `/api/teams/{team_id}/name` | Correct the team name; administrators |
+| `PUT` | `/api/teams/{team_id}/representatives/{user_id}` | Link a representative; administrators |
+| `DELETE` | `/api/teams/{team_id}/representatives/{user_id}` | Unlink a representative; administrators |
+| `GET` | `/api/teams/representative-assignments` | Current team ownership; administrators |
+| `GET` | `/api/teams/duplicate-candidates` | Possible duplicate team names; administrators |
+| `DELETE` | `/api/teams/{team_id}` | Delete a team; administrators |
+| `GET` | `/api/teams/{team_id}/players` | Public roster |
+| `POST` | `/api/teams/{team_id}/players` | Register a roster player; team managers |
+| `GET` | `/api/teams/{team_id}/players/candidates` | Search existing player identities by name or AKA; team managers |
+| `POST` | `/api/teams/{team_id}/players/registered` | Add an existing identity to the roster; team managers |
+| `POST` | `/api/teams/{team_id}/players/import` | CSV/XLSX roster import; team managers |
+| `GET` | `/api/teams/{team_id}/players/import/template.csv` | Roster import template |
+| `GET` | `/api/teams/{team_id}/players/{player_id}/management` | Private identity fields; team managers |
+| `PATCH` | `/api/teams/{team_id}/players/{player_id}` | Correct identity and jersey; team managers |
+| `PUT` | `/api/teams/{team_id}/players/{player_id}/photo` | Replace a player photo; team managers |
+| `DELETE` | `/api/teams/{team_id}/players/{player_id}` | Deactivate the membership; team managers |
+| `GET` | `/api/me/dashboard` | Player dashboard |
+| `PATCH` | `/api/me/profile` | Player AKA |
+| `POST` | `/api/me/teams/{team_id}` | Player joins one team per division |
+| `GET` | `/api/me/representative-dashboard` | Dashboard scoped to the representative's teams |
+| `POST` | `/api/games` | Create a game or friendly game; administrators |
+| `GET` | `/api/games` | List games with scores and pending labels |
+| `GET` | `/api/games/calendar-capabilities` | Whether date/venue columns are active |
+| `GET` | `/api/games/{game_id}/details` | Role-scoped game detail |
+| `GET` | `/api/games/mine/referee` | The referee's own assignments with full crews |
+| `POST` | `/api/games/schedule/analyze` | Parse an XLSX, CSV or image calendar into proposals without writing |
+| `POST` | `/api/games/schedule/analyze-ocr` | Match browser OCR words to teams |
+| `POST` | `/api/games/schedule/analyze-cells` | Match browser OCR grid cells to teams |
+| `POST` | `/api/games/schedule/confirm` | Create reviewed games and bracket slots atomically |
+| `POST` | `/api/games/referee-schedule/analyze` | Parse an image, XLSX or CSV referee role into proposals without writing |
+| `POST` | `/api/games/referee-schedule/confirm` | Replace officials for reviewed games |
+| `GET` | `/api/games/{game_id}/referees` | Crew of a game; administrators |
+| `PUT` | `/api/games/{game_id}/referees/{user_id}` | Assign or replace an official; administrators |
+| `DELETE` | `/api/games/{game_id}/referees/{user_id}` | Remove an official; administrators |
+| `PATCH` | `/api/games/{game_id}/score` | Record a final score; administrators and referees |
+| `PATCH` | `/api/games/{game_id}/schedule` | Move time/field/date/venue; administrators |
+| `PATCH` | `/api/games/{game_id}/status` | Postpone or restore; administrators |
+| `PATCH` | `/api/games/week/{week}/status` | Postpone or restore a jornada; administrators |
+| `DELETE` | `/api/games/{game_id}` | Delete one game; administrators |
+| `DELETE` | `/api/games/week/{week}` | Delete a jornada after explicit confirmation; administrators |
+| `GET` | `/api/games/{game_id}/live` | Public live snapshot and play feed |
+| `POST` | `/api/games/{game_id}/live/start` | Start capture; referees |
+| `POST` | `/api/games/{game_id}/live/events` | Add an idempotent play; referees |
+| `POST` | `/api/games/{game_id}/live/events/{event_id}/void` | Void a play (administrators after completion) |
+| `POST` | `/api/games/{game_id}/live/finish` | Publish score and statistics; administrators and referees |
+| `POST` | `/api/games/{game_id}/live/cancel` | Cancel an accidental capture; administrators |
+| `POST` | `/api/games/{game_id}/live/attendance` | Attendance check-in without starting capture |
+| `GET` | `/api/standings` | Standings for one division; U8–U12 combine branches |
+| `GET` | `/api/statistics/import-template` | Compact statistics template; administrators |
+| `POST` | `/api/statistics/import` | Import every `Wk` sheet, linking to existing games only; administrators |
+| `POST` | `/api/weeks/{week}/player-stats/import` | Import one jornada, linking to existing games only; administrators |
+| `POST` | `/api/weeks/{week}/player-stats/import-division` | Import one jornada and division; administrators |
+| `GET` | `/api/weeks/{week}/player-stats` | A jornada's individual statistics |
+| `GET` | `/api/players/{player_id}/stats` | Player totals, optionally per team |
+| `GET` | `/api/players/{player_id}/profile` | Public player profile |
+| `GET` | `/api/statistics/leaderboards` | Top five per metric for one division |
+| `GET` | `/api/referees` | Referee directory; signed-in users |
+| `GET` | `/api/referees/me` | The referee's own directory profile |
+| `PATCH` | `/api/referees/me` | The referee's AKA |
+| `PUT` | `/api/referees/me/photo` | The referee's photo |
+| `GET` | `/api/referees/assignments` | Every official's games; administrators |
+| `GET` | `/api/referees/{user_id}` | Aggregate referee profile; signed-in users |
+| `GET` | `/api/admin/users` | Accounts for role administration |
+| `POST` | `/api/admin/users` | Create a staff account (no `player` role) |
+| `PATCH` | `/api/admin/users/{user_id}/role` | Grant or revoke one role |
+| `PUT` | `/api/admin/users/{user_id}/roles` | Replace the role set |
+| `POST` | `/api/admin/users/{user_id}/reset-password` | Issue a temporary password |
+| `POST` | `/api/admin/users/{user_id}/recover-account` | Replace a compromised email and credentials |
+| `PATCH` | `/api/admin/users/{user_id}/referee-aka` | Maintain an official's AKA |
+| `DELETE` | `/api/admin/users/{user_id}` | Delete another account, keeping player history |
+| `GET` | `/api/admin/finals-eligibility` | Players below the finals attendance threshold |
 
-The password recovery endpoints are implemented, but the login entry point is
-hidden until a league-owned sending domain is verified. This prevents exposing
-a recovery flow that Resend's onboarding sender cannot deliver to public users.
-| `GET` | `/api/auth/me` | Returns the user associated with an active session |
-| `POST` | `/api/auth/logout` | Revokes the current session and removes its cookie |
-| `POST` | `/api/teams` | Creates a team |
-| `GET` | `/api/teams` | Lists teams |
-| `PUT` | `/api/teams/{team_id}/logo` | Replaces a team logo; administrators or its assigned representatives only |
-| `PATCH` | `/api/teams/{team_id}/staff` | Replaces public Head Coach, Coach, and Manager fields; team managers only |
-| `PATCH` | `/api/teams/{team_id}/status` | Changes pending, active, or inactive state; league administrators only |
-| `PATCH` | `/api/teams/{team_id}/name` | Corrects only the public team name; league administrators only |
-| `PUT` | `/api/teams/{team_id}/representatives/{user_id}` | Links an existing representative account to a historical team; league administrators only |
-| `DELETE` | `/api/teams/{team_id}/representatives/{user_id}` | Removes one incorrect team assignment without deleting the account; league administrators only |
-| `GET` | `/api/teams/representative-assignments` | Lists current team ownership for verification in the league administration UI |
-| `GET` | `/api/teams/duplicate-candidates` | Lists possible same-category U8-U12 duplicates across branches; league administrators only |
-| `GET` | `/api/me/representative-dashboard` | Returns standings and statistics only for the authenticated representative's teams |
-| `GET` | `/api/games/mine/referee` | Returns only games assigned to the authenticated referee, including each game's complete officiating crew |
-| `GET` | `/api/referees` | Lists active referee names and photos for authenticated users only |
-| `GET` | `/api/referees/me` | Returns the signed-in referee's effective directory profile |
-| `PUT` | `/api/referees/me/photo` | Lets a referee upload or replace their own profile photo |
-| `DELETE` | `/api/teams/{team_id}` | Deletes a team and dependent records; league administrators only |
-| `POST` | `/api/teams/{team_id}/players` | Registers a player in a team |
-| `GET` | `/api/teams/{team_id}/players` | Lists a team's roster |
-| `POST` | `/api/games` | Creates a game |
-| `GET` | `/api/games` | Lists games |
-| `POST` | `/api/games/schedule/analyze` | Parses an image, XLSX, or CSV role into reviewable proposals without writing data |
-| `POST` | `/api/games/schedule/confirm` | Atomically creates the selected matched games and omits exact duplicates |
-| `POST` | `/api/games/referee-schedule/analyze` | Parses an image, XLSX, or CSV referee role into reviewable assignments without writing data |
-| `POST` | `/api/games/referee-schedule/confirm` | Replaces officials only for administrator-reviewed games |
-| `PATCH` | `/api/games/{game_id}/score` | Updates a game's score |
-| `PATCH` | `/api/games/{game_id}/status` | Postpones or restores an unplayed game; league administrators only |
-| `PATCH` | `/api/games/week/{week}/status` | Postpones or restores every unplayed game in a jornada; league administrators only |
-| `DELETE` | `/api/games/{game_id}` | Deletes one game; league administrators only |
-| `DELETE` | `/api/games/week/{week}` | Atomically deletes every game in a jornada; league administrators only |
-| `GET` | `/api/standings` | Lists standings by branch and category; U8-U12 ignore branch and return one unified table |
-| `POST` | `/api/weeks/{week}/player-stats/import` | Atomically replaces a complete jornada from `.xlsx` |
-| `POST` | `/api/statistics/import` | Atomically imports all official `Wk` sheets, statistics, games, and inferred scores |
-| `GET` | `/api/weeks/{week}/player-stats` | Lists a jornada's individual statistics |
-| `GET` | `/api/players/{player_id}/stats` | Returns a player's derived totals |
-| `GET` | `/api/players/{player_id}/profile` | Returns a public profile with identity, teams, standings and statistics |
-| `GET` | `/api/statistics/leaderboards` | Returns five leaders per metric and division |
-| `DELETE` | `/api/admin/users/{user_id}` | Deletes another user's login account while preserving player history |
-| `PATCH` | `/api/admin/users/{user_id}/referee-aka` | Updates an official's effective AKA; league administrators only |
-
-The weekly spreadsheet uses `rama`, `categoria`, `equipo`, and `numero` to resolve a roster membership. Player names shown publicly always come from `players.name`, never from imported text. Only the 50 source-event columns are read; formula-helper columns are deliberately excluded to prevent double counting. Completed passes count as both a completion and an attempt, while `Intentos Pase` supplies incomplete attempts.
-
-The games client keeps one API snapshot and filters it locally by `week` and by
-the branch/category exposed in each nested team summary. Development standings
-can be exercised with `scripts.balance_mock_games`: it fills only per-division
-game-count deficits, produces no tied scores, and is safe to rerun once balanced.
-
-The Partidos page accepts the league's matrix-style XLSX calendar, a normalized
-CSV, or a role image. XLSX blocks are read by jornada; each `Campo N` header owns
-the adjacent local/visitor pair and each valid `Hora` row becomes a proposal.
-CSV files require jornada, campo, hora, local, and visitante (English aliases
-are also accepted). Team labels are normalized for accents and common branch
-abbreviations, then matched against existing teams. Ambiguous or missing teams
-remain visible in the review but cannot be selected for import. Confirmation is
-transactional. A schedule slot is uniquely identified by jornada, field, and
-start time. Exact repeated slots are skipped; replacing a slot's teams is
-allowed only while the existing game has no score, statistics, or officials.
-Conflicts reject the complete batch, and confirmations are serialized so two
-administrators cannot create the same slot concurrently.
+The password-recovery endpoints work, but the login page does not link to
+`/forgot-password` until a league-owned sending domain is verified in Resend.
 
 ## Current Web Pages
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/` | Redirects to `/teams` |
-| `GET` | `/teams` | Filterable team directory |
-| `GET` | `/teams/{team_id}/roster` | Dedicated team roster and authorized roster management |
-| `GET` | `/games` | Chronological game agenda with team, jornada, division, and field filters |
-| `GET` | `/standings` | Standings page |
-| `GET` | `/admin/team-duplicates` | Administrator review of possible U8-U12 duplicates across branches |
-| `GET` | `/statistics` | Public individual leaderboards |
-| `GET` | `/login` | Operational user login |
-| `GET` | `/dashboard` | Private player dashboard |
-| `GET` | `/representative-dashboard` | Private representative dashboard scoped to assigned teams |
-| `GET` | `/referee/games` | Private referee dashboard and administrator schedule import |
-| `GET` | `/referees` | Referee roster available to authenticated league users |
-| `GET` | `/privacy` | Public integral privacy notice |
+| Path | Description |
+|---|---|
+| `/` | Redirects to `/teams` |
+| `/teams` | Team directory |
+| `/teams/{team_id}/roster` | Team roster and, for managers, roster management |
+| `/teams/{team_id}/manage` | Administrator change center for one team |
+| `/games` | Schedule with filters, weekly featured result, schedule imports and the administrator schedule board |
+| `/games/{game_id}` | Game detail with live scoreboard, play feed, field view, attendance and crew |
+| `/standings` | Division standings |
+| `/statistics` | Leaderboards and the administrator statistics import |
+| `/players/{player_id}` | Public player profile |
+| `/login`, `/register`, `/change-password` | Authentication |
+| `/forgot-password`, `/reset-password` | Password recovery |
+| `/dashboard` | Player dashboard |
+| `/representative-dashboard` | Representative dashboard |
+| `/referee/games` | Referee dashboard and administrator referee-role import |
+| `/referees`, `/referees/{user_id}` | Referee directory and profiles (signed-in users) |
+| `/admin/users` | Account and role administration |
+| `/admin/team-duplicates` | Duplicate team audit |
+| `/admin/finals-eligibility` | Finals eligibility report |
+| `/privacy` | Privacy notice |
 
 ## Frontend
 
-The frontend foundation lives in:
+Server-rendered Jinja templates (`templates/`) with one vanilla JavaScript
+file per page in `static/`. Shared layout lives in `base.html`,
+`static/layout.js`, `static/style.css` and `static/ui.css`; page scripts never
+compute viewport sizes. Below `820px` the sidebar becomes a modal drawer,
+controls keep 44px touch targets and wide tables scroll inside their own
+wrappers (`.standings-table`, `.users-table-wrapper`, `.table-scroll`).
 
-- `templates/base.html`
-- `templates/teams.html`
-- `templates/roster.html`
-- `templates/games.html`
-- `templates/standings.html`
-- `templates/statistics.html`
-- `templates/login.html`
-- `static/style.css`
-- `static/layout.js`
-- `static/api.js`
-- `static/teams.js`
-- `static/roster.js`
-- `static/games.js`
-- `static/standings.js`
-- `static/statistics.js`
-- `static/login.js`
-- `static/register.js`
-- `static/dashboard.js`
+- Every team name rendered as navigation links to `/teams/{team_id}/roster`.
+- The games page keeps one API snapshot and filters it locally by team,
+  jornada, division and field.
+- Imports show real progress for file reading/preparation and upload
+  (`static/import_progress.js`), then a processing stage.
+- Game-calendar images are read in the browser with Tesseract.js
+  (`static/ocr_loader.js`); the server only matches the recognized words.
+  Referee-role images use server-side Tesseract.
+- Analytics: [`analytics.md`](analytics.md). UI conventions:
+  [`ui-system.md`](ui-system.md).
 
-It is currently a lightweight server-rendered HTML, CSS, and JavaScript layer. Shared layout concerns live in `base.html` and `layout.js`. Page-specific behavior lives in the JavaScript file for that page. The teams page is only a directory: selecting a team navigates to its dedicated roster route, keeping directory filtering and roster management as separate responsibilities. The backend remains API-first, so the frontend can evolve without coupling directly to persistence.
+## Media and Upload Limits
 
-The games client keeps one API snapshot, applies accent-insensitive team-name
-and division filters locally, then sorts by jornada, time, and field. Public
-cards show local and visitor teams as separate rows. Administrator score,
-postponement, and deletion controls remain inside a collapsed per-game panel so
-the public schedule keeps the same visual hierarchy for every role.
-Every team name rendered as navigational content links to its canonical
-`/teams/{team_id}/roster` page. This applies to directories, dashboards,
-standings, leaderboards, game cards, game details, and referee assignments;
-team names inside form controls and import review tables remain controls.
-Schedule and statistics imports compare normalized name words and accept unique
-abbreviations or omitted connector words. When the two strongest candidates are
-too close, the row remains unmatched for review instead of choosing a team.
-Manual game creation reuses the teams snapshot. A shared branch/category filter
-narrows the division, while independent accent-insensitive searches narrow the
-local and visitor selectors without requiring additional API requests.
+Profile photos and team logos are stored in PostgreSQL so they survive
+stateless deployments. Logo URLs carry an MD5 content version and photo
+filenames change on replacement, so both are served with one-year immutable
+cache headers; collection views lazy-load images.
 
-### Responsive layout
+Vercel rejects request bodies over 4.5 MB before FastAPI runs. Server-side
+limits are higher:
 
-The shared shell is mobile-first below `820px`. In that range the sidebar becomes a modal drawer over the page instead of consuming document width. The league logo remains visible in the collapsed header, while the backdrop, Escape key, and navigation links close the expanded drawer. Operational forms and resource grids collapse to one column, controls keep a minimum touch target of `44px`, and dense tables scroll inside their own containers with a sticky first column. This keeps the document itself at viewport width and prevents page-level horizontal scrolling.
+| Upload | Server limit |
+|---|---|
+| Statistics workbook | 15 MiB |
+| Game calendar (XLSX, CSV, image) | 15 MiB, 500 games |
+| Referee role (image, XLSX, CSV) | 10 MiB, 500 rows |
+| Roster import | 5 MiB, 100 players |
+| Profile photo, referee photo | 5 MiB |
+| Team logo | 5 MiB |
 
-### Roster identity lookup and latency
-
-Representatives can search active accounts carrying the `player` role by legal
-name or AKA. Search results expose only public player identity fields and omit
-CURP, email, and account metadata. Candidates already active in a team with the
-same branch and category are excluded. The selected existing `players.id` is
-linked transactionally to `team_players`; the backend rechecks account status,
-role, division eligibility, and jersey uniqueness at write time.
-
-Database connection setup is material on the Vercel-to-Supabase path. Session
-resolution therefore joins `sessions`, `users`, roles, and the optional player
-identity in one query. The roster detail read reuses one connection for team
-metadata, active players, and representative ownership. This preserves live
-authorization checks while avoiding several sequential network handshakes per
-page load.
-
-Team logo URLs contain an MD5 content version and player-photo filenames are
-regenerated on replacement. Both media routes can therefore send one-year,
-immutable browser and Vercel CDN cache headers. Images rendered in collection
-views use lazy loading and asynchronous decoding. This prevents the team
-directory from opening one PostgreSQL-backed request for every off-screen logo
-and makes warm requests independent of database latency.
-
-Responsive behavior belongs in `static/style.css` and `static/layout.js`; page scripts should not calculate viewport dimensions or duplicate drawer state. Any new table must use an existing scroll wrapper such as `.standings-table`, `.users-table-wrapper`, or `.table-scroll`.
-
-### Privacy notice
-
-The integral privacy notice is always available at `/privacy` and through the
-shared footer. Player registration requires acknowledgement of that notice.
-It documents account, CURP, profile photo, roster, statistics, official-role,
-session, hosting, minor-player, retention, and ARCO handling. Production league
-administrators remain responsible for keeping the official contact channel and
-the responsible party's complete address available through league channels.
-
-## Testing
-
-The test suite uses `pytest` and `fastapi.testclient.TestClient`.
-
-Current coverage:
-
-- Team registration and listing.
-- Player registration and roster listing by team.
-- Nonexistent team handling when registering players.
-- Duplicate jersey protection within the same team.
-- CURP reuse as a single identity with multiple valid memberships.
-- Duplicate player restriction within the same branch and category.
-- Game creation and listing.
-- Protection against a team playing against itself.
-- Game creation handling for nonexistent teams.
-- Player self-registration and session-backed personal dashboards.
-- Self-service team membership with one team per division.
-- Excel passing-stat validation and week-dependent qualification rules.
-
-Tests clean the database between cases to preserve isolation.
+The browser shrinks statistics workbooks above 4 MiB (see
+[`statistics-upload.md`](statistics-upload.md)) and re-encodes registration
+profile photos above 3 MB to a 1600-pixel JPEG. Every other upload is sent
+as-is, so on Vercel it is effectively limited to under 4.5 MB. A platform
+`413` produces a size message in the UI.
 
 ## Configuration and Deployment
 
-The application reads the connection string from `DATABASE_URL`. The value is required: the application and Alembic fail explicitly when it is not configured. Local values are documented in `.env.example`; CI and deployed environments provide the value through environment configuration or secrets.
+Configuration is read from environment variables (see the README). Production
+and Vercel Preview use separate Supabase projects; Preview's `DATABASE_URL`
+points to `flagtastic-league-preview`, which holds only test data. Every
+branch and pull request gets a Preview deployment; merging to `main` deploys
+Production.
 
-Production and Vercel Preview deployments use separate Supabase projects and
-separate database credentials. The Preview-scoped `DATABASE_URL` points to
-`flagtastic-league-preview`; it contains only synthetic test data and is the
-required environment for validating imports, schedules, statistics, and schema
-migrations before production promotion.
+The `Dockerfile` (`python:3.14-slim` with `tesseract-ocr`) runs
+`uvicorn main:app --host 0.0.0.0 --port 8000`; CI builds it and publishes
+images for `main` to GHCR.
 
-Schema changes are applied before application startup:
+### Schema changes
 
-```text
-python -m alembic upgrade head
-```
+Vercel never runs migrations. Each schema change is applied to Preview and
+then Production **before** merging code that reads it, by either:
 
-Vercel deployment does not run this command automatically. Preview and
-Production therefore have separate migration steps and must each be checked at
-the repository Alembic head before code that reads a new column is promoted.
+1. `python -m alembic upgrade head` with the database owner credentials, or
+2. for additive changes, the idempotent SQL twin in `docs/sql/` run in the
+   Supabase SQL editor.
 
-The `Dockerfile` builds an image based on `python:3.14-slim`, installs dependencies from `requirements.txt`, copies the project, and starts Uvicorn on `0.0.0.0:8000`.
+Migrations meant to be applied through the SQL editor must be idempotent and
+ship with that twin. Never downgrade Preview or Production: several
+downgrades delete data. Fix forward instead. The current head is
+`c5e2a7f19d30`.
 
-Profile media is stored in PostgreSQL rather than the application filesystem.
-This keeps photos available when containers or Vercel Functions are replaced.
-The image excludes local uploads and development dependency directories from
-its build context.
+## Delivery
 
-Player registration compresses photos larger than 3 MB in the browser to a
-maximum 1600-pixel edge and JPEG output before constructing the multipart
-request. This keeps mobile camera uploads below Vercel's request-body boundary;
-the server still validates the decoded signature, supported format, and its own
-5 MB safety limit. A platform-level `413` receives a specific user-facing
-message when it occurs before the application can return JSON.
+GitHub Actions runs on pull requests to `main` and pushes to `main`:
 
-Application command:
+- **Test**: installs `requirements-dev.txt`, compiles Python, runs Alembic
+  upgrade/downgrade/upgrade on a disposable PostgreSQL 18 service, runs
+  `pytest` and `node --test tests/js/*.test.cjs`.
+- **Docker**: builds the image; pushes to GHCR only outside pull requests.
+- **Mobile**: `npm ci`, `node --test tests/*.test.mjs`, `npm run typecheck`
+  and `npx expo-doctor` in `mobile/`.
+- **Live capture browser**: Playwright/Chromium scripts in `tests/browser/`
+  with mocked API responses.
+- **CodeQL**: Python analysis (also weekly).
 
-```text
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-## Delivery Architecture
-
-GitHub Actions runs the delivery checks on every push and pull request.
-
-The current pipeline validates:
-
-- Alembic migrations against a clean PostgreSQL service before running tests.
-- The Python test suite.
-- PostgreSQL integration through a service container.
-- Docker image builds.
-- Deterministic image tags for future promoted deployments.
-
-Container images should be tagged with immutable references, such as a short commit SHA, and release references, such as Git version tags. Branch tags may be useful for development visibility, but deployments should prefer immutable tags.
-
-Avoid using `latest` as a deployment contract.
+Images are tagged with the short commit SHA and branch; deployments should
+prefer immutable tags over `latest`.
 
 ## Observability
 
-`observability.py` is the single application boundary for production telemetry.
-It configures privacy-safe JSON logs, optional Sentry reporting, release tags,
-request duration, and correlation identifiers without coupling domain routes to
-a hosted provider. Sentry remains disabled when `SENTRY_DSN` is absent, keeping
-local development and CI deterministic.
+`observability.py` configures privacy-safe JSON logs, optional Sentry (only
+when `SENTRY_DSN` is set), release tags and request IDs. Every response
+includes `X-Request-ID`. Better Stack polls `/live` and `/ready`. Details are
+in [`observability.md`](observability.md).
 
-Every response includes `X-Request-ID`. `GET /live` is dependency-free, while
-`GET /ready` verifies PostgreSQL with a minimal query and returns only a generic
-availability result. Better Stack is the external polling layer for both
-routes; its dashboard is the authoritative confirmation that those monitors
-are active. Vercel runtime logs and Supabase database logs provide
-provider-specific diagnostics. The configuration, alert rules, data
-exclusions, verification steps, and incident workflow live in
-`docs/observability.md`.
+## Conventions and Risks
 
-## Expected Evolution
-
-The current architecture can grow incrementally:
-
-```mermaid
-flowchart LR
-    Teams[Teams]
-    Rosters[Rosters]
-    Eligibility[Eligibility]
-    Games[Games]
-    Stats[Per-game statistics]
-    Seasons[Seasons]
-    Auth[Authentication and roles]
-    Leaderboards[Leaderboards]
-
-    Teams --> Rosters
-    Rosters --> Eligibility
-    Eligibility --> Games
-    Games --> Stats
-    Stats --> Seasons
-    Seasons --> Auth
-    Auth --> Leaderboards
-```
-
-The service layer currently owns authentication decisions. As domain rules grow, it can also centralize eligibility rules, scheduling, statistics capture, standings calculations, and administrative permissions.
-
-## Current Conventions
-
-- Routes handle HTTP responses and client-visible errors.
-- Repositories are responsible for SQL and transactions.
-- Pydantic models validate incoming payloads.
-- The database keeps constraints that should not depend only on application code.
-- Public responses avoid exposing CURP in rosters.
-
-## Risks and Considerations
-
-- Production deployments must run `alembic upgrade head` as a controlled release step before starting the new application version.
-- Domain rules are partially split between routes and repositories; if they grow, extracting services would help.
-- Credential authentication, database-backed sessions, and role-based write authorization are implemented.
-- Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` by default; local non-HTTPS environments must explicitly disable the secure flag.
-- CURP privacy must remain explicit as administrative and public endpoints are added.
-- Statistics imports replace one game's snapshot in a single transaction, so invalid workbooks cannot partially alter public totals.
-
-## Player Accounts And Dashboard
-
-`users.player_id` links one login to one global player identity. A player may
-claim an existing roster identity only when normalized name, CURP, and age
-match; a player identity can be linked to only one login. The personal
-dashboard is resolved from the authenticated session and never accepts a
-player identifier from the browser.
-
-Representatives may create teams. The creator is inserted into
-`team_representatives` in the same transaction, giving that user management
-rights only over the new team. Assignment uses the authenticated user id, not
-the legacy primary-role string, so cumulative-role users are linked correctly.
-Teams created before this behavior do not contain reliable creator history.
-An administrator must therefore select the correct representative explicitly;
-the application never guesses ownership from roster names or account data.
-The assignment write accepts the legacy primary role as well as the cumulative
-`user_roles` grant so accounts created before the multi-role migration remain
-manageable.
-League administrators perform team-level corrections in the dedicated
-`/teams/{team_id}/manage` change center. The public directory stays focused on
-discovery and roster navigation instead of rendering administrative forms in
-every team card.
-Players join rosters directly in V1 while the
-existing one-team-per-division and unique-jersey constraints remain active.
-
-### Representative Dashboard And Team Staff
-
-`teams.head_coach`, `teams.coach`, and `teams.manager` are nullable public
-metadata accepted during registration and editable by a team manager. The
-representative dashboard begins with `team_representatives`, then combines
-official standings, roster membership, and aggregates from
-`player_week_stats`. It never accepts a user id from the browser, preventing a
-representative from requesting another representative's operational view.
-Player rows link to public profiles; CURP and credentials are never selected.
-Assigned representatives and league administrators may add or replace a
-player photo after manual or CSV/XLSX roster creation. The write verifies both
-team-management permission and the player's membership in that exact roster.
-
-The representative dashboard derives its summary cards only from this already
-scoped read model. It must never fetch the public, unscoped team directory to
-calculate private representative totals.
-
-The referee dashboard uses `/api/games/mine/referee`, whose repository query
-starts from `game_referees.user_id`. The browser separates pending and completed
-assignments and derives summary cards from that scoped list. League
-administrators retain the schedule-image review controls on the same page, but
-ordinary referees cannot see those controls or call their write endpoints.
-
-The public `/privacy` page describes the actual data handled by the schema:
-identity and contact data, CURP, age, public profile fields, photos,
-memberships, statistics, roles, assignments, sessions, and technical request
-data. Public APIs must continue to omit CURP, email, password hashes, and
-session identifiers. Representatives loading rosters for minors are expected
-to hold the appropriate authorization.
-
-## Passing Leaderboard
-
-Passing rows store completed and attempted passes. Completion percentage is
-derived from aggregate totals and is never persisted separately. Through
-jornada 3, every player with at least one attempt qualifies. Beginning with
-jornada 4, a player needs at least 30 cumulative attempts in the division.
-The ranking sorts by percentage, then attempts, then player name.
-
-The official V1 leaderboard catalog is: completion percentage, receptions,
-points, tackles, interceptions, and sacks.
-
-Administrators import the per-game source rows from `/statistics`. The page
-provides the canonical `.xlsx` template and a game selector; a successful
-import replaces that game's complete statistics snapshot atomically.
-
-## Role Administration
-
-The first trusted `league_admin` is created from a local terminal. Subsequent
-roles are granted through `/admin/users`; both listing users and changing roles
-are protected by the backend administrator dependency. Responses never include
-password hashes or CURP, and administrators cannot demote themselves.
-The page keeps the authorized user response in memory and filters it locally by
-display name, legal name, or AKA. Search normalization ignores case and accents,
-so filtering does not add API traffic or expose additional identity fields.
-League administrators can also maintain the AKA of accounts carrying the
-`referee` role. Referee-only accounts store it on `users`; multi-role officials
-linked to a player store it on the canonical `players` identity, keeping the
-directory, assignments, OCR matching, roster, and player profile consistent.
-
-Administrators may also delete another account from this page, but cannot delete
-their own active account. Account deletion revokes access by cascading sessions,
-roles and representative assignments. A linked `players` row is deliberately
-preserved, so rosters, game history and individual statistics do not disappear.
-
-Administrators create non-player staff accounts through `POST /api/admin/users`.
-The request accepts cumulative operational roles but deliberately rejects the
-`player` role, because player identity must be claimed through the CURP-backed
-self-registration flow. Staff-only accounts therefore need no CURP, age, photo,
-or player record; a league president can hold `league_admin` and `referee`
-simultaneously.
-
-Assigned representatives and league administrators can replace a team's logo
-from its roster page. `require_team_manager` verifies ownership server-side;
-hiding the form for other roles is only a presentation concern.
-
-Public player profiles are available at `/players/{player_id}` and are linked
-from roster entries, leaderboards and player rows in administration. Their API
-read model reuses the dashboard's season totals, memberships and standings but
-never includes CURP, email, account roles or credentials.
-These accounts start with `must_change_password = true`. Login creates the
-session but redirects to `/change-password`; protected dependencies reject that
-session until the current password is verified and replaced.
-
-Authorization is cumulative. `user_roles` stores one or more roles per account:
-`league_admin`, `team_representative`, `player`, and `referee`. The legacy
-`users.role` column is maintained during the transition, but authorization
-checks use the complete role collection. A promoted player therefore retains
-their `player_id`, personal dashboard, and roster membership.
-
-`game_referees` links games to official accounts and records `position`,
-`assigned_by`, and `assigned_at`. Supported positions are Referee, Down Judge,
-Field Judge, Side Judge, and Statistician. Referee and Down Judge are required
-when an administrator confirms a complete imported role; the remaining slots
-are optional. This supports two referees plus a statistician for U6, three
-referees plus a statistician for normal games, and a fourth referee for finals.
-One account and one position can appear only once per game. A referee can read
-only their own assignments and position through `GET /api/games/mine/referee`;
-referee access does not grant score editing or league administration.
-Each visible assignment includes its complete ordered officiating crew so the
-referee knows who will work that game and in which position. This does not
-broaden game visibility: a referee still receives no games to which they are
-not personally assigned, and crew entries omit email and account metadata.
-
-The authenticated referee directory exposes only account id, legal/display
-name, AKA, and effective photo. It never returns email, roles, or credential
-material. A referee linked to a player identity reuses the player's canonical
-photo; a referee-only operational account stores its image on `users`. The
-referee dashboard requests a photo until an effective image exists, and the
-self-service write endpoint can modify only the current referee's image.
-
-`games.field_number` stores a field from 1 through 8. It is nullable only for
-historical imports whose source did not contain venue assignments; manually
-created games require it at the API boundary. The same value is exposed in the
-public schedule and private referee view.
-
-`games.start_time` stores the scheduled local time separately from the jornada
-and field. The referee grid importer updates both field and time after review;
-when OCR cannot recognize a time it preserves the existing value instead of
-erasing it.
-
-The referee-role import accepts JPG, PNG, WebP, XLSX, and UTF-8 CSV. Images use
-Pillow for safe raster decoding and local Tesseract OCR. Structured files avoid
-OCR: they can use either the league grid (a game row followed by its
-slash-delimited official row) or one row per game with jornada, campo, hora,
-local, visitante, and named official-position columns. CSV accepts comma or
-semicolon delimiters. Jornada may come from the grid heading or XLSX sheet
-name. `POST /api/games/referee-schedule/analyze` matches existing games using
-jornada, both team names, field, and time, then returns proposals, source text,
-and unresolved-name warnings without writing data. Image-grid times come from
-the printed hour column; an unreadable hour preserves the existing game time
-instead of deriving one from row position. Ambiguous games are never guessed.
-After an administrator reviews the table,
-`POST /api/games/referee-schedule/confirm` atomically updates the selected
-fields and replaces referee links only for those selected games. This two-step
-boundary prevents uncertain OCR or imported output from silently becoming an
-official assignment. Files are limited to 10 MB and 500 assignment rows.
-
-The unified `POST /api/games/schedule/analyze` endpoint reads every accepted
-format as a game calendar. Images are split by recognized jornada, time row,
-field, and local/visitor half-cell before matching teams. Referee-role OCR stays
-under `/api/games/referee-schedule/*` and the referee dashboard; importing a
-game image never changes official assignments.
-
-Browser OCR derives row boundaries from the complete schedule grid, including
-lightly colored horizontal lines, before recognizing individual cells. Time OCR
-uses a second single-line pass when the block result is unreadable. Whole-hour
-correction is permitted only when the detected schedule is itself an hourly
-sequence; irregular intervals remain unchanged. A failed time remains empty and
-must be corrected by an administrator before that proposal can be selected.
-
-The current image and structured-grid formats print four names in this order: Referee, Down Judge,
-Field Judge, Statistician. A five-name finals row inserts Side Judge before the
-Statistician. Empty slash-delimited positions remain empty, so a missing Field
-Judge does not shift the Statistician into the wrong role. Development data for
-schedule testing is created idempotently with
-`python -m scripts.seed_referee_schedule`; existing accounts and AKA values are
-reused before a technical test account is created.
-
-League administrators can assign, replace, or remove officials from the game
-detail view. Assigning an occupied position replaces that position atomically,
-which supports last-minute role changes without leaving duplicate assignments.
-The write endpoints remain protected by the administrator dependency.
-
-## Game Detail Privacy
-
-`player_week_stats.game_id` links an imported statistical row to the exact
-game. Imports backfill this link only when a team has exactly one matching game
-in the jornada, avoiding an arbitrary match when a schedule is ambiguous.
-Official workbooks retain the source's paired 15-row team blocks, so a team
-playing a doubleheader can have a separate player row for each game. Reimports
-reuse matching game records and update their inferred scores instead of
-deleting them, preserving field, time, and officiating assignments.
-Repeated matchups in the same jornada consume distinct game records in source
-order. The development seed creates missing teams and deterministic mock roster
-identities before importing, making repeated runs safe while keeping real
-players and existing memberships intact.
-
-The game detail endpoint always exposes teams, jornada, time, field, and score.
-Additional sections follow least privilege:
-
-- Players see only their own row for that game.
-- Team representatives see rows for participating teams they represent.
-- Referees see the officiating crew but no team statistics.
-- League administrators see both team statistics and officiating assignments.
-- Anonymous visitors see only public game information.
-
-Private keys are omitted from the response rather than returned as empty data,
-so the browser cannot reveal a hidden section that was never authorized.
-
-## Player Profile Media
-
-### Claiming a roster identity
-
-A representative may add a player to a roster before that player has login
-credentials. The later self-registration searches the global player identity
-by normalized CURP and requires the submitted legal name and age to match. A
-successful claim links the new user to the existing `players.id`; it does not
-create another player or another `team_players` membership. The existing team
-and jersey number are therefore preserved, while the submitted AKA and profile
-photo enrich the same public roster record and become available in the player
-dashboard. A mismatch is rejected instead of silently attaching the account.
-
-### Bulk roster imports
-
-Team managers may import up to 100 players from UTF-8 CSV or XLSX files with
-the canonical columns `nombre`, `curp`, `edad`, and `numero`. CSV imports accept
-comma or semicolon delimiters so files exported by regional Excel settings work
-without manual conversion. Every row is validated through `PlayerCreate`, and
-duplicate CURPs or jersey numbers inside the file report the offending row.
-Database writes share one transaction; identity, division, or jersey conflicts
-roll back the complete upload instead of leaving a partial roster. Imported
-players remain ordinary global identities and can later claim their account
-through the CURP-backed registration flow described above.
-
-The roster candidate search operates on global `players` identities rather
-than requiring a linked `users` account. This lets representatives reuse a
-minor's profile in another eligible branch/category while preserving one CURP,
-one public profile, and the existing one-team-per-division rule. Responses
-indicate whether an active account exists but never expose CURP or login data.
-
-Roster management is scoped by assignment, not merely by possession of the
-`team_representative` role. Representatives can see and use roster forms,
-imports, staff/logo updates, and player-photo controls only for teams linked to
-them in `team_representatives`. League administrators retain league-wide
-management access, while every roster remains publicly readable.
-
-Representative roster writes close at **October 16, 2026, 00:00** in
-`America/Mexico_City` (06:00 UTC). The full day of October 15 remains open.
-`services/roster_policy.py` defines this season-specific cutoff; server time,
-not the browser clock, decides whether it has passed. No scheduled job or
-database migration is required. Updating the deadline for another season
-requires an explicit code change and deployment.
-
-After the cutoff, `require_team_manager` returns HTTP 403 for representative
-POST/PUT/PATCH/DELETE requests, including manual registration, existing-player
-membership, CSV/XLSX imports, edits, deactivation, player photos, staff and logos.
-Read requests remain authorized as before. Administrators, including accounts
-with both roles, retain write access. A representative with an additional player
-role cannot bypass the cutoff through the self-service membership endpoint.
-Player-only self-service and representative team creation are outside this rule.
-
-Team detail responses expose `roster_closed` and `roster_closes_at`; `can_manage`
-becomes false for representatives after closure. The roster page shows the
-deadline or closed status and hides mutation controls on load. Requests from a
-page left open across midnight are still rejected by the server.
-
-Assigned representatives can correct a roster player's legal name, CURP, and
-jersey number. A roster removal is a soft deactivation of `team_players`, not a
-player deletion: the identity, login, and historical statistics remain intact,
-while the former jersey becomes available to an active player. Re-adding the
-same identity reactivates its existing membership.
-
-Player age is calendar-based and derived from the CURP birth year, meaning it
-is the age the player reaches during the current year. The seventeenth CURP
-character selects the 1900 or 2000 century according to RENAPO conventions.
-Manual registration and account creation show the derived read-only age, and
-CSV/XLSX imports require only `nombre`, `curp`, and `numero`; legacy files that
-still include `edad` remain accepted.
-
-`players.aka` stores an optional public nickname and
-`players.profile_photo_path` stores a generated public filename, while
-`profile_photo_data` and `profile_photo_type` store the validated image in
-PostgreSQL. New player accounts must submit a raster JPG, PNG, or WebP file no
-larger than 5 MB. The server validates its binary signature, never trusts the
-client filename, and serves accepted files from `/media/profiles`. This database
-persistence works across stateless Vercel Functions; object storage can replace
-the repository boundary later without changing public URLs. Players can maintain AKA from their authenticated
-dashboard, including accounts created before the field existed. The same public identity presentation is reused in
-the personal dashboard, dedicated team rosters, and individual-statistics
-leaderboards. AKA is preferred for display, the legal roster name remains
-visible as supporting identity, and players without media receive an initials
-placeholder rather than a broken image. User responses expose `display_name`,
-which prefers AKA for navigation, schedules, and official roles while retaining
-the legal `name` for administration and identity checks.
+- Routes handle HTTP errors; repositories own SQL and transactions; services
+  own parsing and cross-repository rules.
+- Imports that write data run in one transaction and lock what they need, so
+  a rejected file leaves no partial changes.
+- The database keeps constraints that must not depend only on application
+  code.
+- Schema changes must reach Preview and Production before dependent code is
+  merged; a merge deploys immediately.
+- The representative roster cutoff is a code constant; another season needs a
+  code change.
+- Scripts in `scripts/` have no Production guard; run them only against local
+  or Preview databases.
