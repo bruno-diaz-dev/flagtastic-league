@@ -45,12 +45,12 @@ def register_my_team(
     membership: TeamMembershipCreate,
     user=Depends(require_player)
 ):
-    """Let a player join one team per branch and category."""
-    if (
-        user_has_role(user, "team_representative")
-        and not user_has_role(user, "league_admin")
-        and roster_is_closed()
-    ):
+    """Let a player join one team per branch and category.
+
+    The roster cutoff applies to every non-administrator, not only to
+    representatives: after it, only an administrator can change a roster.
+    """
+    if not user_has_role(user, "league_admin") and roster_is_closed():
         raise HTTPException(status_code=403, detail=ROSTER_CLOSED_MESSAGE)
     team = get_team_by_id(team_id)
     if team is None:

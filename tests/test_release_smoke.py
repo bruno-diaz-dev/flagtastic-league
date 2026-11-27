@@ -36,8 +36,10 @@ def login(email, password="supersecret"):
     )
 
 
-def test_complete_release_flow_for_public_and_all_roles():
+def test_complete_release_flow_for_public_and_all_roles(monkeypatch):
     """Exercise the launch-critical flow from account setup to public results."""
+    # The player joins as if the roster were still open; the cutoff has its own tests.
+    monkeypatch.setattr("routes.dashboard.roster_is_closed", lambda: False)
     app.dependency_overrides.clear()
     client.cookies.clear()
     reset_test_database()

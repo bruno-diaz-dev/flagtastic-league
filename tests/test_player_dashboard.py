@@ -1,5 +1,6 @@
 """End-to-end tests for player registration and the personal dashboard."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from database import get_connection
@@ -47,6 +48,12 @@ def _clean_database():
 def setup_function():
     client.cookies.clear()
     _clean_database()
+
+
+@pytest.fixture(autouse=True)
+def roster_open(monkeypatch):
+    """These journeys run as if the roster were still open; the cutoff has its own tests."""
+    monkeypatch.setattr("routes.dashboard.roster_is_closed", lambda: False)
 
 
 def test_player_registers_joins_team_and_reads_dashboard():
