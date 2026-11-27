@@ -1122,7 +1122,10 @@ def test_preserving_import_does_not_touch_unrelated_live_capture():
     response = client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('new.xlsx', create_workbook(rows))})
     assert response.status_code == 200
     related = [['mixto', 'u8', 'Live Home', 1, 6, 0, 0, 0, 0, 0, 0]]
-    assert client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('live.xlsx', create_workbook(related))}).status_code == 422
+    # The live-captured team's rows are skipped and reported; nothing else fails.
+    live = client.post(endpoint, data={'existing_records': 'preserve'}, files={'file': ('live.xlsx', create_workbook(related))})
+    assert live.status_code == 200, live.text
+    assert [row['reason'] for row in live.json()['skipped']] == ['live_capture_game']
     assert len(client.get('/api/weeks/1/player-stats').json()) == 1
     with get_connection() as connection:
         assert connection.execute('SELECT state FROM game_live_sessions WHERE game_id = %s', (game,)).fetchone()['state'] == 'live'
@@ -1490,3 +1493,30 @@ def test_doubleheader_claims_an_unlinked_row_for_only_one_game():
         if row["player_id"] == diablos_two
     ]
     assert sorted(row["game_id"] for row in rows) == sorted([first, second])
+
+
+def test_registered_game_does_not_capture_a_label_naming_another_division_team():
+    halcones = create_team("Halcones Blanco")
+    lobos_kids = create_team("Lobos Kids")
+    lobos = create_team("Lobos")
+    create_player(halcones, "Halcon", "HALC010101HASXX001", 83)
+    create_player(lobos_kids, "Kid", "KIDS010101HASXX002", 10)
+    create_player(lobos, "Lobo", "LOBO010101HASXX003", 10)
+    schedule_game(halcones, lobos_kids)
+    workbook = load_workbook(BytesIO(create_official_workbook()))
+    for row in workbook['Wk 1'].iter_rows(min_row=2):
+        row[0].value = 'Halcones' if row[0].value == 'Tigres' else 'Lobos'
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+
+    response = client.post(
+        "/api/statistics/import", files={"file": ("all.xlsx", output.getvalue())}
+    )
+    assert response.status_code == 200, response.text
+    # "Lobos" is an exact registered team, so the Halcones Blanco vs Lobos
+    # Kids game is not this one: nothing is credited to either roster.
+    assert client.get("/api/weeks/1/player-stats").json() == []
+    assert {row["reason"] for row in response.json()["skipped"]} <= {
+        "game_unresolved", "game_team_unresolved"
+    }

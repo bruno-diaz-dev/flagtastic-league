@@ -137,6 +137,8 @@ def test_incomplete_official_passing_warns_and_preserves_other_metrics(jersey):
               'TD': [20], 'Tacleo': [jersey]}
     for label in labels:
         sheet.append(['Example', 'Fem 14', label, *events.get(label, [])])
+    for label in labels:  # Official sheets always pair each team with a rival.
+        sheet.append(['Rival', 'Fem 14', label])
     output = BytesIO()
     workbook.save(output)
     workbook.close()
@@ -258,3 +260,73 @@ def test_quarterback_points_and_interceptions_credit_only_the_thrower():
         ('interception_thrower_unresolved', 77),
         ('passing_points_thrower_unresolved', 11),
     ]
+
+
+BLOCK_LABELS = ['Intentos Pase', 'Completos Pase', 'Para % pases', 'Puntos Pase',
+                '6 Puntos', '2 Puntos', '1 Puntos', 'Intercepciones Pase', 'TD',
+                'Conv 1', 'Conv 2', 'Sacks', 'Tacleo', 'Intercepciones Def', 'Asistencia']
+
+
+def sheets_workbook(sheets):
+    """sheets: {title: [(team, category, {label: jerseys})]} in block order."""
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    for title, blocks in sheets.items():
+        sheet = workbook.create_sheet(title)
+        sheet.append(['Equipo', 'Categoria', 'Estadistica'])
+        for team, category, values in blocks:
+            for label in BLOCK_LABELS:
+                sheet.append([team, category, label, *values.get(label, [])])
+    output = BytesIO()
+    workbook.save(output)
+    workbook.close()
+    return output.getvalue()
+
+
+def test_import_mode_skips_only_the_game_with_an_unknown_category():
+    content = sheets_workbook({'Wk 1': [
+        ('Lobos', 'Var Libre', {'TD': [7]}), ('Pitbulls', 'Var Libre', {'TD': [9]}),
+        ('Halcones', 'Categoria rara', {'TD': [5]}), ('Ravens', 'Var Libre', {'TD': [3]}),
+    ]})
+    warnings = []
+    rows = parse_statistics_workbook(content, warnings=warnings)[1]
+    assert {row['team'] for row in rows} == {'Lobos', 'Pitbulls'}
+    assert [w['reason'] for w in warnings] == ['unknown_category']
+    games = parse_games_workbook(content)[1]
+    assert [(g['home_team'], g['away_team']) for g in games] == [('Lobos', 'Pitbulls')]
+    # Strict callers (scripts) still reject the workbook.
+    with pytest.raises(StatisticsFileError, match='categoria desconocida'):
+        parse_statistics_workbook(content)
+
+
+def test_import_mode_skips_unpaired_and_empty_sheets_but_keeps_valid_ones():
+    content = sheets_workbook({
+        'Wk 1': [('Lobos', 'Var Libre', {'TD': [7]}), ('Pitbulls', 'Var Libre', {'TD': [9]})],
+        # Three blocks: the trailing team has no rival and is skipped.
+        'Wk 2': [('Lobos', 'Var Libre', {'TD': [7]}), ('Pitbulls', 'Var Libre', {}),
+                 ('Ravens', 'Var Libre', {'TD': [3]})],
+        # Matchups only, no events yet.
+        'Wk 3': [('Lobos', 'Var Libre', {}), ('Ravens', 'Var Libre', {})],
+    })
+    warnings = []
+    parsed = parse_statistics_workbook(content, warnings=warnings)
+    assert sorted(parsed) == [1, 2]
+    assert {row['team'] for row in parsed[2]} == {'Lobos'}
+    assert sorted((w['week'], w['reason']) for w in warnings) == [
+        (2, 'unpaired_block'), (3, 'empty_week'),
+    ]
+    games = parse_games_workbook(content)
+    assert sorted(games) == [1, 2]
+    assert [(g['home_team'], g['away_team']) for g in games[2]] == [('Lobos', 'Pitbulls')]
+
+
+def test_import_mode_skips_games_between_different_divisions():
+    content = sheets_workbook({'Wk 1': [
+        ('Lobos', 'Var Libre', {'TD': [7]}), ('Pitbulls', 'Var U14', {'TD': [9]}),
+        ('Halcones', 'Var Libre', {'TD': [5]}), ('Ravens', 'Var Libre', {'TD': [3]}),
+    ]})
+    warnings = []
+    rows = parse_statistics_workbook(content, warnings=warnings)[1]
+    assert {row['team'] for row in rows} == {'Halcones', 'Ravens'}
+    assert [w['reason'] for w in warnings] == ['division_mismatch']
+    assert [g['game_index'] for g in parse_games_workbook(content)[1]] == [1]
