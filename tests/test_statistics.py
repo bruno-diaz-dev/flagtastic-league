@@ -123,6 +123,25 @@ def upload_week(week, rows, filename="estadisticas.xlsx"):
     )
 
 
+def schedule_game(home_id, away_id, week=1, field_number=1):
+    """Register a fixture; statistics imports only link to existing games."""
+    response = client.post("/api/games", json={
+        "home_team_id": home_id, "away_team_id": away_id,
+        "week": week, "field_number": field_number,
+    })
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def team_id_by_name(name):
+    connection = get_connection()
+    row = connection.execute(
+        "SELECT id FROM teams WHERE name = %s", (name,)
+    ).fetchone()
+    connection.close()
+    return row["id"]
+
+
 def create_rosters():
     tigres = create_team("Tigres")
     ravens = create_team("Ravens")
@@ -179,6 +198,7 @@ def test_imports_the_official_horizontal_workbook_format():
     create_player(tigres, "Receiver", "RECX010101HASXX002", 10)
     create_player(tigres, "Defender", "DEFN010101HASXX003", 22)
     ravens = create_team("Ravens")
+    registered = schedule_game(tigres, ravens)
 
     response = client.post(
         "/api/statistics/import",
@@ -199,11 +219,14 @@ def test_imports_the_official_horizontal_workbook_format():
     assert leaders["receptions"][0]["player_name"] == "Receiver"
     assert leaders["points"][0]["value"] == 6
     assert leaders["sacks"][0]["value"] == 2
+    # The import links to the registered fixture; it never creates a game or
+    # writes a score inferred from the statistics file.
     games = client.get("/api/games").json()
+    assert [game["id"] for game in games] == [registered]
     assert games[0]["home_team"]["id"] == tigres
     assert games[0]["away_team"]["id"] == ravens
-    assert games[0]["home_score"] == 6
-    assert games[0]["away_score"] == 0
+    assert games[0]["home_score"] is None
+    assert games[0]["away_score"] is None
 
 
 def test_doubleheader_statistics_remain_scoped_to_each_game():
@@ -214,6 +237,8 @@ def test_doubleheader_statistics_remain_scoped_to_each_game():
     create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
     create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
     create_player(apxgp, "APXGP Three", "APXX010101HASXX003", 3)
+    schedule_game(kittys, diablos, week=5, field_number=1)
+    schedule_game(diablos, apxgp, week=5, field_number=2)
 
     response = client.post(
         "/api/statistics/import",
@@ -242,12 +267,14 @@ def test_doubleheader_statistics_remain_scoped_to_each_game():
     assert second_teams == {diablos, apxgp}
 
 
-def test_repeated_matchup_creates_two_distinct_game_snapshots():
+def test_repeated_matchup_links_two_distinct_registered_games():
     """Two games between the same teams cannot share one statistics identity."""
     kittys = create_team("Kittys", "mixto", "libre")
     diablos = create_team("Diablos", "mixto", "libre")
     create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
     create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
+    schedule_game(kittys, diablos, week=5, field_number=1)
+    schedule_game(kittys, diablos, week=5, field_number=2)
 
     response = client.post(
         "/api/statistics/import",
@@ -324,8 +351,9 @@ def test_unknown_numbers_are_skipped_only_in_their_own_team():
 
 def test_official_import_reports_missing_numbers_and_keeps_valid_stats():
     tigres = create_team("Tigres")
-    create_team("Ravens")
+    ravens = create_team("Ravens")
     create_player(tigres, "Quarterback", "QBXX010101HASXX001", 83)
+    schedule_game(tigres, ravens)
     response = client.post(
         "/api/statistics/import",
         files={"file": ("stats.xlsx", create_official_workbook())},
@@ -392,7 +420,7 @@ def test_import_accumulates_across_weeks_and_repeated_file_is_idempotent():
     assert duplicate.json()["created"] == 0
     saved = client.get(f"/api/players/{player_id}/stats").json()
     assert saved["points"] == 30
-    assert saved["passes_attempted"] == 40
+    assert saved["passes_attempted"] == 54  # 14 (week 1) + 40 (week 2)
     assert len(client.get("/api/weeks/2/player-stats").json()) == 1
 
 
@@ -420,12 +448,23 @@ def test_reimport_official_workbook_keeps_doubleheader_games_distinct():
     create_player(kittys, "Kittys One", "KITX010101HASXX001", 1)
     create_player(diablos, "Diablos Two", "DIAX010101HASXX002", 2)
     create_player(apxgp, "APXGP Three", "APXX010101HASXX003", 3)
+    schedule_game(kittys, diablos, week=5, field_number=1)
+    schedule_game(diablos, apxgp, week=5, field_number=2)
     excel = create_doubleheader_workbook()
+    results = []
     for _ in range(2):
         response = client.post(
             "/api/statistics/import", files={"file": ("week5.xlsx", excel)}
         )
         assert response.status_code == 200, response.text
+        results.append(response.json())
+    # Attendance rows are saved once; a repeated file only reports them as
+    # already registered.
+    assert (results[0]["attendance_added"],
+            results[0]["attendance_already_registered"]) == (4, 0)
+    assert (results[1]["attendance_added"],
+            results[1]["attendance_already_registered"]) == (0, 4)
+    assert len(client.get("/api/games").json()) == 2
     stats = client.get("/api/weeks/5/player-stats").json()
     assert len([row for row in stats if row["player_name"] == "Diablos Two"]) == 2
     assert len(stats) == 4
@@ -471,7 +510,7 @@ def test_leaderboards_limit_results_and_apply_passing_threshold():
     assert leaders["completion_percentage"] == []
 
     qualifying = rows[0].copy()
-    qualifying[-2:] = [29, 38]
+    qualifying[-2:] = [40, 48]  # 2 earlier + 48 = exactly the 50-attempt minimum
     assert upload_week(4, [qualifying]).status_code == 200
     leaders = client.get(
         "/api/statistics/leaderboards?branch=varonil&category=libre"
@@ -521,14 +560,14 @@ def test_leaderboards_use_unique_places_and_limit_to_five():
     ], 1):
         create_player(team, f'Tied Player {index}', f'TIED{index:014d}', index)
         rows.append(['varonil', 'libre', 'Tied Leaders', index,
-                     points, 0, 0, 0, 0, completed * 8, attempted * 8])
+                     points, 0, 0, 0, 0, completed * 25, attempted * 25])
     assert upload_week(1, rows).status_code == 200
     leaders = client.get(
         '/api/statistics/leaderboards?branch=varonil&category=libre'
     ).json()
     assert [row['rank'] for row in leaders['points']] == [1, 2, 3, 4, 5]
     assert [row['rank'] for row in leaders['completion_percentage']] == [1, 2, 3, 4, 5]
-    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [48, 32, 16]
+    assert [row['passes_attempted'] for row in leaders['completion_percentage'][:3]] == [150, 100, 50]
 
 
 def test_single_division_upload_preserves_other_divisions_in_same_week():
@@ -618,6 +657,7 @@ def test_official_workbook_preserves_unmentioned_categories():
 
 def test_official_workbook_does_not_overwrite_completed_game_scores():
     create_rosters()
+    schedule_game(team_id_by_name("Tigres"), team_id_by_name("Ravens"))
     first = client.post(
         "/api/statistics/import",
         files={"file": ("all.xlsx", create_official_workbook())},
@@ -978,7 +1018,8 @@ def test_preserving_import_does_not_touch_unrelated_live_capture():
 
 def test_original_official_team_labels_match_joined_registered_names():
     team = create_team('SelAgsFemU14', 'femenil', 'libre')
-    create_team('Ravens', 'femenil', 'libre')
+    rival = create_team('Ravens', 'femenil', 'libre')
+    schedule_game(team, rival)
     for number, name, curp in ((83, 'Passer', 'HHHH000101HAGRRN08'), (10, 'Receiver', 'IIII000101HAGRRN09'), (22, 'Defender', 'JJJJ000101HAGRRN10')):
         create_player(team, name, curp, number)
     workbook = load_workbook(BytesIO(create_official_workbook()))
@@ -1017,7 +1058,7 @@ def test_all_leaderboards_have_unique_stable_places_even_with_identical_stats():
     players = []
     for index in range(1, 7):
         players.append(create_player(team, f'Player {7-index}', f'UNIQ{index:014d}', index))
-        rows.append(['varonil', 'libre', 'Exact Ties', index, 6, 2, 1, 1, 3, 10, 20])
+        rows.append(['varonil', 'libre', 'Exact Ties', index, 6, 2, 1, 1, 3, 25, 50])
     assert upload_week(1, rows).status_code == 200
     leaders = client.get('/api/statistics/leaderboards?branch=varonil&category=libre').json()
     for metric in ('points', 'receptions', 'tackles', 'interceptions', 'sacks', 'completion_percentage'):
@@ -1043,7 +1084,7 @@ def test_sporting_tiebreakers_precede_player_and_team_ids():
 ])
 def test_incomplete_passing_import_keeps_published_passing_and_is_idempotent(endpoint):
     home = create_team('Tigres')
-    create_team('Ravens')
+    schedule_game(home, create_team('Ravens'))
     for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
                                (10, 'Receiver', 'DDDD000101HAGRRN04'),
                                (22, 'Defender', 'EEEE000101HAGRRN05')):
@@ -1075,7 +1116,7 @@ def test_incomplete_passing_import_keeps_published_passing_and_is_idempotent(end
 
 def test_new_incomplete_passing_import_does_not_fabricate_attempts_or_drop_receptions():
     home = create_team('Tigres')
-    create_team('Ravens')
+    schedule_game(home, create_team('Ravens'))
     for number, name, curp in ((83, 'Passer', 'CCCC000101HAGRRN03'),
                                (10, 'Receiver', 'DDDD000101HAGRRN04'),
                                (22, 'Defender', 'EEEE000101HAGRRN05')):
@@ -1216,6 +1257,13 @@ def test_empty_named_games_do_not_block_import_or_shift_doubleheader_stats(exist
             files={'file': ('source.xlsx', content.getvalue())},
             data={'existing_records': existing_records})
         assert response.status_code == 200, response.text
+        if not registered_games:
+            # Statistics never create fixtures: with none registered, every
+            # game is reported as skipped and nothing is saved.
+            assert client.get('/api/games').json() == []
+            assert client.get('/api/weeks/3/player-stats').json() == []
+            assert response.json()['imported'] == 0
+            continue
         games = sorted(client.get('/api/games').json(), key=lambda game: game['id'])
         assert len(games) == 2
         assert [(game['home_team']['id'], game['away_team']['id']) for game in games] == [(home, away)] * 2

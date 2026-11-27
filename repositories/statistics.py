@@ -109,10 +109,12 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         tuple(sorted((home["id"], away["id"])))
                         for _, home, away in candidates
                     }
-                    if len(distinct_pairs) > 1 and not link_existing_games_only:
+                    if len(distinct_pairs) > 1:
                         # Shared youth names can have the same opponent in two
                         # branches. Use only an exact published score match;
                         # otherwise retain the ambiguity error rather than guess.
+                        # This is a read-only comparison, so it is also safe when
+                        # linking to existing games without modifying them.
                         score_matches = []
                         for match, home, away in candidates:
                             if match["status"] != "completed":
