@@ -1,32 +1,26 @@
 """Administrator reports for regular-season finals eligibility."""
 
 from database import get_connection
+from repositories.regular_season import regular_season_game_sql
 
 
 def get_players_below_finals_attendance():
     """Return active roster members below the threshold in their category."""
+    regular = regular_season_game_sql("g")
     with get_connection() as connection:
-        rows = connection.execute("""
+        rows = connection.execute(f"""
             WITH regular_games AS (
                 SELECT g.id AS game_id, g.home_team_id AS team_id, home.category
                 FROM games g
                 JOIN teams home ON home.id = g.home_team_id
                 JOIN teams away ON away.id = g.away_team_id
-                WHERE NOT g.is_friendly AND home.category = away.category
-                  AND NOT EXISTS (
-                      SELECT 1 FROM game_bracket_slots slots
-                      WHERE slots.target_game_id = g.id
-                  )
+                WHERE {regular} AND home.category = away.category
                 UNION ALL
                 SELECT g.id AS game_id, g.away_team_id AS team_id, away.category
                 FROM games g
                 JOIN teams home ON home.id = g.home_team_id
                 JOIN teams away ON away.id = g.away_team_id
-                WHERE NOT g.is_friendly AND home.category = away.category
-                  AND NOT EXISTS (
-                      SELECT 1 FROM game_bracket_slots slots
-                      WHERE slots.target_game_id = g.id
-                  )
+                WHERE {regular} AND home.category = away.category
             ), team_totals AS (
                 SELECT team_id, category, COUNT(*)::int AS scheduled_games
                 FROM regular_games
