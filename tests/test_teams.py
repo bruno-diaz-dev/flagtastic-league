@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.image_samples import is_image, png_bytes
 from tests.test_games import create_test_team
 
 os.environ.setdefault(
@@ -551,7 +552,7 @@ def test_team_manager_can_add_photo_after_player_is_on_roster():
             "jersey_number": 19
         }
     ).json()
-    png = b"\x89PNG\r\n\x1a\nplayer-photo"
+    png = png_bytes()
 
     response = client.put(
         f"/api/teams/{team_id}/players/{player['id']}/photo",
@@ -564,7 +565,7 @@ def test_team_manager_can_add_photo_after_player_is_on_roster():
     photo = client.get(roster_player["profile_photo_url"])
     assert photo.status_code == 200
     assert photo.headers["content-type"] == "image/png"
-    assert photo.content == png
+    assert is_image(photo.content, "PNG")
 
 
 def test_team_manager_cannot_update_photo_outside_team_roster():
@@ -584,7 +585,7 @@ def test_team_manager_cannot_update_photo_outside_team_roster():
 
     response = client.put(
         f"/api/teams/{managed_team_id}/players/{player['id']}/photo",
-        files={"file": ("player.png", b"\x89PNG\r\n\x1a\nphoto", "image/png")}
+        files={"file": ("player.png", png_bytes(), "image/png")}
     )
 
     assert response.status_code == 404

@@ -8,10 +8,11 @@ from database import get_connection
 from main import app
 from models import UserCreate
 from repositories.users import create_user
+from tests.image_samples import png_bytes
 
 
 client = TestClient(app, base_url="https://testserver")
-PROFILE_PNG = b"\x89PNG\r\n\x1a\nrelease-smoke-profile"
+PROFILE_PNG = png_bytes()
 
 
 def reset_test_database():

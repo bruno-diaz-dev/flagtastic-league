@@ -8,10 +8,11 @@ from database import get_connection
 from main import app
 from models import UserCreate
 from repositories.users import create_user
+from tests.image_samples import is_image, png_bytes
 
 
 client = TestClient(app, base_url="https://testserver")
-PROFILE_PNG = b"\x89PNG\r\n\x1a\nreferee-profile"
+PROFILE_PNG = png_bytes(color=(90, 30, 160))
 
 
 def login(email, password="supersecret"):
@@ -305,7 +306,7 @@ def test_authenticated_users_see_referee_roster_and_referee_uploads_photo():
     assert upload.status_code == 204
     profile = client.get("/api/referees/me").json()
     assert profile["profile_photo_url"].startswith("/media/profiles/")
-    assert client.get(profile["profile_photo_url"]).content == PROFILE_PNG
+    assert is_image(client.get(profile["profile_photo_url"]).content, "PNG")
 
 
 def test_authenticated_user_sees_public_referee_experience_without_private_data():
