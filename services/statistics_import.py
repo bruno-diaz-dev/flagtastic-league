@@ -240,25 +240,25 @@ def _official_blocks_with_divisions(sheet, week, issues=None):
 def _official_sheet_layout(sheet, week, issues):
     """Blocks plus the game pairs that cannot be imported safely.
 
-    Returns ``(blocks, skipped_pairs)``. ``skipped_pairs`` holds game indexes
-    to skip, or is None when the whole sheet must be skipped because blocks
-    cannot be paired reliably. Both readers use it, so player rows and games
-    are always skipped together. Problems are appended to ``issues``.
+    Returns ``(blocks, skipped_pairs)``; ``skipped_pairs`` holds the game
+    indexes to skip. Both readers use it, so player rows and games are always
+    skipped together. Problems are appended to ``issues``.
     """
     blocks = _official_blocks_with_divisions(sheet, week, issues)
+    skipped_pairs = set()
     if len(blocks) % 2:
+        # The trailing block has no rival. Earlier pairs are kept; any shift
+        # is caught later because pairs must match a registered game.
         issues.append({
-            "reason": "unpaired_block", "row": blocks[-1][0] if blocks else None,
-            "team_name": "",
+            "reason": "unpaired_block", "row": blocks[-1][0],
+            "team_name": str(blocks[-1][1][0][0]).strip(),
             "detail": (
-                f"{sheet.title}: existe un equipo sin rival en los bloques de "
-                "partido; se omitió la hoja completa para no emparejar equipos "
-                "equivocados"
+                f"{sheet.title}, fila {blocks[-1][0]}: el equipo no tiene rival "
+                "en los bloques de partido; se omitió ese bloque"
             ),
         })
-        return blocks, None
-    skipped_pairs = set()
-    for index in range(0, len(blocks), 2):
+        skipped_pairs.add((len(blocks) - 1) // 2)
+    for index in range(0, len(blocks) - len(blocks) % 2, 2):
         home, away = blocks[index:index + 2]
         if home[2] is None or away[2] is None:
             skipped_pairs.add(index // 2)
@@ -289,8 +289,6 @@ def _parse_official_games(sheet, week):
     reports the same problems as warnings.
     """
     raw_blocks, skipped_pairs = _official_sheet_layout(sheet, week, [])
-    if skipped_pairs is None:
-        return []
     blocks = []
     for row_number, block, branch, category in raw_blocks:
         blocks.append({
@@ -304,9 +302,9 @@ def _parse_official_games(sheet, week):
 
     games = []
     for index in range(0, len(blocks), 2):
-        home, away = blocks[index:index + 2]
         if index // 2 in skipped_pairs:
             continue
+        home, away = blocks[index:index + 2]
         # Named schedule placeholders are not played results. Keep the source
         # index for later pairs so their player rows still link to the right game.
         if not home["has_player_data"] and not away["has_player_data"]:
@@ -344,14 +342,12 @@ def _parse_official_week_sheet(sheet, week, warnings=None):
         blocks = _official_blocks_with_divisions(sheet, week)
         skipped_pairs = set()
     else:
-        # Imports skip the affected game (or sheet) and keep going.
+        # Imports skip the affected game and keep going.
         issues = []
         blocks, skipped_pairs = _official_sheet_layout(sheet, week, issues)
         warnings.extend(
             {**issue, "week": week, "sheet": sheet.title} for issue in issues
         )
-        if skipped_pairs is None:
-            return []
     if not blocks:
         return []
     source_rows = {}

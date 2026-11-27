@@ -129,7 +129,7 @@ function quarterbackWarningText(warning) {
 const SHEET_WARNING_REASONS = {
     unknown_category: "Categoría desconocida: se omitió ese partido",
     incomplete_block: "Bloque de equipo incompleto: se omitió",
-    unpaired_block: "Equipo sin rival: se omitió la hoja completa",
+    unpaired_block: "Equipo sin rival: se omitió ese bloque",
     division_mismatch: "Rivales de distinta división: se omitió ese partido",
     empty_week: "Hoja sin estadísticas: se omitió",
 };

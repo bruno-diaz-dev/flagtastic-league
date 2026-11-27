@@ -137,6 +137,8 @@ def test_incomplete_official_passing_warns_and_preserves_other_metrics(jersey):
               'TD': [20], 'Tacleo': [jersey]}
     for label in labels:
         sheet.append(['Example', 'Fem 14', label, *events.get(label, [])])
+    for label in labels:  # Official sheets always pair each team with a rival.
+        sheet.append(['Rival', 'Fem 14', label])
     output = BytesIO()
     workbook.save(output)
     workbook.close()
@@ -300,7 +302,7 @@ def test_import_mode_skips_only_the_game_with_an_unknown_category():
 def test_import_mode_skips_unpaired_and_empty_sheets_but_keeps_valid_ones():
     content = sheets_workbook({
         'Wk 1': [('Lobos', 'Var Libre', {'TD': [7]}), ('Pitbulls', 'Var Libre', {'TD': [9]})],
-        # Three blocks: pairs cannot be trusted, so the whole sheet is skipped.
+        # Three blocks: the trailing team has no rival and is skipped.
         'Wk 2': [('Lobos', 'Var Libre', {'TD': [7]}), ('Pitbulls', 'Var Libre', {}),
                  ('Ravens', 'Var Libre', {'TD': [3]})],
         # Matchups only, no events yet.
@@ -308,12 +310,14 @@ def test_import_mode_skips_unpaired_and_empty_sheets_but_keeps_valid_ones():
     })
     warnings = []
     parsed = parse_statistics_workbook(content, warnings=warnings)
-    assert sorted(parsed) == [1]
+    assert sorted(parsed) == [1, 2]
+    assert {row['team'] for row in parsed[2]} == {'Lobos'}
     assert sorted((w['week'], w['reason']) for w in warnings) == [
         (2, 'unpaired_block'), (3, 'empty_week'),
     ]
-    # Skipped and empty sheets yield no games either.
-    assert sorted(parse_games_workbook(content)) == [1]
+    games = parse_games_workbook(content)
+    assert sorted(games) == [1, 2]
+    assert [(g['home_team'], g['away_team']) for g in games[2]] == [('Lobos', 'Pitbulls')]
 
 
 def test_import_mode_skips_games_between_different_divisions():
