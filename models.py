@@ -386,10 +386,11 @@ class RegisteredPlayerMembershipCreate(BaseModel):
     jersey_number: int = Field(ge=0, le=999)
     curp: str | None = Field(default=None, max_length=18)
 
-    @field_validator("curp")
+    @field_validator("curp", mode="before")
     @classmethod
     def normalize_curp(cls, curp):
-        normalized = curp.strip().upper() if curp is not None else ""
+        # Before the length check, so pasted surrounding spaces are accepted.
+        normalized = curp.strip().upper() if isinstance(curp, str) else ""
         return normalized or None
 
 

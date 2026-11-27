@@ -15,6 +15,7 @@ from services import roster_policy
 
 client = TestClient(app)
 REPRESENTATIVE = {"id": 9001, "role": "team_representative", "roles": ["team_representative"]}
+ADMINISTRATOR = {"id": 0, "role": "league_admin", "roles": ["league_admin"]}
 PROFILE_PNG = b"\x89PNG\r\n\x1a\nidentity-protection"
 
 
@@ -155,7 +156,7 @@ def test_representative_still_corrects_a_roster_only_identity_and_admin_any():
     assert fixed.status_code == 200, fixed.text
     assert stored_name(roster_only) == "Roster Only"
 
-    app.dependency_overrides.pop(require_team_manager)
+    app.dependency_overrides[require_team_manager] = lambda: ADMINISTRATOR
     admin_fix = client.patch(f"/api/teams/{team_id}/players/{with_account}",
                              json=patch_payload("Account Player Fixed", "ACCP900101HASXXX01", 5))
     assert admin_fix.status_code == 200, admin_fix.text
