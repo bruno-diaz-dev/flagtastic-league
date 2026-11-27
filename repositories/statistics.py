@@ -797,8 +797,10 @@ LEADER_TIEBREAKERS = {
     "tackles": "Más tacleadas; después más capturas y más intercepciones.",
     "interceptions": "Más intercepciones; después más tacleadas.",
     "sacks": "Más capturas; después más tacleadas.",
-    "completion_percentage": "Porcentaje exacto; después más intentos y más pases completos. Mínimo: 15 intentos acumulados.",
+    "completion_percentage": "Porcentaje exacto; después más intentos y más pases completos. Mínimo: 50 intentos acumulados.",
 }
+
+MINIMUM_PASS_ATTEMPTS = 50
 
 
 def _leader_score(row, metric):
@@ -869,7 +871,7 @@ def get_leaderboards(branch, category, limit=5):
         ]
 
     latest_week = max((row["latest_week"] for row in rows), default=0)
-    minimum_attempts = 15  # Total completed + incomplete attempts over all weeks
+    minimum_attempts = MINIMUM_PASS_ATTEMPTS  # Completed + incomplete attempts across all weeks
     passing_ranked = _rank_leaders(
         (row for row in rows if row["passes_attempted"] > 0
          and row["passes_attempted"] >= minimum_attempts),
@@ -895,6 +897,7 @@ def get_leaderboards(branch, category, limit=5):
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }
     return result
+
 
 
 

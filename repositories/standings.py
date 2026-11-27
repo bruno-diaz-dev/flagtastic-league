@@ -71,6 +71,15 @@ def get_standings(branch, category):
             AND games.away_score IS NOT NULL
             AND games.status = 'completed'
             AND NOT games.is_friendly
+            AND EXISTS (
+                SELECT 1
+                FROM teams AS opponent
+                WHERE opponent.id = CASE
+                    WHEN games.home_team_id = teams.id THEN games.away_team_id
+                    ELSE games.home_team_id
+                END
+                AND opponent.category = teams.category
+            )
         WHERE
             {branch_filter}
             teams.category = %s AND NOT teams.is_guest
@@ -117,3 +126,4 @@ def get_standings(branch, category):
     )
 
     return standings
+

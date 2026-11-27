@@ -176,7 +176,13 @@ async def import_official_statistics(
     try:
         weeks = parse_statistics_workbook(content, warnings=warnings)
         games = parse_games_workbook(content)
-        imported = import_statistics_workbook(weeks, games, existing_records=existing_records)
+        # A statistics workbook describes player performance; the schedule is
+        # authoritative for which games exist. Skip stats for unregistered
+        # games rather than creating completed games from inferred scores.
+        imported = import_statistics_workbook(
+            weeks, games, link_existing_games_only=True,
+            existing_records=existing_records,
+        )
     except (StatisticsFileError, StatisticsValidationError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return {
@@ -217,3 +223,4 @@ def statistics_leaderboards(branch: str, category: str, response: Response):
     response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=60"
     return get_leaderboards(branch, category)
+

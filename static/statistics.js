@@ -22,7 +22,7 @@ const leaderboardYouthBranch = document.querySelector("#leaderboard-youth-branch
 const leaderboardDefinitions = {
     completion_percentage: {
         title: "El Francotirador",
-        statistic: "Porcentaje de pases completos · mínimo 15 intentos totales (completos + incompletos)"
+        statistic: "Porcentaje de pases completos · mínimo 50 intentos totales (completos + incompletos)"
     },
     receptions: {title: "Manos de Acero", statistic: "Recepciones"},
     points: {title: "Máquina de Puntos", statistic: "Puntos"},
@@ -82,7 +82,7 @@ function renderLeaderboards(leaderboards) {
                     </tr>
                 `).join("")
                 : `<tr><td colspan="3">${metric === "completion_percentage"
-                    ? `Sin pasadores con ${leaderboards.passing_qualification?.minimum_attempts ?? 15} intentos acumulados.`
+                    ? `Sin pasadores con ${leaderboards.passing_qualification?.minimum_attempts ?? 50} intentos acumulados.`
                     : "Sin estadísticas registradas."}</td></tr>`;
 
             return `
@@ -336,6 +336,7 @@ if (statisticsImportForm) {
 }
 updateLeaderboardBranchControl();
 loadLeaderboards();
+
 
 
 
