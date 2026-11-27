@@ -554,13 +554,24 @@ def test_youth_leaderboards_combine_legacy_branches():
 def test_unified_leaderboards_list_a_player_once_with_best_team_record():
     """U12 combines branches; a player on two rosters keeps her best record."""
     mixed = create_team("Halcones", "mixto", "u12")
-    female = create_team("Gavilanes", "femenil", "u12")
     shared = create_player(mixed, "Shared Passer", "SHAR010101MASXX001", 16)
-    joined = client.post(
-        f"/api/teams/{female}/players/registered",
-        json={"player_id": shared, "jersey_number": 16},
+    # The API now stores U12 teams as mixto and rejects a second U12 roster,
+    # but legacy femenil U12 teams (Nómadas femenil) still share players.
+    connection = get_connection()
+    female = connection.execute(
+        """
+        INSERT INTO teams (name, branch, category, status)
+        VALUES ('Gavilanes', 'femenil', 'u12', 'active')
+        RETURNING id
+        """
+    ).fetchone()["id"]
+    connection.execute(
+        "INSERT INTO team_players (team_id, player_id, jersey_number) "
+        "VALUES (%s, %s, 16)",
+        (female, shared),
     )
-    assert joined.status_code == 201, joined.text
+    connection.commit()
+    connection.close()
     other = create_player(female, "Other Passer", "OTHR010101MASXX002", 4)
 
     assert upload_week(1, [

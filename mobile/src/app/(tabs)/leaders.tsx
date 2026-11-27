@@ -43,7 +43,7 @@ export default function LeadersScreen() {
                 <Avatar name={leader.player_name} url={leader.profile_photo_url} size={leader.rank === 1 ? 72 : leader.rank === 2 ? 64 : 56} />
                 <Text numberOfLines={1} style={styles.player}>{leader.player_aka || leader.player_name}</Text>
                 <Text numberOfLines={1} style={styles.team}>{leader.team_name} · #{leader.jersey_number}</Text>
-                <Text style={styles.score}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
+                <Text style={styles.score}>{leader.value}</Text>
                 <Text style={styles.unit}>{metric.unit}</Text>
                 {selected === 'passer_rating' && leader.passes_attempted != null ? <Text style={styles.team}>{leader.passes_completed}/{leader.passes_attempted} C/I · {leader.passing_points ?? 0} pts · {leader.passes_intercepted ?? 0} int</Text> : null}
               </View>
@@ -55,7 +55,7 @@ export default function LeadersScreen() {
               <View key={`${leader.player_id}-${leader.team_id}`} style={styles.listRow}>
                 <Text style={styles.listPlace}>{leader.rank}</Text><Avatar name={leader.player_name} url={leader.profile_photo_url} size={40} />
                 <View style={styles.listCopy}><Text style={styles.listName}>{leader.player_aka || leader.player_name}</Text><Text style={styles.listTeam}>{leader.team_name} · #{leader.jersey_number}</Text></View>
-                <Text style={styles.listValue}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
+                <Text style={styles.listValue}>{leader.value}</Text>
               </View>
             ))}
           </Panel>
