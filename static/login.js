@@ -15,6 +15,11 @@ loginForm.addEventListener("submit", async (event) => {
             password: formData.get("password")
         });
 
+        if (response.status === 429) {
+            const body = await response.json().catch(() => ({}));
+            loginMessage.textContent = body.detail || "Demasiados intentos. Espera unos minutos e intenta de nuevo.";
+            return;
+        }
         if (!response.ok) {
             loginMessage.textContent = "Correo o contraseña incorrectos.";
             return;

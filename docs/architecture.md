@@ -187,6 +187,12 @@ erDiagram
         timestamptz expires_at
         timestamptz used_at
     }
+    AUTH_RATE_LIMITS {
+        text bucket PK "login_ip, login_email_failures, register_ip, ..."
+        text key_hash PK "SHA-256 of the address or email"
+        timestamptz window_start PK
+        int attempts
+    }
     TEAMS {
         int id PK
         text name

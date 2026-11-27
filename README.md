@@ -263,7 +263,8 @@ values.
 | `PUBLIC_BASE_URL` | Password reset | Origin used in reset links (default `http://127.0.0.1:8000`) |
 | `RESEND_API_KEY` | Password reset | Resend API key for reset emails |
 | `PASSWORD_RESET_FROM_EMAIL` | Password reset | Sender on a verified Resend domain |
-| `APP_ENV` | No | Environment label for logs and Sentry; falls back to `VERCEL_ENV`, then `development` |
+| `APP_ENV` | No | Environment label for logs and Sentry; falls back to `VERCEL_ENV`, then `development`. `test` also turns sign-in rate limits off |
+| `AUTH_RATE_LIMITS` | No | Set `false` to turn sign-in, registration and recovery rate limits off (default on) |
 | `LOG_LEVEL` | No | Structured log level (default `INFO`) |
 | `SENTRY_DSN` | Production | Enables Sentry when set |
 | `SENTRY_TRACES_SAMPLE_RATE` | No | Trace sampling rate (default `0.1`) |
@@ -276,7 +277,8 @@ cookies, tokens, or production credentials.
 
 ## Database Migrations
 
-The current Alembic head is `c5e2a7f19d30`. Vercel deploys `main` on merge and
+The current Alembic head is `e8c1f5a3b7d2` (SQL twin
+`docs/sql/add-auth-rate-limits.sql`). Vercel deploys `main` on merge and
 **never runs migrations**, so a schema change must be applied to Preview and
 then Production **before** merging code that reads it. Two paths are
 supported:
@@ -418,6 +420,15 @@ See [`docs/observability.md`](docs/observability.md).
   cookie, or a Bearer header in the mobile app.
 - Password reset tokens are also stored only as SHA-256 hashes, expire after
   30 minutes, and never disclose whether a submitted email exists.
+- Sign-in, registration and password recovery are rate limited
+  (`services/rate_limits.py`, table `auth_rate_limits`): 60 sign-ins per
+  client address per 5 minutes, 10 failed sign-ins per account per
+  15 minutes, 10 registrations per address per hour, 10 reset requests per
+  address per 15 minutes, 5 reset emails per account per hour (over it nothing
+  is sent and the answer is unchanged) and 20 reset confirmations per address
+  per 15 minutes. Over a limit the API answers `429` with `Retry-After`.
+  Counters store only SHA-256 hashes of addresses and emails. If the table is
+  missing, sign-in is never blocked; a warning is logged instead.
 - Roles are cumulative; `user_roles` is the authorization source of truth.
 - Representatives are scoped to explicitly linked teams.
 - Operational staff must replace their initial password before protected work.
