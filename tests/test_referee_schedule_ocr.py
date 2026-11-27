@@ -95,7 +95,14 @@ def test_schedule_ocr_matches_game_referee_and_field(monkeypatch, is_friendly):
             "name": "Arbitro Central",
             "position": "referee"
         }],
-        "source_text": "Campo 5 Tigres vs Ravens Arbitro Central"
+        "source_text": "Campo 5 Tigres vs Ravens Arbitro Central",
+        # The game has no stored field yet, so the role proposes one; the
+        # move only happens if the admin confirms it in the review.
+        "current_field_number": None,
+        "current_scheduled_time": None,
+        "current_game_date": None,
+        "current_venue": None,
+        "calendar_changes": ["field"],
     }]
 
 

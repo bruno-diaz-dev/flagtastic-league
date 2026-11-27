@@ -286,7 +286,9 @@ function scheduleMoveControl(proposal, label) {
     const notice = changes.length
         ? `El archivo propone mover este partido (hoy: ${escapeHtml(current || "sin horario")}). Márcalo solo si debe moverse.`
         : `Mover el partido a lo indicado arriba${current ? ` (hoy: ${escapeHtml(current)})` : ""}.`;
-    return `<label class="schedule-review-move${changes.length ? " schedule-review-move-proposed" : ""}">
+    // Shown only when the file proposes a move or the admin edits the slot,
+    // so ordinary rows keep the compact crew layout.
+    return `<label class="schedule-review-move${changes.length ? " schedule-review-move-proposed" : " hidden"}">
         <input type="checkbox" name="apply_calendar_change" aria-label="Mover ${escapeHtml(label)}">
         <span>${notice}</span>
     </label>`;
@@ -295,7 +297,9 @@ function scheduleMoveControl(proposal, label) {
 function markScheduleMoveOnEdit(event) {
     const card = event.target.closest(".schedule-review-card");
     if (!card || !event.target.matches("[name='field_number'], [name='game_date'], [name='venue']")) return;
-    const checkbox = card.querySelector("[name='apply_calendar_change']");
+    const control = card.querySelector(".schedule-review-move");
+    control?.classList.remove("hidden");
+    const checkbox = control?.querySelector("[name='apply_calendar_change']");
     if (checkbox) checkbox.checked = true;
 }
 
