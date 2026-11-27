@@ -21,12 +21,13 @@ from repositories.players import (
 from dependencies.auth import require_team_manager
 from services.roster_import import RosterImportError, parse_roster_file
 from services.profile_photos import save_profile_photo
+from settings import ROSTER_IMPORT_MAX_BYTES, UPLOAD_MAX_LABEL
 
 router = APIRouter(
     prefix="/api/teams/{team_id}/players",
     tags=["players"]
 )
-MAX_ROSTER_IMPORT_BYTES = 5 * 1024 * 1024
+MAX_ROSTER_IMPORT_BYTES = ROSTER_IMPORT_MAX_BYTES
 ROSTER_CSV_TEMPLATE = (
     "nombre,curp,numero\n"
     "Nombre Completo,ABCD000101HASXXX00,10\n"
@@ -154,7 +155,7 @@ async def import_team_roster(
 
     content = await file.read(MAX_ROSTER_IMPORT_BYTES + 1)
     if len(content) > MAX_ROSTER_IMPORT_BYTES:
-        raise HTTPException(status_code=413, detail="El archivo excede 5 MB")
+        raise HTTPException(status_code=413, detail=f"El archivo excede {UPLOAD_MAX_LABEL}")
 
     try:
         players = parse_roster_file(file.filename, content)

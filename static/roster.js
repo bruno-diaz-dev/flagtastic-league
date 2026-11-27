@@ -21,6 +21,16 @@ const teamStaffForm = document.querySelector("#team-staff-form");
 const teamStaffMessage = document.querySelector("#team-staff-message");
 
 
+// Matches UPLOAD_MAX_BYTES in settings.py; Vercel rejects bodies above 4.5 MB
+// with a plain-text error, so larger files are stopped here with a clear message.
+const UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+const UPLOAD_TOO_LARGE_MESSAGE = "El archivo excede 4 MB. Reduce su tamaño e intenta de nuevo.";
+
+function fileTooLarge(file) {
+    return Boolean(file) && file.size > UPLOAD_MAX_BYTES;
+}
+
+
 function initials(name) {
     return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
@@ -115,6 +125,10 @@ rosterContainer.addEventListener("submit", async (event) => {
     event.preventDefault();
     const message = form.querySelector(".roster-photo-message");
     const file = form.elements.photo.files[0];
+    if (fileTooLarge(file)) {
+        message.textContent = UPLOAD_TOO_LARGE_MESSAGE;
+        return;
+    }
     message.textContent = "Guardando...";
     const response = await uploadRosterPlayerPhoto(
         teamId,
@@ -337,6 +351,10 @@ registeredPlayerForm.addEventListener("submit", async (event) => {
 rosterImportForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fields = new FormData(rosterImportForm);
+    if (fileTooLarge(fields.get("file"))) {
+        rosterImportMessage.textContent = UPLOAD_TOO_LARGE_MESSAGE;
+        return;
+    }
     const submitButton = rosterImportForm.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     rosterImportForm.setAttribute("aria-busy", "true");
@@ -377,11 +395,15 @@ rosterImportForm.addEventListener("submit", async (event) => {
 teamLogoForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const fields = new FormData(teamLogoForm);
+    if (fileTooLarge(fields.get("logo"))) {
+        teamLogoMessage.textContent = UPLOAD_TOO_LARGE_MESSAGE;
+        return;
+    }
     teamLogoMessage.textContent = "Actualizando logo...";
     try {
         const response = await uploadTeamLogo(teamId, fields.get("logo"));
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({}));
             teamLogoMessage.textContent = error.detail || "No se pudo actualizar el logo.";
             return;
         }

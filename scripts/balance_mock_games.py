@@ -110,5 +110,8 @@ def balance_mock_games():
 
 
 if __name__ == "__main__":
+    from scripts.data_target_guard import require_non_production_target
+
+    require_non_production_target("balance_mock_games")
     created = balance_mock_games()
     print(f"Mock games created: {created}")

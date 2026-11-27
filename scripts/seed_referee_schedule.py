@@ -49,5 +49,8 @@ def seed_officials():
 
 
 if __name__ == "__main__":
+    from scripts.data_target_guard import require_non_production_target
+
+    require_non_production_target("seed_referee_schedule")
     officials = seed_officials()
     print(f"{len(officials)} oficiales disponibles para pruebas.")

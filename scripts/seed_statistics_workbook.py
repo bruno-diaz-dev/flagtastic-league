@@ -131,6 +131,9 @@ def main():
     )
     parser.add_argument("workbook", help="Path to the official .xlsx workbook")
     arguments = parser.parse_args()
+    from scripts.data_target_guard import require_non_production_target
+
+    require_non_production_target("seed_statistics_workbook")
     result = seed_workbook(arguments.workbook)
     print(
         "Semilla completada: "

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
 
-from settings import PROFILE_PHOTO_MAX_BYTES, TEAM_LOGO_MAX_BYTES
+from settings import PROFILE_PHOTO_MAX_BYTES, TEAM_LOGO_MAX_BYTES, UPLOAD_MAX_LABEL
 
 
 PHOTO_SIGNATURES = (
@@ -29,7 +29,7 @@ async def save_profile_photo(upload: UploadFile):
     if len(content) > PROFILE_PHOTO_MAX_BYTES:
         raise HTTPException(
             status_code=413,
-            detail="La foto no puede exceder 5 MB"
+            detail=f"La foto no puede exceder {UPLOAD_MAX_LABEL}"
         )
 
     extension = _detect_extension(content)
@@ -50,7 +50,7 @@ async def save_team_logo(upload: UploadFile):
     """Validate a team logo using the same safe raster allowlist."""
     content = await upload.read(TEAM_LOGO_MAX_BYTES + 1)
     if len(content) > TEAM_LOGO_MAX_BYTES:
-        raise HTTPException(status_code=413, detail="El logo no puede exceder 5 MB")
+        raise HTTPException(status_code=413, detail=f"El logo no puede exceder {UPLOAD_MAX_LABEL}")
 
     extension = _detect_extension(content)
     if extension is None:
