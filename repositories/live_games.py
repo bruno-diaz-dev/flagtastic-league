@@ -4,6 +4,7 @@ import json
 from uuid import uuid4
 
 from database import get_connection
+from repositories.regular_season import regular_season_game_sql
 from services.live_game import METRICS, project_events
 from services.bracket_advancement import resolve_completed_bracket_slots
 
@@ -66,14 +67,11 @@ def roster_for(connection, game):
 
 def attendance_for(connection, game, roster):
     """Explicit check-ins for this category, deduplicated by match."""
-    rows = connection.execute("""
+    regular = regular_season_game_sql("g")
+    rows = connection.execute(f"""
         SELECT e.team_id, e.player_id,
                COUNT(DISTINCT e.game_id) FILTER (
-                   WHERE g.status = 'completed' AND NOT g.is_friendly
-                     AND NOT EXISTS (
-                         SELECT 1 FROM game_bracket_slots slots
-                         WHERE slots.target_game_id = g.id
-                     )
+                   WHERE g.status = 'completed' AND {regular}
                ) AS attended,
                BOOL_OR(e.game_id = %s) AS present,
                MAX(e.id) FILTER (WHERE e.game_id = %s) AS entry_id
@@ -87,27 +85,19 @@ def attendance_for(connection, game, roster):
     """, (game['id'], game['id'], game['home_team_id'], game['away_team_id'],
           game['home_category'], game['away_category'])).fetchall()
     records = {(r['team_id'], r['player_id']): r for r in rows}
-    scheduled = connection.execute("""
+    scheduled = connection.execute(f"""
         SELECT team_id, COUNT(*) AS total FROM (
             SELECT g.home_team_id AS team_id FROM games g
             JOIN teams home ON home.id = g.home_team_id
             JOIN teams away ON away.id = g.away_team_id
-            WHERE NOT g.is_friendly AND g.home_team_id IN (%s, %s)
+            WHERE {regular} AND g.home_team_id IN (%s, %s)
               AND home.category = %s AND away.category = %s
-              AND NOT EXISTS (
-                  SELECT 1 FROM game_bracket_slots slots
-                  WHERE slots.target_game_id = g.id
-              )
             UNION ALL
             SELECT g.away_team_id AS team_id FROM games g
             JOIN teams home ON home.id = g.home_team_id
             JOIN teams away ON away.id = g.away_team_id
-            WHERE NOT g.is_friendly AND g.away_team_id IN (%s, %s)
+            WHERE {regular} AND g.away_team_id IN (%s, %s)
               AND home.category = %s AND away.category = %s
-              AND NOT EXISTS (
-                  SELECT 1 FROM game_bracket_slots slots
-                  WHERE slots.target_game_id = g.id
-              )
         ) calendar GROUP BY team_id
     """, (game['home_team_id'], game['away_team_id'], game['home_category'], game['away_category']) * 2).fetchall()
     totals = {r['team_id']: r['total'] for r in scheduled}
