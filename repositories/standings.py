@@ -126,4 +126,3 @@ def get_standings(branch, category):
     )
 
     return standings
-

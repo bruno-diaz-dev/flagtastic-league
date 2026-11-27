@@ -573,6 +573,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         row["jersey_number"], player["name"],
                     ))
         attendance_entries = list({entry[:3]: entry for entry in attendance_entries}.values())
+        attendance_added = 0
+        attendance_already_registered = 0
         if attendance_entries:
             attendance_game_ids = list({entry[0] for entry in attendance_entries})
             game_status = {
@@ -607,6 +609,10 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 entry for entry in attendance_entries
                 if entry[:3] not in current_pairs
             ]
+            attendance_added = len(missing_attendance)
+            attendance_already_registered = (
+                len(attendance_entries) - attendance_added
+            )
             for offset in range(0, len(missing_attendance), 400):
                 batch = missing_attendance[offset:offset + 400]
                 values_sql = ", ".join(["(%s, %s, 'attendance', %s, %s, %s, 1, 0, 0, %s)"] * len(batch))
@@ -655,6 +661,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             "skipped": skipped, "skipped_count": len(skipped),
             "preserved_weeks": sorted(preserved_weeks),
             "games": len(resolved_games),
+            "attendance_added": attendance_added,
+            "attendance_already_registered": attendance_already_registered,
         }
     except Exception:
         connection.rollback()
@@ -897,7 +905,6 @@ def get_leaderboards(branch, category, limit=5):
         "latest_week": latest_week, "minimum_attempts": minimum_attempts
     }
     return result
-
 
 
 

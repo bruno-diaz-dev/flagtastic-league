@@ -223,4 +223,3 @@ def statistics_leaderboards(branch: str, category: str, response: Response):
     response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
     response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=60"
     return get_leaderboards(branch, category)
-

@@ -1227,4 +1227,3 @@ def test_empty_named_games_do_not_block_import_or_shift_doubleheader_stats(exist
             games[0]['id']: 6, games[1]['id']: 18,
         }
 
-
