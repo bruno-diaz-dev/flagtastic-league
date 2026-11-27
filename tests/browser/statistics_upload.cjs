@@ -46,7 +46,7 @@ function largeWorkbook() {
                 res.writeHead(200,{'Content-Type':path.endsWith('.css')?'text/css':'application/javascript'});
                 return fs.createReadStream('.'+path).pipe(res);
             }
-            if(path==='/api/statistics/leaderboards')return json(Object.fromEntries(['points','receptions','tackles','interceptions','sacks','completion_percentage'].map(metric=>[metric,[]])));
+            if(path==='/api/statistics/leaderboards')return json(Object.fromEntries(['points','receptions','tackles','interceptions','sacks','passer_rating'].map(metric=>[metric,[]])));
             if(path==='/api/statistics/import') {
                 const buffers=[];for await(const chunk of req)buffers.push(chunk);
                 const body=Buffer.concat(buffers),boundary=req.headers['content-type'].match(/boundary=(.*)$/)[1];

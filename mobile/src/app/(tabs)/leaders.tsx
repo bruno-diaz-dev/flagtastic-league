@@ -15,7 +15,7 @@ const metrics = [
   {key: 'tackles', label: 'Tacleos', title: 'El Muro', unit: 'TAC'},
   {key: 'interceptions', label: 'Intercepciones', title: 'Cazador Aéreo', unit: 'INT'},
   {key: 'sacks', label: 'Capturas', title: 'Cazador de QBs', unit: 'CAP'},
-  {key: 'completion_percentage', label: 'Pases %', title: 'Francotirador', unit: '%'},
+  {key: 'passer_rating', label: 'QB', title: 'Francotirador', unit: 'ÍNDICE'},
 ] as const;
 
 export default function LeadersScreen() {
@@ -43,9 +43,9 @@ export default function LeadersScreen() {
                 <Avatar name={leader.player_name} url={leader.profile_photo_url} size={leader.rank === 1 ? 72 : leader.rank === 2 ? 64 : 56} />
                 <Text numberOfLines={1} style={styles.player}>{leader.player_aka || leader.player_name}</Text>
                 <Text numberOfLines={1} style={styles.team}>{leader.team_name} · #{leader.jersey_number}</Text>
-                <Text style={styles.score}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
+                <Text style={styles.score}>{leader.value}</Text>
                 <Text style={styles.unit}>{metric.unit}</Text>
-                {selected === 'completion_percentage' && leader.passes_attempted != null ? <Text style={styles.team}>{leader.passes_completed}/{leader.passes_attempted} C/I</Text> : null}
+                {selected === 'passer_rating' && leader.passes_attempted != null ? <Text style={styles.team}>{leader.passes_completed}/{leader.passes_attempted} C/I · {leader.passing_points ?? 0} pts · {leader.passes_intercepted ?? 0} int</Text> : null}
               </View>
             ))}
             {leaders.length < 3 ? <View style={styles.podiumSpacer} /> : null}
@@ -55,11 +55,11 @@ export default function LeadersScreen() {
               <View key={`${leader.player_id}-${leader.team_id}`} style={styles.listRow}>
                 <Text style={styles.listPlace}>{leader.rank}</Text><Avatar name={leader.player_name} url={leader.profile_photo_url} size={40} />
                 <View style={styles.listCopy}><Text style={styles.listName}>{leader.player_aka || leader.player_name}</Text><Text style={styles.listTeam}>{leader.team_name} · #{leader.jersey_number}</Text></View>
-                <Text style={styles.listValue}>{leader.value}{metric.unit === '%' ? '%' : ''}</Text>
+                <Text style={styles.listValue}>{leader.value}</Text>
               </View>
             ))}
           </Panel>
-          {selected === 'completion_percentage' && leaderboards.passing_qualification ? <Text style={styles.note}>Desde la jornada 4 se requieren {leaderboards.passing_qualification.minimum_attempts} pases lanzados para clasificar.</Text> : null}
+          {selected === 'passer_rating' && leaderboards.passing_qualification ? <Text style={styles.note}>Índice de QB (0–100): promedio de precisión, puntos por pase completo y seguridad ante intercepciones. Se requieren {leaderboards.passing_qualification.minimum_attempts} pases lanzados para clasificar.</Text> : null}
         </>
       ) : !refreshing && !error ? <EmptyState title="Aún no hay líderes" copy="La clasificación aparecerá cuando se carguen estadísticas para esta división." /> : null}
     </Screen>

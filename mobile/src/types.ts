@@ -82,6 +82,9 @@ export type Leader = {
   rank?: number;
   passes_completed?: number;
   passes_attempted?: number;
+  passing_points?: number;
+  passes_intercepted?: number;
+  components?: {precision: number; productivity: number; safety: number};
   player_id: number;
   player_name: string;
   player_aka: string | null;

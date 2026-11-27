@@ -481,15 +481,20 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         "registrados. Importa el Excel oficial completo "
                         "para evitar mezclar estadísticas."
                     )
+                passes_completed = row["passes_completed"]
+                passes_attempted = row["passes_attempted"]
+                if existing_rows and row.get("passing_incomplete"):
+                    passes_completed = existing_rows[0]["passes_completed"]
+                    passes_attempted = existing_rows[0]["passes_attempted"]
+                # Quarterback totals are None when the source file does not
+                # carry them (older compact templates): keep the stored value.
                 values = (
                     row["points"], row["receptions"], row["interceptions"],
-                    row["sacks"], row["tackles"], row["passes_completed"],
-                    row["passes_attempted"]
+                    row["sacks"], row["tackles"], passes_completed,
+                    passes_attempted, row.get("passing_points"),
+                    row.get("passes_intercepted"),
                 )
                 if existing_rows:
-                    if row.get("passing_incomplete"):
-                        values = (*values[:5], existing_rows[0]["passes_completed"],
-                                  existing_rows[0]["passes_attempted"])
                     pending_updates.append((
                         existing_rows[0]["id"], game_id, values, player, team
                     ))
@@ -504,12 +509,12 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 })
         update_columns = (
             "id, game_id, points, receptions, interceptions, sacks, tackles, "
-            "passes_completed, passes_attempted"
+            "passes_completed, passes_attempted, passing_points, passes_intercepted"
         )
         for offset in range(0, len(pending_updates), 400):
             batch = pending_updates[offset:offset + 400]
             values_sql = ", ".join(
-                "(" + ", ".join(["%s"] * 9) + ")" for _ in batch
+                "(" + ", ".join(["%s"] * 11) + ")" for _ in batch
             )
             parameters = []
             identities = {}
@@ -523,7 +528,9 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 "interceptions = incoming.interceptions, sacks = incoming.sacks, "
                 "tackles = incoming.tackles, "
                 "passes_completed = incoming.passes_completed, "
-                "passes_attempted = incoming.passes_attempted "
+                "passes_attempted = incoming.passes_attempted, "
+                "passing_points = COALESCE(incoming.passing_points::integer, stats.passing_points), "
+                "passes_intercepted = COALESCE(incoming.passes_intercepted::integer, stats.passes_intercepted) "
                 f"FROM (VALUES {values_sql}) AS incoming({update_columns}) "
                 "WHERE stats.id = incoming.id RETURNING stats.*",
                 parameters
@@ -538,16 +545,19 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 })
         insert_columns = (
             "week, game_id, player_id, team_id, points, receptions, "
-            "interceptions, sacks, tackles, passes_completed, passes_attempted"
+            "interceptions, sacks, tackles, passes_completed, passes_attempted, "
+            "passing_points, passes_intercepted"
         )
         for offset in range(0, len(pending_inserts), 400):
             batch = pending_inserts[offset:offset + 400]
             values_sql = ", ".join(
-                "(" + ", ".join(["%s"] * 11) + ")" for _ in batch
+                "(" + ", ".join(["%s"] * 13) + ")" for _ in batch
             )
             parameters = []
             identities = {}
             for week, game_id, player, team, values in batch:
+                # New rows without quarterback data start at zero.
+                values = tuple(0 if value is None else value for value in values)
                 parameters.extend((week, game_id, player["id"], team["id"], *values))
                 identities.setdefault((player["id"], team["id"]), (player, team))
             saved_rows = connection.execute(
@@ -792,12 +802,27 @@ def get_game_statistics(game_id, team_ids=None, player_id=None):
     return results
 
 
-def _rank_leaders(rows, score, limit):
-    """Unique places: sporting metrics first, then stable administrative IDs."""
+def _rank_leaders(rows, score, limit, *, unique_players=False):
+    """Unique places: sporting metrics first, then stable administrative IDs.
+
+    With ``unique_players`` a player registered on several teams of the same
+    division (for example Nómadas mixto and Nómadas femenil in unified U12)
+    keeps only their best-ranked team record. Statistics are never summed
+    across teams.
+    """
     ordered = sorted(rows, key=lambda row: (
         tuple(-value for value in score(row)),
         row["player_id"], row["team_id"],
     ))
+    if unique_players:
+        seen_players = set()
+        best_records = []
+        for row in ordered:
+            if row["player_id"] in seen_players:
+                continue
+            seen_players.add(row["player_id"])
+            best_records.append(row)
+        ordered = best_records
     return [{**row, "rank": index + 1} for index, row in enumerate(ordered[:limit])]
 
 
@@ -808,15 +833,51 @@ LEADER_TIEBREAKERS = {
     "interceptions": "Más intercepciones; después más tacleadas.",
     "sacks": "Más capturas; después más tacleadas.",
     "completion_percentage": "Porcentaje exacto; después más intentos y más pases completos. Mínimo: 50 intentos acumulados.",
+    "passer_rating": "Índice exacto; después más intentos y más pases completos. Mínimo: 50 intentos acumulados.",
 }
 
 MINIMUM_PASS_ATTEMPTS = 50
+# Quarterback index caps, set from the 2026 official workbook (QBs with 50+
+# attempts): the best observed passing points per completion was 2.46 and
+# the highest interception rate 10.4%.
+PASSER_RATING_POINTS_PER_COMPLETION_CAP = Fraction(5, 2)
+PASSER_RATING_INTERCEPTION_RATE_CAP = Fraction(1, 10)
+
+
+def _passer_rating_components(row):
+    """Return precision, productivity and safety, each between 0 and 1.
+
+    Precision: completions / attempts. Productivity: passing points per
+    completion over the cap. Safety: 1 - interception rate over the cap.
+    """
+    attempted = row["passes_attempted"]
+    completed = row["passes_completed"]
+    precision = Fraction(completed, attempted)
+    productivity = (
+        min(Fraction(row["passing_points"], completed)
+            / PASSER_RATING_POINTS_PER_COMPLETION_CAP, 1)
+        if completed else Fraction(0)
+    )
+    safety = max(
+        1 - Fraction(row["passes_intercepted"], attempted)
+        / PASSER_RATING_INTERCEPTION_RATE_CAP,
+        0,
+    )
+    return precision, productivity, safety
+
+
+def _passer_rating(row):
+    """Quarterback index from 0 to 100: average of the three components."""
+    return sum(_passer_rating_components(row)) * 100 / 3
 
 
 def _leader_score(row, metric):
     if metric == "completion_percentage":
         return (Fraction(row["passes_completed"], row["passes_attempted"]),
                 row["passes_attempted"], row["passes_completed"])
+    if metric == "passer_rating":
+        return (_passer_rating(row), row["passes_attempted"],
+                row["passes_completed"])
     secondary = {
         "points": ("receptions",),
         "receptions": ("points",),
@@ -848,6 +909,8 @@ def get_leaderboards(branch, category, limit=5):
             SUM(stats.tackles)::INTEGER AS tackles,
             SUM(stats.passes_completed)::INTEGER AS passes_completed,
             SUM(stats.passes_attempted)::INTEGER AS passes_attempted,
+            SUM(stats.passing_points)::INTEGER AS passing_points,
+            SUM(stats.passes_intercepted)::INTEGER AS passes_intercepted,
             MAX(stats.week)::INTEGER AS latest_week
         FROM player_week_stats AS stats
         JOIN players ON players.id = stats.player_id
@@ -869,6 +932,7 @@ def get_leaderboards(branch, category, limit=5):
         ranked = _rank_leaders(
             (row for row in rows if row[metric] > 0),
             lambda row: _leader_score(row, metric), limit,
+            unique_players=unified,
         )
         result[metric] = [
             {"player_id": row["player_id"], "player_name": row["player_name"],
@@ -887,6 +951,7 @@ def get_leaderboards(branch, category, limit=5):
          and row["passes_attempted"] >= minimum_attempts),
         lambda row: _leader_score(row, "completion_percentage"),
         limit,
+        unique_players=unified,
     )
     result["completion_percentage"] = [
         {"player_id": row["player_id"], "player_name": row["player_name"],
@@ -899,6 +964,44 @@ def get_leaderboards(branch, category, limit=5):
          "passes_attempted": row["passes_attempted"], "rank": row["rank"]}
         for row in passing_ranked
     ]
+    # Quarterback index. "completion_percentage" stays for app versions that
+    # already shipped; current web and mobile clients show this ranking.
+    qualified_passers = [
+        row for row in rows
+        if row["passes_attempted"] > 0
+        and row["passes_attempted"] >= minimum_attempts
+    ]
+    rating_ranked = _rank_leaders(
+        qualified_passers,
+        lambda row: _leader_score(row, "passer_rating"),
+        limit,
+        unique_players=unified,
+    )
+    result["passer_rating"] = []
+    for row in rating_ranked:
+        precision, productivity, safety = _passer_rating_components(row)
+        result["passer_rating"].append({
+            "player_id": row["player_id"], "player_name": row["player_name"],
+            "player_aka": row["player_aka"],
+            "profile_photo_url": row["profile_photo_url"],
+            "team_id": row["team_id"], "team_name": row["team_name"],
+            "jersey_number": row["jersey_number"],
+            "value": round(float(_passer_rating(row)), 1),
+            "passes_completed": row["passes_completed"],
+            "passes_attempted": row["passes_attempted"],
+            "passing_points": row["passing_points"],
+            "passes_intercepted": row["passes_intercepted"],
+            "components": {
+                "precision": round(float(precision) * 100, 1),
+                "productivity": round(float(productivity) * 100, 1),
+                "safety": round(float(safety) * 100, 1),
+            },
+            "rank": row["rank"],
+        })
+    result["passer_rating_formula"] = {
+        "points_per_completion_cap": float(PASSER_RATING_POINTS_PER_COMPLETION_CAP),
+        "interception_rate_cap": float(PASSER_RATING_INTERCEPTION_RATE_CAP),
+    }
     result["tie_breakers"] = {
         metric: rule + " Si persiste igualdad: menor ID del jugador y después del equipo, como orden administrativo."
         for metric, rule in LEADER_TIEBREAKERS.items()

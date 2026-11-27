@@ -4,10 +4,10 @@ const assert=require('node:assert/strict');
 (async()=>{
     const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
     const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    const metrics=['completion_percentage','receptions','points','tackles','interceptions','sacks'];
+    const metrics=['passer_rating','receptions','points','tackles','interceptions','sacks'];
     const leaders=Object.fromEntries(metrics.map(metric=>[metric,[
-        {player_id:1,team_id:1,player_name:'María Fernanda Nombre Largo Apellido Completo',player_aka:'UnaAliasMuyLargoSinEspaciosParaVerificarElAncho',team_name:'Diablos del Sol Aguascalientes',jersey_number:100,value:metric==='completion_percentage'?75.78:1234,passes_completed:316,passes_attempted:417},
-        {player_id:2,team_id:2,player_name:'Ana López',team_name:'Lobos',jersey_number:7,value:metric==='completion_percentage'?70.25:987,passes_completed:281,passes_attempted:400}
+        {player_id:1,team_id:1,player_name:'María Fernanda Nombre Largo Apellido Completo',player_aka:'UnaAliasMuyLargoSinEspaciosParaVerificarElAncho',team_name:'Diablos del Sol Aguascalientes',jersey_number:100,value:metric==='passer_rating'?75.8:1234,passes_completed:316,passes_attempted:417,passing_points:30,passes_intercepted:2},
+        {player_id:2,team_id:2,player_name:'Ana López',team_name:'Lobos',jersey_number:7,value:metric==='passer_rating'?70.3:987,passes_completed:281,passes_attempted:400,passing_points:24,passes_intercepted:5}
     ]]));
     await page.route('https://leaders.test/**',async route=>{
         const url=new URL(route.request().url());
@@ -25,7 +25,7 @@ const assert=require('node:assert/strict');
             assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.leaderboard-panel')].every(el=>el.scrollWidth<=el.clientWidth+1)),true,`panel overflow at ${width}`);
             assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.stat-value')].every(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&el.scrollWidth<=el.clientWidth+1;})),true,`hidden total at ${width}`);
         }
-        assert.equal(await page.locator('.stat-value strong').first().textContent(),'75.78%');
+        assert.equal(await page.locator('.stat-value strong').first().textContent(),'75.8');
         assert.equal(await page.locator('.leaderboard-pass-detail').first().textContent(),'316/417 C/I');
         assert.equal(await page.locator('.leaderboard-panel').nth(2).locator('.stat-value strong').first().textContent(),'1234');
         if(width===390)await page.locator('.leaderboard-panel').first().screenshot({path:'mobile-leaderboards.png'});

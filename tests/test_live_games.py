@@ -103,6 +103,7 @@ def test_live_game_roles_retry_public_privacy_and_final_publication():
         rows = connection.execute("SELECT * FROM player_week_stats WHERE game_id = %s", (game_id,)).fetchall()
     stats = {row["player_id"]: row for row in rows}
     assert stats[players[0][0]]["passes_attempted"] == 1
+    assert stats[players[0][0]]["passing_points"] == 6  # QB index productivity
     assert stats[players[0][0]]["passes_completed"] == 1
     assert stats[players[0][1]]["points"] == 6
     assert stats[players[0][1]]["receptions"] == 1
