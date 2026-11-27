@@ -273,6 +273,32 @@ function setOfficialConfirmMessage(message) {
     scheduleMessage.textContent = message;
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = message;
 }
+// Confirming a role assigns officials only. Moving the game to the field,
+// time, date or venue read from the file requires ticking this box.
+function scheduleMoveControl(proposal, label) {
+    const changes = proposal.calendar_changes || [];
+    const current = [
+        proposal.current_field_number ? `campo ${proposal.current_field_number}` : null,
+        proposal.current_scheduled_time ? `${proposal.current_scheduled_time} h` : null,
+        proposal.current_game_date || null,
+        proposal.current_venue || null,
+    ].filter(Boolean).join(" · ");
+    const notice = changes.length
+        ? `El archivo propone mover este partido (hoy: ${escapeHtml(current || "sin horario")}). Márcalo solo si debe moverse.`
+        : `Mover el partido a lo indicado arriba${current ? ` (hoy: ${escapeHtml(current)})` : ""}.`;
+    return `<label class="schedule-review-move${changes.length ? " schedule-review-move-proposed" : ""}">
+        <input type="checkbox" name="apply_calendar_change" aria-label="Mover ${escapeHtml(label)}">
+        <span>${notice}</span>
+    </label>`;
+}
+
+function markScheduleMoveOnEdit(event) {
+    const card = event.target.closest(".schedule-review-card");
+    if (!card || !event.target.matches("[name='field_number'], [name='game_date'], [name='venue']")) return;
+    const checkbox = card.querySelector("[name='apply_calendar_change']");
+    if (checkbox) checkbox.checked = true;
+}
+
 function renderScheduleReview(result) {
     setOfficialSaveProgress("idle");
     if (scheduleConfirmMessage) scheduleConfirmMessage.textContent = "";
@@ -301,6 +327,7 @@ function renderScheduleReview(result) {
                     ).join("")}
                 </select>
                 </label>
+                ${scheduleMoveControl(proposal, label)}
             </header>
             <div class="schedule-referees" role="group" aria-label="Planilla para ${escapeHtml(label)}">${officialSelects(proposal.officials || [], proposal.is_friendly === true)}</div>
             <details class="schedule-review-source"><summary>Ver texto del archivo</summary><p>${escapeHtml(proposal.source_text || "")}</p></details>
@@ -413,6 +440,7 @@ confirmScheduleButton?.addEventListener("click", async () => {
         game_id: Number(row.dataset.gameId),
         field_number: Number(row.querySelector("[name='field_number']").value),
         scheduled_time: row.dataset.scheduledTime || null,
+        apply_calendar_change: Boolean(row.querySelector("[name='apply_calendar_change']")?.checked),
         ...((row.dataset.hasCalendar === "true" || row.querySelector('[name="game_date"]').value || row.querySelector('[name="venue"]').value)
             ? {game_date:row.querySelector('[name="game_date"]').value || null,venue:row.querySelector('[name="venue"]').value.trim() || null}:{}),
         officials: [...row.querySelectorAll("[data-position]")]
@@ -482,3 +510,6 @@ loadRefereeGames().catch(() => {
     refereeSummary.innerHTML = "";
     refereeGamesMessage.textContent = "No se pudo conectar con el servidor.";
 });
+
+// Editing the field, date or venue of a reviewed row means the admin wants to move it.
+scheduleReviewBody?.addEventListener("change", markScheduleMoveOnEdit);

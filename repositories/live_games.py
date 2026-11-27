@@ -6,7 +6,7 @@ from uuid import uuid4
 from database import get_connection
 from repositories.regular_season import regular_season_game_sql
 from services.live_game import METRICS, project_events
-from services.bracket_advancement import resolve_completed_bracket_slots
+from services.bracket_advancement import BracketConflictError, resolve_completed_bracket_slots
 
 
 class LiveGameError(ValueError):
@@ -166,6 +166,10 @@ def start_live_game(game_id, user_id):
         game = locked_game(connection, game_id)
         if game["status"] != "scheduled" or game["home_score"] is not None or game["away_score"] is not None:
             raise LiveGameError("Solo puedes iniciar un partido pendiente sin resultado")
+        if game["home_team_id"] is None or game["away_team_id"] is None:
+            # A playoff game waiting for its semifinal winners cannot be
+            # captured, and a session would block resolving its teams.
+            raise LiveGameError("La final todavía espera a los equipos de las semifinales")
         if session_for(connection, game_id) is None:
             if connection.execute("SELECT 1 FROM player_week_stats WHERE game_id = %s LIMIT 1", (game_id,)).fetchone():
                 raise LiveGameError("El partido ya tiene estadísticas importadas")
@@ -238,7 +242,10 @@ def publish(connection, game, final_score=None):
         # Live capture records the interceptor, not the thrower, so
         # passes_intercepted keeps its default of 0 for live games.
     connection.execute("UPDATE games SET home_score = %s, away_score = %s, status = 'completed' WHERE id = %s", (scores[game["home_team_id"]], scores[game["away_team_id"]], game["id"]))
-    resolve_completed_bracket_slots(connection, game["id"])
+    try:
+        resolve_completed_bracket_slots(connection, game["id"])
+    except BracketConflictError as error:
+        raise LiveGameError(str(error)) from error
 
 
 def finish_live_game(game_id, expected_version, user_id, final_score=None):

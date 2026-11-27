@@ -14,7 +14,10 @@ from services.referee_schedule_ocr import (
     _best_referee,
 )
 from services.team_matching import match_schedule_team, normalize_team_text
-from services.schedule_context import context_header, context_fields, parse_schedule_date, clean_venue, venue_key
+from services.schedule_context import (
+    calendar_proposal_fields, context_header, context_fields,
+    parse_schedule_date, clean_venue, venue_key,
+)
 
 
 class RefereeScheduleImportError(Exception):
@@ -78,6 +81,10 @@ def parse_referee_schedule_file(filename, content, games, referees, *, selected_
             "scheduled_time": row["start_time"].strftime("%H:%M"),
             "officials": officials,
             "source_text": row["source_text"],
+            **calendar_proposal_fields(
+                game, row["field_number"], row["start_time"],
+                row.get("game_date"), row.get("venue"),
+            ),
             **({"game_date": str(proposal_date) if proposal_date else None} if proposal_date or row.get("date_required") else {}),
             **({"venue": row.get("venue") or game.get("venue")} if row.get("venue") or game.get("venue") else {}),
             **({"date_required": True} if row.get("date_required") and not proposal_date else {}),
@@ -311,6 +318,36 @@ def _match_game(row, games):
                   if team.get("id") is not None}.values())
     home = _match_participant(row["home_team"], teams) if row["home_team"] else None
     away = _match_participant(row["away_team"], teams) if row["away_team"] else None
+
+    # The schedule slot (week, field, time and, when present, date and venue)
+    # identifies the game; team names only confirm it. Fuzzy names alone
+    # could pick a similarly named team's game and move it onto this slot.
+    slot_games = [
+        game for game in week_games
+        if game.get("field_number") == row["field_number"]
+        and _same_time(game.get("start_time"), row["start_time"])
+        and (not row.get("game_date") or not game.get("game_date")
+             or str(row["game_date"]) == str(game["game_date"]))
+        and (not row.get("venue") or not game.get("venue")
+             or venue_key(row["venue"]) == venue_key(game["venue"]))
+    ]
+    if len(slot_games) == 1:
+        game = slot_games[0]
+        participants = {
+            (team or {}).get("id")
+            for team in (game.get("home_team"), game.get("away_team"))
+        } - {None}
+        is_playoff = bool(game.get("bracket_pending") or game.get("bracket_label"))
+        # Playoff rows print labels such as "Final U12" instead of team names,
+        # so they bind to the slot whether or not the semifinals resolved.
+        if is_playoff and (home is None or home["id"] in participants) \
+                and (away is None or away["id"] in participants):
+            return game
+        # A regular game is confirmed only when both names are its teams.
+        if (home is not None and away is not None and home["id"] != away["id"]
+                and {home["id"], away["id"]} == participants):
+            return game
+
     if home is not None and away is not None and home["id"] != away["id"]:
         participant_ids = {home["id"], away["id"]}
         candidates = []

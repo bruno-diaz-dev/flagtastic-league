@@ -56,3 +56,7 @@
 @media(max-width:540px){.schedule-review-calendar {grid-template-columns:minmax(0,1fr);}}
 
 @media(max-width:1100px){#schedule-review .schedule-review-card-header{grid-template-columns:minmax(0,1fr);}}
+
+#schedule-review .schedule-review-move { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--color-muted); }
+#schedule-review .schedule-review-move input { margin-top: 2px; }
+#schedule-review .schedule-review-move-proposed { color: var(--color-gold); }

@@ -170,7 +170,8 @@ def test_crew_import_preserves_calendar_when_missing_and_validates_cross_day_mov
     down_judge = referee()
     assignment = lambda **changes: RefereeScheduleAssignment(game_id=game['id'], field_number=1,
         officials=[GameOfficialAssignment(user_id=official, position='referee'),
-                   GameOfficialAssignment(user_id=down_judge, position='down_judge')], **changes)
+                   GameOfficialAssignment(user_id=down_judge, position='down_judge')],
+        apply_calendar_change=True, **changes)
     apply_referee_schedule([assignment(scheduled_time='20:15')], official)
     assert client.get('/api/games').json()[0]['game_date'] == '2026-11-04'
     with pytest.raises(ScheduleConflictError):
@@ -193,3 +194,21 @@ def test_calendar_import_rolls_back_if_a_later_row_would_rewrite_a_completed_gam
     assert result.status_code == 409
     all_games = client.get('/api/games').json()
     assert len(all_games) == 1 and all_games[0]['id'] == game['id'] and all_games[0]['away_team']['id'] == ids[1]
+
+
+def test_referee_import_assigns_officials_without_moving_unless_confirmed():
+    from models import RefereeScheduleAssignment, GameOfficialAssignment
+    from repositories.games import apply_referee_schedule
+    ids = teams()
+    game = client.post('/api/games', json=fixture(ids, game_date='2026-11-04', venue='Cuernos Largos')).json()
+    official = referee()
+    down_judge = referee()
+    crew = [GameOfficialAssignment(user_id=official, position='referee'),
+            GameOfficialAssignment(user_id=down_judge, position='down_judge')]
+    apply_referee_schedule([RefereeScheduleAssignment(
+        game_id=game['id'], field_number=5, scheduled_time='21:30',
+        game_date='2026-11-08', venue='Cd Industrial', officials=crew)], official)
+    kept = next(g for g in client.get('/api/games').json() if g['id'] == game['id'])
+    assert (kept['field_number'], kept['start_time'][:5], kept['game_date'], kept['venue']) == (
+        game['field_number'], game['start_time'][:5], '2026-11-04', 'Cuernos Largos')
+    assert {r['id'] for r in client.get(f"/api/games/{game['id']}/referees").json()} == {official, down_judge}
