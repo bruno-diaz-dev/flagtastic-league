@@ -1,39 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": {
-      "*": false,
-      "main": true,
-      "preview": true,
-      "weekly-featured-score-preview": true,
-      "fix-game-detail-crew-slots": true,
-      "referee-import-week-filter": true,
-      "fix-referee-review-layout": true,
-      "fix-schedule-image-ocr-loading": true,
-      "game-import-referee-workbook": true,
-      "referee-assignment-audit": true,
-      "fix-zoe-referee-aliases": true,
-      "collapse-referee-assignment-audit": true,
-      "fix-live-friendly-finalization": true,
-      "cancel-accidental-live-capture": true,
-      "game-dates-and-venues": true,
-      "fix-game-import-review-cards": true,
-      "fix-import-form-alignment": true,
-      "retain-game-258-result": true,
-      "optional-friendly-import-officials": true,
-      "fix-statistics-source-size": true,
-      "alias-valkirias-vikingos-blanco": true,
-      "playoff-bracket-auto-advancement": true,
-      "finals-advancement": true,
-      "skip-empty-statistics-games": true,
-      "feature/friendly-games": true,
-      "expand-team-audit": true,
-      "chore/vercel-storage-optimization": true,
-      "fix/vercel-fast-origin-transfer": true,
-      "fix/friendly-guest-search": true,
-      "fix/diablos-schedule-colors": true,
-      "fix/attendance-access": true
-    }
+    "deploymentEnabled": true
   },
   "functions": {
     "main.py": {
