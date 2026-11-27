@@ -22,7 +22,7 @@ const leaderboardYouthBranch = document.querySelector("#leaderboard-youth-branch
 const leaderboardDefinitions = {
     completion_percentage: {
         title: "El Francotirador",
-        statistic: "Porcentaje de pases completos · mínimo 15 intentos totales (completos + incompletos)"
+        statistic: "Porcentaje de pases completos · mínimo 50 intentos totales (completos + incompletos)"
     },
     receptions: {title: "Manos de Acero", statistic: "Recepciones"},
     points: {title: "Máquina de Puntos", statistic: "Puntos"},
@@ -82,7 +82,7 @@ function renderLeaderboards(leaderboards) {
                     </tr>
                 `).join("")
                 : `<tr><td colspan="3">${metric === "completion_percentage"
-                    ? `Sin pasadores con ${leaderboards.passing_qualification?.minimum_attempts ?? 15} intentos acumulados.`
+                    ? `Sin pasadores con ${leaderboards.passing_qualification?.minimum_attempts ?? 50} intentos acumulados.`
                     : "Sin estadísticas registradas."}</td></tr>`;
 
             return `
@@ -275,9 +275,12 @@ async function submitStatisticsImport(event) {
         updateStatisticsImportMode();
         const omittedCount = (data.skipped?.length || 0) + (data.warnings?.length || 0);
         const importSummary = `${data.imported} registros procesados (${data.created ?? "?"} nuevos, ${data.updated ?? "?"} actualizados, ${data.retained_count || 0} existentes conservados) en ${data.weeks?.length ?? 1} jornada(s).`;
+        const attendanceSummary = typeof data.attendance_added === "number"
+            ? ` Asistencias: ${data.attendance_added} añadidas y ${data.attendance_already_registered || 0} ya registradas.`
+            : "";
         statisticsImportMessage.textContent = omittedCount
-            ? `${importSummary} Se omitieron ${omittedCount} registros o datos; el resumen y la descarga CSV están debajo.`
-            : `${importSummary} No se omitieron registros.`;
+            ? `${importSummary}${attendanceSummary} Se omitieron ${omittedCount} registros o datos; el resumen y la descarga CSV están debajo.`
+            : `${importSummary}${attendanceSummary} No se omitieron registros.`;
         renderSkippedStatistics(data);
         await loadLeaderboards();
         finishImportProgress(statisticsImportProgress, true);

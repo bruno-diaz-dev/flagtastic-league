@@ -109,10 +109,12 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         tuple(sorted((home["id"], away["id"])))
                         for _, home, away in candidates
                     }
-                    if len(distinct_pairs) > 1 and not link_existing_games_only:
+                    if len(distinct_pairs) > 1:
                         # Shared youth names can have the same opponent in two
                         # branches. Use only an exact published score match;
                         # otherwise retain the ambiguity error rather than guess.
+                        # This is a read-only comparison, so it is also safe when
+                        # linking to existing games without modifying them.
                         score_matches = []
                         for match, home, away in candidates:
                             if match["status"] != "completed":
@@ -573,6 +575,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                         row["jersey_number"], player["name"],
                     ))
         attendance_entries = list({entry[:3]: entry for entry in attendance_entries}.values())
+        attendance_added = 0
+        attendance_already_registered = 0
         if attendance_entries:
             attendance_game_ids = list({entry[0] for entry in attendance_entries})
             game_status = {
@@ -607,6 +611,10 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
                 entry for entry in attendance_entries
                 if entry[:3] not in current_pairs
             ]
+            attendance_added = len(missing_attendance)
+            attendance_already_registered = (
+                len(attendance_entries) - attendance_added
+            )
             for offset in range(0, len(missing_attendance), 400):
                 batch = missing_attendance[offset:offset + 400]
                 values_sql = ", ".join(["(%s, %s, 'attendance', %s, %s, %s, 1, 0, 0, %s)"] * len(batch))
@@ -655,6 +663,8 @@ def import_statistics_workbook(weeks, games=None, *, link_existing_games_only=Fa
             "skipped": skipped, "skipped_count": len(skipped),
             "preserved_weeks": sorted(preserved_weeks),
             "games": len(resolved_games),
+            "attendance_added": attendance_added,
+            "attendance_already_registered": attendance_already_registered,
         }
     except Exception:
         connection.rollback()
@@ -797,8 +807,10 @@ LEADER_TIEBREAKERS = {
     "tackles": "Más tacleadas; después más capturas y más intercepciones.",
     "interceptions": "Más intercepciones; después más tacleadas.",
     "sacks": "Más capturas; después más tacleadas.",
-    "completion_percentage": "Porcentaje exacto; después más intentos y más pases completos. Mínimo: 15 intentos acumulados.",
+    "completion_percentage": "Porcentaje exacto; después más intentos y más pases completos. Mínimo: 50 intentos acumulados.",
 }
+
+MINIMUM_PASS_ATTEMPTS = 50
 
 
 def _leader_score(row, metric):
@@ -869,7 +881,7 @@ def get_leaderboards(branch, category, limit=5):
         ]
 
     latest_week = max((row["latest_week"] for row in rows), default=0)
-    minimum_attempts = 15  # Total completed + incomplete attempts over all weeks
+    minimum_attempts = MINIMUM_PASS_ATTEMPTS  # Completed + incomplete attempts across all weeks
     passing_ranked = _rank_leaders(
         (row for row in rows if row["passes_attempted"] > 0
          and row["passes_attempted"] >= minimum_attempts),

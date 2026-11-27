@@ -200,3 +200,27 @@ def test_games_played_is_wins_plus_losses_excluding_unplayed_games():
     assert teams[home_id]["games_played"] == (
         teams[home_id]["wins"] + teams[home_id]["losses"]
     )
+
+
+def test_standings_ignore_completed_games_against_another_category():
+    home_id = create_test_team("Cross Home", "varonil", "libre")
+    same_id = create_test_team("Cross Same", "varonil", "libre")
+    other_id = create_test_team("Cross Other", "varonil", "u14")
+    connection = get_connection()
+    # The API rejects cross-category fixtures, so legacy or imported rows are
+    # inserted directly to prove they cannot inflate a division's standings.
+    for away_id, home_score in ((same_id, 12), (other_id, 30)):
+        connection.execute(
+            """INSERT INTO games (home_team_id, away_team_id, week, status,
+               home_score, away_score) VALUES (%s, %s, 1, 'completed', %s, 6)""",
+            (home_id, away_id, home_score),
+        )
+    connection.commit()
+    connection.close()
+
+    response = client.get("/api/standings?branch=varonil&category=libre")
+    assert response.status_code == 200
+    teams = {team["team_id"]: team for team in response.json()}
+    assert teams[home_id]["games_played"] == 1
+    assert teams[home_id]["points_for"] == 12
+    assert teams[same_id]["games_played"] == 1
