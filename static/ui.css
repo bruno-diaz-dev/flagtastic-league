@@ -230,7 +230,9 @@ body { font-feature-settings: "cv11" 1; }
     letter-spacing: .005em;
     line-height: .95;
 }
-.league-page > .section-header h2 { font-size: clamp(36px, 4.6vw, 54px); }
+/* Long team names wrap between words, hyphenating (Aguasca-lientes) rather
+   than splitting a word at an arbitrary letter. */
+.league-page > .section-header h2 { font-size: clamp(30px, 4.6vw, 54px); overflow-wrap: break-word; hyphens: auto; }
 .auth-page h2 { font-size: 40px; }
 .league-page .leaderboard-panel h3, .content .game-time-heading h3, .content .game-time-heading time {
     font-family: var(--font-display);
