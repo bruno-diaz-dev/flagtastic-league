@@ -4,13 +4,101 @@
 <link rel="stylesheet" href="/static/weekly_featured.css?v=20261019-1">
 <link rel="stylesheet" href="/static/game_calendar.css?v=20261104-3">
 <section class="league-page">
-    <header class="section-header">
-        <div>
-            <p class="ui-kicker">FlagTastic · Calendario de la liga</p>
-            <h2>Partidos</h2>
-            <p>Consulta los partidos registrados y sus marcadores</p>
+    <header id="games-hero" class="section-header games-hero">
+        <div class="games-hero-copy">
+            <div id="games-hero-tags" class="games-hero-tags"></div>
+            <h2 id="games-hero-title">Partidos</h2>
+            <p id="games-hero-subtitle">Consulta los partidos registrados y sus marcadores</p>
+            <ul id="games-hero-stats" class="games-hero-stats" hidden></ul>
         </div>
+        <nav id="games-week-strip" class="week-strip" aria-label="Jornadas" hidden></nav>
     </header>
+
+    <section class="filters-panel games-filters" aria-label="Filtros de partidos">
+        <div class="games-filters-main">
+            <div id="games-branch-segmented" class="segmented" role="group" aria-label="Rama">
+                <button type="button" data-branch-choice="" aria-pressed="true">Todas</button>
+                <button type="button" data-branch-choice="varonil" aria-pressed="false">Varonil</button>
+                <button type="button" data-branch-choice="femenil" aria-pressed="false">Femenil</button>
+                <button type="button" data-branch-choice="mixto" aria-pressed="false">Mixto</button>
+            </div>
+
+        <label id="game-filter-youth-branch" class="games-youth-chip hidden">
+            Rama
+            <span class="readonly-control">Infantiles</span>
+        </label>
+
+        <label class="games-filter-pill">
+            Categoría
+            <select id="game-filter-category">
+                <option value="">Todas las categorías</option>
+                <option value="u6">U6</option>
+                        <option value="u7">U7 (amistoso)</option>
+                <option value="u8">U8</option>
+                <option value="u10">U10</option>
+                <option value="u12">U12</option>
+                <option value="u14">U14</option>
+                <option value="u16">U16</option>
+                <option value="u18">U18</option>
+                <option value="libre">Libre</option>
+            </select>
+        </label>
+
+        <label class="games-team-search games-filter-pill">
+            Equipo
+            <input
+                id="game-filter-team"
+                type="search"
+                placeholder="Buscar equipo"
+                autocomplete="off"
+            >
+        </label>
+
+            <p id="games-count" class="results-count" aria-live="polite"></p>
+            <button id="games-filters-toggle" class="secondary-button games-filters-toggle" type="button" aria-expanded="false" aria-controls="games-filters-more">Más filtros</button>
+        </div>
+
+        <div id="games-filters-more" class="games-filters-more">
+        <label>
+            Jornada
+            <select id="game-filter-week">
+                <option value="">Próximos partidos</option>
+            </select>
+        </label>
+
+        <label>
+            Estado
+            <select id="game-filter-status">
+                <option value="">Vista habitual</option>
+                <option value="scheduled">Programados</option>
+                <option value="postponed">Pospuestos</option>
+                <option value="completed">Finalizados</option>
+                <option value="all">Todos</option>
+            </select>
+        </label>
+
+        <label id="game-filter-branch-field">
+            Rama
+            <select id="game-filter-branch">
+                <option value="">Todas las ramas</option>
+                <option value="varonil">Varonil</option>
+                <option value="femenil">Femenil</option>
+                <option value="mixto">Mixto</option>
+            </select>
+        </label>
+
+        <label>
+            Campo
+            <select id="game-filter-field">
+                <option value="">Todos los campos</option>
+                {% for field_number in range(1, 9) %}
+                <option value="{{ field_number }}">Campo {{ field_number }}</option>
+                {% endfor %}
+            </select>
+        </label>
+            <p class="form-hint games-filters-hint">Se muestran los partidos pendientes. Selecciona una jornada o busca un equipo para ver también los finalizados y pospuestos.</p>
+        </div>
+    </section>
 
     <details id="game-calendar-management" class="form-panel admin-only ui-action-hub"><summary>Gestionar calendario<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
     <p id="calendar-migration-notice" class="form-message admin-only hidden" role="status">Fecha y sede aún no están habilitadas en la base de datos. Puedes revisar el archivo; antes de guardar esos datos debe activarse el calendario.</p>
@@ -195,81 +283,6 @@
 
     </div></details>
 
-    <nav id="games-week-strip" class="week-strip" aria-label="Jornadas" hidden></nav>
-
-    <section class="filters-panel games-filters" aria-label="Filtros de partidos">
-        <label class="games-team-search">
-            Equipo
-            <input
-                id="game-filter-team"
-                type="search"
-                placeholder="Buscar por nombre"
-                autocomplete="off"
-            >
-        </label>
-
-        <label>
-            Jornada
-            <select id="game-filter-week">
-                <option value="">Próximos partidos</option>
-            </select>
-        </label>
-
-        <label>
-            Estado
-            <select id="game-filter-status">
-                <option value="">Vista habitual</option>
-                <option value="scheduled">Programados</option>
-                <option value="postponed">Pospuestos</option>
-                <option value="completed">Finalizados</option>
-                <option value="all">Todos</option>
-            </select>
-        </label>
-
-        <label id="game-filter-branch-field">
-            Rama
-            <select id="game-filter-branch">
-                <option value="">Todas las ramas</option>
-                <option value="varonil">Varonil</option>
-                <option value="femenil">Femenil</option>
-                <option value="mixto">Mixto</option>
-            </select>
-        </label>
-
-        <label id="game-filter-youth-branch" class="hidden">
-            Rama
-            <span class="readonly-control">Infantiles</span>
-        </label>
-
-        <label>
-            Categoría
-            <select id="game-filter-category">
-                <option value="">Todas las categorías</option>
-                <option value="u6">U6</option>
-                        <option value="u7">U7 (amistoso)</option>
-                <option value="u8">U8</option>
-                <option value="u10">U10</option>
-                <option value="u12">U12</option>
-                <option value="u14">U14</option>
-                <option value="u16">U16</option>
-                <option value="u18">U18</option>
-                <option value="libre">Libre</option>
-            </select>
-        </label>
-
-        <label>
-            Campo
-            <select id="game-filter-field">
-                <option value="">Todos los campos</option>
-                {% for field_number in range(1, 9) %}
-                <option value="{{ field_number }}">Campo {{ field_number }}</option>
-                {% endfor %}
-            </select>
-        </label>
-
-        <button id="games-filters-toggle" class="secondary-button games-filters-toggle" type="button" aria-expanded="false" aria-controls="game-filter-status game-filter-field">Más filtros</button>
-    </section>
-
     <section class="week-admin-actions admin-only" aria-label="Acciones administrativas de jornada">
         <div>
             <h3>Acciones de jornada</h3>
@@ -322,9 +335,7 @@
         <div id="weekly-featured-list" class="weekly-featured-list"></div>
     </section>
 
-    <p class="form-hint">Se muestran los partidos pendientes. Selecciona una jornada o busca un equipo para ver también los finalizados y pospuestos.</p>
     <p id="game-schedule-update-message" class="form-message" role="status"></p>
-    <p id="games-count" class="results-count" aria-live="polite"></p>
     <section id="games" class="games-list" aria-live="polite"></section>
 </section>
 {% endblock %}
@@ -335,6 +346,6 @@
 <script src="/static/import_progress.js?v=20261126-1"></script>
 <script src="/static/schedule_ocr_cells.js?v=20261126-2"></script>
 <script src="/static/weekly_featured.js?v=20261019-1"></script>
-<script src="/static/games.js?v=20261128-4"></script>
+<script src="/static/games.js?v=20261128-5"></script>
 <script src="/static/schedule_board.js?v=20261104-1"></script>
 {% endblock %}

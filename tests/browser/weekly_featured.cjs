@@ -42,6 +42,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#weekly-featured').isVisible(), false);
     assert.equal(await cards.count(), 0);
     assert.equal(await page.locator('#games .game-card').count(), 1, 'upcoming list remains intact');
+    // Week, status and field live under "Más filtros"; week tabs drive the same select.
+    await page.locator('#games-filters-toggle').click();
     await page.locator('#game-filter-week').selectOption('2');
     await cards.first().waitFor();
     assert.equal(await cards.count(), 1);
@@ -64,7 +66,8 @@ const assert = require('node:assert/strict');
     await page.locator('#game-filter-week').selectOption('3');
     assert.equal(await page.locator('#weekly-featured').isVisible(), false, 'unplayed week has no final score to highlight');
     await page.locator('#game-filter-week').selectOption('2');
-    await page.locator('#game-filter-branch').selectOption('femenil');
+    await page.locator('#games-branch-segmented [data-branch-choice="femenil"]').click();
+    assert.equal(await page.locator('#game-filter-branch').inputValue(), 'femenil', 'branch buttons drive the branch filter');
     assert.equal(await cards.count(), 1);
     assert.match(await cards.first().textContent(), /24 puntos combinados/);
     await page.locator('#game-filter-category').selectOption('u14');

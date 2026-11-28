@@ -18,9 +18,20 @@ Styles load in this order on every page: `static/tokens.css`, `static/style.css`
 
 ## Games page
 
-- **Week tabs (`#games-week-strip`):** one tab for "Próximos" and one per week, each marked Programada, Resultados, Pospuesta or Finales. A tab only sets the existing `#game-filter-week` select and fires its `change` event, so filters, counts and week actions behave exactly as before.
-- **Game cards:** they render as scoreboard rows, grouped under a large start time. A decided game marks the winning line (`data-outcome="winner"`) and dims the losing one. Finals and third-place games carry a gold accent (`.game-card-bracket`, `.game-bracket-badge`). Admin and scorekeeper panels stay inside each card.
-- **Phone filters:** search, branch and category stay visible. The week, status and field filters fold behind "Más filtros", and their controls stay in the page.
+- **Week band (`#games-hero`):** the header tells the story of the week on screen, either the selected week or, under "Próximos", the next week with games to play. It shows:
+  - when it is played (Hoy, Mañana, En N días, Finalizada) and a "Día de finales" tag;
+  - "Jornada N · Finales";
+  - the date and venue;
+  - games, fields, and finals or points;
+  - the week number as a watermark.
+- **Week tabs (`#games-week-strip`):** they sit on the band's bottom edge. A tab only sets the existing `#game-filter-week` select and fires its `change` event, so filters, counts and week actions behave as before.
+- **Filter bar:** a slim bar that stays under the top bar. It holds the branch buttons (they drive `#game-filter-branch`), category, team search, the count and "Más filtros" (week, status, field).
+- **Scoreboard rows:** each game is one row grouped under a large start time:
+  - left: field, division or finals label;
+  - centre: home team, score or "VS" with the time, away team;
+  - right: a chevron.
+
+  The whole row opens the game, and team names keep their roster links. A decided game marks the winning team (`data-outcome="winner"`). Unresolved bracket slots read "Por definir". Admin and scorekeeper panels fold under each row.
 - **Width:** visitors get the standard 1200 px column. League administrators keep the wide layout for the schedule board.
 
 The standings page opens on Varonil · Libre instead of an empty form.
