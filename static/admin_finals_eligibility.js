@@ -43,7 +43,7 @@ function renderEligibility() {
         <article class="finals-eligibility-player">
             <div class="finals-eligibility-identity">
                 <div>
-                    <span class="status-badge">${escapeHtml(player.category)} · ${escapeHtml(player.branch)}</span>
+                    <span class="status-badge">${escapeHtml(displayName(divisionBranchLabel(player.branch, player.category)))} · ${escapeHtml(displayName(player.category))}</span>
                     <h3>${escapeHtml(player.player_name)}</h3>
                     <p>#${escapeHtml(player.jersey_number)} · ${escapeHtml(player.team_name)}</p>
                 </div>

@@ -5,7 +5,7 @@
 <section class="league-page">
     <header class="section-header">
         <div>
-            <p class="ui-kicker">FlagTastic · Temporada</p>
+            <div id="page-hero-tags" class="hero-tags"></div>
             <h2>Líderes individuales</h2>
             <p>Los cinco mejores jugadores por rama y categoría.</p>
         </div>
@@ -86,12 +86,11 @@
         </div></details>
     </section>
 
-    <section class="form-panel">
-        <h3>Consultar estadísticas</h3>
+    <section class="filters-panel filter-bar" aria-label="División">
         <form id="leaderboard-form" class="filter-form">
             <label id="leaderboard-branch-field">
                 Rama
-                <select id="leaderboard-branch" name="branch" required>
+                <select id="leaderboard-branch" name="branch" required data-segmented="Rama">
                     <option value="varonil">Varonil</option>
                     <option value="femenil">Femenil</option>
                     <option value="mixto">Mixto</option>
@@ -126,7 +125,7 @@
 <script src="/static/api.js?v=20261126-2"></script>
 <script src="/static/import_progress.js?v=20261126-1"></script>
 <script src="/static/statistics_upload.js?v=20261126-3"></script>
-<script src="/static/statistics.js?v=20261128-1"></script>
+<script src="/static/statistics.js?v=20261128-3"></script>
 {% endblock %}
 
 

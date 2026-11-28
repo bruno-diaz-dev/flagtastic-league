@@ -75,8 +75,23 @@ function renderTeams(teams) {
         return;
     }
 
-    teamsContainer.innerHTML = teams
-        .map((team) => `
+    // Teams arrive sorted by division; each division reads like a schedule
+    // time slot: its name on the left, its teams beside it.
+    const divisions = [];
+    teams.forEach((team) => {
+        const label = `${displayName(divisionBranchLabel(team.branch, team.category))} · ${displayName(team.category)}`;
+        if (divisions.at(-1)?.label !== label) divisions.push({label, teams: []});
+        divisions.at(-1).teams.push(team);
+    });
+
+    teamsContainer.innerHTML = divisions.map((division) => `
+        <section class="team-division" aria-label="${escapeHtml(division.label)}">
+            <header class="team-division-heading">
+                <h3>${escapeHtml(division.label)}</h3>
+                <span>${division.teams.length} equipo${division.teams.length === 1 ? "" : "s"}</span>
+            </header>
+            <div class="team-division-list">
+                ${division.teams.map((team) => `
             <article class="team-card">
                 <a class="team-card-main" href="/teams/${team.id}/roster">
                     ${team.logo_url
@@ -89,9 +104,10 @@ function renderTeams(teams) {
                     </div>
                 </a>
                 <a class="team-manage-link admin-only" href="/teams/${team.id}/manage">Administrar</a>
-            </article>
-        `)
-        .join("");
+            </article>`).join("")}
+            </div>
+        </section>
+    `).join("");
 }
 
 function getFilteredTeams() {
@@ -115,6 +131,14 @@ function getFilteredTeams() {
 function renderFilteredTeams() {
     const filteredTeams = getFilteredTeams();
     teamsCount.textContent = `${filteredTeams.length} de ${teamsState.length} equipos`;
+    if (typeof setPageHero === "function" && teamsState.length) {
+        const divisions = new Set(teamsState.map((team) => `${divisionBranchLabel(team.branch, team.category)}:${team.category}`));
+        setPageHero({stats: [
+            [teamsState.length, "Equipos"],
+            [divisions.size, "Divisiones"],
+            [teamsState.filter((team) => team.status === "active").length, "Activos"],
+        ]});
+    }
     renderTeams(filteredTeams);
 }
 

@@ -68,7 +68,7 @@ function renderTeamOptions() {
     teamSelect.innerHTML = `<option value="">${matchingTeams.length
         ? "Selecciona un equipo"
         : "No hay equipos con estos filtros"}</option>` + matchingTeams.map(
-        (team) => `<option value="${team.id}">${escapeHtml(team.name)} · ${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</option>`
+        (team) => `<option value="${team.id}">${escapeHtml(displayName(team.name))} · ${escapeHtml(displayName(divisionBranchLabel(team.branch, team.category)))} · ${escapeHtml(displayName(team.category))}</option>`
     ).join("");
     teamSelect.disabled = matchingTeams.length === 0;
     if (matchingTeams.some((team) => String(team.id) === selectedTeamId)) {
@@ -88,9 +88,9 @@ async function loadDashboard() {
         return;
     }
     const dashboard = await response.json();
-    const displayName = dashboard.player.aka || dashboard.player.name;
+    const shownName = dashboard.player.aka || displayName(dashboard.player.name);
     profileForm.elements.aka.value = dashboard.player.aka || "";
-    document.querySelector("#dashboard-player-name").textContent = displayName;
+    document.querySelector("#dashboard-player-name").textContent = shownName;
     document.querySelector("#dashboard-greeting").textContent = dashboard.player.aka
         ? `${dashboard.player.name} · esta es tu temporada.`
         : "Esta es tu temporada.";
@@ -106,7 +106,7 @@ async function loadDashboard() {
     profilePhotoPlaceholder.textContent = initials;
     if (dashboard.player.profile_photo_url) {
         profilePhoto.src = dashboard.player.profile_photo_url;
-        profilePhoto.alt = `Foto de ${displayName}`;
+        profilePhoto.alt = `Foto de ${shownName}`;
         profilePhoto.classList.remove("hidden");
         profilePhotoPlaceholder.classList.add("hidden");
         profilePhoto.onerror = () => {
@@ -127,8 +127,8 @@ async function loadDashboard() {
     teamsContainer.innerHTML = dashboard.teams.length
         ? dashboard.teams.map((team) => `
             <article class="team-card">
-                <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(team.team_name)}</a></h4>
-                <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
+                <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(displayName(team.team_name))}</a></h4>
+                <p>${escapeHtml(displayName(divisionBranchLabel(team.branch, team.category)))} · ${escapeHtml(displayName(team.category))} · #${team.jersey_number}</p></div>
                 <strong>${team.standing_position || "-"} / ${team.division_team_count}</strong>
             </article>`).join("")
         : `<div class="empty-state"><h4>Aún no tienes equipo</h4><p>Selecciona uno para comenzar.</p></div>`;

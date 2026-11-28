@@ -4,11 +4,47 @@
 <section id="teams-directory" class="teams-directory league-page">
     <header class="section-header">
         <div>
-            <p class="ui-kicker">FlagTastic · La liga</p>
+            <div id="page-hero-tags" class="hero-tags"></div>
             <h2>Equipos</h2>
             <p>Encuentra tu equipo, consulta su plantilla y sigue a la liga.</p>
+            <ul id="page-hero-stats" class="hero-stats" hidden></ul>
         </div>
     </header>
+
+    <section class="filters-panel filter-bar teams-directory-filters" aria-label="Buscar equipos">
+        <label class="team-search-field filter-search">Buscar equipo<input id="team-filter-search" type="search" placeholder="Nombre del equipo" autocomplete="off"></label>
+        <label id="team-filter-branch-field">
+            Rama
+            <select id="team-filter-branch" data-segmented="Rama">
+                <option value="">Todas las ramas</option>
+                <option value="varonil">Varonil</option>
+                <option value="femenil">Femenil</option>
+                <option value="mixto">Mixto</option>
+            </select>
+        </label>
+
+        <label id="team-filter-youth-branch" class="hidden">
+            Rama
+            <span class="readonly-control">Infantiles</span>
+        </label>
+
+        <label>
+            Categoría
+            <select id="team-filter-category">
+                <option value="">Todas las categorías</option>
+                <option value="u6">U6</option>
+                <option value="u8">U8</option>
+                <option value="u10">U10</option>
+                <option value="u12">U12</option>
+                <option value="u14">U14</option>
+                <option value="u16">U16</option>
+                <option value="u18">U18</option>
+                <option value="libre">Libre</option>
+            </select>
+        </label>
+        <span id="teams-count" class="results-count" role="status"></span>
+        <button id="clear-team-filters" type="button" class="secondary-button">Limpiar filtros</button>
+    </section>
 
     <details id="team-registration" class="form-panel team-registration team-manager-only">
         <summary><span><strong>Registrar equipo</strong><small>Agrega un equipo a la liga</small></span><span class="team-registration-indicator" aria-hidden="true">+</span></summary>
@@ -86,41 +122,7 @@
     </details>
     <p id="form-message" class="form-message" role="status"></p>
 
-    <div class="teams-directory-heading"><h3>Directorio de equipos</h3><span id="teams-count" role="status"></span></div>
 
-    <section class="filters-panel teams-directory-filters" aria-label="Buscar equipos">
-        <label class="team-search-field">Buscar equipo<input id="team-filter-search" type="search" placeholder="Nombre del equipo" autocomplete="off"></label>
-        <label id="team-filter-branch-field">
-            Rama
-            <select id="team-filter-branch">
-                <option value="">Todas las ramas</option>
-                <option value="varonil">Varonil</option>
-                <option value="femenil">Femenil</option>
-                <option value="mixto">Mixto</option>
-            </select>
-        </label>
-
-        <label id="team-filter-youth-branch" class="hidden">
-            Rama
-            <span class="readonly-control">Infantiles</span>
-        </label>
-
-        <label>
-            Categoría
-            <select id="team-filter-category">
-                <option value="">Todas las categorías</option>
-                <option value="u6">U6</option>
-                <option value="u8">U8</option>
-                <option value="u10">U10</option>
-                <option value="u12">U12</option>
-                <option value="u14">U14</option>
-                <option value="u16">U16</option>
-                <option value="u18">U18</option>
-                <option value="libre">Libre</option>
-            </select>
-        </label>
-        <button id="clear-team-filters" type="button" class="secondary-button">Limpiar filtros</button>
-    </section>
 
     <section id="teams" class="teams-grid" aria-live="polite"></section>
 </section>
@@ -129,5 +131,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/teams.js?v=20261128-1"></script>
+<script src="/static/teams.js?v=20261128-3"></script>
 {% endblock %}

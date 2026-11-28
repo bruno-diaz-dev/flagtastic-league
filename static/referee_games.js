@@ -70,12 +70,12 @@ function refereeGameCard(game) {
             <div class="referee-game-copy">
                 <span class="game-state ${isPostponed ? "game-state-postponed" : isPending ? "game-state-pending" : "game-state-complete"}">${isPostponed ? "Pospuesto" : isPending ? "Pendiente" : "Finalizado"}</span>
                 <h4>
-                    <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
+                    <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(displayName(game.home_team.name))}</a>
                     <span class="matchup-versus">vs</span>
-                    <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
+                    <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(displayName(game.away_team.name))}</a>
                 </h4>
                 <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.game_date || game.venue ? escapeHtml(gameCalendarLabel(game)) + " · " : ""}${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
-                <p>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} / ${escapeHtml(game.home_team.category)} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
+                <p>${escapeHtml(displayName(divisionBranchLabel(game.home_team.branch, game.home_team.category)))} · ${escapeHtml(displayName(game.home_team.category))} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
                 <div class="game-crew" aria-label="Planilla arbitral del partido">
                     <strong>Planilla arbitral</strong>
                     <ul>
@@ -96,9 +96,9 @@ function refereeGameCard(game) {
                 <summary>Registrar resultado</summary>
                 <form class="score-form referee-score-form" data-game-id="${game.id}">
                     <div class="score-fields">
-                        <label><span>${escapeHtml(game.home_team.name)}</span><input type="number" name="home_score" min="0" step="1" inputmode="numeric" required aria-label="Puntos de ${escapeHtml(game.home_team.name)}"></label>
+                        <label><span>${escapeHtml(displayName(game.home_team.name))}</span><input type="number" name="home_score" min="0" step="1" inputmode="numeric" required aria-label="Puntos de ${escapeHtml(displayName(game.home_team.name))}"></label>
                         <span class="score-separator" aria-hidden="true">-</span>
-                        <label><span>${escapeHtml(game.away_team.name)}</span><input type="number" name="away_score" min="0" step="1" inputmode="numeric" required aria-label="Puntos de ${escapeHtml(game.away_team.name)}"></label>
+                        <label><span>${escapeHtml(displayName(game.away_team.name))}</span><input type="number" name="away_score" min="0" step="1" inputmode="numeric" required aria-label="Puntos de ${escapeHtml(displayName(game.away_team.name))}"></label>
                     </div>
                     <p class="score-capture-help">Verifica los puntos antes de guardar. Solo un administrador podrá corregir el resultado.</p>
                     <button type="submit">Guardar resultado final</button>
@@ -194,9 +194,9 @@ function renderRefereeHistory(games) {
                                     ${weekGames.map(game => `
                                         <li>
                                             <div>
-                                                <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
+                                                <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(displayName(game.home_team.name))}</a>
                                                 <span class="matchup-versus">vs</span>
-                                                <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
+                                                <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(displayName(game.away_team.name))}</a>
                                                 <p>${escapeHtml(officialPositionLabel(game.official_position))} · ${game.start_time ? game.start_time.slice(0, 5) : "Hora sin registrar"} · ${game.field_number ? `Campo ${game.field_number}` : "Campo sin registrar"}</p>
                                             </div>
                                             <div class="referee-history-result">

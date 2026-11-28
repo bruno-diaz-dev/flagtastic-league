@@ -4,19 +4,18 @@
 <section class="league-page">
     <header class="section-header">
         <div>
-            <p class="ui-kicker">FlagTastic · Competencia</p>
+            <div id="page-hero-tags" class="hero-tags"></div>
             <h2>Tabla de posiciones</h2>
             <p>Consulta la tabla de posiciones de cada división.</p>
+            <ul id="page-hero-stats" class="hero-stats" hidden></ul>
         </div>
     </header>
 
-    <section class="form-panel">
-        <h3>Consultar tabla</h3>
-
-        <form id="standings-form" class="standings-form">
+    <section class="filters-panel filter-bar" aria-label="División">
+        <form id="standings-form" class="standings-form" data-auto-submit>
             <label id="standings-branch-field">
                 Rama
-                <select id="standings-branch" name="branch" required>
+                <select id="standings-branch" name="branch" required data-segmented="Rama">
                     <option value="">Selecciona una rama</option>
                     <option value="varonil">Varonil</option>
                     <option value="femenil">Femenil</option>
@@ -62,5 +61,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261001-2"></script>
-<script src="/static/standings.js?v=20261128-2"></script>
+<script src="/static/standings.js?v=20261128-3"></script>
 {% endblock %}

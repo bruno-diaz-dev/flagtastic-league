@@ -50,7 +50,7 @@ function renderDuplicateAudit() {
                     <div class="duplicate-team-row">
                         <div>
                             <strong>${escapeHtml(team.name)}</strong>
-                            <p>${escapeHtml(team.branch)} / ${escapeHtml(team.category)} · ${escapeHtml(team.status)}</p>
+                            <p>${escapeHtml(displayName(divisionBranchLabel(team.branch, team.category)))} · ${escapeHtml(displayName(team.category))} · ${escapeHtml({active: "Activo", pending: "Pendiente", inactive: "Inactivo"}[team.status] || team.status)}</p>
                         </div>
                         <div class="duplicate-team-actions">
                             <a class="secondary-link" href="/teams/${team.id}/roster">Ver roster</a>

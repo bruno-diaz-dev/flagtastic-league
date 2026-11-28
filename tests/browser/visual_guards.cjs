@@ -82,9 +82,11 @@ const PAGES = [
     {name: 'teams', path: '/teams', ready: '.team-card'},
     {name: 'games', path: '/games', ready: '.game-card'},
     {name: 'standings', path: '/standings', ready: '.standings-team', prepare: async (page) => {
-        await page.selectOption('#standings-branch', 'femenil').catch(() => {});
-        await page.selectOption('#standings-category', 'u14').catch(() => {});
-        await page.locator('form button[type=submit]').first().click();
+        // The page opens on a division; branch buttons and category reload it.
+        await page.locator('.standings-team').first().waitFor({timeout: 10000});
+        await page.locator('.filter-bar .segmented button', {hasText: 'Femenil'}).click();
+        await page.selectOption('#standings-category', 'u14');
+        assert.equal(await page.locator('#standings-branch').inputValue(), 'femenil', 'branch buttons drive the standings branch');
     }},
     {name: 'statistics', path: '/statistics', ready: '.leaderboard-panel'},
     {name: 'roster', path: '/teams/1/roster', ready: '.roster-player'},

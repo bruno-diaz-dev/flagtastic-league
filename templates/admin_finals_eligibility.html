@@ -4,7 +4,6 @@
 <section class="finals-eligibility-page league-page">
     <header class="section-header">
         <div>
-            <p class="ui-kicker">FlagTastic · Administración</p>
             <h2>Elegibilidad a finales</h2>
             <p>Jugadores activos que aún no alcanzan las asistencias requeridas para su equipo y categoría.</p>
         </div>
@@ -15,10 +14,10 @@
         <p>Cada partido regular finalizado en la categoría del equipo cuenta como una asistencia. Se requiere más de la mitad de sus partidos regulares; por ejemplo, 6 partidos requieren 4 asistencias. Amistosos y finales no cuentan.</p>
     </section>
 
-    <section class="filters-panel audit-filters finals-eligibility-filters" aria-label="Filtros de elegibilidad">
-        <label>Buscar jugador o equipo<input id="eligibility-search" type="search" placeholder="Nombre, dorsal o equipo" autocomplete="off"></label>
+    <section class="filters-panel filter-bar audit-filters finals-eligibility-filters" aria-label="Filtros de elegibilidad">
+        <label class="filter-search">Buscar jugador o equipo<input id="eligibility-search" type="search" placeholder="Nombre, dorsal o equipo" autocomplete="off"></label>
         <label>Categoría<select id="eligibility-category"><option value="">Todas</option></select></label>
-        <label>Rama<select id="eligibility-branch"><option value="">Todas</option></select></label>
+        <label>Rama<select id="eligibility-branch" data-segmented="Rama"><option value="">Todas</option></select></label>
     </section>
 
     <p id="eligibility-count" class="section-count" aria-live="polite"></p>
@@ -29,6 +28,6 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261010-1"></script>
-<script src="/static/admin_finals_eligibility.js?v=20261126-1"></script>
+<script src="/static/admin_finals_eligibility.js?v=20261128-4"></script>
 {% endblock %}
 

@@ -16,6 +16,18 @@ Styles load in this order on every page: `static/tokens.css`, `static/style.css`
 
 `.league-page > .section-header` runs edge to edge under the top bar, with faint yard lines. Its text stays aligned with the page column: `layout.js` publishes `--scrollbar-width`, so the band never causes sideways scrolling. A page that opens with a `.back-link` keeps the link inside the band.
 
+## Shared page system
+
+The games page language applies to every page:
+
+- **No "FlagTastic · …" kickers.** A band carries the page title, a short description and, where it helps, `#page-hero-tags` (for example the division on screen) and `#page-hero-stats` (large numbers). Page scripts fill them with `setPageHero({tags, stats})` from `static/page_ui.js`.
+- **Filter bar (`.filter-bar`):** a slim sticky bar for division pickers and directory filters. It joins the band when it sits right under it. Label text is visually hidden but stays for screen readers.
+- **Branch buttons:** `<select data-segmented="Rama">` renders as pill buttons. The select stays the source of truth, so page scripts and forms are unchanged. A required select's empty prompt is not offered as a button.
+- **Auto-submit:** `<form data-auto-submit>` submits when one of its selects changes, so division filters need no "Consultar" button. The button stays, visually hidden, for keyboards.
+- **Section titles** use the condensed face in uppercase. **Metrics** (`.stat-grid`) are a strip of large numbers, each with a rule on its left, not boxes.
+- **Tool panels** (`.ui-disclosure`, `.ui-action-hub`) are slim gold bars. **Tables** read like scoreboards, with condensed numbers. **Cards** are flat rows with one border.
+- **Teams directory:** grouped by division like the schedule (`.team-division`). **Leaders:** the first row stands out with a larger photo and number.
+
 ## Games page
 
 - **Week band (`#games-hero`):** the header tells the story of the week on screen, either the selected week or, under "Próximos", the next week with games to play. It shows:

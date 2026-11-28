@@ -4,7 +4,6 @@
 <section class="team-audit-page league-page">
     <header class="section-header">
         <div>
-            <p class="ui-kicker">FlagTastic · Administración</p>
             <h2>Auditar equipos</h2>
             <p>Revisa posibles registros repetidos en todas las ramas y categorías.</p>
         </div>
@@ -19,8 +18,8 @@
         </p>
     </section>
 
-    <section class="form-panel audit-filters" aria-label="Filtros de auditoría">
-        <label>
+    <section class="filters-panel filter-bar audit-filters" aria-label="Filtros de auditoría">
+        <label class="filter-search">
             Buscar equipo
             <input id="duplicate-name-filter" type="search" placeholder="Nombre del equipo">
         </label>
@@ -40,7 +39,7 @@
         </label>
         <label>
             Rama
-            <select id="duplicate-branch-filter">
+            <select id="duplicate-branch-filter" data-segmented="Rama">
                 <option value="">Todas las ramas</option>
                 <option value="varonil">Varonil</option>
                 <option value="femenil">Femenil</option>
@@ -57,5 +56,5 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261006-1"></script>
-<script src="/static/admin_team_duplicates.js?v=20261006-1"></script>
+<script src="/static/admin_team_duplicates.js?v=20261128-4"></script>
 {% endblock %}
