@@ -11,11 +11,12 @@ from database import get_connection
 from main import app
 from models import PlayerAccountCreate, PlayerCreate
 from services.curp import age_from_birth_date
+from tests.image_samples import png_bytes
 
 
 DOCUMENT = "TEST120728MBEXLT"
 BIRTH_DATE = "2012-07-28"
-PHOTO = b"\x89PNG\r\n\x1a\nprovisional-profile"
+PHOTO = png_bytes()
 
 
 def payload(document=DOCUMENT, **changes):

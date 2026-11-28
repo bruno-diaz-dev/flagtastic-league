@@ -14,6 +14,7 @@ from main import app
 from database import get_connection
 from models import UserCreate
 from repositories.users import create_user
+from tests.image_samples import png_bytes
 
 
 client = TestClient(app, base_url="https://testserver")
@@ -211,7 +212,7 @@ def test_team_representative_can_manage_only_assigned_team(monkeypatch):
     assert assigned_response.status_code == 201
     assert other_response.status_code == 403
 
-    png = b"\x89PNG\r\n\x1a\nrepresentative-logo"
+    png = png_bytes()
     assigned_logo = client.put(
         f"/api/teams/{assigned_team['id']}/logo",
         files={"file": ("logo.png", png, "image/png")}
@@ -762,7 +763,9 @@ def test_account_recovery_replaces_email_revokes_access_and_preserves_identity(m
     delivered_links = []
     monkeypatch.setattr("routes.auth.send_password_reset_email", lambda email, url: delivered_links.append(url))
     assert client.post("/api/auth/forgot-password", json={"email": old_email}).status_code == 202
-    recovery_token = parse_qs(urlparse(delivered_links[0]).query)["token"][0]
+    # The token travels in the fragment so it never reaches request logs.
+    assert "?token=" not in delivered_links[0]
+    recovery_token = parse_qs(urlparse(delivered_links[0]).fragment)["token"][0]
     before = get_user_by_id(target["id"])
     _, new_email = unique_identity("replacement")
     assert login(admin_email, "adminsecret").status_code == 200

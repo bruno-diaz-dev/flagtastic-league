@@ -28,6 +28,8 @@ HEADER_ALIASES = {
     },
 }
 MAX_ROSTER_ROWS = 100
+# Consecutive empty rows that end an XLSX roster sheet.
+MAX_BLANK_ROW_STREAK = 500
 
 
 def parse_roster_file(filename, content):
@@ -96,14 +98,26 @@ def _read_xlsx(content):
         sheet, header_row, header_map = candidates[0]
         rows = sheet.iter_rows(min_row=header_row + 1, values_only=True)
         parsed_rows = []
+        blank_streak = 0
         for index, row in enumerate(rows, start=header_row + 1):
-            parsed_rows.append({
-                "row_number": index,
-                "values": {
-                    field: _cell_to_text(row[column_index] if column_index < len(row) else None)
-                    for field, column_index in header_map.items()
-                },
-            })
+            values = {
+                field: _cell_to_text(row[column_index] if column_index < len(row) else None)
+                for field, column_index in header_map.items()
+            }
+            # A small compressed file can declare millions of rows. Formatted
+            # but empty rows end the data; too many filled rows are rejected
+            # here instead of being materialized first.
+            if not any(values.values()):
+                blank_streak += 1
+                if blank_streak >= MAX_BLANK_ROW_STREAK:
+                    break
+                continue
+            blank_streak = 0
+            if len(parsed_rows) >= MAX_ROSTER_ROWS:
+                raise RosterImportError(
+                    f"El archivo no puede contener mas de {MAX_ROSTER_ROWS} jugadores"
+                )
+            parsed_rows.append({"row_number": index, "values": values})
         return parsed_rows
     finally:
         workbook.close()

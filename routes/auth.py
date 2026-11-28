@@ -5,7 +5,7 @@ from datetime import date
 from pydantic import ValidationError
 
 from fastapi import (
-    APIRouter, BackgroundTasks, Cookie, Depends, File, Form, HTTPException,
+    APIRouter, BackgroundTasks, Depends, File, Form, HTTPException,
     Response, UploadFile,
 )
 
@@ -21,6 +21,7 @@ from repositories.users import (
 )
 from repositories.sessions import (
     create_session,
+    hash_session_token,
     revoke_session
 )
 from repositories.password_resets import (
@@ -40,15 +41,28 @@ from settings import (
     session_cookie_is_secure
 )
 from dependencies.auth import resolve_session_token
+from fastapi import Request
+from services.rate_limits import (
+    client_address,
+    count_attempt,
+    is_over_limit,
+    record_failure,
+    reject_if_blocked,
+)
 
 router = APIRouter(
     prefix="/api/auth",
     tags=["auth"]
 )
+IDENTITY_CLAIM_REJECTED = (
+    "No pudimos crear la cuenta con esa CURP o documento. Si ya tienes cuenta, "
+    "inicia sesión o recupera tu contraseña; si no, pide ayuda a la liga."
+)
 
 
 @router.post("/register/player", status_code=201)
 async def register_player_account(
+    request: Request,
     email: str = Form(...),
     password: str = Form(...),
     name: str = Form(...),
@@ -60,6 +74,7 @@ async def register_player_account(
     photo: UploadFile = File(...)
 ):
     """Create a player login without exposing credentials or CURP."""
+    count_attempt("register_ip", client_address(request))
     try:
         registration = PlayerAccountCreate(
             email=email, password=password, name=name, curp=curp,
@@ -75,8 +90,7 @@ async def register_player_account(
     except PlayerIdentityConflict as error:
         remove_profile_photo(profile_photo)
         raise HTTPException(
-            status_code=409,
-            detail="Los datos no coinciden con el jugador registrado"
+            status_code=409, detail=IDENTITY_CLAIM_REJECTED
         ) from error
     except UniqueViolation as error:
         remove_profile_photo(profile_photo)
@@ -84,7 +98,8 @@ async def register_player_account(
         if constraint == "users_email_key":
             detail = "El correo ya esta registrado"
         elif constraint == "users_player_id_key":
-            detail = "El jugador ya tiene una cuenta"
+            # Same answer as a data mismatch: do not confirm that a CURP exists.
+            detail = IDENTITY_CLAIM_REJECTED
         else:
             raise
         raise HTTPException(status_code=409, detail=detail) from error
@@ -92,20 +107,33 @@ async def register_player_account(
         remove_profile_photo(profile_photo)
         raise
 
-@router.post("/login")
-def login(credentials: LoginRequest, response: Response):
-    """Authenticate a user and store the session token in a secure cookie."""
+def _authenticate_with_limits(request, credentials):
+    """Check credentials under the per-address and per-account limits.
 
+    Every attempt counts against the caller's address. Only failures count
+    against the account, so someone guessing a password cannot keep the
+    real owner out once they sign in correctly before the limit.
+    """
+    count_attempt("login_ip", client_address(request))
+    reject_if_blocked("login_email_failures", credentials.email)
     user = authenticate_user(
         credentials.email,
         credentials.password.get_secret_value()
     )
-
     if user is None:
+        record_failure("login_email_failures", credentials.email)
         raise HTTPException(
             status_code=401,
             detail="Correo o contraseña incorrectos"
         )
+    return user
+
+
+@router.post("/login")
+def login(credentials: LoginRequest, response: Response, request: Request):
+    """Authenticate a user and store the session token in a secure cookie."""
+
+    user = _authenticate_with_limits(request, credentials)
 
     session = create_session(user["id"])
 
@@ -123,17 +151,9 @@ def login(credentials: LoginRequest, response: Response):
 
 
 @router.post("/mobile/login")
-def mobile_login(credentials: LoginRequest):
+def mobile_login(credentials: LoginRequest, request: Request):
     """Issue a revocable Bearer session to supported mobile roles."""
-    user = authenticate_user(
-        credentials.email,
-        credentials.password.get_secret_value(),
-    )
-    if user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Correo o contraseña incorrectos",
-        )
+    user = _authenticate_with_limits(request, credentials)
     if not {"player", "referee", "team_representative"}.intersection(user.get("roles", [user.get("role")])):
         raise HTTPException(
             status_code=403,
@@ -177,12 +197,13 @@ def get_current_user(
 @router.post("/change-password", status_code=204)
 def change_password(
     update: PasswordChange,
-    session_token: str | None = Cookie(
-        default=None,
-        alias=SESSION_COOKIE_NAME
-    )
+    session_token: str | None = Depends(resolve_session_token)
 ):
-    """Change the current password, including mandatory first-login changes."""
+    """Change the current password, including mandatory first-login changes.
+
+    All other sessions of the account (other browsers, the mobile app) are
+    signed out; the session making the change stays signed in.
+    """
     if session_token is None:
         raise HTTPException(status_code=401, detail="No autenticado")
     user = get_authenticated_user(session_token)
@@ -191,7 +212,8 @@ def change_password(
     changed = change_user_password(
         user["id"],
         update.current_password.get_secret_value(),
-        update.new_password.get_secret_value()
+        update.new_password.get_secret_value(),
+        keep_session_hash=hash_session_token(session_token)
     )
     if not changed:
         raise HTTPException(status_code=400, detail="La contraseña actual no coincide")
@@ -201,11 +223,19 @@ def change_password(
 def forgot_password(
     reset_request: PasswordResetRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
 ):
     """Send a reset link while returning the same response for every email."""
-    reset = create_password_reset(reset_request.email)
+    count_attempt("forgot_ip", client_address(request))
+    # Over the per-account limit nothing is sent, with the same response.
+    reset = (
+        None if is_over_limit("forgot_email", reset_request.email)
+        else create_password_reset(reset_request.email)
+    )
     if reset is not None:
-        reset_url = f"{PUBLIC_BASE_URL}/reset-password?token={reset['token']}"
+        # The fragment is never sent to the server, so the token stays out
+        # of request logs when the link is opened.
+        reset_url = f"{PUBLIC_BASE_URL}/reset-password#token={reset['token']}"
         background_tasks.add_task(
             send_password_reset_email,
             reset["email"],
@@ -220,8 +250,9 @@ def forgot_password(
 
 
 @router.post("/reset-password", status_code=204)
-def reset_password(confirmation: PasswordResetConfirmation):
+def reset_password(confirmation: PasswordResetConfirmation, request: Request):
     """Replace a password using a valid single-use token."""
+    count_attempt("reset_ip", client_address(request))
     changed = consume_password_reset(
         confirmation.token,
         confirmation.new_password.get_secret_value(),

@@ -8,10 +8,11 @@ from database import get_connection
 from main import app
 from models import UserCreate
 from repositories.users import create_user
+from tests.image_samples import png_bytes
 
 
 client = TestClient(app, base_url="https://testserver")
-PROFILE_PNG = b"\x89PNG\r\n\x1a\nrelease-smoke-profile"
+PROFILE_PNG = png_bytes()
 
 
 def reset_test_database():
@@ -36,8 +37,10 @@ def login(email, password="supersecret"):
     )
 
 
-def test_complete_release_flow_for_public_and_all_roles():
+def test_complete_release_flow_for_public_and_all_roles(monkeypatch):
     """Exercise the launch-critical flow from account setup to public results."""
+    # The player joins as if the roster were still open; the cutoff has its own tests.
+    monkeypatch.setattr("routes.dashboard.roster_is_closed", lambda: False)
     app.dependency_overrides.clear()
     client.cookies.clear()
     reset_test_database()
