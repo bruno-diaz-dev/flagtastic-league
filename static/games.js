@@ -102,7 +102,7 @@ function gameTeamRow(team, side, score, opponentScore, pending = false) {
 
     return `
         <div class="game-team-row" data-outcome="${outcome}" data-side="${side === "Local" ? "home" : "away"}">
-            <span class="game-team-side">${side}</span>
+            <span class="game-team-side sr-only">${side}</span>
             ${logo}
             ${name}
             <span class="game-team-score ${score == null ? "is-empty" : ""}" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "–"}</span>
@@ -340,7 +340,7 @@ function renderGames(games) {
                         </div>
                         ${game.bracket_pending
                             ? ""
-                            : `<a class="secondary-link game-details-link" href="/games/${game.id}"><span class="game-details-text">Ver partido / En vivo</span>${GAME_CHEVRON_ICON}</a>`}
+                            : `<a class="secondary-link game-details-link" href="/games/${game.id}"><span class="game-details-text sr-only">Ver partido / En vivo</span>${GAME_CHEVRON_ICON}</a>`}
                     </div>
                     <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
                         <summary>${game.bracket_pending ? "Horario" : !hasScore && !isPostponed ? "Resultado y horario" : "Administrar partido"}</summary>

@@ -101,6 +101,15 @@ function inspectLayout() {
         return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
     };
     const root = document.documentElement;
+    // Content inside a sideways-scrolling strip (week tabs, wide tables) is
+    // meant to extend past the screen edge; the strip itself must still fit.
+    const inSidewaysScroller = (el) => {
+        for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+            const overflow = getComputedStyle(node).overflowX;
+            if ((overflow === 'auto' || overflow === 'scroll') && node.scrollWidth > node.clientWidth + 1) return true;
+        }
+        return false;
+    };
     if (root.scrollWidth > root.clientWidth + 1) problems.push(`page scrolls sideways by ${root.scrollWidth - root.clientWidth}px`);
 
     // Text cut off sideways (ellipsis and line clamps are deliberate).
@@ -112,7 +121,7 @@ function inspectLayout() {
             problems.push(`text cut off: ${describe(el)}`);
         }
         const rect = el.getBoundingClientRect();
-        if (rect.left < -1 || rect.right > root.clientWidth + 1) problems.push(`outside the screen: ${describe(el)}`);
+        if ((rect.left < -1 || rect.right > root.clientWidth + 1) && !inSidewaysScroller(el)) problems.push(`outside the screen: ${describe(el)}`);
     }
 
     // Content must stay inside its card, and cards must not overlap.
