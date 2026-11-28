@@ -37,6 +37,12 @@ const deleteGamesWeekButton = document.querySelector("#delete-games-week");
 const toggleGamesWeekStatusButton = document.querySelector("#toggle-games-week-status");
 const weekActionMessage = document.querySelector("#week-action-message");
 const gamesWeekStrip = document.querySelector("#games-week-strip");
+const gamesHero = document.querySelector("#games-hero");
+const gamesHeroTags = document.querySelector("#games-hero-tags");
+const gamesHeroTitle = document.querySelector("#games-hero-title");
+const gamesHeroSubtitle = document.querySelector("#games-hero-subtitle");
+const gamesHeroStats = document.querySelector("#games-hero-stats");
+const gamesBranchSegmented = document.querySelector("#games-branch-segmented");
 
 let gamesState = [];
 let gameTeamsState = [];
@@ -80,25 +86,37 @@ function compareGames(first, second) {
     );
 }
 
-// One team line of the scoreboard. A decided game marks the winning line;
-// a game without a score shows a quiet dash instead of a number.
-function gameTeamRow(team, side, score, opponentScore) {
+// One team of the scoreboard row. A decided game marks the winning team;
+// an unresolved bracket slot reads "Por definir" with an empty badge.
+function gameTeamRow(team, side, score, opponentScore, pending = false) {
     const decided = score != null && opponentScore != null && score !== opponentScore;
     const outcome = decided ? (score > opponentScore ? "winner" : "loser") : "none";
-    const logo = team.logo_url
-        ? `<img class="team-logo game-team-logo" src="${team.logo_url}" alt="" loading="lazy" decoding="async">`
-        : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(nameInitials(team.name))}</span>`;
+    const logo = pending
+        ? `<span class="game-team-logo game-team-logo-pending" aria-hidden="true">?</span>`
+        : team.logo_url
+            ? `<img class="team-logo game-team-logo" src="${team.logo_url}" alt="" loading="lazy" decoding="async">`
+            : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(nameInitials(team.name))}</span>`;
+    const name = pending
+        ? `<span class="game-team-name game-team-name-pending">Por definir</span>`
+        : `<a class="game-team-name team-roster-link" href="/teams/${team.id}/roster">${escapeHtml(displayName(team.name))}</a>`;
 
     return `
-        <div class="game-team-row" data-outcome="${outcome}">
-            <span class="game-team-side">${side}</span>
+        <div class="game-team-row" data-outcome="${outcome}" data-side="${side === "Local" ? "home" : "away"}">
+            <span class="game-team-side sr-only">${side}</span>
             ${logo}
-            <a class="game-team-name team-roster-link" href="/teams/${team.id}/roster">
-                ${escapeHtml(displayName(team.name))}
-            </a>
+            ${name}
             <span class="game-team-score ${score == null ? "is-empty" : ""}" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "–"}</span>
         </div>
     `;
+}
+
+const GAME_TROPHY_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8v6a4 4 0 0 1-8 0V3ZM8 5H4v2a4 4 0 0 0 4 4M16 5h4v2a4 4 0 0 1-4 4M12 13v5M8 21h8"/></svg>';
+const GAME_CHEVRON_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+
+function gameDivisionLabel(game) {
+    const team = game.home_team;
+    const branch = displayName(divisionBranchLabel(team.branch, team.category) || "");
+    return [branch, displayName(team.category || "")].filter(Boolean).join(" · ");
 }
 
 
@@ -163,7 +181,15 @@ function updateGameFilterBranchControl() {
     const unified = isUnifiedYouthCategory(gameFilterCategory.value);
     gameFilterBranchField.classList.toggle("hidden", unified);
     gameFilterYouthBranch.classList.toggle("hidden", !unified);
+    gamesBranchSegmented?.classList.toggle("hidden", unified);
     if (unified) gameFilterBranch.value = "";
+}
+
+// The branch buttons mirror the "Rama" select, which stays the source of truth.
+function syncBranchSegmented() {
+    gamesBranchSegmented?.querySelectorAll("[data-branch-choice]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.branchChoice === gameFilterBranch.value));
+    });
 }
 
 function renderManualTeamSelect(select, searchInput) {
@@ -251,15 +277,21 @@ function renderGames(games) {
         groups.get(key).push(game);
     });
 
+    // One week on screen: the header band already names it, so each time slot
+    // shows its game count. Several weeks (a team search): name each slot's week.
+    const showsSeveralWeeks = new Set(games.map((game) => game.week)).size > 1;
     gamesContainer.innerHTML = [...groups.values()]
         .map((groupGames) => {
             const firstGame = groupGames[0];
+            const slotLabel = showsSeveralWeeks
+                ? `Jornada ${firstGame.week}`
+                : `${groupGames.length} partido${groupGames.length === 1 ? "" : "s"}`;
             return `
                 <section class="game-time-group" aria-labelledby="game-group-${firstGame.week}-${firstGame.id}">
                     <header class="game-time-heading">
-                        <h3 id="game-group-${firstGame.week}-${firstGame.id}">Jornada ${firstGame.week}</h3>
                         <time>${gameTime(firstGame)}</time>
-                        ${firstGame.game_date || firstGame.venue ? `<p class="game-calendar-context">${escapeHtml(gameCalendarLabel(firstGame))}</p>` : ""}
+                        <h3 id="game-group-${firstGame.week}-${firstGame.id}">${slotLabel}</h3>
+                        ${showsSeveralWeeks && (firstGame.game_date || firstGame.venue) ? `<p class="game-calendar-context">${escapeHtml(gameCalendarLabel(firstGame))}</p>` : ""}
                     </header>
                     <div class="game-time-grid">
                         ${groupGames.map((game) => {
@@ -291,23 +323,25 @@ function renderGames(games) {
                 : "";
 
             return `
-                <article class="game-card ${game.is_friendly ? "game-card-friendly" : ""} ${game.bracket_label ? "game-card-bracket" : ""} ${hasScore ? "game-card-final" : ""}">
-                    <header class="game-card-header">
-                        <span class="game-field">${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</span>
-                        ${status}
-                        ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
-                        ${game.bracket_label ? `<span class="game-bracket-badge">${escapeHtml(game.bracket_label.replace(/\s+/g, " "))}</span>` : ""}
-                    </header>
-                    ${game.bracket_pending
-                        ? `<div class="game-teams game-bracket-pending"><strong>${escapeHtml(game.bracket_label || "Final")} en espera de equipos</strong></div>`
-                        : `<div class="game-teams">
-                            ${gameTeamRow(game.home_team, "Local", game.home_score, game.away_score)}
-                            ${gameTeamRow(game.away_team, "Visitante", game.away_score, game.home_score)}
-                        </div>`}
-                    <footer class="game-card-footer">
-                        <span class="game-division">${escapeHtml(displayName(divisionBranchLabel(game.home_team.branch, game.home_team.category) || ""))} · ${escapeHtml(displayName(game.home_team.category || ""))}</span>
-                        ${game.bracket_pending ? "" : `<a class="secondary-link game-details-link" href="/games/${game.id}">Ver partido / En vivo</a>`}
-                    </footer>
+                <article class="game-card ${game.is_friendly ? "game-card-friendly" : ""} ${game.bracket_label ? "game-card-bracket" : ""} ${hasScore ? "game-card-final" : ""} ${game.bracket_pending ? "game-card-pending" : ""}">
+                    <div class="game-row">
+                        <header class="game-card-header">
+                            ${game.bracket_label ? `<span class="game-bracket-badge">${GAME_TROPHY_ICON}${escapeHtml(game.bracket_label.replace(/\s+/g, " ").replace(/^3ro\b/i, "3er lugar"))}</span>` : ""}
+                            <span class="game-field">${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}${game.is_friendly ? ' <span class="game-friendly-badge">Amistoso</span>' : ""}</span>
+                            ${game.bracket_label ? "" : `<span class="game-division">${escapeHtml(gameDivisionLabel(game))}</span>`}
+                            ${isPostponed ? status : ""}
+                        </header>
+                        <div class="game-teams">
+                            ${gameTeamRow(game.home_team, "Local", game.home_score, game.away_score, game.bracket_pending)}
+                            <div class="game-center" aria-hidden="true">${hasScore
+                                ? `<span class="game-center-dash">–</span>`
+                                : `<b>VS</b><small>${isPostponed ? "Pospuesto" : gameTime(game)}</small>`}</div>
+                            ${gameTeamRow(game.away_team, "Visitante", game.away_score, game.home_score, game.bracket_pending)}
+                        </div>
+                        ${game.bracket_pending
+                            ? ""
+                            : `<a class="secondary-link game-details-link" href="/games/${game.id}"><span class="game-details-text sr-only">Ver partido / En vivo</span>${GAME_CHEVRON_ICON}</a>`}
+                    </div>
                     <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
                         <summary>${game.bracket_pending ? "Horario" : !hasScore && !isPostponed ? "Resultado y horario" : "Administrar partido"}</summary>
                         <div class="game-admin-controls">
@@ -350,11 +384,71 @@ function renderGames(games) {
 
 // Week tabs mirror the "Jornada" filter: choosing a tab sets that select,
 // so every existing filter, admin action and count keeps working unchanged.
-function weekStripNote(weekGames) {
-    if (weekGames.some((game) => game.bracket_label)) return "Finales";
-    if (weekGames.some((game) => game.status === "scheduled")) return "Programada";
-    if (weekGames.some((game) => game.status === "completed")) return "Resultados";
-    return "Pospuesta";
+function weekStripNote(weekGames, isUpcoming) {
+    const kind = weekGames.some((game) => game.bracket_label) ? "Finales"
+        : weekGames.some((game) => game.status === "scheduled") ? "Programada"
+            : weekGames.some((game) => game.status === "completed") ? "Resultados"
+                : "Pospuesta";
+    if (!isUpcoming) return kind;
+    return kind === "Programada" ? "Próxima" : `${kind} · próxima`;
+}
+
+// The next week with games still to play; the last week once all are played.
+function upcomingGamesWeek(games = gamesState) {
+    const pendingWeeks = games.filter((game) => game.status === "scheduled").map((game) => game.week);
+    if (pendingWeeks.length) return Math.min(...pendingWeeks);
+    return games.length ? Math.max(...games.map((game) => game.week)) : null;
+}
+
+function mostCommonValue(values) {
+    const counts = new Map();
+    values.forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
+    return [...counts].sort((first, second) => second[1] - first[1])[0]?.[0] || null;
+}
+
+function daysUntilDate(isoDate) {
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    return Math.round((new Date(`${isoDate}T12:00:00`) - today) / 86400000);
+}
+
+function longDateLabel(isoDate) {
+    const label = new Date(`${isoDate}T12:00:00`).toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long"});
+    return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+// The header band tells the story of the week on screen: when it is played,
+// whether finals are on, and how many games, fields and points it holds.
+function renderGamesHero() {
+    if (!gamesHero || !gamesHeroTitle || gamesState.length === 0) return;
+    const week = gameFilterWeek.value ? Number(gameFilterWeek.value) : upcomingGamesWeek();
+    if (week == null) return;
+    const weekGames = gamesState.filter((game) => game.week === week);
+    const finals = weekGames.filter((game) => game.bracket_label).length;
+    const hasPending = weekGames.some((game) => game.status === "scheduled");
+    const allPostponed = weekGames.length > 0 && weekGames.every((game) => game.status === "postponed");
+    const date = mostCommonValue(weekGames.map((game) => game.game_date).filter(Boolean));
+    const venue = mostCommonValue(weekGames.map((game) => game.venue).filter(Boolean));
+    const fields = new Set(weekGames.map((game) => game.field_number).filter(Boolean)).size;
+    const points = weekGames.reduce((total, game) => total + (game.home_score || 0) + (game.away_score || 0), 0);
+
+    let whenTag;
+    if (allPostponed) whenTag = '<span class="hero-tag">Pospuesta</span>';
+    else if (!hasPending) whenTag = '<span class="hero-tag hero-tag-gold">Finalizada</span>';
+    else {
+        const days = date ? daysUntilDate(date) : null;
+        const label = days === 0 ? "Hoy" : days === 1 ? "Mañana" : days > 1 ? `En ${days} días` : "Por jugar";
+        whenTag = `<span class="hero-tag hero-tag-live">${label}</span>`;
+    }
+    gamesHeroTags.innerHTML = whenTag + (finals ? `<span class="hero-tag hero-tag-gold">${GAME_TROPHY_ICON}Día de finales</span>` : "");
+    gamesHeroTitle.innerHTML = `Jornada ${week}${finals ? " <em>· Finales</em>" : ""}`;
+    gamesHeroSubtitle.textContent = `${date ? longDateLabel(date) : "Fecha por confirmar"} · ${venue || "Sede por confirmar"}`;
+    const stats = [[weekGames.length, "Partidos"], [fields, "Campos"]];
+    if (finals) stats.push([finals, "Finales y 3er lugar"]);
+    else if (points) stats.push([points, "Puntos anotados"]);
+    gamesHeroStats.innerHTML = stats.map(([value, label]) => `<li><strong>${value}</strong><span>${label}</span></li>`).join("");
+    gamesHeroStats.hidden = false;
+    gamesHero.dataset.week = String(week);
 }
 
 function renderWeekStrip(games) {
@@ -363,7 +457,7 @@ function renderWeekStrip(games) {
     gamesWeekStrip.innerHTML = [
         `<button type="button" class="week-tab" data-week-tab=""><strong>Próximos</strong><small>Por jugar</small></button>`,
         ...weeks.map((week) => {
-            const note = weekStripNote(games.filter((game) => game.week === week));
+            const note = weekStripNote(games.filter((game) => game.week === week), week === upcomingGamesWeek(games));
             return `<button type="button" class="week-tab" data-week-tab="${week}"><strong>J${week}</strong><small>${note}</small></button>`;
         }),
     ].join("");
@@ -456,6 +550,8 @@ function renderFilteredGames() {
 
     if (typeof renderWeeklyFeaturedGames === "function") renderWeeklyFeaturedGames(featuredCandidates);
     syncWeekStrip();
+    syncBranchSegmented();
+    renderGamesHero();
     renderGames(filteredGames);
     if (typeof renderScheduleBoard === "function") renderScheduleBoard();
 }
@@ -749,6 +845,12 @@ gamesFiltersToggle?.addEventListener("click", () => {
     panel.classList.toggle("is-expanded", expanded);
     gamesFiltersToggle.setAttribute("aria-expanded", String(expanded));
     gamesFiltersToggle.textContent = expanded ? "Menos filtros" : "Más filtros";
+});
+gamesBranchSegmented?.addEventListener("click", (event) => {
+    const choice = event.target.closest("[data-branch-choice]");
+    if (!choice) return;
+    gameFilterBranch.value = choice.dataset.branchChoice;
+    gameFilterBranch.dispatchEvent(new Event("change"));
 });
 gamesWeekStrip?.addEventListener("click", (event) => {
     const tab = event.target.closest("[data-week-tab]");
