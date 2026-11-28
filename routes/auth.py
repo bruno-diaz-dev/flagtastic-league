@@ -41,6 +41,14 @@ from settings import (
     session_cookie_is_secure
 )
 from dependencies.auth import resolve_session_token
+from fastapi import Request
+from services.rate_limits import (
+    client_address,
+    count_attempt,
+    is_over_limit,
+    record_failure,
+    reject_if_blocked,
+)
 
 router = APIRouter(
     prefix="/api/auth",
@@ -54,6 +62,7 @@ IDENTITY_CLAIM_REJECTED = (
 
 @router.post("/register/player", status_code=201)
 async def register_player_account(
+    request: Request,
     email: str = Form(...),
     password: str = Form(...),
     name: str = Form(...),
@@ -65,6 +74,7 @@ async def register_player_account(
     photo: UploadFile = File(...)
 ):
     """Create a player login without exposing credentials or CURP."""
+    count_attempt("register_ip", client_address(request))
     try:
         registration = PlayerAccountCreate(
             email=email, password=password, name=name, curp=curp,
@@ -97,20 +107,33 @@ async def register_player_account(
         remove_profile_photo(profile_photo)
         raise
 
-@router.post("/login")
-def login(credentials: LoginRequest, response: Response):
-    """Authenticate a user and store the session token in a secure cookie."""
+def _authenticate_with_limits(request, credentials):
+    """Check credentials under the per-address and per-account limits.
 
+    Every attempt counts against the caller's address. Only failures count
+    against the account, so someone guessing a password cannot keep the
+    real owner out once they sign in correctly before the limit.
+    """
+    count_attempt("login_ip", client_address(request))
+    reject_if_blocked("login_email_failures", credentials.email)
     user = authenticate_user(
         credentials.email,
         credentials.password.get_secret_value()
     )
-
     if user is None:
+        record_failure("login_email_failures", credentials.email)
         raise HTTPException(
             status_code=401,
             detail="Correo o contraseña incorrectos"
         )
+    return user
+
+
+@router.post("/login")
+def login(credentials: LoginRequest, response: Response, request: Request):
+    """Authenticate a user and store the session token in a secure cookie."""
+
+    user = _authenticate_with_limits(request, credentials)
 
     session = create_session(user["id"])
 
@@ -128,17 +151,9 @@ def login(credentials: LoginRequest, response: Response):
 
 
 @router.post("/mobile/login")
-def mobile_login(credentials: LoginRequest):
+def mobile_login(credentials: LoginRequest, request: Request):
     """Issue a revocable Bearer session to supported mobile roles."""
-    user = authenticate_user(
-        credentials.email,
-        credentials.password.get_secret_value(),
-    )
-    if user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Correo o contraseña incorrectos",
-        )
+    user = _authenticate_with_limits(request, credentials)
     if not {"player", "referee", "team_representative"}.intersection(user.get("roles", [user.get("role")])):
         raise HTTPException(
             status_code=403,
@@ -208,9 +223,15 @@ def change_password(
 def forgot_password(
     reset_request: PasswordResetRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
 ):
     """Send a reset link while returning the same response for every email."""
-    reset = create_password_reset(reset_request.email)
+    count_attempt("forgot_ip", client_address(request))
+    # Over the per-account limit nothing is sent, with the same response.
+    reset = (
+        None if is_over_limit("forgot_email", reset_request.email)
+        else create_password_reset(reset_request.email)
+    )
     if reset is not None:
         # The fragment is never sent to the server, so the token stays out
         # of request logs when the link is opened.
@@ -229,8 +250,9 @@ def forgot_password(
 
 
 @router.post("/reset-password", status_code=204)
-def reset_password(confirmation: PasswordResetConfirmation):
+def reset_password(confirmation: PasswordResetConfirmation, request: Request):
     """Replace a password using a valid single-use token."""
+    count_attempt("reset_ip", client_address(request))
     changed = consume_password_reset(
         confirmation.token,
         confirmation.new_password.get_secret_value(),
