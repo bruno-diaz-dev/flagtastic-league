@@ -40,8 +40,22 @@ function playerPhoto(player) {
 
 
 function renderRoster(team) {
-    rosterTitle.textContent = `Roster de ${displayName(team.name)}`;
-    rosterSubtitle.textContent = `${displayName(divisionBranchLabel(team.branch, team.category))} · ${displayName(team.category)} · ${team.players.length} jugadores`;
+    // The band reads like a team graphic: the name, its division, its numbers.
+    const division = `${displayName(divisionBranchLabel(team.branch, team.category))} · ${displayName(team.category)}`;
+    rosterTitle.textContent = displayName(team.name);
+    rosterSubtitle.textContent = `Plantilla · ${division}`;
+    if (typeof setPageHero === "function") {
+        const ages = team.players.map((player) => player.age).filter((age) => Number.isFinite(age));
+        const staffCount = [team.head_coach, team.coach, team.manager].filter(Boolean).length;
+        setPageHero({
+            tags: [{label: division, tone: "gold"}, ...(team.roster_closed ? [{label: "Roster cerrado"}] : [])],
+            stats: [
+                [team.players.length, "Jugadores"],
+                ...(ages.length ? [[Math.round(ages.reduce((total, age) => total + age, 0) / ages.length), "Edad promedio"]] : []),
+                [staffCount, "Cuerpo técnico"],
+            ],
+        });
+    }
     const teamLogo = document.querySelector("#roster-team-logo");
     if (team.logo_url) {
         teamLogo.src = team.logo_url;

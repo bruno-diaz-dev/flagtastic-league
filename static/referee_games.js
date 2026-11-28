@@ -51,6 +51,15 @@ function renderRefereeSummary(games) {
     const completed = games.filter(game => refereeGameState(game) === "completed");
     const postponed = games.filter(game => refereeGameState(game) === "postponed");
     const nextWeek = pending.length ? Math.min(...pending.map(game => game.week)) : null;
+    if (typeof setPageHero === "function") {
+        const next = [...pending].sort((a, b) => a.week - b.week
+            || String(a.game_date || "9999").localeCompare(String(b.game_date || "9999"))
+            || String(a.start_time || "99").localeCompare(String(b.start_time || "99")))[0];
+        setPageHero({tags: next ? [
+            {label: `Próxima: J${next.week}${next.start_time ? ` · ${next.start_time.slice(0, 5)}` : ""}${next.field_number ? ` · Campo ${next.field_number}` : ""}`, tone: "live"},
+            {label: officialPositionLabel(next.official_position), tone: "gold"},
+        ] : [{label: "Sin asignaciones pendientes"}]});
+    }
     refereeSummary.innerHTML = [
         refereeMetric("Por arbitrar", pending.length),
         refereeMetric("Pospuestos", postponed.length),
@@ -66,18 +75,25 @@ function refereeGameCard(game) {
     const isPostponed = state === "postponed";
     return `
         <article class="game-card referee-game-card ${game.is_friendly ? "game-card-friendly" : ""}">
-            ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
+            <div class="assignment-when">
+                <strong>${game.start_time ? game.start_time.slice(0, 5) : "--:--"}</strong>
+                <span>Jornada ${game.week}</span>
+                <span>${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</span>
+            </div>
             <div class="referee-game-copy">
-                <span class="game-state ${isPostponed ? "game-state-postponed" : isPending ? "game-state-pending" : "game-state-complete"}">${isPostponed ? "Pospuesto" : isPending ? "Pendiente" : "Finalizado"}</span>
+                <div class="assignment-tags">
+                    <span class="assignment-position">${escapeHtml(officialPositionLabel(game.official_position))}</span>
+                    <span class="game-state ${isPostponed ? "game-state-postponed" : isPending ? "game-state-pending" : "game-state-complete"}">${isPostponed ? "Pospuesto" : isPending ? "Pendiente" : "Finalizado"}</span>
+                    ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
+                </div>
                 <h4>
                     <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(displayName(game.home_team.name))}</a>
                     <span class="matchup-versus">vs</span>
                     <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(displayName(game.away_team.name))}</a>
                 </h4>
-                <p>${escapeHtml(officialPositionLabel(game.official_position))} · Jornada ${game.week} · ${game.game_date || game.venue ? escapeHtml(gameCalendarLabel(game)) + " · " : ""}${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"}</p>
-                <p>${escapeHtml(displayName(divisionBranchLabel(game.home_team.branch, game.home_team.category)))} · ${escapeHtml(displayName(game.home_team.category))} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</p>
+                <p>${escapeHtml(displayName(divisionBranchLabel(game.home_team.branch, game.home_team.category)))} · ${escapeHtml(displayName(game.home_team.category))}${game.game_date || game.venue ? ` · ${escapeHtml(gameCalendarLabel(game))}` : ""}</p>
                 <div class="game-crew" aria-label="Planilla arbitral del partido">
-                    <strong>Planilla arbitral</strong>
+                    <strong class="sr-only">Planilla arbitral</strong>
                     <ul>
                         ${(game.officials || []).length ? game.officials.map((official) => `
                             <li>

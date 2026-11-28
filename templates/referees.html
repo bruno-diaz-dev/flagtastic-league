@@ -6,10 +6,11 @@
 <section class="referee-roster-page league-page">
     <header class="section-header">
         <div>
+            <div id="page-hero-tags" class="hero-tags"></div>
             <h2>Planilla de árbitros</h2>
             <p>Conoce a quienes hacen posible cada partido.</p>
+            <ul id="page-hero-stats" class="hero-stats" hidden></ul>
         </div>
-        <span class="referee-directory-badge">Equipo de la liga</span>
     </header>
 
     <section id="referee-assignment-audit" class="form-panel admin-only" aria-labelledby="referee-assignment-title">
@@ -57,11 +58,12 @@
         <p id="referee-photo-message" class="form-message" role="status"></p>
     </section>
 
-    <section class="referee-directory-tools" aria-label="Buscar árbitros">
-        <div class="referee-directory-heading"><h3>Equipo arbitral</h3><p id="referee-directory-count" role="status">Cargando planilla…</p></div>
-        <label class="referee-search-label" for="referee-search"><span>Buscar por nombre o AKA</span>
+    <section class="filters-panel filter-bar referee-directory-tools" aria-label="Buscar árbitros">
+        <h3 class="referee-directory-title">Equipo arbitral</h3>
+        <label class="referee-search-label filter-search" for="referee-search"><span>Buscar por nombre o AKA</span>
             <input id="referee-search" type="search" placeholder="Buscar árbitro…" autocomplete="off" aria-controls="referee-roster">
         </label>
+        <p id="referee-directory-count" class="results-count" role="status">Cargando planilla…</p>
     </section>
     <p id="referee-roster-message" class="form-message" role="status"></p>
     <section id="referee-roster" class="referee-roster-grid" aria-label="Árbitros de la liga"></section>
@@ -70,6 +72,6 @@
 
 {% block scripts %}
 <script src="/static/api.js?v=20261104-1"></script>
-<script src="/static/referees.js?v=20261128-1"></script>
+<script src="/static/referees.js?v=20261128-5"></script>
 <script src="/static/referee_assignments.js?v=20261104-1"></script>
 {% endblock %}
