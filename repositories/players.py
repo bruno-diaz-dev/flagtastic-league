@@ -1,5 +1,7 @@
 """Persistence and division-eligibility rules for player rosters."""
 
+import unicodedata
+
 from database import get_connection
 
 class PlayerAlreadyRegisteredInDivision(Exception):
@@ -7,7 +9,48 @@ class PlayerAlreadyRegisteredInDivision(Exception):
 
 
 class PlayerIdentityMismatch(Exception):
-    """Raised when a provisional document is already linked to another person."""
+    """Raised when a document is already linked to a different person."""
+
+
+class PlayerIdentityLocked(Exception):
+    """Raised when a representative edits an identity shared beyond their team."""
+
+
+def comparable_name(name):
+    """Compare names without case, accents or repeated whitespace."""
+    decomposed = unicodedata.normalize("NFKD", name or "")
+    stripped = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(stripped.casefold().split())
+
+
+def _claimed_by_other_name(connection, player_row, name):
+    """Whether an existing, account-owned identity carries a different name.
+
+    A self-registered account owns its identity. Silently attaching a roster
+    row with another name to it would let whoever registered a CURP first take
+    over the real child's membership, so those rows are reported instead.
+    """
+    if player_row["inserted"] or comparable_name(player_row["name"]) == comparable_name(name):
+        return False
+    return connection.execute(
+        "SELECT EXISTS (SELECT 1 FROM users WHERE player_id = %s) AS claimed",
+        (player_row["id"],)
+    ).fetchone()["claimed"]
+
+
+def identity_is_shared(connection, player_id, team_id):
+    """Whether the identity has its own account or another active roster."""
+    return connection.execute(
+        """
+        SELECT EXISTS (SELECT 1 FROM users WHERE users.player_id = %s)
+            OR EXISTS (
+                SELECT 1 FROM team_players
+                WHERE player_id = %s AND team_id <> %s AND active
+            ) AS shared
+        """,
+        (player_id, player_id, team_id)
+    ).fetchone()["shared"]
+
 
 def create_player(team, player):
     """Create/reuse one player and idempotently attach them to a roster."""
@@ -22,7 +65,7 @@ def create_player(team, player):
             VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (curp) DO UPDATE
             SET curp = EXCLUDED.curp
-            RETURNING id, name, age, identity_type, birth_date
+            RETURNING id, name, age, identity_type, birth_date, (xmax = 0) AS inserted
             """,
             (player.name, player.curp, player.age, player.identity_type, player.birth_date)
         ).fetchone()
@@ -32,6 +75,8 @@ def create_player(team, player):
             or existing_player["birth_date"] != player.birth_date
             or existing_player["name"].strip().casefold() != player.name.strip().casefold()
         ):
+            raise PlayerIdentityMismatch()
+        if _claimed_by_other_name(connection, existing_player, player.name):
             raise PlayerIdentityMismatch()
 
         player_id = existing_player["id"]
@@ -102,12 +147,20 @@ def import_players(team, players):
                 VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (curp) DO UPDATE
                 SET curp = EXCLUDED.curp
-                RETURNING id, name, age
+                RETURNING id, name, age, (xmax = 0) AS inserted
                 """,
                 (player.name, player.curp, player.age, player.identity_type, player.birth_date)
             ).fetchone()
 
             player_id = existing_player["id"]
+
+            if _claimed_by_other_name(connection, existing_player, player.name):
+                conflicts.append({
+                    "player_id": player_id,
+                    "name": player.name,
+                    "reason": "identity_mismatch",
+                })
+                continue
 
             division_membership = connection.execute(
                 """
@@ -302,13 +355,21 @@ def search_registered_players(team, query, limit=20):
     return [dict(row) for row in rows]
 
 
-def join_registered_player(player_id, team, jersey_number):
-    """Attach an existing player identity to a managed team atomically."""
+def join_registered_player(player_id, team, jersey_number, curp=None):
+    """Attach an existing player identity to a managed team atomically.
+
+    When ``curp`` is given it must equal the identity's stored document;
+    otherwise the player is reported as not found, without revealing which of
+    the two did not match.
+    """
     connection = get_connection()
     try:
+        # Same lock as create_player/import_players: serializes the
+        # one-player-per-division check against concurrent joins.
+        connection.execute("LOCK TABLE team_players IN SHARE ROW EXCLUSIVE MODE")
         existing_player = connection.execute(
             """
-            SELECT players.id
+            SELECT players.id, players.curp
             FROM players
             WHERE players.id = %s
             FOR UPDATE OF players
@@ -316,6 +377,8 @@ def join_registered_player(player_id, team, jersey_number):
             (player_id,)
         ).fetchone()
         if existing_player is None:
+            return None
+        if curp is not None and (existing_player["curp"] or "").strip().upper() != curp:
             return None
 
         conflict = connection.execute(
@@ -372,10 +435,21 @@ def get_managed_roster_player(team_id, player_id):
     return dict(row) if row is not None else None
 
 
-def update_roster_player_photo(team_id, player_id, photo):
-    """Replace a player's photo only when they belong to the managed team."""
+def update_roster_player_photo(team_id, player_id, photo, can_edit_shared_identity=False):
+    """Replace a player's photo only when they belong to the managed team.
+
+    Representatives cannot replace the photo of a player who has their own
+    account or plays on another team; that identity is not theirs to change.
+    """
     connection = get_connection()
     try:
+        if not can_edit_shared_identity and identity_is_shared(connection, player_id, team_id):
+            member = connection.execute(
+                "SELECT 1 FROM team_players WHERE team_id = %s AND player_id = %s AND active",
+                (team_id, player_id)
+            ).fetchone()
+            if member is not None:
+                raise PlayerIdentityLocked()
         updated = connection.execute(
             """
             UPDATE players
@@ -408,29 +482,56 @@ def update_roster_player_photo(team_id, player_id, photo):
         connection.close()
 
 
-def update_roster_player(team_id, player_id, player):
-    """Correct an active roster identity and its team-specific jersey."""
+def update_roster_player(team_id, player_id, player, can_edit_shared_identity=False):
+    """Correct an active roster identity and its team-specific jersey.
+
+    The jersey always belongs to the team. The identity (name, document and
+    birth date) is shared: a representative may change it only while the
+    player has no account and no other active roster.
+    """
     connection = get_connection()
     try:
-        membership = connection.execute(
+        current = connection.execute(
             """
-            SELECT 1 FROM team_players
-            WHERE team_id = %s AND player_id = %s AND active
+            SELECT players.id, players.name, players.age, players.curp,
+                   players.identity_type, players.birth_date
+            FROM team_players
+            JOIN players ON players.id = team_players.player_id
+            WHERE team_players.team_id = %s AND team_players.player_id = %s
+              AND team_players.active
+            FOR UPDATE OF players
             """,
             (team_id, player_id)
         ).fetchone()
-        if membership is None:
+        if current is None:
             return None
 
-        updated = connection.execute(
-            """
-            UPDATE players
-            SET name = %s, curp = %s, age = %s, identity_type = %s, birth_date = %s
-            WHERE id = %s
-            RETURNING id, name, age
-            """,
-            (player.name, player.curp, player.age, player.identity_type, player.birth_date, player_id)
-        ).fetchone()
+        identity_type = player.identity_type or "curp"
+        identity_changed = (
+            player.name.strip() != (current["name"] or "").strip()
+            or player.curp != (current["curp"] or "").strip().upper()
+            or identity_type != (current["identity_type"] or "curp")
+            or (identity_type == "provisional" and player.birth_date != current["birth_date"])
+        )
+        if (
+            identity_changed
+            and not can_edit_shared_identity
+            and identity_is_shared(connection, player_id, team_id)
+        ):
+            raise PlayerIdentityLocked()
+
+        if identity_changed:
+            updated = connection.execute(
+                """
+                UPDATE players
+                SET name = %s, curp = %s, age = %s, identity_type = %s, birth_date = %s
+                WHERE id = %s
+                RETURNING id, name, age
+                """,
+                (player.name, player.curp, player.age, player.identity_type, player.birth_date, player_id)
+            ).fetchone()
+        else:
+            updated = {"id": current["id"], "name": current["name"], "age": current["age"]}
         connection.execute(
             """
             UPDATE team_players
@@ -478,6 +579,7 @@ def join_team(player_id, team, jersey_number):
     """Attach an existing player identity to one eligible division roster."""
     connection = get_connection()
     try:
+        connection.execute("LOCK TABLE team_players IN SHARE ROW EXCLUSIVE MODE")
         conflict = connection.execute(
             """
             SELECT 1

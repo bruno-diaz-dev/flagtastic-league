@@ -376,10 +376,22 @@ class TeamMembershipCreate(BaseModel):
 
 
 class RegisteredPlayerMembershipCreate(BaseModel):
-    """Validate a jersey assigned by a manager to an existing account."""
+    """Validate a jersey assigned by a manager to an existing account.
+
+    Representatives must prove they know the person by supplying the identity
+    document (CURP or provisional document) stored for the selected player.
+    """
 
     player_id: int = Field(gt=0)
-    jersey_number: int = Field(ge=0)
+    jersey_number: int = Field(ge=0, le=999)
+    curp: str | None = Field(default=None, max_length=18)
+
+    @field_validator("curp", mode="before")
+    @classmethod
+    def normalize_curp(cls, curp):
+        # Before the length check, so pasted surrounding spaces are accepted.
+        normalized = curp.strip().upper() if isinstance(curp, str) else ""
+        return normalized or None
 
 
 class PlayerProfileUpdate(BaseModel):
