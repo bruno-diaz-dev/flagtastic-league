@@ -116,7 +116,10 @@ function inspectLayout() {
 
     // Text cut off sideways (ellipsis and line clamps are deliberate).
     for (const el of document.querySelectorAll('main h1, main h2, main h3, main h4, main p, main a, main strong, main span, main td, main th, main button, main label, main small')) {
-        if (!visible(el) || el.closest('.hidden, [hidden], .table-scroll, .standings-table, .sr-only')) continue;
+        if (!visible(el) || el.closest('.hidden, [hidden], .table-scroll, .standings-table, .sr-only, .segmented-source')) continue;
+        // Visually hidden on purpose (1 px, clipped): kept for screen readers and keyboards.
+        const box = el.getBoundingClientRect();
+        if (box.width <= 1 && box.height <= 1) continue;
         const style = getComputedStyle(el);
         const clips = ['hidden', 'clip'].includes(style.overflowX);
         if (clips && style.textOverflow !== 'ellipsis' && !style.webkitLineClamp?.match(/\d/) && el.scrollWidth > el.clientWidth + 1) {
