@@ -11,12 +11,13 @@ from main import app
 from models import UserCreate
 from repositories.users import create_user
 from services import roster_policy
+from tests.image_samples import png_bytes
 
 
 client = TestClient(app)
 REPRESENTATIVE = {"id": 9001, "role": "team_representative", "roles": ["team_representative"]}
 ADMINISTRATOR = {"id": 0, "role": "league_admin", "roles": ["league_admin"]}
-PROFILE_PNG = b"\x89PNG\r\n\x1a\nidentity-protection"
+PROFILE_PNG = png_bytes()
 
 
 @pytest.fixture(autouse=True)

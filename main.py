@@ -26,6 +26,25 @@ app = FastAPI(
 )
 app.add_middleware(RequestObservabilityMiddleware, logger=logger)
 
+# Sent on every response unless a route sets its own value.
+SECURITY_HEADERS = {
+    # No page of the app may be framed by another site (clickjacking).
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": "frame-ancestors 'none'",
+    # Browsers must honour the declared content type of uploads and scripts.
+    "X-Content-Type-Options": "nosniff",
+    # Other sites never see a full URL, which may carry a reset token.
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+
 app.mount(
     "/static",
     StaticFiles(directory="static"),

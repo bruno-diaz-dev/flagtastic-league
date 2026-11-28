@@ -33,6 +33,11 @@ ALLOWED_USER_ROLES = {
 
 ALLOWED_TEAM_STATUSES = {"pending", "active", "inactive"}
 
+# Upper bounds keep oversized input from reaching the database (an integer
+# overflow there is a 500) or being stored and rendered everywhere.
+MAX_JERSEY_NUMBER = 999
+MAX_NAME_LENGTH = 120
+
 OFFICIAL_POSITIONS = {
     "referee",
     "down_judge",
@@ -43,7 +48,7 @@ OFFICIAL_POSITIONS = {
 
 class TeamCreate(BaseModel):
     """Validate and normalize a team registration request."""
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=MAX_NAME_LENGTH)
     branch: str = Field(min_length=1)
     category: str = Field(min_length=1)
     head_coach: str | None = Field(default=None, max_length=120)
@@ -137,12 +142,12 @@ class TeamNameUpdate(BaseModel):
 
 class PlayerCreate(BaseModel):
     """Validate a player registration for a team roster."""
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=MAX_NAME_LENGTH)
     curp: str = Field(min_length=1, max_length=18)
     identity_type: Literal["curp", "provisional"] = "curp"
     birth_date: date | None = None
     age: int | None = Field(default=None, gt=0)
-    jersey_number: int = Field(ge=0)
+    jersey_number: int = Field(ge=0, le=MAX_JERSEY_NUMBER)
 
     @field_validator("curp")
     @classmethod
@@ -248,7 +253,7 @@ class GameStatusUpdate(BaseModel):
 class UserCreate(BaseModel):
     """Validate and normalize a new application user."""
     email: str = Field(min_length=3)
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=MAX_NAME_LENGTH)
     password: str = Field(min_length=8)
     role: str = Field(min_length=1)
 
@@ -334,7 +339,7 @@ class PlayerAccountCreate(BaseModel):
 
     email: str = Field(min_length=3)
     password: SecretStr = Field(min_length=8)
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=MAX_NAME_LENGTH)
     aka: str | None = Field(default=None, max_length=80)
     curp: str = Field(min_length=1, max_length=18)
     identity_type: Literal["curp", "provisional"] = "curp"
@@ -372,7 +377,7 @@ class PlayerAccountCreate(BaseModel):
 class TeamMembershipCreate(BaseModel):
     """Validate the jersey selected by a player joining a team."""
 
-    jersey_number: int = Field(ge=0)
+    jersey_number: int = Field(ge=0, le=MAX_JERSEY_NUMBER)
 
 
 class RegisteredPlayerMembershipCreate(BaseModel):
@@ -450,7 +455,7 @@ class StaffAccountCreate(BaseModel):
     """Validate an administrator-created account without player identity."""
 
     email: str = Field(min_length=3)
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=MAX_NAME_LENGTH)
     password: SecretStr = Field(min_length=8)
     roles: set[str] = Field(min_length=1)
 

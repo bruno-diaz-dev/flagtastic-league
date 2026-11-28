@@ -5,10 +5,11 @@ from fastapi.testclient import TestClient
 
 from database import get_connection
 from main import app
+from tests.image_samples import is_image, png_bytes
 
 
 client = TestClient(app, base_url="https://testserver")
-PROFILE_PNG = b"\x89PNG\r\n\x1a\nprofile-test"
+PROFILE_PNG = png_bytes()
 
 
 def register_player(**overrides):
@@ -94,7 +95,7 @@ def test_player_registers_joins_team_and_reads_dashboard():
     assert photo.headers["cdn-cache-control"] == "public, max-age=31536000"
     assert photo.headers["vercel-cdn-cache-control"] == "public, max-age=31536000"
     assert photo.status_code == 200
-    assert photo.content == PROFILE_PNG
+    assert is_image(photo.content, "PNG")
     assert body["teams"][0]["team_name"] == "Tigres"
     assert body["teams"][0]["standing_position"] == 1
     assert body["statistics"]["passes_attempted"] == 0

@@ -423,7 +423,20 @@ See [`docs/observability.md`](docs/observability.md).
   stored; the raw token uses an `HttpOnly`, `SameSite=Lax`, production `Secure`
   cookie, or a Bearer header in the mobile app.
 - Password reset tokens are also stored only as SHA-256 hashes, expire after
-  30 minutes, and never disclose whether a submitted email exists.
+  30 minutes, and never disclose whether a submitted email exists. Reset links
+  carry the token in the URL fragment, so it never reaches request logs.
+- Changing a password signs out every other session of the account (other
+  browsers and the mobile app). A failed login takes the same time whether or
+  not the email is registered, and registration gives one answer for every
+  CURP that cannot be claimed.
+- Profile photos are decoded and re-encoded on upload: EXIF metadata (camera,
+  date, GPS location) is dropped, camera orientation is applied and the
+  longest side is limited to 1600 px. Photos and logos declaring more than
+  40 megapixels are rejected before they are decoded.
+- Every response sends `X-Frame-Options: DENY`,
+  `Content-Security-Policy: frame-ancestors 'none'`,
+  `X-Content-Type-Options: nosniff` and
+  `Referrer-Policy: strict-origin-when-cross-origin`.
 - Roles are cumulative; `user_roles` is the authorization source of truth.
 - Representatives are scoped to explicitly linked teams.
 - Operational staff must replace their initial password before protected work.
