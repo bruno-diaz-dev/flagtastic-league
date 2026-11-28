@@ -51,6 +51,8 @@ const assert = require('node:assert/strict');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `no page overflow at ${width}`);
         assert.equal(await cards.first().evaluate(node => node.scrollWidth <= node.clientWidth), true, `no card overflow at ${width}`);
     }
+    // Phones choose the week with the week tabs; the select is driven on desktop.
+    await page.setViewportSize({width: 1546, height: 1000});
     await page.locator('#game-filter-week').selectOption('1');
     assert.equal(await cards.count(), 1);
     assert.match(await cards.first().textContent(), /67 puntos combinados/);

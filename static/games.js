@@ -36,6 +36,7 @@ const scheduleSaveProgress = document.querySelector("#game-schedule-save-progres
 const deleteGamesWeekButton = document.querySelector("#delete-games-week");
 const toggleGamesWeekStatusButton = document.querySelector("#toggle-games-week-status");
 const weekActionMessage = document.querySelector("#week-action-message");
+const gamesWeekStrip = document.querySelector("#games-week-strip");
 
 let gamesState = [];
 let gameTeamsState = [];
@@ -79,19 +80,23 @@ function compareGames(first, second) {
     );
 }
 
-function gameTeamRow(team, side, score) {
+// One team line of the scoreboard. A decided game marks the winning line;
+// a game without a score shows a quiet dash instead of a number.
+function gameTeamRow(team, side, score, opponentScore) {
+    const decided = score != null && opponentScore != null && score !== opponentScore;
+    const outcome = decided ? (score > opponentScore ? "winner" : "loser") : "none";
     const logo = team.logo_url
         ? `<img class="team-logo game-team-logo" src="${team.logo_url}" alt="" loading="lazy" decoding="async">`
         : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(nameInitials(team.name))}</span>`;
 
     return `
-        <div class="game-team-row">
+        <div class="game-team-row" data-outcome="${outcome}">
             <span class="game-team-side">${side}</span>
             ${logo}
             <a class="game-team-name team-roster-link" href="/teams/${team.id}/roster">
                 ${escapeHtml(displayName(team.name))}
             </a>
-            <span class="game-team-score" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "-"}</span>
+            <span class="game-team-score ${score == null ? "is-empty" : ""}" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "–"}</span>
         </div>
     `;
 }
@@ -286,21 +291,21 @@ function renderGames(games) {
                 : "";
 
             return `
-                <article class="game-card ${game.is_friendly ? "game-card-friendly" : ""}">
+                <article class="game-card ${game.is_friendly ? "game-card-friendly" : ""} ${game.bracket_label ? "game-card-bracket" : ""} ${hasScore ? "game-card-final" : ""}">
                     <header class="game-card-header">
                         <span class="game-field">${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}</span>
                         ${status}
                         ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso</span>' : ""}
-                        ${game.bracket_label ? `<span class="game-friendly-badge">${escapeHtml(game.bracket_label)}</span>` : ""}
+                        ${game.bracket_label ? `<span class="game-bracket-badge">${escapeHtml(game.bracket_label.replace(/\s+/g, " "))}</span>` : ""}
                     </header>
                     ${game.bracket_pending
                         ? `<div class="game-teams game-bracket-pending"><strong>${escapeHtml(game.bracket_label || "Final")} en espera de equipos</strong></div>`
                         : `<div class="game-teams">
-                            ${gameTeamRow(game.home_team, "Local", game.home_score)}
-                            ${gameTeamRow(game.away_team, "Visitante", game.away_score)}
+                            ${gameTeamRow(game.home_team, "Local", game.home_score, game.away_score)}
+                            ${gameTeamRow(game.away_team, "Visitante", game.away_score, game.home_score)}
                         </div>`}
                     <footer class="game-card-footer">
-                        <span>${escapeHtml(divisionBranchLabel(game.home_team.branch, game.home_team.category))} · ${escapeHtml(game.home_team.category)}</span>
+                        <span class="game-division">${escapeHtml(displayName(divisionBranchLabel(game.home_team.branch, game.home_team.category) || ""))} · ${escapeHtml(displayName(game.home_team.category || ""))}</span>
                         ${game.bracket_pending ? "" : `<a class="secondary-link game-details-link" href="/games/${game.id}">Ver partido / En vivo</a>`}
                     </footer>
                     <details class="game-admin-panel ${!hasScore && !isPostponed ? "scorekeeper-only" : "admin-only"}">
@@ -343,6 +348,44 @@ function renderGames(games) {
         .join("");
 }
 
+// Week tabs mirror the "Jornada" filter: choosing a tab sets that select,
+// so every existing filter, admin action and count keeps working unchanged.
+function weekStripNote(weekGames) {
+    if (weekGames.some((game) => game.bracket_label)) return "Finales";
+    if (weekGames.some((game) => game.status === "scheduled")) return "Programada";
+    if (weekGames.some((game) => game.status === "completed")) return "Resultados";
+    return "Pospuesta";
+}
+
+function renderWeekStrip(games) {
+    if (!gamesWeekStrip) return;
+    const weeks = [...new Set(games.map((game) => game.week))].sort((first, second) => first - second);
+    gamesWeekStrip.innerHTML = [
+        `<button type="button" class="week-tab" data-week-tab=""><strong>Próximos</strong><small>Por jugar</small></button>`,
+        ...weeks.map((week) => {
+            const note = weekStripNote(games.filter((game) => game.week === week));
+            return `<button type="button" class="week-tab" data-week-tab="${week}"><strong>J${week}</strong><small>${note}</small></button>`;
+        }),
+    ].join("");
+    gamesWeekStrip.hidden = weeks.length === 0;
+    syncWeekStrip();
+}
+
+function syncWeekStrip() {
+    if (!gamesWeekStrip) return;
+    const selected = gameFilterWeek.value;
+    let active = null;
+    gamesWeekStrip.querySelectorAll("[data-week-tab]").forEach((tab) => {
+        const isActive = tab.dataset.weekTab === selected;
+        tab.setAttribute("aria-pressed", String(isActive));
+        if (isActive) active = tab;
+    });
+    // Keep the chosen week in view when the strip scrolls on phones.
+    if (active && gamesWeekStrip.scrollWidth > gamesWeekStrip.clientWidth) {
+        gamesWeekStrip.scrollLeft = active.offsetLeft - (gamesWeekStrip.clientWidth - active.offsetWidth) / 2;
+    }
+}
+
 function populateWeekFilter(games) {
     const selectedWeek = gameFilterWeek.value;
     const weeks = [...new Set(games.map((game) => game.week))]
@@ -353,6 +396,7 @@ function populateWeekFilter(games) {
         ${weeks.map((week) => `<option value="${week}">Jornada ${week}</option>`).join("")}
     `;
     gameFilterWeek.value = selectedWeek;
+    renderWeekStrip(games);
 }
 
 function renderFilteredGames() {
@@ -411,6 +455,7 @@ function renderFilteredGames() {
     });
 
     if (typeof renderWeeklyFeaturedGames === "function") renderWeeklyFeaturedGames(featuredCandidates);
+    syncWeekStrip();
     renderGames(filteredGames);
     if (typeof renderScheduleBoard === "function") renderScheduleBoard();
 }
@@ -695,6 +740,22 @@ gameFilterCategory.addEventListener("change", () => {
     renderFilteredGames();
 });
 gameFilterTeam.addEventListener("input", renderFilteredGames);
+// On phones the less common filters fold behind "Más filtros"; their
+// controls stay in the page, so the filters keep working while folded.
+const gamesFiltersToggle = document.querySelector("#games-filters-toggle");
+gamesFiltersToggle?.addEventListener("click", () => {
+    const panel = gamesFiltersToggle.closest(".games-filters");
+    const expanded = !panel.classList.contains("is-expanded");
+    panel.classList.toggle("is-expanded", expanded);
+    gamesFiltersToggle.setAttribute("aria-expanded", String(expanded));
+    gamesFiltersToggle.textContent = expanded ? "Menos filtros" : "Más filtros";
+});
+gamesWeekStrip?.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-week-tab]");
+    if (!tab) return;
+    gameFilterWeek.value = tab.dataset.weekTab;
+    gameFilterWeek.dispatchEvent(new Event("change"));
+});
 
 updateManualGameBranchControl();
 updateGameFilterBranchControl();

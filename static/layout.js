@@ -102,6 +102,66 @@ navigationLinks.forEach((link) => {
         link.setAttribute("aria-current", "page");
     }
 });
+// The phone tab bar marks the same section as the main navigation.
+const tabbar = document.querySelector(".tabbar");
+if (tabbar) {
+    const tabs = [...tabbar.querySelectorAll(".tabbar-link")];
+    const activeTab = tabs.filter((tab) => {
+        const href = tab.getAttribute("href");
+        return pagePath === href || pagePath.startsWith(`${href}/`);
+    })[0];
+    if (activeTab) activeTab.setAttribute("aria-current", "page");
+}
+
+// Full-width page bands size themselves to the viewport minus a classic
+// scrollbar, so their content lines up with the page column.
+function updateScrollbarWidth() {
+    const root = document.documentElement;
+    if (!root?.style) return;
+    root.style.setProperty("--scrollbar-width", `${Math.max(0, window.innerWidth - root.clientWidth)}px`);
+}
+updateScrollbarWidth();
+window.addEventListener("resize", updateScrollbarWidth);
+
+// Role tools live in a "Más" menu in the desktop top bar.
+const navMore = document.querySelector("#nav-more");
+const navMoreToggle = document.querySelector("#nav-more-toggle");
+
+function setNavMoreOpen(isOpen) {
+    if (!navMore || !navMoreToggle) return;
+    navMore.classList.toggle("open", isOpen);
+    navMoreToggle.setAttribute("aria-expanded", String(isOpen));
+}
+
+function revealNavMore() {
+    if (!navMore) return;
+    const hasRoleLinks = [...navMore.querySelectorAll(".nav-link")]
+        .some((link) => !link.classList.contains("hidden"));
+    navMore.classList.toggle("hidden", !hasRoleLinks);
+    // Selecting a role page keeps "Más" highlighted in the top bar.
+    if (navMore.querySelector('[aria-current="page"]') && navMoreToggle) {
+        navMoreToggle.classList.add("active");
+    }
+}
+
+if (navMore && navMoreToggle) {
+    navMoreToggle.addEventListener("click", () => {
+        setNavMoreOpen(!navMore.classList.contains("open"));
+    });
+    // Close on a click elsewhere, on Escape inside the menu, or when focus leaves it.
+    document.addEventListener("click", (event) => {
+        if (navMore.classList.contains("open") && !navMore.contains(event.target)) setNavMoreOpen(false);
+    });
+    navMore.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !navMore.classList.contains("open")) return;
+        setNavMoreOpen(false);
+        navMoreToggle.focus();
+    });
+    navMore.addEventListener("focusout", (event) => {
+        if (event.relatedTarget && !navMore.contains(event.relatedTarget)) setNavMoreOpen(false);
+    });
+}
+
 const pageHeading = document.querySelector(".content h2")?.textContent.trim();
 const mobilePageLabel = document.querySelector("#current-page-label");
 if (mobilePageLabel) mobilePageLabel.textContent = pageHeading || "La liga";
@@ -173,6 +233,7 @@ async function loadSessionIdentity() {
         ) {
             refereeGamesLink.classList.remove("hidden");
         }
+        revealNavMore();
     } catch (error) {
         // Public navigation remains available when the session check fails.
     }
