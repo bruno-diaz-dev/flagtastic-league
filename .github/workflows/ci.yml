@@ -174,4 +174,41 @@ jobs:
             mobile-schedule-board.png
           retention-days: 3
 
+  VisualGuards:
+    name: Visual guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_ENV: test
+      # Page shells render without a database; every /api call is a fixture.
+      DATABASE_URL: postgresql://visual:visual@127.0.0.1:1/none
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install application dependencies
+        run: python -m pip install -r requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test tools
+        run: |
+          npm install --no-save --no-package-lock playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Check public pages at phone, tablet and desktop widths
+        run: |
+          python -m uvicorn main:app --host 127.0.0.1 --port 8000 --log-level warning &
+          for attempt in $(seq 1 30); do
+            curl -fsS -o /dev/null http://127.0.0.1:8000/login && break
+            sleep 1
+          done
+          VISUAL_BASE_URL=http://127.0.0.1:8000 node tests/browser/visual_guards.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-guards
+          path: visual-guards/
+          retention-days: 7
+
 

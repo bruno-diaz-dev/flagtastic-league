@@ -41,25 +41,27 @@ function updateLeaderboardBranchControl() {
 
 
 function leaderboardIdentity(leader) {
-    const displayName = leader.player_aka || leader.player_name;
+    // A player's chosen alias is shown exactly as written.
+    const legalName = displayName(leader.player_name);
+    const shownName = leader.player_aka || legalName;
     const photo = leader.profile_photo_url
-        ? `<img class="leaderboard-photo" src="${escapeHtml(leader.profile_photo_url)}" alt="Foto de ${escapeHtml(displayName)}" loading="lazy" decoding="async">`
-        : `<span class="leaderboard-photo profile-placeholder" aria-hidden="true">${escapeHtml(leader.player_name.charAt(0))}</span>`;
-    const legalName = leader.player_aka
-        ? `<small>${escapeHtml(leader.player_name)}</small>`
+        ? `<img class="leaderboard-photo" src="${escapeHtml(leader.profile_photo_url)}" alt="Foto de ${escapeHtml(shownName)}" loading="lazy" decoding="async">`
+        : `<span class="leaderboard-photo profile-placeholder" aria-hidden="true">${escapeHtml(nameInitials(leader.player_name))}</span>`;
+    const legalNameLine = leader.player_aka
+        ? `<small>${escapeHtml(legalName)}</small>`
         : "";
     return `
         <div class="leaderboard-identity">
             <a class="leaderboard-player player-profile-link" href="/players/${leader.player_id}?team_id=${leader.team_id}">
                 ${photo}
                 <div>
-                    <strong>${escapeHtml(displayName)}</strong>
-                    ${legalName}
+                    <strong>${escapeHtml(shownName)}</strong>
+                    ${legalNameLine}
                 </div>
             </a>
             <span class="leaderboard-team">
                 #${leader.jersey_number} ·
-                <a class="team-roster-link" href="/teams/${leader.team_id}/roster">${escapeHtml(leader.team_name)}</a>
+                <a class="team-roster-link" href="/teams/${leader.team_id}/roster">${escapeHtml(displayName(leader.team_name))}</a>
             </span>
         </div>`;
 }
@@ -87,14 +89,18 @@ function renderLeaderboards(leaderboards) {
 
             return `
                 <section class="leaderboard-panel">
-                    <p class="form-help">${escapeHtml(leaderboards.tie_breakers?.[metric] || "")}</p>
-                    <h3>${definition.title}</h3>
-                    <p class="leaderboard-statistic">${definition.statistic}</p>
+                    <header class="leaderboard-heading">
+                        <h3>${definition.title}</h3>
+                        <p class="leaderboard-statistic">${definition.statistic}</p>
+                    </header>
                     <table class="leaderboard-table">
                         <colgroup><col class="leaderboard-rank-column"><col><col class="leaderboard-total-column"></colgroup>
                         <thead><tr><th>Pos.</th><th>Jugador</th><th>${metric === "passer_rating" ? "Índice" : "Total"}</th></tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
+                    ${leaderboards.tie_breakers?.[metric]
+                        ? `<p class="leaderboard-note">${escapeHtml(leaderboards.tie_breakers[metric])}</p>`
+                        : ""}
                 </section>
             `;
         })

@@ -27,6 +27,7 @@ function setup() {
         FormData: class { get() { return 'libre'; } },
         getLeaderboards: async () => ({ok: false}),
     });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/display.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/statistics.js'), 'utf8'), context);
     return {context, summary: elements.get('#statistics-import-skipped')};
 }

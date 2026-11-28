@@ -24,6 +24,7 @@ const assert = require('node:assert/strict');
         if(path.startsWith('/static/'))return route.fulfill({contentType:path.endsWith('.css')?'text/css':path.endsWith('.jpeg')?'image/jpeg':'application/javascript',body:fs.readFileSync('.'+path)});
         if(path==='/api/players/7/profile'||path==='/api/me/dashboard')return json(profile);
         if(path==='/api/auth/me')return json({id:1,name:'Jugador',display_name:'Jugador',roles:['player']});
+        if(path==='/api/auth/session')return json({user:{id:1,name:'Jugador',display_name:'Jugador',roles:['player']}});
         if(path==='/api/teams')return json([]);
         if(path.startsWith('/api/'))return json([]);
         return route.fulfill({contentType:'text/html',body:template(path==='/dashboard'?'dashboard':'player_profile')});

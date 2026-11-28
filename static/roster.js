@@ -31,26 +31,21 @@ function fileTooLarge(file) {
 }
 
 
-function initials(name) {
-    return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-}
-
-
 function playerPhoto(player) {
     if (player.profile_photo_url) {
         return `<img class="roster-player-photo" src="${player.profile_photo_url}" alt="Foto de ${escapeHtml(player.aka || player.name)}" loading="lazy" decoding="async">`;
     }
-    return `<span class="roster-player-photo profile-placeholder" aria-hidden="true">${escapeHtml(initials(player.name))}</span>`;
+    return `<span class="roster-player-photo profile-placeholder" aria-hidden="true">${escapeHtml(nameInitials(player.name))}</span>`;
 }
 
 
 function renderRoster(team) {
-    rosterTitle.textContent = `Roster de ${team.name}`;
-    rosterSubtitle.textContent = `${divisionBranchLabel(team.branch, team.category)} / ${team.category} · ${team.players.length} jugadores`;
+    rosterTitle.textContent = `Roster de ${displayName(team.name)}`;
+    rosterSubtitle.textContent = `${displayName(divisionBranchLabel(team.branch, team.category))} · ${displayName(team.category)} · ${team.players.length} jugadores`;
     const teamLogo = document.querySelector("#roster-team-logo");
     if (team.logo_url) {
         teamLogo.src = team.logo_url;
-        teamLogo.alt = `Logo de ${team.name}`;
+        teamLogo.alt = `Logo de ${displayName(team.name)}`;
         teamLogo.classList.remove("hidden");
     } else {
         teamLogo.classList.add("hidden");
@@ -61,7 +56,7 @@ function renderRoster(team) {
         ["Manager", team.manager]
     ].filter((entry) => entry[1]);
     teamStaff.innerHTML = staff.length
-        ? staff.map(([role, name]) => `<div><span>${role}</span><strong>${escapeHtml(name)}</strong></div>`).join("")
+        ? staff.map(([role, name]) => `<div><span>${role}</span><strong>${escapeHtml(displayName(name))}</strong></div>`).join("")
         : `<p class="muted-text">Cuerpo técnico pendiente de registrar.</p>`;
     teamStaffForm.elements.head_coach.value = team.head_coach || "";
     teamStaffForm.elements.coach.value = team.coach || "";
@@ -77,21 +72,22 @@ function renderRoster(team) {
     }
 
     rosterContainer.innerHTML = team.players.map((player) => {
-        const displayName = player.aka || player.name;
+        // A chosen alias is shown as written; legal names get display casing.
+        const shownName = player.aka || displayName(player.name);
         const identity = player.aka
-            ? `${escapeHtml(player.name)} · ${player.age} años`
+            ? `${escapeHtml(displayName(player.name))} · ${player.age} años`
             : `${player.age} años`;
         return `
             <article class="roster-player">
                 ${playerPhoto(player)}
                 <a class="roster-player-identity player-profile-link" href="/players/${player.id}?team_id=${teamId}">
-                    <h3>${escapeHtml(displayName)}</h3>
+                    <h3 title="${escapeHtml(shownName)}">${escapeHtml(shownName)}</h3>
                     <p>${identity}</p>
                 </a>
                 <span class="jersey-number">#${player.jersey_number}</span>
                 <form class="roster-photo-form team-scope-manager-only" data-player-id="${player.id}">
                     <label class="file-input-label">
-                        <span class="sr-only">Foto de ${escapeHtml(displayName)}</span>
+                        <span class="sr-only">Foto de ${escapeHtml(shownName)}</span>
                         <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
                     </label>
                     <button type="submit">Guardar foto</button>

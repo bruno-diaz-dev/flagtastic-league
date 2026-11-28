@@ -473,7 +473,8 @@ writes require the role named in the description.
 | `POST` | `/api/auth/register/player` | Player self-registration with required photo |
 | `POST` | `/api/auth/login` | Web login; sets the session cookie |
 | `POST` | `/api/auth/mobile/login` | Mobile login for players, referees and representatives; returns a Bearer token |
-| `GET` | `/api/auth/me` | Current user for a cookie or Bearer session |
+| `GET` | `/api/auth/me` | Current user for a cookie or Bearer session; `401` without one |
+| `GET` | `/api/auth/session` | `{"user": ...}` for a signed-in browser, `{"user": null}` for a visitor; always `200`, not cached |
 | `POST` | `/api/auth/change-password` | Change password, including the mandatory first change |
 | `POST` | `/api/auth/forgot-password` | Account-neutral response; emails a reset link when eligible |
 | `POST` | `/api/auth/reset-password` | Consume a single-use token and revoke existing sessions |
@@ -588,7 +589,8 @@ The password-recovery endpoints work, but the login page does not link to
 
 Server-rendered Jinja templates (`templates/`) with one vanilla JavaScript
 file per page in `static/`. Shared layout lives in `base.html`,
-`static/layout.js`, `static/style.css` and `static/ui.css`; page scripts never
+`static/layout.js`, `static/display.js`, `static/tokens.css`, `static/style.css`
+and `static/ui.css` (conventions in `docs/ui-system.md`); page scripts never
 compute viewport sizes. Below `820px` the sidebar becomes a modal drawer,
 controls keep 44px touch targets and wide tables scroll inside their own
 wrappers (`.standings-table`, `.users-table-wrapper`, `.table-scroll`).
@@ -669,6 +671,9 @@ GitHub Actions runs on pull requests to `main` and pushes to `main`:
   and `npx expo-doctor` in `mobile/`.
 - **Live capture browser**: Playwright/Chromium scripts in `tests/browser/`
   with mocked API responses.
+- **Visual guards**: starts the app without a database and checks the public
+  pages for overflow, clipped text, broken images and console errors at four
+  widths (`tests/browser/visual_guards.cjs`).
 - **CodeQL**: Python analysis (also weekly).
 
 Images are tagged with the short commit SHA and branch; deployments should

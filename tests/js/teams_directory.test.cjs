@@ -19,6 +19,7 @@ function setup() {
         escapeHtml: value => String(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
         divisionBranchLabel: branch => branch,
         isUnifiedYouthCategory: category => ['u8', 'u10', 'u12'].includes(category)});
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/display.js'), 'utf8'), c);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/teams.js'), 'utf8'), c);
     c.fixtures = [{id: 1, name: 'Águilas', branch: 'varonil', category: 'libre', status: 'active'},
         {id: 2, name: 'Aguilas Juvenil', branch: 'femenil', category: 'u14', status: 'pending'},

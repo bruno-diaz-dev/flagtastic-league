@@ -6,8 +6,11 @@
     <title>Flagtastic League</title>
     <link rel="icon" type="image/jpeg" href="/static/assets/flagtastic.jpeg?v=20260927-1">
     <link rel="apple-touch-icon" href="/static/assets/flagtastic.jpeg?v=20260927-1">
-    <link rel="stylesheet" href="/static/style.css?v=20261126-6">
-    <link rel="stylesheet" href="/static/ui.css?v=20261017-1">
+    <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/static/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/static/tokens.css?v=20261128-1">
+    <link rel="stylesheet" href="/static/style.css?v=20261128-1">
+    <link rel="stylesheet" href="/static/ui.css?v=20261128-1">
 </head>
 <body class="sidebar-collapsed">
     <a class="skip-link" href="#main-content">Saltar al contenido</a>
@@ -126,7 +129,8 @@
     ></button>
 
     <script defer src="/static/analytics.js?v=20261004-1"></script>
-    <script src="/static/layout.js?v=20261004-1"></script>
+    <script src="/static/display.js?v=20261128-1"></script>
+    <script src="/static/layout.js?v=20261128-1"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

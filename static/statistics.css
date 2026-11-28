@@ -1,5 +1,16 @@
+/* Panel title, statistic and tie-break note share the table's inset. */
+.leaderboard-heading { padding: 16px; background: var(--color-navy); }
+.leaderboard-heading h3 { margin: 0; padding: 0; background: none; font-size: 22px; line-height: 1.1; }
+.leaderboard-heading .leaderboard-statistic { margin: 4px 0 0; font-size: 13px; }
+.leaderboard-note { margin: 0; padding: 12px 16px 14px; border-top: 1px solid var(--color-border); color: var(--color-muted); font-size: 12px; line-height: 1.5; }
+.leaderboard-table { table-layout: fixed; }
+.leaderboard-rank-column { width: 64px; }
+.leaderboard-total-column { width: 132px; }
+.leaderboard-table .stat-value { width: auto; text-align: right; }
+.leaderboard-table th:last-child { text-align: right; }
+
 /* Keep each player's identity and total visible together on small screens. */
-.leaderboard-pass-detail { display: block; margin-top: 3px; font-size: 11px; color: var(--color-muted); font-weight: 400; }
+.leaderboard-pass-detail { display: block; margin-top: 3px; font-size: 11px; color: var(--color-muted); font-weight: 400; white-space: nowrap; }
 .leaderboard-identity, .leaderboard-player > div { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 820px) {
     .content .leaderboard-panel { min-width: 0; overflow: visible; }

@@ -28,6 +28,7 @@ const assert = require('node:assert/strict');
         const json = (body,status=200) => route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
         if(path.startsWith('/static/'))return route.fulfill({contentType:path.endsWith('.css')?'text/css':path.endsWith('.jpeg')?'image/jpeg':'application/javascript',body:fs.readFileSync('.'+path)});
         if(path==='/api/auth/me')return json({id:1,display_name:'Admin',roles:[role]});
+        if(path==='/api/auth/session')return json({user:{id:1,display_name:'Admin',roles:[role]}});
         if(path==='/api/admin/users')return role!=='league_admin'?json({},403):failLoad?json({},503):json(users);
         if(path==='/api/games/237/details')return json({game:{id:237,week:3,start_time:'19:00',field_number:1,
             home_team:{id:1,name:'Equipo A'},away_team:{id:2,name:'Equipo B'}},officials:role==='player'?undefined:crew});

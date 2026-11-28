@@ -80,7 +80,7 @@ function renderStandings(standings) {
                                 <a class="standings-team team-roster-link" href="/teams/${team.team_id}/roster">
                                     <span class="standings-position" aria-label="Posición ${index + 1}">${index + 1}</span>
                                     ${team.team_logo_url ? `<img class="team-logo team-logo-small" src="${team.team_logo_url}" alt="" loading="lazy" decoding="async">` : ""}
-                                    <span class="standings-team-name">${escapeHtml(team.team_name)}</span>
+                                    <span class="standings-team-name">${escapeHtml(displayName(team.team_name))}</span>
                                 </a>
                             </td>
                             <td>${team.games_played}</td>
