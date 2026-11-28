@@ -3,8 +3,12 @@
 {% block content %}
 <section class="admin-users-page league-page">
     <header class="section-header">
+        <div>
+            <div id="page-hero-tags" class="hero-tags"></div>
             <h2>Usuarios y roles</h2>
-        <p>Otorga únicamente el acceso necesario para las funciones de cada persona.</p>
+            <p>Otorga únicamente el acceso necesario para las funciones de cada persona.</p>
+            <ul id="page-hero-stats" class="hero-stats" hidden></ul>
+        </div>
     </header>
     <section class="form-panel">
         <details class="ui-disclosure"><summary>Crear cuenta de personal<span class="ui-disclosure-hint">Opciones</span></summary><div class="ui-disclosure-body">
@@ -24,8 +28,8 @@
     
         </div></details>
     </section>
-    <section class="filters-panel admin-users-filters" aria-label="Filtros de usuarios">
-        <label>
+    <section class="filters-panel filter-bar admin-users-filters" aria-label="Filtros de usuarios">
+        <label class="filter-search">
             Buscar por nombre
             <input
                 id="admin-user-name-filter"
@@ -37,16 +41,11 @@
         <p id="admin-users-count" class="results-count" aria-live="polite"></p>
     </section>
     <div id="admin-users-message" class="form-message" role="status"></div>
-    <div class="users-table-wrapper">
-        <table class="users-table">
-            <thead><tr><th>Persona</th><th>Correo</th><th>Roles</th><th>AKA de oficial</th><th>Estado</th><th>Acción</th></tr></thead>
-            <tbody id="admin-users-body"></tbody>
-        </table>
-    </div>
+    <div id="admin-users-body" class="user-list" aria-live="polite"></div>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/api.js?v=20261010-1"></script>
-<script src="/static/admin_users.js?v=20261010-1"></script>
+<script src="/static/admin_users.js?v=20261128-5"></script>
 {% endblock %}
