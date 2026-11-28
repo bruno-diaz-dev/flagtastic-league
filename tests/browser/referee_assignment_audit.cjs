@@ -18,6 +18,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
   const json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   if(path.startsWith('/static/'))return route.fulfill({contentType:path.endsWith('.css')?'text/css':path.endsWith('.jpeg')?'image/jpeg':'application/javascript',body:fs.readFileSync('.'+path)});
   if(path==='/api/auth/me')return json({id:1,name:'Admin',roles:[role]});
+  if(path==='/api/auth/session')return json({user:{id:1,name:'Admin',roles:[role]}});
   if(path==='/api/referees/assignments')return role!=='league_admin'?json({},403):fail?json({},503):json({officials,weeks:[4,3]});
   if(path==='/api/referees/me')return json({},403);
   if(path==='/api/referees')return json(officials.map(({id,name,aka,display_name})=>({id,name,aka,display_name,profile_photo_url:null})));

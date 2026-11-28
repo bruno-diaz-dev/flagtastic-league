@@ -1,19 +1,7 @@
-/* Shared FlagTastic interface. Load after functional and legacy page styles. */
-:root {
-    color-scheme: dark;
-    --color-page: #070d1a;
-    --color-surface: #101b2e;
-    --color-surface-raised: #132039;
-    --color-border: rgba(163, 184, 218, .2);
-    --color-muted: #b0bfd6;
-    --ui-radius: 14px;
-    --ui-radius-small: 9px;
-    --ui-gap: 20px;
-    --ui-hero: linear-gradient(120deg, #18345d, #0c1b34);
-    --ui-shadow: 0 8px 24px rgba(0, 0, 0, .12);
-}
+/* Shared FlagTastic interface. Load after functional and legacy page styles.
+   Tokens (colours, fonts, radii) come from tokens.css. */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-body);
     font-size: 15px;
     line-height: 1.5;
     background: radial-gradient(ellipse at 75% 0, rgba(29, 66, 119, .24), transparent 45rem), var(--color-page);
@@ -230,6 +218,61 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* League typography: condensed display face for titles, scores and numbers.
+   Numbers use tabular figures so columns of scores and totals stay aligned. */
+body { font-feature-settings: "cv11" 1; }
+.league-page > .section-header h2, .auth-page h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .005em;
+    line-height: .95;
+}
+/* Long team names wrap between words, hyphenating (Aguasca-lientes) rather
+   than splitting a word at an arbitrary letter. */
+.league-page > .section-header h2 { font-size: clamp(30px, 4.6vw, 54px); overflow-wrap: break-word; hyphens: auto; }
+.auth-page h2 { font-size: 40px; }
+.league-page .leaderboard-panel h3, .content .game-time-heading h3, .content .game-time-heading time {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+.content .game-team-score, .content .game-detail-score, .content .featured-score-number,
+.content .jersey-number, .content .stat-item strong, .leaderboard-table .stat-value strong,
+.leaderboard-table .rank-cell, .standings-table td {
+    font-variant-numeric: tabular-nums;
+}
+.content .game-team-score, .content .game-detail-score, .content .featured-score-number,
+.content .jersey-number, .content .stat-item strong, .leaderboard-table .stat-value strong {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+.content .stat-item strong { font-size: 36px; line-height: 1; }
+.leaderboard-table .stat-value strong { font-size: 26px; line-height: 1; }
+
+/* Roster cards: the number reads like a jersey and the name keeps to two lines. */
+.content .roster-player h3 {
+    font-size: 16px;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+.content .roster-player .jersey-number {
+    min-width: 0;
+    height: auto;
+    margin-left: auto;
+    padding: 0;
+    background: none;
+    color: var(--color-gold);
+    font-size: 34px;
+    line-height: 1;
+    align-self: center;
 }
 
 /* Friendly fixtures use both a text label and a distinct blue accent. */

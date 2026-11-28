@@ -196,6 +196,37 @@ def test_get_current_authenticated_user():
     assert response.json() == created_user
     assert "password" not in response.text
 
+def test_session_lookup_answers_visitors_without_an_error():
+    for headers in ({}, {"Cookie": "flagtastic_session=invalid-token"}):
+        response = client.get("/api/auth/session", headers=headers)
+
+        assert response.status_code == 200
+        assert response.json() == {"user": None}
+        assert response.headers["cache-control"] == "no-store"
+
+
+def test_session_lookup_returns_the_signed_in_user():
+    created_user = create_user(
+        UserCreate(
+            email="session@flagtastic.com",
+            name="Session user",
+            password="supersecret",
+            role="league_admin"
+        )
+    )
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "session@flagtastic.com", "password": "supersecret"}
+    )
+    assert login.status_code == 200
+
+    response = client.get("/api/auth/session")
+
+    assert response.status_code == 200
+    assert response.json() == {"user": created_user}
+    assert "password" not in response.text
+
+
 def test_get_current_user_requires_session_cookie():
     response = client.get("/api/auth/me")
 

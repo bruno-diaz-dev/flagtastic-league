@@ -344,7 +344,9 @@ node --test tests/*.test.mjs
 npm run typecheck
 ```
 
-Browser tests mock the API and need no database.
+Browser tests mock the API and need no database. The visual guards need the
+app running (`python -m uvicorn main:app`), then
+`VISUAL_BASE_URL=http://127.0.0.1:8000 node tests/browser/visual_guards.cjs`.
 
 GitHub Actions runs on pull requests to `main` and pushes to `main`:
 
@@ -354,6 +356,7 @@ GitHub Actions runs on pull requests to `main` and pushes to `main`:
 | Docker | Builds the image; pushes to GHCR only for non-PR events |
 | Mobile | `npm ci`, mobile tests, type-check, and `expo-doctor` |
 | Live capture browser | Playwright scripts in `tests/browser/` on mobile Chromium |
+| Visual guards | Runs the app without a database and checks public pages at 320-1280 px with `tests/browser/visual_guards.cjs`; screenshots are uploaded as an artifact |
 | CodeQL (Analyze Python) | Static analysis; also runs weekly |
 
 ## Administrative Utilities

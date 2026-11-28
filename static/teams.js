@@ -81,10 +81,10 @@ function renderTeams(teams) {
                 <a class="team-card-main" href="/teams/${team.id}/roster">
                     ${team.logo_url
                         ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}" loading="lazy" decoding="async">`
-                        : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
+                        : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(nameInitials(team.name))}</span>`}
                     <div class="team-card-copy">
-                        <h3>${escapeHtml(team.name)}</h3>
-                        <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</p>
+                        <h3>${escapeHtml(displayName(team.name))}</h3>
+                        <p>${escapeHtml(displayName(divisionBranchLabel(team.branch, team.category)))} · ${escapeHtml(displayName(team.category))}</p>
                         <span class="team-status team-status-${escapeHtml(team.status)}">${escapeHtml(teamStatusLabels[team.status] || team.status)}</span>
                     </div>
                 </a>

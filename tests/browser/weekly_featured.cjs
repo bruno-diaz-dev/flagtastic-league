@@ -32,6 +32,7 @@ const assert = require('node:assert/strict');
         if (path === '/api/games') return json(games);
         if (path === '/api/teams') return json([home, away]);
         if (path === '/api/auth/me') return route.fulfill({status:401, contentType:'application/json', body:'{}'});
+        if (path === '/api/auth/session') return json({user: null});
         if (path.startsWith('/api/')) return json([]);
         return route.fulfill({contentType:'text/html', body:html});
     });

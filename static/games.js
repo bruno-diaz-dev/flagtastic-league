@@ -82,14 +82,14 @@ function compareGames(first, second) {
 function gameTeamRow(team, side, score) {
     const logo = team.logo_url
         ? `<img class="team-logo game-team-logo" src="${team.logo_url}" alt="" loading="lazy" decoding="async">`
-        : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.slice(0, 1))}</span>`;
+        : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(nameInitials(team.name))}</span>`;
 
     return `
         <div class="game-team-row">
             <span class="game-team-side">${side}</span>
             ${logo}
             <a class="game-team-name team-roster-link" href="/teams/${team.id}/roster">
-                ${escapeHtml(team.name)}
+                ${escapeHtml(displayName(team.name))}
             </a>
             <span class="game-team-score" aria-label="Puntos: ${score ?? "sin marcador"}">${score ?? "-"}</span>
         </div>
@@ -97,9 +97,19 @@ function gameTeamRow(team, side, score) {
 }
 
 
+// Official assignment is a league-administrator tool. Visitors and other roles
+// skip its private requests; without the shared session (isolated page
+// harnesses) the server's own authorization still decides.
+async function canAssignOfficials() {
+    if (!window.flagtasticSession) return true;
+    const user = await window.flagtasticSession;
+    return Boolean(user && (user.roles || [user.role]).includes("league_admin"));
+}
+
+
 async function renderAssignedReferees() {
     const gameId = refereeAssignmentForm.elements.game_id.value;
-    if (!gameId) {
+    if (!gameId || !(await canAssignOfficials())) {
         assignedReferees.innerHTML = "";
         return;
     }
@@ -118,6 +128,7 @@ async function renderAssignedReferees() {
 
 
 async function loadRefereeAssignmentOptions() {
+    if (!(await canAssignOfficials())) return;
     const response = await getAdminUsers();
     if (!response.ok) return;
     const users = await response.json();

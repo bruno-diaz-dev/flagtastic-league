@@ -190,8 +190,23 @@ def get_current_user(
             status_code=401,
             detail="No autenticado"
         )
-    
+
     return user
+
+
+@router.get("/session")
+def get_session(
+    response: Response,
+    session_token: str | None = Depends(resolve_session_token)
+):
+    """Return the signed-in user, or null for a visitor, without an error status.
+
+    Web pages call this on every load to adapt navigation; a visitor is a
+    normal state, not a failed request. ``/me`` keeps answering 401.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    user = get_authenticated_user(session_token) if session_token else None
+    return {"user": user}
 
 
 @router.post("/change-password", status_code=204)

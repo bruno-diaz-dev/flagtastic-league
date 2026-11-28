@@ -22,6 +22,7 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
         const json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
         if(path.startsWith('/static/'))return route.fulfill({contentType:path.endsWith('.css')?'text/css':path.endsWith('.jpeg')?'image/jpeg':'application/javascript',body:fs.readFileSync('.'+path)});
         if(path==='/api/auth/me')return json({id:1,display_name:'Admin',roles:['league_admin','referee']});
+        if(path==='/api/auth/session')return json({user:{id:1,display_name:'Admin',roles:['league_admin','referee']}});
         if(path==='/api/admin/users')return json([
             {id:11,display_name:'Cam',roles:['referee'],status:'active'},
             {id:12,display_name:'Alan',roles:['referee'],status:'active'}]);

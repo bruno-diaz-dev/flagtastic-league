@@ -1,27 +1,13 @@
-/* Global box sizing and league design tokens. */
+/* Global box sizing. Design tokens live in tokens.css. */
 * {
     box-sizing: border-box;
-}
-
-:root {
-    --color-navy: #071a44;
-    --color-navy-dark: #041027;
-    --color-navy-soft: #132b57;
-    --color-gold: #f4c542;
-    --color-orange: #f97316;
-    --color-surface: #0b1220;
-    --color-surface-raised: #101b31;
-    --color-page: #050814;
-    --color-border: rgba(184, 195, 217, 0.18);
-    --color-text: #f8fafc;
-    --color-muted: #a9b6cf;
 }
 
 /* Application shell and dark branded background. */
 body {
     margin: 0;
     min-width: 320px;
-    font-family: Arial, sans-serif;
+    font-family: var(--font-body);
     background:
         radial-gradient(circle at 12% 8%, rgba(244, 197, 66, 0.12), transparent 24rem),
         radial-gradient(circle at 70% 18%, rgba(7, 26, 68, 0.46), transparent 30rem),

@@ -128,14 +128,24 @@ const refereeGamesLink = document.querySelector("#referee-games-link");
 const refereeRosterLink = document.querySelector("#referee-roster-link");
 
 
+// One session lookup per page, shared with page scripts so they can skip
+// private requests for visitors. Resolves to the user, or null for a visitor.
+// A visitor is a normal state: /api/auth/session answers 200 with user null.
+if (sessionUser && loginLink && logoutButton) {
+    window.flagtasticSession = fetch("/api/auth/session", {cache: "no-store"})
+        .then((response) => (response.ok ? response.json() : {user: null}))
+        .then((body) => body?.user || null)
+        .catch(() => null);
+}
+
+
 async function loadSessionIdentity() {
     if (!sessionUser || !loginLink || !logoutButton) return;
 
     try {
-        const response = await fetch("/api/auth/me");
-        if (!response.ok) return;
+        const user = await window.flagtasticSession;
+        if (!user) return;
 
-        const user = await response.json();
         const roles = user.roles || [user.role];
         roles.forEach((role) => document.body.classList.add(`role-${role}`));
         sessionUser.textContent = user.display_name || user.name;

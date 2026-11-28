@@ -23,6 +23,7 @@ function setup() {
         gameVenueKey: value => String(value || "").trim().toLowerCase(),
         gameCalendarLabel: () => "", gameDateLabel: () => "",
         isUnifiedYouthCategory: c => ['u8', 'u10', 'u12'].includes(c)});
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/display.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/games.js'), 'utf8'), context);
     context.result = [];
     vm.runInContext('renderGameCards = renderGames; renderGames = games => { result = games.map(game => game.id); };', context);
