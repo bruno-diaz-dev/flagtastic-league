@@ -5,7 +5,7 @@ from main import app
 client = TestClient(app)
 
 
-@pytest.mark.parametrize("path", ["/teams", "/games", "/standings", "/statistics"])
+@pytest.mark.parametrize("path", ["/", "/teams", "/games", "/standings", "/statistics"])
 def test_public_navigation_shell_can_be_cached_at_edge(path):
     response = client.get(path)
     assert response.status_code == 200

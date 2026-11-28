@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="league-page home-page">
+    <header id="home-hero" class="section-header home-hero">
+        <div class="home-hero-copy">
+            <div id="page-hero-tags" class="hero-tags"></div>
+            <h2 id="home-hero-title">Inicio</h2>
+            <p id="home-hero-subtitle">Football League · Aguascalientes</p>
+            <ul id="page-hero-stats" class="hero-stats" hidden></ul>
+            <div class="home-hero-actions">
+                <a class="home-cta" href="/games">Ver partidos</a>
+                <a class="home-cta home-cta-ghost" href="/standings">Tabla de posiciones</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="home-section" aria-labelledby="home-next-title">
+        <header class="home-section-heading">
+            <h3 id="home-next-title">Próxima jornada</h3>
+            <a id="home-next-link" class="home-section-link" href="/games">Ver calendario</a>
+        </header>
+        <div id="home-next" class="home-game-grid" aria-live="polite"></div>
+    </section>
+
+    <section class="home-section" aria-labelledby="home-results-title">
+        <header class="home-section-heading">
+            <h3 id="home-results-title">Últimos resultados</h3>
+            <a class="home-section-link" href="/games">Todos los resultados</a>
+        </header>
+        <div id="home-results" class="home-results" aria-live="polite"></div>
+    </section>
+
+    <section class="home-section" aria-labelledby="home-leaders-title">
+        <header class="home-section-heading">
+            <h3 id="home-leaders-title">Líderes por división</h3>
+            <a class="home-section-link" href="/statistics">Todas las estadísticas</a>
+        </header>
+        <form id="home-division-form" class="filter-bar home-division-form" aria-label="División">
+            <label id="home-branch-field">
+                <span class="sr-only">Rama</span>
+                <select id="home-branch" name="branch" data-segmented="Rama">
+                    <option value="varonil">Varonil</option>
+                    <option value="femenil">Femenil</option>
+                    <option value="mixto">Mixto</option>
+                </select>
+            </label>
+            <label class="home-category-field">
+                <span class="sr-only">Categoría</span>
+                <select id="home-category" name="category">
+                    <option value="u8">U8</option>
+                    <option value="u10">U10</option>
+                    <option value="u12">U12</option>
+                    <option value="u14">U14</option>
+                    <option value="u16">U16</option>
+                    <option value="u18">U18</option>
+                    <option value="libre" selected>Libre</option>
+                </select>
+            </label>
+        </form>
+        <div class="home-leaders-grid">
+            <section class="home-panel" aria-labelledby="home-standings-title">
+                <header class="home-panel-heading"><h4 id="home-standings-title">Tabla</h4><a href="/standings">Completa</a></header>
+                <div id="home-standings" aria-live="polite"></div>
+            </section>
+            <section class="home-panel" aria-labelledby="home-leaders-list-title">
+                <header class="home-panel-heading"><h4 id="home-leaders-list-title">Número uno</h4><a href="/statistics">Líderes</a></header>
+                <div id="home-leaders" class="home-leader-list" aria-live="polite"></div>
+            </section>
+        </div>
+    </section>
+</section>
+<script src="/static/api.js?v=20261126-2"></script>
+<script src="/static/weekly_featured.js?v=20261019-1"></script>
+<script src="/static/home.js?v=20261128-2"></script>
+{% endblock %}

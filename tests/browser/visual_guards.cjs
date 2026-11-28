@@ -79,6 +79,7 @@ function fixture(pathname) {
 }
 
 const PAGES = [
+    {name: 'home', path: '/', ready: '.home-leader'},
     {name: 'teams', path: '/teams', ready: '.team-card'},
     {name: 'games', path: '/games', ready: '.game-card'},
     {name: 'standings', path: '/standings', ready: '.standings-team', prepare: async (page) => {
@@ -130,7 +131,7 @@ function inspectLayout() {
     }
 
     // Content must stay inside its card, and cards must not overlap.
-    const cards = [...document.querySelectorAll('.team-card, .game-card, .roster-player, .leaderboard-panel, .auth-panel')].filter(visible);
+    const cards = [...document.querySelectorAll('.team-card, .game-card, .roster-player, .leaderboard-panel, .auth-panel, .home-game, .home-featured, .home-leader')].filter(visible);
     for (const card of cards) {
         const box = card.getBoundingClientRect();
         for (const child of card.querySelectorAll('*')) {

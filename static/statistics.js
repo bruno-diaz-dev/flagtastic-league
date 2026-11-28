@@ -414,7 +414,9 @@ async function loadLeaderboards(event) {
     const request = ++leaderboardRequest;
     if (event) event.preventDefault();
     const formData = new FormData(leaderboardForm);
-    leaderboardsContainer.innerHTML = "<p>Cargando estadísticas...</p>";
+    leaderboardsContainer.innerHTML = typeof skeletonMarkup === "function"
+        ? skeletonMarkup("cards", 6, "Cargando estadísticas")
+        : "<p>Cargando estadísticas...</p>";
 
     try {
         const response = await getLeaderboards(

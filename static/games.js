@@ -261,12 +261,11 @@ function renderGames(games) {
     gamesCount.textContent = `${games.length} partido${games.length === 1 ? "" : "s"}`;
 
     if (games.length === 0) {
-        gamesContainer.innerHTML = `
-            <div class="empty-state">
-                <h3>Sin partidos con estos filtros</h3>
-                <p>Selecciona Estado: Pospuestos para encontrar y restablecer un partido, o elige una jornada para ver su historial.</p>
-            </div>
-        `;
+        const title = "Nada por aquí con estos filtros";
+        const text = "Prueba otra rama o categoría, elige una jornada para ver su historial, o selecciona Estado: Pospuestos para restablecer un partido.";
+        gamesContainer.innerHTML = typeof emptyStateMarkup === "function"
+            ? emptyStateMarkup({icon: "search", title, text, action: {label: "Ver todos los partidos", href: "/games"}})
+            : `<div class="empty-state"><h3>${title}</h3><p>${text}</p></div>`;
         return;
     }
 
@@ -573,12 +572,9 @@ async function loadGamesTeams() {
 }
 
 async function loadGames() {
-    gamesContainer.innerHTML = `
-        <div class="empty-state">
-            <h3>Cargando partidos</h3>
-            <p>Espera un momento.</p>
-        </div>
-    `;
+    gamesContainer.innerHTML = typeof skeletonMarkup === "function"
+        ? skeletonMarkup("games", 6, "Cargando partidos")
+        : `<div class="empty-state"><h3>Cargando partidos</h3><p>Espera un momento.</p></div>`;
 
     try {
         const response = await getGames();

@@ -2,16 +2,26 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#041027">
+    <meta name="description" content="FlagTastic Football League: partidos, marcadores en vivo, tabla de posiciones y líderes.">
     <title>Flagtastic League</title>
     <link rel="icon" type="image/jpeg" href="/static/assets/flagtastic.jpeg?v=20260927-1">
-    <link rel="apple-touch-icon" href="/static/assets/flagtastic.jpeg?v=20260927-1">
+    <link rel="apple-touch-icon" href="/static/assets/apple-touch-icon.png?v=20261128-1">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="FlagTastic">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/static/tokens.css?v=20261128-1">
     <link rel="stylesheet" href="/static/style.css?v=20261128-1">
     <link rel="stylesheet" href="/static/ui.css?v=20261128-1">
-    <link rel="stylesheet" href="/static/theme.css?v=20261128-19">
+    <link rel="stylesheet" href="/static/theme.css?v=20261128-21">
+    <!-- Shared helpers load first so page scripts can use them while the page renders. -->
+    <script src="/static/display.js?v=20261128-1"></script>
+    <script src="/static/page_ui.js?v=20261128-3"></script>
 </head>
 <body class="sidebar-collapsed">
     <a class="skip-link" href="#main-content">Saltar al contenido</a>
@@ -31,14 +41,16 @@
             </button>
 
             <div class="brand">
+                <a class="brand-home" href="/" aria-label="Inicio de FlagTastic">
                 <img
                     class="brand-logo"
                     src="/static/assets/flagtastic-logo.png?v=20261128-1"
                     width="256"
                     height="218"
-                    alt="Flagtastic Football League"
+                    alt=""
                 >
                 <span class="brand-wordmark" aria-hidden="true">Flag<span>tastic</span></span>
+                </a>
                 <p class="eyebrow">Flagtastic Football League</p>
                 <h1>Operaciones</h1>
             </div>
@@ -167,8 +179,6 @@
     ></button>
 
     <script defer src="/static/analytics.js?v=20261004-1"></script>
-    <script src="/static/display.js?v=20261128-1"></script>
-    <script src="/static/page_ui.js?v=20261128-2"></script>
     <script src="/static/layout.js?v=20261128-3"></script>
     {% block scripts %}{% endblock %}
 </body>

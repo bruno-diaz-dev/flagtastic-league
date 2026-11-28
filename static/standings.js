@@ -29,7 +29,8 @@ async function loadStandings(event) {
         ? "mixto"
         : formData.get("branch");
 
-    standingsFormMessage.textContent = "Consultando tabla...";
+    standingsFormMessage.textContent = "";
+    if (typeof skeletonMarkup === "function") standingsContainer.innerHTML = skeletonMarkup("table", 8, "Consultando la tabla");
 
     try {
         const response = await getStandings(branch, category);
@@ -62,12 +63,11 @@ function updateStandingsHero(branch, category, standings) {
 
 function renderStandings(standings) {
     if (standings.length === 0) {
-        standingsContainer.innerHTML = `
-            <div class="empty-state">
-                <h3>Sin resultados</h3>
-                <p>No hay partidos con marcador para esta rama y categoría.</p>
-            </div>
-        `;
+        const title = "La tabla aún no arranca";
+        const text = "No hay partidos con marcador en esta rama y categoría. En cuanto se jueguen, aquí verás quién manda.";
+        standingsContainer.innerHTML = typeof emptyStateMarkup === "function"
+            ? emptyStateMarkup({icon: "trophy", title, text, action: {label: "Ver calendario", href: "/games"}})
+            : `<div class="empty-state"><h3>${title}</h3><p>${text}</p></div>`;
         return;
     }
 

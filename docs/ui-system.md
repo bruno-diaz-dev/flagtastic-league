@@ -32,6 +32,28 @@ The games page language applies to every page:
 - **Tool panels** (`.ui-disclosure`, `.ui-action-hub`) are slim gold bars. **Tables** read like scoreboards, with condensed numbers. **Cards** are flat rows with one border.
 - **Teams directory:** grouped by division like the schedule (`.team-division`). **Leaders:** the first row stands out with a larger photo and number.
 
+## Home page
+
+`/` is the league front page (`templates/home.html`, `static/home.js`). The logo in the top bar links to it.
+
+- **Band:** the next week with games to play (Hoy, Mañana, En N días), its date and venue, and how many games, fields and divisions it holds. With nothing scheduled, it names the last week played.
+- **Próxima jornada:** the first six games still to play, in start-time order, with a link to the full calendar.
+- **Últimos resultados:** the latest week played. Its featured score (the same pick as the games page) leads, followed by six more results.
+- **Líderes por división:** a branch and category picker (Varonil · Libre by default) with the top five of the table and the number one of each statistic.
+
+## Loading and empty states
+
+`static/page_ui.js` loads in the head, so page scripts can use its helpers right away:
+
+- `skeletonMarkup(shape, count, label)` is a loading placeholder shaped like the content: `"games"`, `"table"` or `"cards"`. Screen readers hear the label. Partidos, Tabla, Estadísticas, Equipos and the home page use it instead of "Cargando…".
+- `emptyStateMarkup({icon, title, text, action})` is the shared empty state: an icon, a title, one line and, where there is a next step, a link (`{label, href}`) or a button (`{label, id}`). Icons: `calendar`, `trophy`, `chart`, `search`, `team`, `ball`, `alert`.
+
+Page scripts check that a helper exists before using it, because the isolated browser and script tests load them without `page_ui.js`.
+
+## Installable app
+
+`/manifest.webmanifest` makes the site installable from the browser ("Agregar a pantalla de inicio"). It opens standalone on `/` with the league navy and the logo icons in `static/assets` (192, 512 and a maskable 512). iOS uses `apple-touch-icon.png`. There is no service worker, so nothing is cached offline and every visit gets current scores.
+
 ## Games page
 
 - **Week band (`#games-hero`):** the header tells the story of the week on screen, either the selected week or, under "Próximos", the next week with games to play. It shows:
