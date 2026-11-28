@@ -46,11 +46,17 @@ team representatives, referees, and league administrators.
 
 - Create teams and become their representative automatically; manage only
   explicitly assigned teams.
-- Roster changes close for representatives on October 16, 2026 at 00:00 in
-  `America/Mexico_City`; administrators retain editing access.
+- Roster changes close for representatives and for players joining a team on
+  October 16, 2026 at 00:00 in `America/Mexico_City`; administrators retain
+  editing access.
 - Update team logos and staff (Head Coach, Coach, Manager).
 - Add, edit, deactivate, and photograph roster players; reuse existing player
   identities instead of creating duplicates; import rosters from CSV or XLSX.
+- Adding an existing identity requires its CURP (or provisional document).
+  The name, document and photo of a player who has their own account or plays
+  on another team can only be changed by an administrator; the jersey number
+  stays editable. An import row whose CURP belongs to an account under another
+  name is reported as `identity_mismatch` instead of being linked.
 - View team standings, records, and player statistics on web and mobile.
 
 ### Referees
@@ -419,7 +425,20 @@ See [`docs/observability.md`](docs/observability.md).
   stored; the raw token uses an `HttpOnly`, `SameSite=Lax`, production `Secure`
   cookie, or a Bearer header in the mobile app.
 - Password reset tokens are also stored only as SHA-256 hashes, expire after
-  30 minutes, and never disclose whether a submitted email exists.
+  30 minutes, and never disclose whether a submitted email exists. Reset links
+  carry the token in the URL fragment, so it never reaches request logs.
+- Changing a password signs out every other session of the account (other
+  browsers and the mobile app). A failed login takes the same time whether or
+  not the email is registered, and registration gives one answer for every
+  CURP that cannot be claimed.
+- Profile photos are decoded and re-encoded on upload: EXIF metadata (camera,
+  date, GPS location) is dropped, camera orientation is applied and the
+  longest side is limited to 1600 px. Photos and logos declaring more than
+  40 megapixels are rejected before they are decoded.
+- Every response sends `X-Frame-Options: DENY`,
+  `Content-Security-Policy: frame-ancestors 'none'`,
+  `X-Content-Type-Options: nosniff` and
+  `Referrer-Policy: strict-origin-when-cross-origin`.
 - Sign-in, registration and password recovery are rate limited
   (`services/rate_limits.py`, table `auth_rate_limits`): 60 sign-ins per
   client address per 5 minutes, 10 failed sign-ins per account per

@@ -8,6 +8,11 @@ from database import get_connection
 
 PASSWORD_ALGORITHM = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 390000
+# Verified when no account matches, so a failed login costs the same time
+# whether or not the email is registered. It never matches any password.
+UNMATCHABLE_PASSWORD_HASH = (
+    f"{PASSWORD_ALGORITHM}${PASSWORD_ITERATIONS}${'0' * 32}${'0' * 64}"
+)
 
 
 def _public_user(row):
@@ -402,8 +407,13 @@ def delete_user_account(user_id):
         connection.close()
 
 
-def change_user_password(user_id, current_password, new_password):
-    """Replace a verified password and clear its first-login requirement."""
+def change_user_password(user_id, current_password, new_password, keep_session_hash=None):
+    """Replace a verified password and clear its first-login requirement.
+
+    Every other session of the user is revoked in the same transaction, so a
+    stolen cookie or mobile token stops working once the password changes.
+    The session that made the change (``keep_session_hash``) stays valid.
+    """
     connection = get_connection()
     try:
         row = connection.execute(
@@ -419,6 +429,14 @@ def change_user_password(user_id, current_password, new_password):
             WHERE id = %s
             """,
             (hash_password(new_password), user_id)
+        )
+        connection.execute(
+            """
+            UPDATE sessions SET revoked_at = NOW()
+            WHERE user_id = %s AND revoked_at IS NULL
+              AND token_hash IS DISTINCT FROM %s
+            """,
+            (user_id, keep_session_hash)
         )
         connection.commit()
         return True

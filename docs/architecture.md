@@ -494,16 +494,16 @@ writes require the role named in the description.
 | `GET` | `/api/teams/{team_id}/players` | Public roster |
 | `POST` | `/api/teams/{team_id}/players` | Register a roster player; team managers |
 | `GET` | `/api/teams/{team_id}/players/candidates` | Search existing player identities by name or AKA; team managers |
-| `POST` | `/api/teams/{team_id}/players/registered` | Add an existing identity to the roster; team managers |
+| `POST` | `/api/teams/{team_id}/players/registered` | Add an existing identity to the roster; team managers; representatives must send its `curp` |
 | `POST` | `/api/teams/{team_id}/players/import` | CSV/XLSX roster import; team managers |
 | `GET` | `/api/teams/{team_id}/players/import/template.csv` | Roster import template |
 | `GET` | `/api/teams/{team_id}/players/{player_id}/management` | Private identity fields; team managers |
-| `PATCH` | `/api/teams/{team_id}/players/{player_id}` | Correct identity and jersey; team managers |
-| `PUT` | `/api/teams/{team_id}/players/{player_id}/photo` | Replace a player photo; team managers |
+| `PATCH` | `/api/teams/{team_id}/players/{player_id}` | Correct identity and jersey; team managers (identity only administrators when the player has an account or another active roster) |
+| `PUT` | `/api/teams/{team_id}/players/{player_id}/photo` | Replace a player photo; team managers (same identity rule) |
 | `DELETE` | `/api/teams/{team_id}/players/{player_id}` | Deactivate the membership; team managers |
 | `GET` | `/api/me/dashboard` | Player dashboard |
 | `PATCH` | `/api/me/profile` | Player AKA |
-| `POST` | `/api/me/teams/{team_id}` | Player joins one team per division |
+| `POST` | `/api/me/teams/{team_id}` | Player joins one team per division; closed after the roster cutoff |
 | `GET` | `/api/me/representative-dashboard` | Dashboard scoped to the representative's teams |
 | `POST` | `/api/games` | Create a game or friendly game; administrators |
 | `GET` | `/api/games` | List games with scores and pending labels |
@@ -689,7 +689,9 @@ in [`observability.md`](observability.md).
   code.
 - Schema changes must reach Preview and Production before dependent code is
   merged; a merge deploys immediately.
-- The representative roster cutoff is a code constant; another season needs a
-  code change.
+- The roster cutoff is a code constant; another season needs a code change.
+- Every roster write that checks "one player per branch and category" takes
+  the same `team_players` table lock, so concurrent joins cannot place one
+  player on two teams of a division.
 - Scripts in `scripts/` have no Production guard; run them only against local
   or Preview databases.
