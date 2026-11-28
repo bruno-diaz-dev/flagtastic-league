@@ -12,16 +12,63 @@ document.querySelector("#public-profile-back").addEventListener("click", () => {
 });
 
 const publicStatisticLabels = {
-    weeks: "Jornadas con estadísticas",
-    receptions: "Recepciones",
     points: "Puntos",
+    receptions: "Recepciones",
     tackles: "Tacleadas",
     interceptions: "Intercepciones",
     sacks: "Capturas",
     passes_completed: "Pases completos",
     passes_attempted: "Pases lanzados",
-    completion_percentage: "% de pases completos"
+    completion_percentage: "% de pases completos",
+    weeks: "Jornadas con estadísticas"
 };
+
+const WEEKLY_COLUMNS = [
+    ["points", "PTS", "Puntos"],
+    ["receptions", "REC", "Recepciones"],
+    ["tackles", "TAC", "Tacleadas"],
+    ["interceptions", "INT", "Intercepciones"],
+    ["sacks", "CAP", "Capturas"],
+];
+
+// The card shows the jersey and team of the membership on screen.
+function renderPlayerCardTeam(team) {
+    const jersey = document.querySelector("#player-card-jersey");
+    const teamLine = document.querySelector("#player-card-team");
+    if (!team) {
+        jersey.hidden = true;
+        teamLine.textContent = "";
+        return;
+    }
+    jersey.hidden = team.jersey_number == null;
+    jersey.textContent = team.jersey_number == null ? "" : `#${team.jersey_number}`;
+    const division = `${displayName(divisionBranchLabel(team.branch, team.category))} · ${displayName(team.category)}`;
+    const standing = team.standing_position ? ` · ${team.standing_position}° de ${team.division_team_count}` : "";
+    teamLine.textContent = `${displayName(team.team_name)} · ${division}${standing}`;
+}
+
+// Week by week for the same membership, each row with a bar for its points.
+function renderWeekly(team) {
+    const container = document.querySelector("#public-player-weekly");
+    const weeks = team?.weekly || [];
+    if (!weeks.length) {
+        container.innerHTML = typeof emptyStateMarkup === "function"
+            ? emptyStateMarkup({icon: "chart", heading: "h4", title: "Sin jornadas registradas", text: "Sus números aparecerán aquí cuando se publique la cédula de cada jornada."})
+            : `<div class="empty-state"><h4>Sin jornadas registradas</h4></div>`;
+        return;
+    }
+    const best = Math.max(1, ...weeks.map((week) => week.points));
+    container.innerHTML = `
+        <div class="player-weekly-row player-weekly-head" aria-hidden="true">
+            <span>Jornada</span>${WEEKLY_COLUMNS.map(([, short]) => `<span>${short}</span>`).join("")}<span>Pases</span>
+        </div>
+        ${weeks.map((week) => `
+        <div class="player-weekly-row" style="--share:${Math.round((week.points / best) * 100)}%">
+            <span class="player-weekly-week">J${week.week}</span>
+            ${WEEKLY_COLUMNS.map(([key, short, label]) => `<span class="player-weekly-cell${key === "points" ? " is-points" : ""}" data-label="${short}" aria-label="${label}: ${week[key]}">${week[key]}</span>`).join("")}
+            <span class="player-weekly-cell" data-label="Pases" aria-label="Pases completos de lanzados: ${week.passes_completed} de ${week.passes_attempted}">${week.passes_completed}/${week.passes_attempted}</span>
+        </div>`).join("")}`;
+}
 
 
 function profileInitials(name) {
@@ -55,8 +102,16 @@ function renderPublicProfile(profile) {
             const url = new URL(window.location.href);
             url.searchParams.set("team_id", teamId);
             window.history.replaceState(null, "", url);
+            const team = profile.teams.find((candidate) => String(candidate.team_id) === String(teamId));
+            renderPlayerCardTeam(team);
+            renderWeekly(team);
         }
     });
+
+    if (!profile.teams.length) {
+        renderPlayerCardTeam(null);
+        renderWeekly(null);
+    }
 
     publicTeams.innerHTML = profile.teams.length
         ? profile.teams.map((team) => `

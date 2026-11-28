@@ -12,6 +12,8 @@ from repositories.statistics import (
     get_week_statistics,
     get_leaderboards,
     get_player_statistics,
+    get_player_week_statistics,
+    get_team_leaders,
     import_statistics_workbook,
     import_week_statistics
 )
@@ -217,7 +219,19 @@ def public_player_profile(player_id: int, team_id: int | None = Query(default=No
     profile = get_player_dashboard(player_id, team_id=team_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
+    # Week-by-week rows for each membership, for the profile's season card.
+    weeks = get_player_week_statistics(player_id)
+    for team in profile.get("teams", []):
+        team["weekly"] = weeks.get(team["team_id"], [])
     return profile
+
+
+@router.get("/api/teams/{team_id}/leaders")
+def team_leaders(team_id: int, response: Response):
+    """Return each statistic's leader within one team."""
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["Vercel-CDN-Cache-Control"] = "public, max-age=60"
+    return get_team_leaders(team_id)
 
 
 @router.get("/api/statistics/leaderboards")

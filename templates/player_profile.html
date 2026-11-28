@@ -1,25 +1,39 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section id="public-player-profile" class="dashboard-page league-page" data-player-id="{{ player_id }}">
+<section id="public-player-profile" class="dashboard-page league-page player-page" data-player-id="{{ player_id }}">
     <button id="public-profile-back" class="back-link link-button" type="button">← Volver</button>
 
-    <header class="section-header">
-        <div class="player-profile-header">
-            <span id="public-player-photo-placeholder" class="profile-photo profile-placeholder" aria-hidden="true"></span>
-            <img id="public-player-photo" class="profile-photo hidden" alt="">
-            <div>
-            <h2 id="public-player-name">Perfil de jugador</h2>
+    <header class="section-header player-hero">
+        <div class="player-profile-header player-card">
+            <span class="player-card-photo">
+                <span id="public-player-photo-placeholder" class="profile-photo profile-placeholder" aria-hidden="true"></span>
+                <img id="public-player-photo" class="profile-photo hidden" alt="">
+                <span id="player-card-jersey" class="player-card-jersey" hidden></span>
+            </span>
+            <div class="player-card-copy">
+                <p id="player-card-team" class="player-card-team"></p>
+                <h2 id="public-player-name">Perfil de jugador</h2>
                 <p id="public-player-identity">Cargando temporada...</p>
+                <div class="hero-actions">
+                    <button type="button" class="share-button" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span class="share-label">Compartir tarjeta</span></button>
+                </div>
             </div>
         </div>
     </header>
 
-    <section aria-labelledby="public-player-stats-title">
-        <h3 id="public-player-stats-title">Estadísticas de temporada</h3>
-        <label>Categoría y equipo<select id="public-player-stats-team" aria-label="Categoría y equipo de las estadísticas"></select></label>
+    <section class="player-season" aria-labelledby="public-player-stats-title">
+        <header class="home-section-heading">
+            <h3 id="public-player-stats-title">Temporada</h3>
+            <label class="player-season-scope"><span class="sr-only">Categoría y equipo</span><select id="public-player-stats-team" aria-label="Categoría y equipo de las estadísticas"></select></label>
+        </header>
         <p id="public-player-stats-context" class="form-help" aria-live="polite"></p>
-        <div id="public-player-stats" class="stat-grid" aria-live="polite"></div>
+        <div id="public-player-stats" class="stat-grid player-stat-grid" aria-live="polite"></div>
+    </section>
+
+    <section class="player-weekly" aria-labelledby="public-player-weekly-title">
+        <h3 id="public-player-weekly-title">Jornada por jornada</h3>
+        <div id="public-player-weekly" class="player-weekly-list" aria-live="polite"></div>
     </section>
 
     <section aria-labelledby="public-player-teams-title">
@@ -32,7 +46,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/api.js?v=20261020-1"></script>
+<script src="/static/api.js?v=20261126-2"></script>
 <script src="/static/player_statistics_scope.js?v=20261020-1"></script>
-<script src="/static/player_profile.js?v=20261128-4"></script>
+<script src="/static/player_profile.js?v=20261128-5"></script>
 {% endblock %}

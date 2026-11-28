@@ -18,6 +18,7 @@ from routes.admin import router as admin_router
 from routes.admin_finals_eligibility import router as admin_finals_eligibility_router
 from routes.referees import router as referees_router
 from routes.live_games import router as live_games_router
+from routes.share import default_meta, game_meta, player_meta, router as share_router, team_meta
 
 logger = configure_observability()
 
@@ -70,6 +71,7 @@ app.include_router(admin_router)
 app.include_router(admin_finals_eligibility_router)
 app.include_router(referees_router)
 app.include_router(live_games_router)
+app.include_router(share_router)
 
 
 @app.get("/media/profiles/{filename}")
@@ -104,7 +106,9 @@ def profile_photo(filename: str):
 @app.get("/")
 def home_page(request: Request):
     """Render the league home: next week, live games, results and leaders."""
-    return templates.TemplateResponse(request, "home.html", headers=PUBLIC_PAGE_HEADERS)
+    return templates.TemplateResponse(
+        request, "home.html", context={"share": default_meta(request)}, headers=PUBLIC_PAGE_HEADERS
+    )
 
 
 @app.get("/manifest.webmanifest")
@@ -175,7 +179,7 @@ def game_detail_page(request: Request, game_id: int):
     return templates.TemplateResponse(
         request=request,
         name="game_detail.html",
-        context={"game_id": game_id}
+        context={"game_id": game_id, "share": game_meta(request, game_id)}
     )
 
 @app.get("/standings")
@@ -194,7 +198,7 @@ def roster_page(request: Request, team_id: int):
     return templates.TemplateResponse(
         request=request,
         name="roster.html",
-        context={"team_id": team_id}
+        context={"team_id": team_id, "share": team_meta(request, team_id)}
     )
 
 
@@ -263,12 +267,12 @@ def representative_dashboard_page(request: Request):
 
 
 @app.get("/players/{player_id}")
-def public_player_profile_page(request: Request, player_id: int):
+def public_player_profile_page(request: Request, player_id: int, team_id: int | None = None):
     """Render a read-only public player season profile."""
     return templates.TemplateResponse(
         request=request,
         name="player_profile.html",
-        context={"player_id": player_id}
+        context={"player_id": player_id, "share": player_meta(request, player_id, team_id)}
     )
 
 

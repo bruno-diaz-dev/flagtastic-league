@@ -108,6 +108,12 @@ def test_player_registers_joins_team_and_reads_dashboard():
     assert public_profile.json()["teams"][0]["team_name"] == "Tigres"
     assert "curp" not in public_profile.text.lower()
     assert "email" not in public_profile.text.lower()
+    # Each membership carries its week-by-week rows (none recorded yet).
+    assert public_profile.json()["teams"][0]["weekly"] == []
+    team_id = public_profile.json()["teams"][0]["team_id"]
+    leaders = client.get(f"/api/teams/{team_id}/leaders")
+    assert leaders.status_code == 200
+    assert leaders.json() == {"points": [], "receptions": [], "tackles": [], "interceptions": [], "sacks": []}
 
 
 def test_player_claims_representative_created_roster_identity():

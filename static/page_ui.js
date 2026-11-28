@@ -9,6 +9,7 @@
 //    changes, so a division filter needs no "Consultar" button.
 // 3. setPageHero() fills a page band's tags and stats (see games.js).
 // 4-5. skeletonMarkup() and emptyStateMarkup() (below).
+// 6. [data-share] buttons (below).
 
 function segmentedLabel(option) {
     if (option.dataset.short) return option.dataset.short;
@@ -145,6 +146,37 @@ function emptyStateMarkup({icon = "ball", title, text = "", action = null, headi
         ${actionMarkup}
     </div>`;
 }
+
+// 6. A [data-share] button opens the phone's share sheet for this page (or
+//    data-share-url), and copies the link where sharing is not available.
+//    Shared links show the page's preview image in WhatsApp and social apps.
+async function sharePage(button) {
+    const url = button.dataset.shareUrl || window.location.href;
+    const title = button.dataset.shareTitle || document.title;
+    const text = button.dataset.shareText || "";
+    if (navigator.share) {
+        try {
+            await navigator.share({title, text, url});
+            return;
+        } catch (error) {
+            if (error?.name === "AbortError") return;
+        }
+    }
+    const label = button.querySelector(".share-label") || button;
+    const original = label.textContent;
+    try {
+        await navigator.clipboard.writeText(url);
+        label.textContent = "Enlace copiado";
+    } catch (error) {
+        label.textContent = "Copia el enlace de la barra";
+    }
+    setTimeout(() => { label.textContent = original; }, 2200);
+}
+
+document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-share]");
+    if (button) sharePage(button);
+});
 
 document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("select[data-segmented]").forEach(enhanceSegmentedSelect);

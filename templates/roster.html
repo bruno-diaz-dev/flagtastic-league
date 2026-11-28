@@ -11,8 +11,23 @@
             <h2 id="roster-title">Roster</h2>
             <p id="roster-subtitle">Cargando equipo...</p>
             <ul id="page-hero-stats" class="hero-stats" hidden></ul>
+            <div class="hero-actions"><button type="button" class="share-button" data-share><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span class="share-label">Compartir equipo</span></button></div>
         </div>
     </header>
+
+    <section id="team-season" class="team-season" aria-label="Temporada del equipo" hidden>
+        <ul id="team-season-stats" class="team-season-stats" hidden></ul>
+        <div class="team-season-grid">
+            <section class="home-panel" aria-labelledby="team-schedule-title">
+                <header class="home-panel-heading"><h4 id="team-schedule-title">Calendario y resultados</h4><a href="/games">Todos</a></header>
+                <ol id="team-schedule" class="team-schedule" aria-live="polite"></ol>
+            </section>
+            <section class="home-panel" aria-labelledby="team-leaders-title">
+                <header class="home-panel-heading"><h4 id="team-leaders-title">Líderes del equipo</h4><a href="/statistics">Liga</a></header>
+                <div id="team-leaders" class="home-leader-list team-leader-list" aria-live="polite"></div>
+            </section>
+        </div>
+    </section>
 
     <p id="roster-deadline-message" class="form-message" role="status"></p>
     <section id="team-staff" class="team-staff" aria-label="Cuerpo técnico"></section>
@@ -96,6 +111,7 @@
         </div></details>
     </section>
 
+    <h3 class="roster-heading">Plantilla</h3>
     <div id="roster" class="roster-list" aria-live="polite"></div>
 </section>
 {% endblock %}
@@ -104,5 +120,6 @@
 <script src="/static/api.js?v=20261126-2"></script>
 <script src="/static/import_progress.js?v=20261126-1"></script>
 <script src="/static/player_identity.js?v=20261004-1"></script>
-<script src="/static/roster.js?v=20261128-6"></script>
+<script src="/static/roster.js?v=20261128-7"></script>
+<script src="/static/team_season.js?v=20261128-1"></script>
 {% endblock %}
