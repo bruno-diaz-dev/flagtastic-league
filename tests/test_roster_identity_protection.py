@@ -11,6 +11,7 @@ from main import app
 from models import UserCreate
 from repositories.users import create_user
 from services import roster_policy
+from tests.image_samples import png_bytes
 
 
 client = TestClient(app)
