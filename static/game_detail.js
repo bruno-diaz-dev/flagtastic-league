@@ -100,10 +100,18 @@ async function loadGameDetail() {
     const detail = await response.json();
     const game = detail.game;
     document.querySelector("#game-detail-title").innerHTML = `
-        <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(game.home_team.name)}</a>
+        <a class="team-roster-link" href="/teams/${game.home_team.id}/roster">${escapeHtml(displayName(game.home_team.name))}</a>
         <span class="matchup-versus">vs</span>
-        <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(game.away_team.name)}</a>
+        <a class="team-roster-link" href="/teams/${game.away_team.id}/roster">${escapeHtml(displayName(game.away_team.name))}</a>
     `;
+    // The live scoreboard shows each team's logo, or its initials.
+    [["#live-home-logo", game.home_team], ["#live-away-logo", game.away_team]].forEach(([selector, team]) => {
+        const slot = document.querySelector(selector);
+        if (!slot) return;
+        slot.innerHTML = team.logo_url
+            ? `<img src="${escapeHtml(team.logo_url)}" alt="" decoding="async">`
+            : escapeHtml(nameInitials(team.name));
+    });
     document.querySelector("#game-detail-meta").textContent = ` ${game.is_friendly ? "Amistoso · " : ""}Jornada ${game.week} · ${game.game_date || game.venue ? gameCalendarLabel(game) + " · " : ""}${game.start_time ? game.start_time.slice(0, 5) : "Hora por asignar"} · ${game.field_number ? `Campo ${game.field_number}` : "Campo por asignar"}`;
     document.querySelector("#game-score").innerHTML = `
         ${game.is_friendly ? '<span class="game-friendly-badge">Amistoso · No cuenta para la temporada</span>' : ""}

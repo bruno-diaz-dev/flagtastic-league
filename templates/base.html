@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/static/tokens.css?v=20261128-1">
     <link rel="stylesheet" href="/static/style.css?v=20261128-1">
     <link rel="stylesheet" href="/static/ui.css?v=20261128-1">
-    <link rel="stylesheet" href="/static/theme.css?v=20261128-15">
+    <link rel="stylesheet" href="/static/theme.css?v=20261128-19">
 </head>
 <body class="sidebar-collapsed">
     <a class="skip-link" href="#main-content">Saltar al contenido</a>
@@ -150,8 +150,12 @@
         </a>
         <a class="tabbar-link" href="/statistics">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V4M17 16V8"/></svg>
-            <span>Estadísticas</span>
+            <span>Stats</span>
         </a>
+        <button id="tabbar-more" class="tabbar-link tabbar-more" type="button" aria-controls="league-navigation" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+            <span>Más</span>
+        </button>
     </nav>
 
     <button
@@ -165,7 +169,7 @@
     <script defer src="/static/analytics.js?v=20261004-1"></script>
     <script src="/static/display.js?v=20261128-1"></script>
     <script src="/static/page_ui.js?v=20261128-2"></script>
-    <script src="/static/layout.js?v=20261128-2"></script>
+    <script src="/static/layout.js?v=20261128-3"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

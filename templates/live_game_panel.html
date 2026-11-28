@@ -1,13 +1,13 @@
 <section id="live-match" class="live-match" aria-labelledby="live-match-title">
-    <div class="live-section-heading"><div><p class="ui-kicker">Desde la cancha</p><h3 id="live-match-title">Minuto a minuto</h3></div><span id="live-state" class="live-state">Cargando</span></div>
+    <div class="live-section-heading"><h3 id="live-match-title">Minuto a minuto</h3><span id="live-state" class="live-state">Cargando</span></div>
     <div class="live-scoreboard" aria-live="polite">
-        <div><span id="live-home-name">Local</span><strong id="live-home-score">—</strong></div>
-        <span class="live-score-separator" aria-hidden="true">:</span>
-        <div><span id="live-away-name">Visitante</span><strong id="live-away-score">—</strong></div>
+        <div class="live-team live-team-home"><span id="live-home-logo" class="live-team-logo" aria-hidden="true"></span><span id="live-home-name">Local</span><strong id="live-home-score">—</strong></div>
+        <div class="live-score-center"><span class="live-score-separator" aria-hidden="true">–</span><span id="live-clock" class="live-clock-display"></span></div>
+        <div class="live-team live-team-away"><strong id="live-away-score">—</strong><span id="live-away-name">Visitante</span><span id="live-away-logo" class="live-team-logo" aria-hidden="true"></span></div>
     </div>
     <p id="live-update-status" class="form-help" role="status">Consultando cobertura del partido…</p>
     <section id="live-field-panel" class="live-field-panel" aria-labelledby="live-field-heading">
-        <div class="live-section-heading"><div><p class="ui-kicker">En la cancha</p><h4 id="live-field-heading">Cobertura visual</h4></div><button id="live-field-replay" class="secondary-button" type="button" disabled>Repetir</button></div>
+        <div class="live-section-heading"><h4 id="live-field-heading">Cobertura visual</h4><button id="live-field-replay" class="secondary-button" type="button" disabled>Repetir</button></div>
         <div id="live-field-stage" class="live-field-stage"></div>
         <div class="live-field-description" aria-live="polite"><strong id="live-field-title">La cancha, jugada a jugada</strong><p id="live-field-caption">Esperando capturas confirmadas…</p></div>
         <p class="live-field-disclaimer">Recorridos ilustrativos: no representan posiciones, distancias ni dirección reales. Puedes volver a ver una jugada desde la cronología.</p>

@@ -1223,3 +1223,273 @@ body { overflow-x: clip; }
     .content .roster-player .jersey-number { font-size: 40px; top: 10px; right: 12px; }
     .content .roster-player h3 { font-size: 15px; }
 }
+
+/* ---------- Phone navigation: slim top bar, five tabs, bottom sheet ---------- */
+/* The sidebar element is the slim top bar while collapsed and a bottom sheet
+   while open; the existing open/close, Escape, backdrop and focus handling in
+   layout.js keep working. */
+@media (max-width: 820px) {
+    body.sidebar-collapsed .sidebar {
+        height: calc(56px + env(safe-area-inset-top));
+        padding: env(safe-area-inset-top) 16px 0;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 10px;
+        border-bottom: 1px solid var(--color-border);
+        background: rgba(4, 9, 22, .86);
+        -webkit-backdrop-filter: saturate(160%) blur(14px);
+        backdrop-filter: saturate(160%) blur(14px);
+        box-shadow: none;
+    }
+    body .sidebar-toggle { display: none; }
+    body.sidebar-collapsed .brand-logo { width: 34px; height: 34px; border-radius: 0; }
+    body.sidebar-collapsed .mobile-page-context { gap: 0; }
+    body.sidebar-collapsed .mobile-page-context span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+    body.sidebar-collapsed .mobile-page-context strong { font: 800 18px/1.1 var(--font-display); letter-spacing: .02em; text-transform: uppercase; }
+
+    /* Content starts under the slimmer bar. */
+    .content { padding-top: calc(56px + env(safe-area-inset-top) + 16px); }
+    .content .filter-bar, .content .games-filters { top: calc(56px + env(safe-area-inset-top)); }
+    .content > .league-page > .section-header:first-child { margin-top: -16px; }
+    .content > .league-page > .back-link:first-child + .section-header {
+        margin-top: calc(-16px - 44px - 16px);
+        padding-top: calc(16px + 44px + 16px + 12px);
+    }
+
+    /* The open menu is a bottom sheet. */
+    body:not(.sidebar-collapsed) .sidebar {
+        inset: auto 0 0 0;
+        width: 100%;
+        height: auto;
+        max-height: min(84vh, 680px);
+        padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
+        overflow-y: auto;
+        border: 0;
+        border-top: 1px solid var(--color-border-strong);
+        border-radius: 22px 22px 0 0;
+        background: var(--color-surface);
+        box-shadow: 0 -24px 60px rgba(0, 0, 0, .55);
+        transform: none;
+        animation: sheet-rise .22s ease-out;
+    }
+    body:not(.sidebar-collapsed) .sidebar::before {
+        content: "";
+        display: block;
+        width: 40px;
+        height: 4px;
+        margin: 0 auto 16px;
+        border-radius: 2px;
+        background: var(--color-border-strong);
+    }
+    body:not(.sidebar-collapsed) .brand { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; }
+    body:not(.sidebar-collapsed) .brand-logo { width: 40px; height: 40px; margin: 0; }
+    body:not(.sidebar-collapsed) .brand .eyebrow, body:not(.sidebar-collapsed) .brand h1 { display: none; }
+    body:not(.sidebar-collapsed) .brand-wordmark { display: inline; font: 800 22px/1 var(--font-display); letter-spacing: .02em; text-transform: uppercase; color: var(--color-text); }
+    body:not(.sidebar-collapsed) .brand-wordmark span { color: var(--color-gold); }
+    body:not(.sidebar-collapsed) .mobile-page-context { display: none; }
+    body:not(.sidebar-collapsed) .sidebar-backdrop { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); background: rgba(0, 0, 0, .55); }
+
+    /* The four sections live in the tab bar; the sheet shows role tools as tiles. */
+    body:not(.sidebar-collapsed) .navigation > .nav-link { display: none; }
+    body:not(.sidebar-collapsed) .nav-more-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    body:not(.sidebar-collapsed) .nav-more-menu .nav-link {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 86px;
+        padding: 14px;
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .03);
+        color: var(--color-text);
+        font-size: 13px;
+        font-weight: 600;
+        text-align: left;
+    }
+    body:not(.sidebar-collapsed) .nav-more-menu .nav-link.hidden { display: none; }
+    body:not(.sidebar-collapsed) .nav-more-menu .nav-link[aria-current="page"] { border-color: rgba(244, 197, 66, .5); background: var(--color-gold-soft); color: var(--color-gold); }
+    body:not(.sidebar-collapsed) .nav-more-menu .nav-short { display: inline-flex; order: -1; width: 24px; height: 24px; color: var(--color-gold); }
+    body:not(.sidebar-collapsed) .nav-more-menu .nav-short svg { width: 24px; height: 24px; }
+    body:not(.sidebar-collapsed) .nav-more-menu .nav-text { display: inline; }
+
+    /* Session at the foot of the sheet. */
+    body:not(.sidebar-collapsed) .session-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-border);
+    }
+    body:not(.sidebar-collapsed) .session-user { flex: 1; font-size: 15px; }
+    body:not(.sidebar-collapsed) .session-user:empty { display: none; }
+    body:not(.sidebar-collapsed) .navigation:not(:has(.nav-more:not(.hidden))) + .session-controls { margin-top: 0; padding-top: 0; border-top: 0; }
+    body:not(.sidebar-collapsed) .session-controls .nav-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: auto;
+        min-height: 44px;
+        padding: 0 18px;
+        border: 1px solid var(--color-border-strong);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--color-text);
+        font-size: 14px;
+        font-weight: 600;
+    }
+    body:not(.sidebar-collapsed) .session-controls .nav-link.hidden { display: none; }
+    body:not(.sidebar-collapsed) #login-link { flex: 1; border-color: var(--color-gold); background: var(--color-gold); color: var(--color-page); }
+    body:not(.sidebar-collapsed) .session-controls .nav-text { display: inline; }
+    body:not(.sidebar-collapsed) .session-controls .nav-short { display: none; }
+
+    /* Five tabs. */
+    .tabbar { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .content ~ .tabbar .tabbar-more, .tabbar .tabbar-more { min-height: 50px; border: 0; background: none; font: 600 11px/1.2 var(--font-body); cursor: pointer; }
+    .tabbar-more[aria-expanded="true"] { color: var(--color-gold); }
+}
+@keyframes sheet-rise { from { transform: translateY(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { body:not(.sidebar-collapsed) .sidebar { animation: none; } }
+
+@media (max-width: 820px) { .tabbar-more.active { color: var(--color-gold); } }
+
+/* ---------- Live game: broadcast scoreboard, compact timeline ---------- */
+/* Prefixed with .content so it outranks live_game.css, which loads later. */
+
+.content .live-match { gap: 18px; padding: 0; border: 0; background: none; }
+.content .live-section-heading h3 { font: 800 26px/1 var(--font-display); letter-spacing: .01em; text-transform: uppercase; }
+.content .live-section-heading h4 { margin: 0; font: 800 20px/1 var(--font-display); letter-spacing: .02em; text-transform: uppercase; }
+.content .live-state { padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, .07); color: var(--color-muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.content .live-state[data-state="live"] { background: rgba(249, 115, 22, .16); color: #ffb27a; }
+.content .live-state[data-state="live"]::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 7px;
+    border-radius: 50%;
+    background: var(--color-orange);
+    vertical-align: 1px;
+    animation: live-pulse 1.6s ease-in-out infinite;
+}
+.content .live-state[data-state="completed"] { background: var(--color-gold-soft); color: var(--color-gold); }
+@keyframes live-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, .55); } 60% { box-shadow: 0 0 0 7px rgba(249, 115, 22, 0); } }
+
+/* Scoreboard: logos, names and big numbers, the clock in the middle. */
+.content .live-scoreboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    padding: 22px 24px;
+    border: 1px solid rgba(244, 197, 66, .22);
+    border-radius: 16px;
+    background:
+        repeating-linear-gradient(90deg, transparent 0 79px, rgba(255, 255, 255, .03) 79px 80px),
+        radial-gradient(ellipse 70% 120% at 50% -30%, rgba(29, 58, 122, .85), transparent 65%),
+        var(--color-navy-dark);
+}
+.content .live-scoreboard > .live-team { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 14px; text-align: left; }
+.content .live-scoreboard > .live-team-away { grid-template-columns: auto minmax(0, 1fr) 56px; text-align: right; }
+.content .live-team-logo {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--color-navy-soft);
+    color: var(--color-text);
+    font: 800 20px/1 var(--font-display);
+}
+.content .live-team-logo:has(img) { background: #fff; }
+.content .live-team-logo img { width: 100%; height: 100%; object-fit: contain; }
+.content .live-scoreboard .live-team > span:not(.live-team-logo) { color: var(--color-text); font-size: 17px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.content .live-scoreboard strong { color: var(--color-text); font: 800 64px/1 var(--font-display); }
+.content .live-score-center { display: grid; justify-items: center; gap: 6px; }
+.content .live-scoreboard .live-score-separator { margin: 0; color: var(--color-faint); font: 700 28px/1 var(--font-display); }
+.content .live-clock-display { color: var(--color-gold); font: 700 15px/1 var(--font-display); letter-spacing: .08em; white-space: nowrap; }
+.content .live-clock-display:empty { display: none; }
+.content #live-update-status { margin: -8px 0 0; color: var(--color-faint); font-size: 12px; text-align: center; }
+
+/* Field coverage sits in a flat card like the rest of the page. */
+.content .live-field-panel { border-color: var(--color-border); border-radius: 14px; }
+
+/* Timeline: minute, accent, one line of text, small actions. */
+.content .live-content-grid h4 { margin: 0 0 12px; font: 800 20px/1 var(--font-display); letter-spacing: .02em; text-transform: uppercase; }
+.content .live-timeline { gap: 0; border-top: 1px solid var(--color-border); }
+.content .live-event {
+    --accent: var(--color-border-strong);
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 4px 12px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0;
+    background: none;
+}
+.content .live-event[data-kind-group="score"] { --accent: var(--color-gold); background: linear-gradient(90deg, rgba(244, 197, 66, .07), transparent 55%); }
+.content .live-event[data-kind-group="defense"] { --accent: #60a5fa; }
+.content .live-event[data-kind-group="pause"] { --accent: var(--color-faint); }
+.content .live-event time { color: var(--color-text); font: 700 20px/1 var(--font-display); }
+.content .live-event time small { margin-top: 3px; color: var(--color-faint); font: 700 10px/1 var(--font-body); letter-spacing: .08em; }
+.content .live-event h4 { margin: 0 0 2px; font-size: 14px; }
+.content .live-event[data-kind-group="score"] h4 { color: var(--color-gold); }
+.content .live-event p { margin: 0; color: var(--color-muted); font-size: 13px; }
+.content .live-event-actions { display: flex; gap: 6px; }
+.content .live-event button.live-event-action {
+    min-height: 30px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+.content .live-event button.live-event-action:hover { border-color: var(--color-gold); color: var(--color-gold); }
+.content .live-event button.live-event-void-action:hover { border-color: rgba(248, 113, 113, .6); color: #fecaca; }
+
+/* Capture controls: one surface, grouped, with the submit always in reach. */
+.content #live-capture-panel { border-radius: 14px; background: var(--color-surface); }
+.content .live-control-label { color: var(--color-faint); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.content .live-event-form .live-team-buttons button, .content .live-event-form .live-kind-buttons button { border-radius: 12px; }
+.content .live-capture-footer { border: 1px solid rgba(244, 197, 66, .3); border-radius: 14px; background: rgba(4, 9, 22, .92); }
+.content #live-moments, .content #live-finish-controls, .content .live-cancel-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: var(--color-surface);
+}
+.content #live-moments.hidden, .content #live-finish-controls.hidden, .content .live-cancel-controls.hidden { display: none; }
+.content #live-moments h4, .content .live-cancel-controls h4 { flex-basis: 100%; margin: 0; font-size: 14px; }
+.content #live-moments .form-help, .content .live-cancel-controls p { flex-basis: 100%; margin: 0; font-size: 12px; }
+.content #live-moments button, .content #live-finish-controls button, .content .live-cancel-controls button { min-height: 40px; border-radius: 999px; }
+.content #attendance-action { justify-self: start; min-height: 44px; padding: 0 20px; border: 1px solid var(--color-gold); border-radius: 999px; background: transparent; color: var(--color-gold); font-weight: 700; }
+.content #attendance-action:hover { background: var(--color-gold-soft); }
+
+@media (max-width: 760px) {
+    .content .live-scoreboard { position: sticky; top: calc(56px + env(safe-area-inset-top)); z-index: 4; box-shadow: 0 -12px 0 var(--color-page), 0 12px 28px rgba(0, 0, 0, .45); grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; padding: 12px; border-radius: 14px; }
+    .content .live-scoreboard > .live-team, .content .live-scoreboard > .live-team-away { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 4px; text-align: center; }
+    .content .live-scoreboard > .live-team-away > strong { order: 3; }
+    .content .live-scoreboard > .live-team-away > .live-team-logo { order: -1; }
+    .content .live-team-logo { width: 36px; height: 36px; font-size: 14px; }
+    .content .live-scoreboard .live-team > span:not(.live-team-logo) { font-size: 12px; }
+    .content .live-scoreboard strong { font-size: 40px; }
+    .content .live-event { grid-template-columns: 52px minmax(0, 1fr); padding-left: 10px; }
+    .content .live-event-actions { grid-column: 2; }
+    /* The capture submit stays above the tab bar while choosing players. */
+    .content .live-capture-footer { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 3; box-shadow: 0 -10px 30px rgba(0, 0, 0, .45); }
+}
+@media (prefers-reduced-motion: reduce) { .content .live-state[data-state="live"]::before { animation: none; } }

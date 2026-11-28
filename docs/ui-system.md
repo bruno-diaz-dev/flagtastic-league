@@ -9,7 +9,11 @@ Styles load in this order on every page: `static/tokens.css`, `static/style.css`
 ## Navigation shell
 
 - **Desktop (821 px and up):** the sidebar markup renders as a sticky top bar. It holds the logo and wordmark, the four public sections, a "Más" menu with the role tools, and the session controls. "Más" appears only once a role link is visible; it closes on outside click, Escape or focus leaving it.
-- **Phones and tablets (820 px and below):** the same sidebar is the slide-out drawer, and lists the role tools directly. A fixed bottom tab bar (`.tabbar`) links the four public sections and marks the current one.
+- **Phones and tablets (820 px and below):**
+  - The collapsed sidebar is a slim 56 px top bar with the logo and the page name.
+  - A fixed bottom tab bar (`.tabbar`) links the four public sections and marks the current one. Its fifth tab, "Más" (`#tabbar-more`), opens the same sidebar as a bottom sheet.
+  - The sheet shows the role tools as tiles and the session controls at its foot. The public sections are not repeated there.
+  - The existing open and close behaviour still applies: Escape, the backdrop and the focus trap. Focus returns to "Más" when the sheet closes.
 - Role links keep their IDs (`#dashboard-link`, `#admin-users-link`…). `layout.js` reveals them and the "Más" menu from the shared session.
 
 ## Page bands
@@ -47,6 +51,14 @@ The games page language applies to every page:
 - **Width:** visitors get the standard 1200 px column. League administrators keep the wide layout for the schedule board.
 
 The standings page opens on Varonil · Libre instead of an empty form.
+
+## Live game
+
+The live panel (`templates/live_game_panel.html`) on a game's page reads like a broadcast:
+
+- **Scoreboard:** each team's logo (or initials), name and score. The centre shows the period and clock of the last confirmed play while live, and "Final" once the game is completed. The state pill pulses orange while live. On phones the scoreboard stays pinned under the top bar.
+- **Timeline:** one compact row per play. It shows the minute and period, the play and its narrative, and small "Ver" and "Anular" actions. A coloured edge marks the kind of play (`data-kind-group`: score in gold, defense in blue, pauses muted).
+- **Capture:** the referee controls keep their IDs and order. On phones the "Registrar jugada" footer stays above the tab bar while choosing players. Pauses, finishing and cancelling are grouped in matching panels.
 
 ## Typography
 
