@@ -54,6 +54,28 @@ Page scripts check that a helper exists before using it, because the isolated br
 
 `/manifest.webmanifest` makes the site installable from the browser ("Agregar a pantalla de inicio"). It opens standalone on `/` with the league navy and the logo icons in `static/assets` (192, 512 and a maskable 512). iOS uses `apple-touch-icon.png`. There is no service worker, so nothing is cached offline and every visit gets current scores.
 
+## Team page
+
+The roster page (`/teams/{id}/roster`) is the team's full page. Under the band, `static/team_season.js` adds the team's season once `roster.js` announces the team with a `roster:loaded` event:
+
+- **Season strip:** place in the table, record, points for and against, difference, and the last five results in order (the latest on the right).
+- **Calendario y resultados:** every game of the team, from its side: "vs" at home, "@" away, then the result (G or P with the score), the kickoff and field, or "Pospuesto".
+- **Líderes del equipo:** the team's number one in points, receptions, tackles, interceptions and sacks, from `GET /api/teams/{id}/leaders`.
+
+## Player card
+
+The public profile (`/players/{id}`) reads as a season card: the photo with the jersey number, the team, division and place, the season totals with points first, and **Jornada por jornada**, one row per week with a bar for its points. The weeks come with each membership in `GET /api/players/{id}/profile` (`teams[].weekly`), and are never summed across teams.
+
+## Sharing
+
+- A `[data-share]` button (`page_ui.js`) opens the phone's share sheet, or copies the link where sharing is not available. Game, team and player pages have one.
+- **Link previews:** the game, roster and player page routes fill the Open Graph tags (`routes/share.py`). They do this on the server because WhatsApp and social apps do not run JavaScript. Each preview image is a 1200×630 PNG drawn with the league fonts and colours (`services/share_images.py`):
+  - `/og/games/{id}.png`: the final score with both logos, or the matchup with its date, venue and kickoff.
+  - `/og/teams/{id}.png`: the logo, division, record, place and difference.
+  - `/og/players/{id}.png?team_id=`: the jersey number, name, team and season totals. It never includes the profile photo, because previews are cached by other services and many players are minors.
+- Each image URL carries a version (the score, record or totals), so a shared link shows the new numbers after a change. A failed lookup only means the generic league preview is used.
+- `services/display_names.py` mirrors `display.js`, so names in previews read the same as on the site.
+
 ## Games page
 
 - **Week band (`#games-hero`):** the header tells the story of the week on screen, either the selected week or, under "Próximos", the next week with games to play. It shows:

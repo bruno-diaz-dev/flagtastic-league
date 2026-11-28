@@ -1130,3 +1130,77 @@ def get_leaderboards(branch, category, limit=5):
 
 
 
+
+
+TEAM_LEADER_METRICS = ("points", "receptions", "tackles", "interceptions", "sacks")
+
+
+def get_player_week_statistics(player_id):
+    """Return each membership's statistics week by week, never across teams."""
+    connection = get_connection()
+    rows = connection.execute(
+        """
+        SELECT stats.team_id, stats.week,
+            SUM(stats.points)::INTEGER AS points,
+            SUM(stats.receptions)::INTEGER AS receptions,
+            SUM(stats.interceptions)::INTEGER AS interceptions,
+            SUM(stats.sacks)::INTEGER AS sacks,
+            SUM(stats.tackles)::INTEGER AS tackles,
+            SUM(stats.passes_completed)::INTEGER AS passes_completed,
+            SUM(stats.passes_attempted)::INTEGER AS passes_attempted
+        FROM player_week_stats AS stats
+        WHERE stats.player_id = %s
+        GROUP BY stats.team_id, stats.week
+        ORDER BY stats.team_id, stats.week
+        """,
+        (player_id,),
+    ).fetchall()
+    connection.close()
+    weeks = {}
+    for row in rows:
+        result = dict(row)
+        weeks.setdefault(result.pop("team_id"), []).append(result)
+    return weeks
+
+
+def get_team_leaders(team_id):
+    """Return the leading player of one team for each statistic."""
+    connection = get_connection()
+    rows = connection.execute(
+        """
+        SELECT players.id AS player_id, players.name AS player_name,
+            players.aka AS player_aka,
+            CASE WHEN players.profile_photo_path IS NULL THEN NULL
+                 ELSE '/media/profiles/' || players.profile_photo_path END AS profile_photo_url,
+            stats.team_id, team_players.jersey_number,
+            SUM(stats.points)::INTEGER AS points,
+            SUM(stats.receptions)::INTEGER AS receptions,
+            SUM(stats.interceptions)::INTEGER AS interceptions,
+            SUM(stats.sacks)::INTEGER AS sacks,
+            SUM(stats.tackles)::INTEGER AS tackles
+        FROM player_week_stats AS stats
+        JOIN players ON players.id = stats.player_id
+        JOIN team_players ON team_players.team_id = stats.team_id
+          AND team_players.player_id = stats.player_id
+        WHERE stats.team_id = %s
+        GROUP BY players.id, players.name, players.aka, players.profile_photo_path,
+                 stats.team_id, team_players.jersey_number
+        """,
+        (team_id,),
+    ).fetchall()
+    connection.close()
+    leaders = {}
+    for metric in TEAM_LEADER_METRICS:
+        ranked = _rank_leaders(
+            (row for row in rows if row[metric] > 0),
+            lambda row, metric=metric: _leader_score(row, metric), 1,
+        )
+        leaders[metric] = [
+            {"player_id": row["player_id"], "player_name": row["player_name"],
+             "player_aka": row["player_aka"],
+             "profile_photo_url": row["profile_photo_url"],
+             "team_id": row["team_id"], "jersey_number": row["jersey_number"],
+             "value": row[metric]}
+            for row in ranked
+        ]
+    return leaders

@@ -75,6 +75,7 @@ function fixture(pathname) {
     if (pathname === '/api/teams/1') return roster;
     if (pathname === '/api/standings') return standings;
     if (pathname === '/api/statistics/leaderboards') return leaderboards;
+    if (pathname === '/api/teams/1/leaders') return {points: leaderRows.slice(0, 1), receptions: leaderRows.slice(1, 2), tackles: [], interceptions: [], sacks: []};
     return undefined;
 }
 

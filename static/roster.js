@@ -246,6 +246,10 @@ async function loadRoster() {
         ? "Roster cerrado para representantes. Solo administradores pueden realizar cambios."
         : "Cierre de roster: 16 de octubre de 2026, 00:00 (hora de Ciudad de México).";
     renderRoster(team);
+    // The season section (team_season.js) loads the schedule, table and leaders.
+    if (typeof CustomEvent === "function" && typeof document.dispatchEvent === "function") {
+        document.dispatchEvent(new CustomEvent("roster:loaded", {detail: team}));
+    }
 }
 
 

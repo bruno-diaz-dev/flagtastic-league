@@ -1739,3 +1739,175 @@ body { overflow-x: clip; }
 .brand-home:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 4px; border-radius: 8px; }
 /* The home division picker reuses the filter bar controls inside the page column. */
 .content .filter-bar.home-division-form { position: static; margin: 0; padding: 0; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* ---------- Share buttons ---------- */
+
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.content .share-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .04);
+    color: var(--color-text);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.content .share-button svg { width: 18px; height: 18px; color: var(--color-gold); }
+.content .share-button:hover { border-color: var(--color-gold); color: var(--color-gold); }
+
+/* ---------- Team season (roster page) ---------- */
+
+.team-season { display: grid; gap: 14px; }
+.team-season[hidden] { display: none; }
+.team-season-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px clamp(22px, 4vw, 48px);
+    margin: 0;
+    padding: 18px 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-surface);
+    list-style: none;
+}
+.team-season-stats[hidden] { display: none; }
+.team-season-stats li { display: grid; gap: 4px; }
+.team-season-stats strong { font: 800 34px/1 var(--font-display); color: var(--color-text); }
+.team-season-stats li:first-child strong { color: var(--color-gold); }
+.team-season-stats span { color: var(--color-faint); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.team-streak-chips { display: flex; gap: 4px; }
+.team-season-stats .team-streak-chips b {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+    color: var(--color-muted);
+    font: 800 15px/1 var(--font-display);
+}
+.team-season-stats .team-streak-chips b[data-result="G"] { background: var(--color-gold); color: var(--color-page); }
+.team-season-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 14px; align-items: start; }
+.team-schedule { display: grid; margin: 0; padding: 0; list-style: none; }
+.team-schedule > li { border-bottom: 1px solid var(--color-border); }
+.team-schedule > li:last-child { border-bottom: 0; }
+.content .team-game {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 2px;
+    color: var(--color-text);
+    text-decoration: none;
+}
+.content .team-game:hover .team-game-name { color: var(--color-gold); }
+.team-game-when { display: grid; color: var(--color-muted); font: 700 15px/1.15 var(--font-display); letter-spacing: .02em; text-transform: uppercase; }
+.team-game-when small { overflow: hidden; color: var(--color-gold); font: 600 11px/1.3 var(--font-body); text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.team-game-opponent { display: grid; grid-template-columns: 18px 32px minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
+.team-game-side { color: var(--color-faint); font-size: 12px; font-weight: 700; }
+.team-game-name { min-width: 0; overflow: hidden; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.team-result {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .06);
+    color: var(--color-muted);
+    font: 700 16px/1 var(--font-display);
+    white-space: nowrap;
+}
+.team-result b { font-weight: 800; }
+.team-result[data-result="win"] { background: var(--color-gold-soft); color: var(--color-gold); }
+.team-result[data-result="scheduled"] { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); font-size: 14px; }
+.team-result[data-result="postponed"] { font: 600 12px/1 var(--font-body); }
+.team-leader-list { grid-template-columns: minmax(0, 1fr); }
+.team-schedule .skeleton-item { padding: 10px 0; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; background: none; }
+.content .roster-heading { margin: 8px 0 0; font: 800 clamp(24px, 3vw, 32px)/1 var(--font-display); letter-spacing: .01em; text-transform: uppercase; }
+@media (max-width: 900px) { .team-season-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+    .team-season-stats { gap: 14px 22px; padding: 16px; }
+    .team-season-stats strong { font-size: 28px; }
+    .content .team-game { grid-template-columns: 62px minmax(0, 1fr) auto; gap: 8px; }
+    .team-game-opponent { grid-template-columns: 14px 28px minmax(0, 1fr); gap: 6px; }
+    .team-game-opponent .home-game-logo { width: 28px; height: 28px; }
+    .team-result { padding: 0 9px; font-size: 15px; }
+}
+
+/* ---------- Player card (public profile) ---------- */
+
+.content .player-hero .player-card { display: flex; align-items: center; gap: clamp(20px, 4vw, 40px); }
+.player-card-photo { position: relative; flex: none; }
+.content .player-hero .profile-photo {
+    width: clamp(120px, 16vw, 176px);
+    height: clamp(120px, 16vw, 176px);
+    border: 3px solid var(--color-gold);
+    border-radius: 50%;
+    box-shadow: 0 0 0 8px rgba(244, 197, 66, .08), 0 18px 40px rgba(0, 0, 0, .45);
+    object-fit: cover;
+    font: 800 clamp(40px, 5vw, 60px)/1 var(--font-display);
+}
+.player-card-jersey {
+    position: absolute;
+    right: -6px;
+    bottom: 2px;
+    min-width: 54px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: var(--color-gold);
+    color: var(--color-page);
+    font: 800 26px/1 var(--font-display);
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
+}
+.player-card-jersey[hidden] { display: none; }
+.player-card-copy { min-width: 0; }
+.content .player-card-team { margin: 0 0 8px; color: var(--color-gold); font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.content .player-card-team:empty { display: none; }
+.league-page > .player-hero h2 { font-size: clamp(40px, 6vw, 76px); line-height: .95; overflow-wrap: anywhere; }
+.player-season, .player-weekly { display: grid; gap: 12px; }
+.player-season-scope select { min-height: 38px; border-radius: 999px; }
+.content .player-stat-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.content .player-stat-grid .stat-item:nth-child(-n + 5) strong { color: var(--color-text); font-size: 44px; }
+.content .player-stat-grid .stat-item:first-child { border-color: rgba(244, 197, 66, .45); background: linear-gradient(160deg, rgba(244, 197, 66, .12), transparent 70%), var(--color-surface); }
+.content .player-stat-grid .stat-item:first-child strong { color: var(--color-gold); }
+.player-weekly-list { display: grid; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); overflow: hidden; }
+.player-weekly-list > .empty-state { border: 0; }
+.player-weekly-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 90px repeat(5, minmax(0, 1fr)) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--color-border);
+    font: 700 20px/1 var(--font-display);
+    text-align: center;
+}
+.player-weekly-row:last-child { border-bottom: 0; }
+.player-weekly-row:not(.player-weekly-head)::before {
+    content: "";
+    position: absolute;
+    inset: auto auto 0 0;
+    width: var(--share, 0%);
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-gold), rgba(244, 197, 66, .2));
+}
+.player-weekly-head { padding-block: 10px; color: var(--color-faint); font: 700 11px/1 var(--font-body); letter-spacing: .07em; text-transform: uppercase; }
+.player-weekly-week { color: var(--color-gold); text-align: left; }
+.player-weekly-head > :first-child { text-align: left; }
+.player-weekly-cell.is-points { color: var(--color-text); font-size: 24px; }
+@media (max-width: 640px) {
+    .content .player-hero .player-card { flex-direction: column; align-items: flex-start; }
+    .player-weekly-row { grid-template-columns: 44px repeat(5, minmax(0, 1fr)) minmax(0, 1.3fr); gap: 4px; padding: 11px 12px; font-size: 17px; }
+    .player-weekly-cell.is-points { font-size: 20px; }
+    .player-weekly-head { font-size: 9px; letter-spacing: .04em; }
+    .content .player-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .content .player-stat-grid .stat-item:nth-child(-n + 5) strong { font-size: 36px; }
+}
