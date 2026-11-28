@@ -375,6 +375,7 @@ receives the administrator role.
 Seed a development database from the official workbook:
 
 ```powershell
+$env:FLAGTASTIC_DATA_TARGET="local"   # or "preview"; never Production
 python -m scripts.seed_statistics_workbook "C:\path\to\Stats ALL.xlsx"
 ```
 
@@ -388,6 +389,11 @@ games so every team in a division has the same count),
 `scripts/seed_preview_live_players.sql` (Preview-only test rosters; see
 [`docs/live-games.md`](docs/live-games.md)).
 
+The three Python seed scripts refuse to run unless `FLAGTASTIC_DATA_TARGET`
+is `local`, `preview` or `test`: `DATABASE_URL` alone cannot tell Preview
+from Production, so the operator confirms the target first.
+`scripts.create_admin` is not restricted.
+
 ## Deployment and Operations
 
 Production runs on Vercel with PostgreSQL supplied by Supabase. Merging to
@@ -400,10 +406,12 @@ described in [Database Migrations](#database-migrations) before merging.
 
 Upload limits: Vercel rejects request bodies over 4.5 MB before the
 application runs. Server-side limits are 15 MiB for statistics workbooks and
-game calendars, 10 MiB for referee roles, and 5 MiB for roster imports,
-profile photos, referee photos, and team logos. Only statistics workbooks
-(above 4 MiB) and registration profile photos (above 3 MB) are reduced in the
-browser; every other upload must be under 4.5 MB in Production.
+game calendars, 10 MiB for referee roles, and 4 MiB (`UPLOAD_MAX_BYTES` in
+`settings.py`, below the Vercel cap) for roster imports, profile photos,
+referee photos, and team logos; the roster page checks those sizes before
+uploading. Only statistics workbooks (above 4 MiB) and registration profile
+photos (above 3 MB) are reduced in the browser; every other upload must be
+under 4.5 MB in Production.
 
 Password recovery uses Resend and requires `PUBLIC_BASE_URL`, `RESEND_API_KEY`,
 and `PASSWORD_RESET_FROM_EMAIL`. Reset links expire after 30 minutes, work once,

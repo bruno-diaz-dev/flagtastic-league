@@ -81,7 +81,7 @@ async def import_statistics(
 
     content = await file.read(MAX_WORKBOOK_BYTES + 1)
     if len(content) > MAX_WORKBOOK_BYTES:
-        raise HTTPException(status_code=413, detail="El archivo excede 5 MB")
+        raise HTTPException(status_code=413, detail="El archivo excede 15 MB")
 
     warnings = []
     try:

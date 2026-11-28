@@ -611,17 +611,19 @@ stateless deployments. Logo URLs carry an MD5 content version and photo
 filenames change on replacement, so both are served with one-year immutable
 cache headers; collection views lazy-load images.
 
-Vercel rejects request bodies over 4.5 MB before FastAPI runs. Server-side
-limits are higher:
+Vercel rejects request bodies over 4.5 MB before FastAPI runs. Single-file
+uploads stay below that (`UPLOAD_MAX_BYTES` in `settings.py`) so the user
+always gets the application's own message; the larger import limits only
+apply outside Vercel:
 
 | Upload | Server limit |
 |---|---|
 | Statistics workbook | 15 MiB |
 | Game calendar (XLSX, CSV, image) | 15 MiB, 500 games |
 | Referee role (image, XLSX, CSV) | 10 MiB, 500 rows |
-| Roster import | 5 MiB, 100 players |
-| Profile photo, referee photo | 5 MiB |
-| Team logo | 5 MiB |
+| Roster import | 4 MiB, 100 players |
+| Profile photo, referee photo | 4 MiB |
+| Team logo | 4 MiB |
 
 The browser shrinks statistics workbooks above 4 MiB (see
 [`statistics-upload.md`](statistics-upload.md)) and re-encodes registration

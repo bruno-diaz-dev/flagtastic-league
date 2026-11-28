@@ -1,6 +1,14 @@
 const {chromium}=require('playwright');
 const fs=require('node:fs');
+const crypto=require('node:crypto');
 const assert=require('node:assert/strict');
+// The OCR library is replaced by a stub. ocr_loader.js pins the CDN URL with
+// Subresource Integrity, so the stub is served with its own matching hash.
+const OCR_LOADER=fs.readFileSync('static/ocr_loader.js','utf8');
+const OCR_URL=OCR_LOADER.match(/script\.src = "([^"]+)"/)[1];
+const OCR_STUB='window.Tesseract={async createWorker(){return {async terminate(){window.imageWorkerTerminated=(window.imageWorkerTerminated||0)+1;}}}};';
+const OCR_STUB_INTEGRITY='sha384-'+crypto.createHash('sha384').update(OCR_STUB).digest('base64');
+assert.match(OCR_LOADER,/script\.integrity = "sha384-[^"]+"/);
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
@@ -11,13 +19,15 @@ const assert=require('node:assert/strict');
  const game={id:1,home_team:team,away_team:guest,is_friendly:true,week:1,field_number:1,start_time:'10:00',status:'scheduled',home_score:null,away_score:null};
  let created,imported,confirmGate,releaseConfirmation,confirmFailure=false,ocrDownloads=0,imagePayload;
  let holdWorkbook=false, releaseWorkbook, workbookStarted;
- await page.route('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',route=>{
+ await page.route(OCR_URL,route=>{
   ocrDownloads++;
   return route.fulfill({contentType:'application/javascript',headers:{'Access-Control-Allow-Origin':'*'},
-   body:'window.Tesseract={async createWorker(){return {async terminate(){window.imageWorkerTerminated=(window.imageWorkerTerminated||0)+1;}}}};'});
+   body:OCR_STUB});
  });
  await page.route('https://friendly.test/**',async route=>{
   const url=new URL(route.request().url()),method=route.request().method();
+  if(url.pathname==='/static/ocr_loader.js')return route.fulfill({contentType:'application/javascript',
+   body:OCR_LOADER.replace(/script\.integrity = "sha384-[^"]+"/,`script.integrity = "${OCR_STUB_INTEGRITY}"`)});
   if(url.pathname.startsWith('/static/'))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'application/javascript',body:fs.readFileSync('.'+url.pathname,'utf8')});
   const json=body=>route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
   if(url.pathname==='/api/teams')return json([team,secondTeam]);

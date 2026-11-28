@@ -28,3 +28,20 @@ jobs:
         with:
           languages: python
       - uses: github/codeql-action/analyze@v4
+
+  # The browser code renders user-supplied names into HTML and handles
+  # uploads; scan it too (web static/ and the Expo mobile app).
+  AnalyzeJavaScript:
+    name: Analyze JavaScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          config: |
+            paths-ignore:
+              - static/vendor
+              - tests
+      - uses: github/codeql-action/analyze@v4
