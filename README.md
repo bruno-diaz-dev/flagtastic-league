@@ -46,11 +46,17 @@ team representatives, referees, and league administrators.
 
 - Create teams and become their representative automatically; manage only
   explicitly assigned teams.
-- Roster changes close for representatives on October 16, 2026 at 00:00 in
-  `America/Mexico_City`; administrators retain editing access.
+- Roster changes close for representatives and for players joining a team on
+  October 16, 2026 at 00:00 in `America/Mexico_City`; administrators retain
+  editing access.
 - Update team logos and staff (Head Coach, Coach, Manager).
 - Add, edit, deactivate, and photograph roster players; reuse existing player
   identities instead of creating duplicates; import rosters from CSV or XLSX.
+- Adding an existing identity requires its CURP (or provisional document).
+  The name, document and photo of a player who has their own account or plays
+  on another team can only be changed by an administrator; the jersey number
+  stays editable. An import row whose CURP belongs to an account under another
+  name is reported as `identity_mismatch` instead of being linked.
 - View team standings, records, and player statistics on web and mobile.
 
 ### Referees

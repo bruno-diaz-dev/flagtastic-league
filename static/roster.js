@@ -318,7 +318,8 @@ registeredPlayerForm.addEventListener("submit", async (event) => {
     registeredPlayerMessage.textContent = "Agregando al roster...";
     const response = await addRegisteredPlayer(teamId, {
         player_id: Number(fields.get("player_id")),
-        jersey_number: Number(fields.get("jersey_number"))
+        jersey_number: Number(fields.get("jersey_number")),
+        curp: String(fields.get("curp") || "").trim().toUpperCase()
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {

@@ -16,11 +16,20 @@ from repositories.players import (
     update_roster_player,
     update_roster_player_photo,
     PlayerAlreadyRegisteredInDivision,
+    PlayerIdentityLocked,
     PlayerIdentityMismatch
 )
-from dependencies.auth import require_team_manager
+from dependencies.auth import require_team_manager, user_has_role
 from services.roster_import import RosterImportError, parse_roster_file
 from services.profile_photos import save_profile_photo
+
+IDENTITY_LOCKED_MESSAGE = (
+    "Este jugador tiene cuenta propia o juega en otro equipo. "
+    "Solo un administrador puede cambiar su nombre, identificación o foto."
+)
+REGISTERED_PLAYER_NOT_FOUND = (
+    "No encontramos ese jugador con esa CURP o documento. Revisa los datos."
+)
 
 router = APIRouter(
     prefix="/api/teams/{team_id}/players",
@@ -50,17 +59,27 @@ def find_registered_player_candidates(
 def register_existing_player(
     team_id: int,
     membership: RegisteredPlayerMembershipCreate,
-    _user=Depends(require_team_manager)
+    user=Depends(require_team_manager)
 ):
-    """Add a selected existing player profile to an eligible managed roster."""
+    """Add a selected existing player profile to an eligible managed roster.
+
+    Names are public, so a representative must also supply the player's CURP
+    (or provisional document); administrators may omit it.
+    """
     team = get_team_by_id(team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
+    if membership.curp is None and not user_has_role(user, "league_admin"):
+        raise HTTPException(
+            status_code=422,
+            detail="Escribe la CURP o documento del jugador para agregarlo"
+        )
     try:
         created = join_registered_player(
             membership.player_id,
             team,
-            membership.jersey_number
+            membership.jersey_number,
+            curp=membership.curp
         )
     except PlayerAlreadyRegisteredInDivision as error:
         raise HTTPException(
@@ -75,7 +94,7 @@ def register_existing_player(
             ) from error
         raise
     if created is None:
-        raise HTTPException(status_code=404, detail="Perfil de jugador no encontrado")
+        raise HTTPException(status_code=404, detail=REGISTERED_PLAYER_NOT_FOUND)
     return created
 
 @router.post("", status_code=201)
@@ -100,7 +119,7 @@ def register_player(
     except PlayerIdentityMismatch as error:
         raise HTTPException(
             status_code=409,
-            detail="El documento provisional ya está registrado con otros datos"
+            detail="Esa CURP o documento ya está registrado con otros datos"
         ) from error
 
     except PlayerAlreadyRegisteredInDivision:
@@ -195,11 +214,18 @@ async def upload_roster_player_photo(
     team_id: int,
     player_id: int,
     file: UploadFile = File(...),
-    _user=Depends(require_team_manager)
+    user=Depends(require_team_manager)
 ):
     """Allow a team manager to complete or replace a roster player's photo."""
     photo = await save_profile_photo(file)
-    if not update_roster_player_photo(team_id, player_id, photo):
+    try:
+        updated = update_roster_player_photo(
+            team_id, player_id, photo,
+            can_edit_shared_identity=user_has_role(user, "league_admin")
+        )
+    except PlayerIdentityLocked as error:
+        raise HTTPException(status_code=409, detail=IDENTITY_LOCKED_MESSAGE) from error
+    if not updated:
         raise HTTPException(status_code=404, detail="Jugador no encontrado en este equipo")
 
 
@@ -221,11 +247,16 @@ def edit_roster_player(
     team_id: int,
     player_id: int,
     payload: RosterPlayerUpdate,
-    _user=Depends(require_team_manager)
+    user=Depends(require_team_manager)
 ):
     """Correct an active player's identity and jersey assignment."""
     try:
-        updated = update_roster_player(team_id, player_id, payload)
+        updated = update_roster_player(
+            team_id, player_id, payload,
+            can_edit_shared_identity=user_has_role(user, "league_admin")
+        )
+    except PlayerIdentityLocked as error:
+        raise HTTPException(status_code=409, detail=IDENTITY_LOCKED_MESSAGE) from error
     except UniqueViolation as error:
         constraint = error.diag.constraint_name
         if constraint == "players_curp_key":
