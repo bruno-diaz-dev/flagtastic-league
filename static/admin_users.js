@@ -19,12 +19,35 @@ const roleLabels = {
 
 function roleChoices(selectedRoles) {
     return Object.entries(roleLabels).map(([value, label]) => `
-        <label class="role-choice">
+        <label class="role-choice role-toggle">
             <input type="checkbox" name="roles" value="${value}"
                 ${selectedRoles.includes(value) ? "checked" : ""}>
             <span>${label}</span>
         </label>
     `).join("");
+}
+
+
+function userStatus(user) {
+    if (user.must_change_password) return {label: "Cambio de contraseña pendiente", tone: "pending"};
+    return user.status === "active" ? {label: "Activo", tone: "active"} : {label: "Inactivo", tone: "inactive"};
+}
+
+
+// The band sums up who has access to what.
+function renderUsersHero() {
+    if (typeof setPageHero !== "function" || usersState.length === 0) return;
+    const withRole = (role) => usersState.filter((user) => (user.roles || [user.role]).includes(role)).length;
+    const pending = usersState.filter((user) => user.must_change_password).length;
+    setPageHero({
+        tags: pending ? [{label: `${pending} con cambio de contraseña pendiente`, tone: "live"}] : [],
+        stats: [
+            [usersState.length, "Usuarios"],
+            [withRole("league_admin"), "Administradores"],
+            [withRole("referee"), "Árbitros"],
+            [withRole("team_representative"), "Representantes"],
+        ],
+    });
 }
 
 
@@ -47,34 +70,54 @@ function renderUsers() {
     usersCount.textContent = `${users.length} usuario${users.length === 1 ? "" : "s"}`;
     if (users.length === 0) {
         usersBody.innerHTML = `
-            <tr><td colspan="6" class="table-empty-state">
-                No hay usuarios que coincidan con ese nombre.
-            </td></tr>`;
+            <div class="empty-state">
+                <h3>Sin coincidencias</h3>
+                <p>No hay usuarios que coincidan con ese nombre.</p>
+            </div>`;
         return;
     }
-    usersBody.innerHTML = users.map((user) => `
-        <tr data-user-id="${user.id}">
-            <td>${user.player_id
-                ? `<a class="player-profile-link" href="/players/${user.player_id}"><strong>${escapeHtml(user.display_name || user.name)}</strong></a>`
-                : `<strong>${escapeHtml(user.display_name || user.name)}</strong>`
-            }${user.aka ? `<small>Nombre legal: ${escapeHtml(user.name)}</small>` : ""}</td>
-            <td>${escapeHtml(user.email)}</td>
-            <td><div class="role-choices">${roleChoices(user.roles || [user.role])}</div></td>
-            <td>${(user.roles || [user.role]).includes("referee") ? `
-                <div class="official-aka-editor">
+    // One card per person: identity, roles as toggles, official alias, and
+    // the account actions; rare, sensitive ones sit under "Más".
+    usersBody.innerHTML = users.map((user) => {
+        const shown = user.display_name || user.name;
+        const status = userStatus(user);
+        return `
+        <article class="user-card" data-user-id="${user.id}">
+            <div class="user-identity">
+                <span class="user-avatar" aria-hidden="true">${escapeHtml(nameInitials(shown))}</span>
+                <div>
+                    ${user.player_id
+                        ? `<a class="player-profile-link" href="/players/${user.player_id}"><strong>${escapeHtml(shown)}</strong></a>`
+                        : `<strong>${escapeHtml(shown)}</strong>`}
+                    ${user.aka ? `<small>Nombre legal: ${escapeHtml(user.name)}</small>` : ""}
+                    <span class="user-email">${escapeHtml(user.email)}</span>
+                </div>
+                <span class="user-status user-status-${status.tone}">${status.label}</span>
+            </div>
+            <fieldset class="user-roles">
+                <legend>Roles</legend>
+                <div class="role-choices">${roleChoices(user.roles || [user.role])}</div>
+            </fieldset>
+            ${(user.roles || [user.role]).includes("referee") ? `
+            <div class="official-aka-editor">
+                <label>AKA de oficial
                     <input class="official-aka-input" value="${escapeHtml(user.aka || "")}" maxlength="80" placeholder="Alias en la liga" aria-label="AKA de ${escapeHtml(user.name)}">
-                    <button class="save-aka-button" type="button">Guardar AKA</button>
-                </div>` : '<span class="not-applicable">No aplica</span>'}</td>
-            <td>${user.must_change_password
-                ? "Cambio de contraseña pendiente"
-                : (user.status === "active" ? "Activo" : "Inactivo")}</td>
-            <td class="user-actions">
-                <button class="save-role-button" type="button">Guardar</button>
-                <button class="recover-account-button" type="button">Recuperar cuenta</button>
-                <button class="reset-password-button" type="button">Reiniciar contraseña</button>
-                <button class="delete-user-button" type="button">Eliminar</button>
-            </td>
-        </tr>`).join("");
+                </label>
+                <button class="save-aka-button secondary-button" type="button">Guardar AKA</button>
+            </div>` : '<span class="official-aka-editor not-applicable">Sin alias de oficial</span>'}
+            <div class="user-actions">
+                <button class="save-role-button" type="button">Guardar roles</button>
+                <details class="user-more">
+                    <summary>Más</summary>
+                    <div class="user-more-menu">
+                        <button class="recover-account-button secondary-button" type="button">Recuperar cuenta</button>
+                        <button class="reset-password-button secondary-button" type="button">Reiniciar contraseña</button>
+                        <button class="delete-user-button danger-button" type="button">Eliminar cuenta</button>
+                    </div>
+                </details>
+            </div>
+        </article>`;
+    }).join("");
 }
 
 
@@ -87,12 +130,16 @@ async function loadUsers() {
         return;
     }
     usersState = await response.json();
+    renderUsersHero();
     renderUsers();
 }
 
 
 usersBody.addEventListener("click", async (event) => {
-    const row = event.target.closest("tr");
+    const row = event.target.closest("[data-user-id]");
+    if (!row) return;
+    // An action from the "Más" menu closes it.
+    if (event.target.closest(".user-more-menu")) event.target.closest("details").open = false;
     if (event.target.classList.contains("recover-account-button")) {
         const name = row.querySelector("strong").textContent;
         const email = window.prompt(`Nuevo correo de ${name}:`);

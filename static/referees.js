@@ -16,17 +16,26 @@ function initialsFor(name) {
 
 function refereeCard(referee) {
     const name = escapeHtml(referee.display_name);
+    // A broken photo falls back to the initials badge rather than an empty frame.
     return `<a class="referee-profile-link" href="/referees/${referee.id}" aria-label="Ver perfil de ${name}">
         <article class="referee-roster-card">
-            ${referee.profile_photo_url
-                ? `<img src="${escapeHtml(referee.profile_photo_url)}" alt="" loading="lazy" decoding="async">`
-                : `<span class="referee-photo-placeholder" aria-hidden="true">${escapeHtml(initialsFor(referee.display_name))}</span>`}
+            <span class="referee-card-photo">
+                <span class="referee-photo-placeholder" aria-hidden="true">${escapeHtml(initialsFor(referee.display_name))}</span>
+                ${referee.profile_photo_url
+                    ? `<img src="${escapeHtml(referee.profile_photo_url)}" alt="" loading="lazy" decoding="async">`
+                    : ""}
+            </span>
             <div class="referee-card-identity"><h3>${name}</h3>
-                ${referee.aka ? `<p>${escapeHtml(referee.name)}</p>` : ""}
-                <span class="referee-profile-action">Ver trayectoria arbitral</span>
-            </div><span class="referee-card-arrow" aria-hidden="true">›</span>
+                ${referee.aka ? `<p>${escapeHtml(displayName(referee.name))}</p>` : ""}
+                <span class="referee-profile-action">Ver trayectoria <span aria-hidden="true">›</span></span>
+            </div>
         </article></a>`;
 }
+
+// Photos that fail to load leave the initials badge underneath visible.
+roster.addEventListener("error", (event) => {
+    if (event.target.tagName === "IMG") event.target.remove();
+}, true);
 
 function searchable(value) {
     return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
@@ -38,6 +47,10 @@ function renderDirectory() {
     directoryCount.textContent = query
         ? `${visible.length} de ${directory.length} árbitros`
         : `${directory.length} ${directory.length === 1 ? "árbitro en la planilla" : "árbitros en la planilla"}`;
+    if (typeof setPageHero === "function" && directory.length) {
+        const withPhoto = directory.filter((referee) => referee.profile_photo_url).length;
+        setPageHero({stats: [[directory.length, "Árbitros"], [withPhoto, "Con foto"]]});
+    }
     roster.innerHTML = visible.length ? visible.map(refereeCard).join("")
         : `<div class="empty-state"><h3>${query ? "No encontramos coincidencias" : "Sin árbitros activos"}</h3><p>${query ? "Prueba otro nombre o AKA." : "El equipo arbitral aparecerá aquí."}</p></div>`;
 }

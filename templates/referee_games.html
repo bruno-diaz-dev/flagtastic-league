@@ -4,16 +4,14 @@
 <link rel="stylesheet" href="/static/referee_schedule_review.css?v=20261127-1">
 <section class="role-dashboard-page league-page">
     <header class="section-header">
+        <div>
+            <div id="page-hero-tags" class="hero-tags"></div>
             <h2>Mi dashboard de arbitraje</h2>
-        <p>Tus próximas asignaciones y tu experiencia arbitral en secciones independientes.</p>
+            <p>Tus próximas asignaciones y tu experiencia arbitral.</p>
+            <ul id="page-hero-stats" class="hero-stats" hidden></ul>
+        </div>
     </header>
     <div id="referee-summary" class="stat-grid dashboard-summary-grid" aria-live="polite"></div>
-    <nav class="dashboard-quick-links" aria-label="Accesos del árbitro">
-        <a href="/games">Todos los partidos</a>
-        <a href="/referees">Planilla de árbitros</a>
-        <a href="/standings">Tabla de posiciones</a>
-        <a href="/privacy">Aviso de privacidad</a>
-    </nav>
     <section id="referee-dashboard-photo-panel" class="form-panel hidden">
         <h3>Agrega tu foto a la planilla</h3>
         <p>Tu cuenta arbitral todavía no tiene una foto pública.</p>
@@ -62,5 +60,5 @@
 {% block scripts %}
 <script src="/static/api.js?v=20261126-2"></script>
 <script src="/static/import_progress.js?v=20261126-1"></script>
-<script src="/static/referee_games.js?v=20261128-4"></script>
+<script src="/static/referee_games.js?v=20261128-5"></script>
 {% endblock %}
