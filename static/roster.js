@@ -77,11 +77,9 @@ function renderRoster(team) {
     teamStaffForm.elements.manager.value = team.manager || "";
 
     if (team.players.length === 0) {
-        rosterContainer.innerHTML = `
-            <div class="empty-state">
-                <h3>Sin jugadores registrados</h3>
-                <p>Este equipo todavía no tiene jugadores registrados.</p>
-            </div>`;
+        rosterContainer.innerHTML = typeof emptyStateMarkup === "function"
+            ? emptyStateMarkup({icon: "team", title: "Roster en construcción", text: "Este equipo todavía no registra jugadores. Vuelve pronto para conocer a su plantel."})
+            : `<div class="empty-state"><h3>Sin jugadores registrados</h3><p>Este equipo todavía no tiene jugadores registrados.</p></div>`;
         return;
     }
 

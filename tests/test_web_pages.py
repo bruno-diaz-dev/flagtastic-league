@@ -471,3 +471,33 @@ def test_game_administration_supports_postponing_and_safe_deletion():
     assert "ELIMINAR JORNADA" in script
     assert "deleteGamesByWeek" in script
     assert "updateGamesStatusByWeek" in script
+
+
+def test_home_page_is_the_league_front_page():
+    page = client.get("/")
+
+    assert page.status_code == 200
+    assert 'id="home-next"' in page.text
+    assert 'id="home-results"' in page.text
+    assert 'id="home-standings"' in page.text
+    assert 'id="home-leaders"' in page.text
+    assert "/static/home.js" in page.text
+    assert 'class="brand-home" href="/"' in page.text
+
+
+def test_app_can_be_installed_from_the_manifest():
+    page = client.get("/teams").text
+    manifest = client.get("/manifest.webmanifest")
+
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in page
+    assert '<meta name="theme-color" content="#041027">' in page
+    assert manifest.status_code == 200
+    assert manifest.headers["content-type"].startswith("application/manifest+json")
+    body = manifest.json()
+    assert body["display"] == "standalone"
+    assert body["start_url"].startswith("/")
+    sizes = {icon["sizes"] for icon in body["icons"]}
+    assert {"192x192", "512x512"} <= sizes
+    assert any(icon.get("purpose") == "maskable" for icon in body["icons"])
+    for icon in body["icons"]:
+        assert client.get(icon["src"]).status_code == 200

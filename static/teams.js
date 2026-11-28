@@ -61,12 +61,12 @@ function updateTeamFilterBranchControl() {
 }
 
 function renderEmptyTeamsState() {
-    teamsContainer.innerHTML = `
-        <div class="empty-state">
-            <h3>${teamsState.length ? "Sin coincidencias" : "Sin equipos registrados"}</h3>
-            <p>${teamsState.length ? "Prueba otro nombre o limpia los filtros." : "Los equipos registrados aparecerán aquí."}</p>
-        </div>
-    `;
+    const title = teamsState.length ? "Sin coincidencias" : "Sin equipos registrados";
+    const text = teamsState.length ? "Revisa cómo se escribe o limpia los filtros para ver a toda la liga." : "Los equipos registrados aparecerán aquí.";
+    teamsContainer.innerHTML = typeof emptyStateMarkup === "function"
+        ? emptyStateMarkup({icon: teamsState.length ? "search" : "team", title, text, action: teamsState.length ? {label: "Limpiar filtros", id: "empty-clear-team-filters"} : null})
+        : `<div class="empty-state"><h3>${title}</h3><p>${text}</p></div>`;
+    document.querySelector("#empty-clear-team-filters")?.addEventListener("click", () => document.querySelector("#clear-team-filters")?.click());
 }
 
 function renderTeams(teams) {
@@ -152,12 +152,9 @@ function closeTeamRegistration() {
 }
 
 async function loadTeams() {
-    teamsContainer.innerHTML = `
-        <div class="empty-state">
-            <h3>Cargando equipos</h3>
-            <p>Espera un momento.</p>
-        </div>
-    `;
+    teamsContainer.innerHTML = typeof skeletonMarkup === "function"
+        ? skeletonMarkup("cards", 6, "Cargando equipos")
+        : `<div class="empty-state"><h3>Cargando equipos</h3><p>Espera un momento.</p></div>`;
 
     try {
         const response = await getTeams();

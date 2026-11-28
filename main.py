@@ -1,7 +1,7 @@
 """FastAPI application assembly and server-rendered page routes."""
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from database import get_connection
@@ -102,9 +102,19 @@ def profile_photo(filename: str):
     )
 
 @app.get("/")
-def index():
-    """Redirect the application root to the default operations page."""
-    return RedirectResponse("/teams")
+def home_page(request: Request):
+    """Render the league home: next week, live games, results and leaders."""
+    return templates.TemplateResponse(request, "home.html", headers=PUBLIC_PAGE_HEADERS)
+
+
+@app.get("/manifest.webmanifest")
+def web_manifest():
+    """Serve the install manifest from the root so the app scope is the whole site."""
+    return FileResponse(
+        "static/manifest.webmanifest",
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 @app.get("/live")
 def liveness():
