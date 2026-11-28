@@ -299,11 +299,11 @@ registeredPlayerSearch.addEventListener("input", () => {
             registeredPlayerResults.innerHTML = [
                 '<option value="">Selecciona un jugador</option>',
                 ...players.map((player) => {
-                    const displayName = player.aka
+                    const shownName = player.aka
                         ? `${player.aka} (${player.name})`
                         : player.name;
                     const accountLabel = player.has_account ? "cuenta activa" : "perfil de roster";
-                    return `<option value="${player.id}">${escapeHtml(displayName)} - ${accountLabel}</option>`;
+                    return `<option value="${player.id}">${escapeHtml(shownName)} - ${accountLabel}</option>`;
                 })
             ].join("");
             registeredPlayerResults.disabled = false;

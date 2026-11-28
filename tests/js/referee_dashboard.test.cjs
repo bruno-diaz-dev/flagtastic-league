@@ -20,6 +20,7 @@ function setup() {
         getMyRefereeGames: pending, getMyRefereeProfile: pending, getAdminUsers: pending,
         divisionBranchLabel: branch => branch, gameCalendarLabel: () => "",
         escapeHtml: v => String(v).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')});
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/display.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../../static/referee_games.js'), 'utf8'), context);
     const game = (id, status, week, scores=[null, null], position='referee') => ({
         id, status, week, home_score: scores[0], away_score: scores[1], official_position: position,

@@ -427,6 +427,15 @@ async function loadLeaderboards(event) {
         const body = await response.json();
         if (request !== leaderboardRequest) return;
         renderLeaderboards(body);
+        if (typeof setPageHero === "function") {
+            const category = formData.get("category");
+            const branch = isUnifiedYouthCategory(category) ? "Infantiles" : displayName(formData.get("branch"));
+            const week = body.passing_qualification?.latest_week;
+            setPageHero({tags: [
+                {label: `${branch} · ${displayName(category)}`, tone: "gold"},
+                ...(week ? [{label: `Hasta la jornada ${week}`}] : []),
+            ]});
+        }
     } catch (error) {
         if (request !== leaderboardRequest) return;
         leaderboardsContainer.innerHTML = "<p>No se pudieron cargar las estadísticas.</p>";

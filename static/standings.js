@@ -43,9 +43,21 @@ async function loadStandings(event) {
 
         standingsFormMessage.textContent = "";
         renderStandings(standings);
+        updateStandingsHero(branch, category, standings);
     } catch (error) {
         standingsFormMessage.textContent = "No se pudo conectar con el servidor.";
     }
+}
+
+// The band names the division on screen and sums it up.
+function updateStandingsHero(branch, category, standings) {
+    if (typeof setPageHero !== "function") return;
+    const division = `${unifiedYouthCategories.has(category) ? "Infantiles" : displayName(branch)} · ${displayName(category)}`;
+    const played = standings.reduce((total, team) => total + (team.games_played || 0), 0) / 2;
+    setPageHero({
+        tags: [{label: division, tone: "gold"}, ...(standings[0] ? [{label: `Líder: ${displayName(standings[0].team_name)}`}] : [])],
+        stats: standings.length ? [[standings.length, "Equipos"], [Math.round(played), "Partidos jugados"]] : [],
+    });
 }
 
 function renderStandings(standings) {

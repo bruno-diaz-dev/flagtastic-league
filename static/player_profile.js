@@ -30,8 +30,8 @@ function profileInitials(name) {
 
 
 function renderPublicProfile(profile) {
-    const displayName = profile.player.aka || profile.player.name;
-    document.querySelector("#public-player-name").textContent = displayName;
+    const shownName = profile.player.aka || displayName(profile.player.name);
+    document.querySelector("#public-player-name").textContent = shownName;
     document.querySelector("#public-player-identity").textContent = profile.player.aka
         ? `${profile.player.name} · ${profile.player.age} años`
         : `${profile.player.age} años`;
@@ -40,7 +40,7 @@ function renderPublicProfile(profile) {
     const placeholder = document.querySelector("#public-player-photo-placeholder");
     if (profile.player.profile_photo_url) {
         photo.src = profile.player.profile_photo_url;
-        photo.alt = `Foto de ${displayName}`;
+        photo.alt = `Foto de ${shownName}`;
         photo.classList.remove("hidden");
         placeholder.classList.add("hidden");
     } else {
@@ -61,8 +61,8 @@ function renderPublicProfile(profile) {
     publicTeams.innerHTML = profile.teams.length
         ? profile.teams.map((team) => `
             <article class="team-card">
-                <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(team.team_name)}</a></h4>
-                <p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)} · #${team.jersey_number}</p></div>
+                <div><h4><a class="team-roster-link" href="/teams/${team.team_id}/roster">${escapeHtml(displayName(team.team_name))}</a></h4>
+                <p>${escapeHtml(displayName(divisionBranchLabel(team.branch, team.category)))} · ${escapeHtml(displayName(team.category))} · #${team.jersey_number}</p></div>
                 <strong>${team.standing_position || "-"} / ${team.division_team_count}</strong>
             </article>`).join("")
         : `<div class="empty-state"><h4>Sin equipo registrado</h4><p>Este jugador todavía no aparece en un roster.</p></div>`;

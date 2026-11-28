@@ -27,7 +27,7 @@ function renderRepresentativeSummary(teams) {
 
 
 function representativePlayerCard(player, teamId) {
-    const displayName = player.player_aka || player.player_name;
+    const shownName = player.player_aka || displayName(player.player_name);
     const statistics = [
         ["PTS", player.points],
         ["REC", player.receptions],
@@ -40,7 +40,7 @@ function representativePlayerCard(player, teamId) {
     return `
         <article class="representative-player-card">
             <header>
-                <a href="/players/${player.player_id}?team_id=${teamId}">${escapeHtml(displayName)}</a>
+                <a href="/players/${player.player_id}?team_id=${teamId}">${escapeHtml(shownName)}</a>
                 <strong>#${player.jersey_number}</strong>
             </header>
             <dl>${statistics.map(([label, value]) => `
@@ -56,9 +56,9 @@ function renderRepresentativeTeam(team) {
         <section class="representative-team-panel">
             <header class="representative-team-header">
                 ${team.logo_url
-                    ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(team.name)}" loading="lazy" decoding="async">`
+                    ? `<img class="team-logo" src="${team.logo_url}" alt="Logo de ${escapeHtml(displayName(team.name))}" loading="lazy" decoding="async">`
                     : `<span class="team-logo team-logo-placeholder" aria-hidden="true">${escapeHtml(team.name.charAt(0))}</span>`}
-                <div><h3><a class="team-roster-link" href="/teams/${team.id}/roster">${escapeHtml(team.name)}</a></h3><p>${escapeHtml(divisionBranchLabel(team.branch, team.category))} / ${escapeHtml(team.category)}</p></div>
+                <div><h3><a class="team-roster-link" href="/teams/${team.id}/roster">${escapeHtml(displayName(team.name))}</a></h3><p>${escapeHtml(displayName(divisionBranchLabel(team.branch, team.category)))} · ${escapeHtml(displayName(team.category))}</p></div>
                 <div class="representative-team-actions">
                     <a class="secondary-link" href="/teams/${team.id}/roster">Ver y administrar roster</a>
                     <a class="secondary-link" href="/games">Ver partidos</a>
