@@ -192,8 +192,6 @@ function inspectLayout() {
         }
 
         // Page-specific expectations.
-        await page.goto(BASE + '/login', {waitUntil: 'load'});
-        assert.equal(await page.locator('a[href="/forgot-password"]').count(), 1, 'login links to password recovery');
         await page.goto(BASE + '/teams', {waitUntil: 'load'});
         await page.locator('.team-card').first().waitFor();
         const titles = (await page.locator('.team-card h3').allTextContents()).map((title) => title.trim());

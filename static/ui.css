@@ -151,8 +151,6 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .auth-page .auth-form > a, .auth-panel > a { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; color: var(--color-gold); }
 .auth-page .auth-panel > .eyebrow { display: none; }
 .auth-page .auth-recovery-link { display: flex; }
-.auth-page .auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 20px; }
-.auth-page .auth-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; color: var(--color-gold); }
 .privacy-page { max-width: 800px; }
 .privacy-page > section { border: 1px solid var(--color-border); background: var(--color-surface); padding: 20px; border-radius: var(--ui-radius); }
 .privacy-page p, .privacy-page li { font-size: 14px; line-height: 1.8; }
