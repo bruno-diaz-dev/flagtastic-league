@@ -56,10 +56,11 @@ async function loadRefereeRoster() {
 }
 
 async function loadMyRefereeProfile() {
-    const sessionResponse = await fetch("/api/auth/me");
-    if (!sessionResponse.ok) return;
-    const user = await sessionResponse.json();
-    if (!(user.roles || [user.role]).includes("referee")) return;
+    // The layout's shared session lookup answers visitors without a 401.
+    const user = window.flagtasticSession
+        ? await window.flagtasticSession
+        : await fetch("/api/auth/me").then((response) => (response.ok ? response.json() : null));
+    if (!user || !(user.roles || [user.role]).includes("referee")) return;
     const response = await getMyRefereeProfile();
     if (!response.ok) return;
     const profile = await response.json();

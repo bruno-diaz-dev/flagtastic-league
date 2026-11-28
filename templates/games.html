@@ -195,6 +195,8 @@
 
     </div></details>
 
+    <nav id="games-week-strip" class="week-strip" aria-label="Jornadas" hidden></nav>
+
     <section class="filters-panel games-filters" aria-label="Filtros de partidos">
         <label class="games-team-search">
             Equipo
@@ -264,6 +266,8 @@
                 {% endfor %}
             </select>
         </label>
+
+        <button id="games-filters-toggle" class="secondary-button games-filters-toggle" type="button" aria-expanded="false" aria-controls="game-filter-status game-filter-field">Más filtros</button>
     </section>
 
     <section class="week-admin-actions admin-only" aria-label="Acciones administrativas de jornada">
@@ -331,6 +335,6 @@
 <script src="/static/import_progress.js?v=20261126-1"></script>
 <script src="/static/schedule_ocr_cells.js?v=20261126-2"></script>
 <script src="/static/weekly_featured.js?v=20261019-1"></script>
-<script src="/static/games.js?v=20261128-1"></script>
+<script src="/static/games.js?v=20261128-3"></script>
 <script src="/static/schedule_board.js?v=20261104-1"></script>
 {% endblock %}

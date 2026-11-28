@@ -97,8 +97,21 @@ function renderStandings(standings) {
     `;
 }
 
+// Opening the page shows a table straight away (Varonil · Libre) instead of
+// an empty form; any other division is one selection away.
+function loadDefaultStandings() {
+    const hasOption = (select, value) => [...select.options].some((option) => option.value === value);
+    if (standingsBranch.value || standingsCategory.value) return;
+    if (!hasOption(standingsBranch, "varonil") || !hasOption(standingsCategory, "libre")) return;
+    standingsBranch.value = "varonil";
+    standingsCategory.value = "libre";
+    updateDivisionControls();
+    loadStandings(new Event("submit"));
+}
+
 if (standingsForm !== null) {
     standingsForm.addEventListener("submit", loadStandings);
     standingsCategory.addEventListener("change", updateDivisionControls);
     updateDivisionControls();
+    loadDefaultStandings();
 }

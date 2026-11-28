@@ -8,7 +8,7 @@ function setup() {
     const nodes = new Map();
     function node() {
         return {value: '', innerHTML: '', textContent: '', dataset: {},
-            classList: {toggle() {}, add() {}, remove() {}}, addEventListener() {}};
+            classList: {toggle() {}, add() {}, remove() {}}, addEventListener() {}, querySelectorAll() { return []; }};
     }
     const document = {querySelector(selector) {
         if (!nodes.has(selector)) nodes.set(selector, node());

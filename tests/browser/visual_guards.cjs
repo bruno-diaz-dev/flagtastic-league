@@ -191,6 +191,32 @@ function inspectLayout() {
             for (const problem of new Set(problems)) failures.push(`${target.path} at ${width}px: ${problem}`);
         }
 
+        // Navigation: a top bar on desktop, a tab bar on phones and tablets.
+        await page.goto(BASE + '/games', {waitUntil: 'load'});
+        await page.locator('.game-card').first().waitFor();
+        const shell = await page.evaluate(() => {
+            const tabbar = document.querySelector('.tabbar');
+            const bar = document.querySelector('.sidebar').getBoundingClientRect();
+            return {
+                tabbarVisible: getComputedStyle(tabbar).display !== 'none',
+                activeTab: document.querySelector('.tabbar-link[aria-current="page"]')?.getAttribute('href'),
+                barHeight: Math.round(bar.height),
+                weekTabs: document.querySelectorAll('#games-week-strip [data-week-tab]').length,
+            };
+        });
+        if (width >= 821) {
+            assert.equal(shell.tabbarVisible, false, `no tab bar on desktop at ${width}`);
+            assert.ok(shell.barHeight <= 72, `desktop top bar stays compact at ${width}: ${shell.barHeight}px`);
+        } else {
+            assert.equal(shell.tabbarVisible, true, `tab bar on phones at ${width}`);
+        }
+        assert.equal(shell.activeTab, '/games', 'the tab bar marks the current section');
+        assert.equal(shell.weekTabs, 1 + new Set(games.map((game) => game.week)).size, 'one week tab per week plus "Próximos"');
+        await page.locator('#games-week-strip [data-week-tab="6"]').click();
+        assert.equal(await page.locator('#game-filter-week').inputValue(), '6', 'a week tab drives the week filter');
+        assert.equal(await page.locator('#games-week-strip [data-week-tab="6"]').getAttribute('aria-pressed'), 'true');
+        assert.equal(await page.locator('.game-team-row.is-winner').count(), 1, 'a decided game marks its winner');
+
         // Page-specific expectations.
         await page.goto(BASE + '/teams', {waitUntil: 'load'});
         await page.locator('.team-card').first().waitFor();

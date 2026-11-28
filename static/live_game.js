@@ -477,7 +477,12 @@ window.addEventListener("online", () => { refreshLive(true); liveQueue?.retry().
 window.addEventListener("beforeunload", event => { if (liveCaptureSaving || liveQueue?.rows.length) { event.preventDefault(); event.returnValue = ""; } });
 
 (async () => {
-    try { const response = await fetch("/api/auth/me", {cache:"no-store"}); if (response.ok) liveUser = await response.json(); } catch { /* Public feed remains available. */ }
+    // The layout's shared session lookup answers visitors without a 401.
+    try {
+        liveUser = window.flagtasticSession
+            ? await window.flagtasticSession
+            : await fetch("/api/auth/me", {cache:"no-store"}).then(response => response.ok ? response.json() : null);
+    } catch { /* Public feed remains available. */ }
     await initializeLiveQueue();
     await refreshLive();
 })();
