@@ -215,7 +215,7 @@ function inspectLayout() {
         await page.locator('#games-week-strip [data-week-tab="6"]').click();
         assert.equal(await page.locator('#game-filter-week').inputValue(), '6', 'a week tab drives the week filter');
         assert.equal(await page.locator('#games-week-strip [data-week-tab="6"]').getAttribute('aria-pressed'), 'true');
-        assert.equal(await page.locator('.game-team-row.is-winner').count(), 1, 'a decided game marks its winner');
+        assert.equal(await page.locator('.game-team-row[data-outcome="winner"]').count(), 1, 'a decided game marks its winner');
 
         // Page-specific expectations.
         await page.goto(BASE + '/teams', {waitUntil: 'load'});

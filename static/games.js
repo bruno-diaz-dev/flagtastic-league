@@ -84,13 +84,13 @@ function compareGames(first, second) {
 // a game without a score shows a quiet dash instead of a number.
 function gameTeamRow(team, side, score, opponentScore) {
     const decided = score != null && opponentScore != null && score !== opponentScore;
-    const outcome = decided ? (score > opponentScore ? "is-winner" : "is-loser") : "";
+    const outcome = decided ? (score > opponentScore ? "winner" : "loser") : "none";
     const logo = team.logo_url
         ? `<img class="team-logo game-team-logo" src="${team.logo_url}" alt="" loading="lazy" decoding="async">`
         : `<span class="game-team-logo game-team-logo-placeholder" aria-hidden="true">${escapeHtml(nameInitials(team.name))}</span>`;
 
     return `
-        <div class="game-team-row ${outcome}">
+        <div class="game-team-row" data-outcome="${outcome}">
             <span class="game-team-side">${side}</span>
             ${logo}
             <a class="game-team-name team-roster-link" href="/teams/${team.id}/roster">

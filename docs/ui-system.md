@@ -19,7 +19,7 @@ Styles load in this order on every page: `static/tokens.css`, `static/style.css`
 ## Games page
 
 - **Week tabs (`#games-week-strip`):** one tab for "Próximos" and one per week, each marked Programada, Resultados, Pospuesta or Finales. A tab only sets the existing `#game-filter-week` select and fires its `change` event, so filters, counts and week actions behave exactly as before.
-- **Game cards:** they render as scoreboard rows, grouped under a large start time. A decided game marks the winning line (`.is-winner`) and dims the other. Finals and third-place games carry a gold accent (`.game-card-bracket`, `.game-bracket-badge`). Admin and scorekeeper panels stay inside each card.
+- **Game cards:** they render as scoreboard rows, grouped under a large start time. A decided game marks the winning line (`data-outcome="winner"`) and dims the losing one. Finals and third-place games carry a gold accent (`.game-card-bracket`, `.game-bracket-badge`). Admin and scorekeeper panels stay inside each card.
 - **Phone filters:** search, branch and category stay visible. The week, status and field filters fold behind "Más filtros", and their controls stay in the page.
 - **Width:** visitors get the standard 1200 px column. League administrators keep the wide layout for the schedule board.
 

@@ -402,8 +402,8 @@ body { overflow-x: clip; }
 .content .game-team-name { font-size: 16px; font-weight: 600; color: var(--color-text); }
 .content .game-team-score { min-width: 44px; font-size: 32px; line-height: 1; color: var(--color-text); }
 .content .game-team-score.is-empty { font-size: 22px; color: var(--color-faint); }
-.content .game-team-row.is-winner .game-team-name { font-weight: 700; }
-.content .game-team-row.is-loser .game-team-name, .content .game-team-row.is-loser .game-team-score { color: var(--color-faint); }
+.content .game-team-row[data-outcome="winner"] .game-team-name { font-weight: 700; }
+.content .game-team-row[data-outcome="loser"] .game-team-name, .content .game-team-row[data-outcome="loser"] .game-team-score { color: var(--color-faint); }
 
 /* Finals and third-place games carry the gold of the trophy. */
 .game-bracket-badge {
