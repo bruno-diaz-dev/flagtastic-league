@@ -205,6 +205,20 @@ function syncLiveCancel() {
     document.querySelector("#live-cancel").disabled = Boolean(!liveData || liveData.state !== "live" || liveHasSportingPlays(liveData) || liveBusy || liveCaptureSaving || liveQueue?.working || liveQueue?.rows.length);
 }
 
+// Team names read the same as everywhere else (display.js); the isolated
+// capture harness runs without it and keeps the stored name.
+function liveTeamName(name) {
+    return typeof displayName === "function" ? displayName(name) : name;
+}
+
+// Scoring, defense and pauses get their own accent in the timeline.
+function liveKindGroup(kind) {
+    if (["touchdown", "passing_touchdown", "extra_one", "extra_two", "safety"].includes(kind)) return "score";
+    if (["interception", "sack", "flag"].includes(kind)) return "defense";
+    if (["halftime", "two_minute_warning", "note"].includes(kind)) return "pause";
+    return "play";
+}
+
 function renderLive(data) {
     if (liveData && data.version < liveData.version) return;
     const previousState = liveData?.state;
@@ -212,8 +226,12 @@ function renderLive(data) {
     const changed = !liveData || data.version !== liveData.version || data.state !== liveData.state;
     liveData = data;
     liveFieldView?.update(data);
-    document.querySelector("#live-home-name").textContent = data.home_team.name;
-    document.querySelector("#live-away-name").textContent = data.away_team.name;
+    document.querySelector("#live-home-name").textContent = liveTeamName(data.home_team.name);
+    document.querySelector("#live-away-name").textContent = liveTeamName(data.away_team.name);
+    const lastPlay = [...data.events].reverse().find(event => event.kind !== "attendance" && !event.voided_at);
+    document.querySelector("#live-clock").textContent = lastPlay && data.state === "live"
+        ? `P${lastPlay.period} · ${String(lastPlay.minute).padStart(2, "0")}:${String(lastPlay.second).padStart(2, "0")}`
+        : data.state === "completed" ? "Final" : "";
     document.querySelector("#live-home-score").textContent = data.home_score ?? "—";
     document.querySelector("#live-away-score").textContent = data.away_score ?? "—";
     const state = document.querySelector("#live-state");
@@ -247,10 +265,11 @@ function renderLive(data) {
         document.querySelector("#live-timeline").innerHTML = visibleEvents.length ? [...visibleEvents].reverse().map(event => {
             const team = event.team_id === data.home_team.id ? data.home_team : data.away_team;
             const canCorrect = ((data.state === "live" && (official || liveHasRole("league_admin"))) || (data.state === "completed" && liveHasRole("league_admin")));
-            return `<article class="live-event"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>Periodo ${event.period}</small></time>
-                <div><h4>${liveLabels[event.kind] || "Registro histórico"}</h4><p>${escapeHtml(liveNarrative(event, team.name))}</p>
-                ${liveFieldView && event.kind !== "note" ? `<button type="button" class="secondary-button" data-live-field-event="${event.id}">Ver en el campo</button>` : ""}
-                ${canCorrect ? `<button type="button" class="secondary-button" data-void-event="${event.id}">Anular jugada</button>` : ""}</div></article>`;
+            return `<article class="live-event" data-kind-group="${liveKindGroup(event.kind)}"><time>${String(event.minute).padStart(2,"0")}:${String(event.second).padStart(2,"0")}<small>P${event.period}</small></time>
+                <div class="live-event-copy"><h4>${liveLabels[event.kind] || "Registro histórico"}</h4><p>${escapeHtml(liveNarrative(event, liveTeamName(team.name)))}</p></div>
+                <div class="live-event-actions">
+                ${liveFieldView && event.kind !== "note" ? `<button type="button" class="live-event-action" data-live-field-event="${event.id}" aria-label="Ver jugada en el campo">Ver</button>` : ""}
+                ${canCorrect ? `<button type="button" class="live-event-action live-event-void-action" data-void-event="${event.id}" aria-label="Anular jugada">Anular</button>` : ""}</div></article>`;
         }).join("") : '<div class="empty-state"><h4>Sin jugadas confirmadas</h4><p>Las nuevas capturas aparecerán al confirmar el envío.</p></div>';
     }
     document.querySelector("#live-statistics").innerHTML = data.statistics.length ? `<table><thead><tr><th>Jugador / Equipo</th><th>PTS</th><th>REC</th><th>INT</th><th>SAC</th><th>FLG</th><th>PC/PI</th><th>PP</th></tr></thead><tbody>${data.statistics.map(row => `<tr><td>#${row.jersey_number ?? "—"} ${escapeHtml(row.display_name)}<br><small>${escapeHtml(row.team_id === data.home_team.id ? data.home_team.name : data.away_team.name)}</small></td><td>${row.points}</td><td>${row.receptions}</td><td>${row.interceptions}</td><td>${row.sacks}</td><td>${row.tackles}</td><td>${row.passes_completed}/${row.passes_attempted}</td><td>${row.passing_points}</td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><p>Sin estadísticas capturadas todavía.</p></div>';

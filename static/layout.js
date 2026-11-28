@@ -1,6 +1,8 @@
 // Shared sidebar behavior applies consistently across every operations page.
 
 const sidebarToggle = document.querySelector("#sidebar-toggle");
+// On phones the tab bar's "Más" opens the same menu as a bottom sheet.
+const tabbarMore = document.querySelector("#tabbar-more");
 const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
 const SIDEBAR_STORAGE_KEY = "flagtastic-sidebar-collapsed";
 const MOBILE_BREAKPOINT = 820;
@@ -13,6 +15,7 @@ function setSidebarCollapsed(isCollapsed, remember = false) {
         "aria-label",
         isCollapsed ? "Expandir menu" : "Contraer menu"
     );
+    tabbarMore?.setAttribute("aria-expanded", String(!isCollapsed));
     if (remember) {
         try {
             localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
@@ -27,7 +30,9 @@ function closeMobileSidebar() {
     if (window.innerWidth <= MOBILE_BREAKPOINT) {
         const wasOpen = !document.body.classList.contains("sidebar-collapsed");
         setSidebarCollapsed(true, true);
-        if (wasOpen) sidebarToggle?.focus();
+        // Focus returns to whichever control opened the menu and is visible.
+        const opener = tabbarMore?.getClientRects().length ? tabbarMore : sidebarToggle;
+        if (wasOpen) opener?.focus();
     }
 }
 
@@ -43,6 +48,10 @@ const startsCollapsed = window.innerWidth <= MOBILE_BREAKPOINT
     ? true
     : savedSidebarState === "true";
 setSidebarCollapsed(startsCollapsed);
+
+tabbarMore?.addEventListener("click", () => {
+    setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"), true);
+});
 
 if (sidebarToggle !== null) {
     sidebarToggle.addEventListener("click", () => {
@@ -139,8 +148,9 @@ function revealNavMore() {
         .some((link) => !link.classList.contains("hidden"));
     navMore.classList.toggle("hidden", !hasRoleLinks);
     // Selecting a role page keeps "Más" highlighted in the top bar.
-    if (navMore.querySelector('[aria-current="page"]') && navMoreToggle) {
-        navMoreToggle.classList.add("active");
+    if (navMore.querySelector('[aria-current="page"]')) {
+        navMoreToggle?.classList.add("active");
+        tabbarMore?.classList.add("active");
     }
 }
 
